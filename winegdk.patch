@@ -1,0 +1,2240 @@
+diff --git a/configure b/configure
+index 6a01d056a49..4a7c0f48ea2 100755
+--- a/configure
++++ b/configure
+@@ -1528,6 +1528,7 @@ enable_windows_system_profile_systemid
+ enable_windows_system_profile_systemmanufacturers
+ enable_windows_ui_xaml
+ enable_windows_ui
++enable_windows_ui_core_textinput
+ enable_windows_web
+ enable_windowscodecs
+ enable_windowscodecsext
+@@ -1628,6 +1629,7 @@ enable_xaudio2_6
+ enable_xaudio2_7
+ enable_xaudio2_8
+ enable_xaudio2_9
++enable_xgameruntime
+ enable_xinput1_1
+ enable_xinput1_2
+ enable_xinput1_3
+@@ -9681,18 +9683,18 @@ then :
+ fi
+ if test "$enable_largefile,$enable_year2038" != no,no
+ then :
+-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $CPPFLAGS option for large files" >&5
+-printf %s "checking for $CPPFLAGS option for large files... " >&6; }
++  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $CC option to enable large file support" >&5
++printf %s "checking for $CC option to enable large file support... " >&6; }
+ if test ${ac_cv_sys_largefile_opts+y}
+ then :
+   printf %s "(cached) " >&6
+ else case e in #(
+-  e) ac_save_CPPFLAGS=$CPPFLAGS
++  e) ac_save_CC="$CC"
+   ac_opt_found=no
+-  for ac_opt in "none needed" "-D_FILE_OFFSET_BITS=64" "-D_LARGE_FILES=1"; do
++  for ac_opt in "none needed" "-D_FILE_OFFSET_BITS=64" "-D_LARGE_FILES=1" "-n32"; do
+     if test x"$ac_opt" != x"none needed"
+ then :
+-  CPPFLAGS="$ac_save_CPPFLAGS $ac_opt"
++  CC="$ac_save_CC $ac_opt"
+ fi
+     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+ /* end confdefs.h.  */
+@@ -9721,12 +9723,12 @@ then :
+   if test x"$ac_opt" = x"none needed"
+ then :
+   # GNU/Linux s390x and alpha need _FILE_OFFSET_BITS=64 for wide ino_t.
+-	 CPPFLAGS="$CPPFLAGS -DFTYPE=ino_t"
++	 CC="$CC -DFTYPE=ino_t"
+ 	 if ac_fn_c_try_compile "$LINENO"
+ then :
+ 
+ else case e in #(
+-  e) CPPFLAGS="$CPPFLAGS -D_FILE_OFFSET_BITS=64"
++  e) CC="$CC -D_FILE_OFFSET_BITS=64"
+ 	    if ac_fn_c_try_compile "$LINENO"
+ then :
+   ac_opt='-D_FILE_OFFSET_BITS=64'
+@@ -9742,7 +9744,7 @@ fi
+ rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+     test $ac_opt_found = no || break
+   done
+-  CPPFLAGS=$ac_save_CPPFLAGS
++  CC="$ac_save_CC"
+ 
+   test $ac_opt_found = yes || ac_cv_sys_largefile_opts="support not detected" ;;
+ esac
+@@ -9766,14 +9768,16 @@ printf "%s\n" "#define _FILE_OFFSET_BITS 64" >>confdefs.h
+ 
+ printf "%s\n" "#define _LARGE_FILES 1" >>confdefs.h
+  ;; #(
++  "-n32") :
++    CC="$CC -n32" ;; #(
+   *) :
+     as_fn_error $? "internal error: bad value for \$ac_cv_sys_largefile_opts" "$LINENO" 5 ;;
+ esac
+ 
+ if test "$enable_year2038" != no
+ then :
+-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $CPPFLAGS option for timestamps after 2038" >&5
+-printf %s "checking for $CPPFLAGS option for timestamps after 2038... " >&6; }
++  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $CC option for timestamps after 2038" >&5
++printf %s "checking for $CC option for timestamps after 2038... " >&6; }
+ if test ${ac_cv_sys_year2038_opts+y}
+ then :
+   printf %s "(cached) " >&6
+@@ -23179,6 +23183,7 @@ wine_fn_config_makefile dlls/windows.ui.xaml enable_windows_ui_xaml
+ wine_fn_config_makefile dlls/windows.ui.xaml/tests enable_tests
+ wine_fn_config_makefile dlls/windows.ui enable_windows_ui
+ wine_fn_config_makefile dlls/windows.ui/tests enable_tests
++wine_fn_config_makefile dlls/windows.ui.core.textinput enable_windows_ui_core_textinput
+ wine_fn_config_makefile dlls/windows.web enable_windows_web
+ wine_fn_config_makefile dlls/windows.web/tests enable_tests
+ wine_fn_config_makefile dlls/windowscodecs enable_windowscodecs
+@@ -23312,6 +23317,7 @@ wine_fn_config_makefile dlls/xaudio2_7/tests enable_tests
+ wine_fn_config_makefile dlls/xaudio2_8 enable_xaudio2_8
+ wine_fn_config_makefile dlls/xaudio2_8/tests enable_tests
+ wine_fn_config_makefile dlls/xaudio2_9 enable_xaudio2_9
++wine_fn_config_makefile dlls/xgameruntime enable_xgameruntime
+ wine_fn_config_makefile dlls/xinput1_1 enable_xinput1_1
+ wine_fn_config_makefile dlls/xinput1_2 enable_xinput1_2
+ wine_fn_config_makefile dlls/xinput1_3 enable_xinput1_3
+diff --git a/configure.ac b/configure.ac
+index 6b433123b12..d67f0e32023 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -3346,6 +3346,7 @@ WINE_CONFIG_MAKEFILE(dlls/windows.ui.xaml)
+ WINE_CONFIG_MAKEFILE(dlls/windows.ui.xaml/tests)
+ WINE_CONFIG_MAKEFILE(dlls/windows.ui)
+ WINE_CONFIG_MAKEFILE(dlls/windows.ui/tests)
++WINE_CONFIG_MAKEFILE(dlls/windows.ui.core.textinput)
+ WINE_CONFIG_MAKEFILE(dlls/windows.web)
+ WINE_CONFIG_MAKEFILE(dlls/windows.web/tests)
+ WINE_CONFIG_MAKEFILE(dlls/windowscodecs)
+@@ -3479,6 +3480,7 @@ WINE_CONFIG_MAKEFILE(dlls/xaudio2_7/tests)
+ WINE_CONFIG_MAKEFILE(dlls/xaudio2_8)
+ WINE_CONFIG_MAKEFILE(dlls/xaudio2_8/tests)
+ WINE_CONFIG_MAKEFILE(dlls/xaudio2_9)
++WINE_CONFIG_MAKEFILE(dlls/xgameruntime)
+ WINE_CONFIG_MAKEFILE(dlls/xinput1_1)
+ WINE_CONFIG_MAKEFILE(dlls/xinput1_2)
+ WINE_CONFIG_MAKEFILE(dlls/xinput1_3)
+diff --git a/dlls/windows.ui.core.textinput/Makefile.in b/dlls/windows.ui.core.textinput/Makefile.in
+new file mode 100644
+index 00000000000..ebab040b836
+--- /dev/null
++++ b/dlls/windows.ui.core.textinput/Makefile.in
+@@ -0,0 +1,8 @@
++MODULE  = windows.ui.core.textinput.dll
++IMPORTS = combase
++
++SOURCES = \
++	classes.idl \
++	main.c \
++	services.c \
++	editcontext.c
+diff --git a/dlls/windows.ui.core.textinput/classes.idl b/dlls/windows.ui.core.textinput/classes.idl
+new file mode 100644
+index 00000000000..2df47c924dc
+--- /dev/null
++++ b/dlls/windows.ui.core.textinput/classes.idl
+@@ -0,0 +1,34 @@
++/*
++ * Runtime Classes for windows.ui.core.textinput.dll
++ *
++ * Written by Weather
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++
++#pragma makedep register
++#pragma winrt ns_prefix
++
++import "inspectable.idl";
++import "asyncinfo.idl";
++import "eventtoken.idl";
++import "windows.foundation.idl";
++import "windowscontracts.idl";
++import "windows.system.idl";
++import "windows.ui.text.core.idl";
++
++namespace Windows.UI.Text.Core {
++    runtimeclass CoreTextServicesManager;
++}
+\ No newline at end of file
+diff --git a/dlls/windows.ui.core.textinput/editcontext.c b/dlls/windows.ui.core.textinput/editcontext.c
+new file mode 100644
+index 00000000000..9929709c15e
+--- /dev/null
++++ b/dlls/windows.ui.core.textinput/editcontext.c
+@@ -0,0 +1,327 @@
++/* WinRT Windows.UI.Text.Core.CoreTextEditContext Implementation
++ *
++ * Written by Weather
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++
++#include "editcontext.h"
++
++WINE_DEFAULT_DEBUG_CHANNEL(textinput);
++
++static inline struct core_text_edit_context *impl_from_ICoreTextEditContext( ICoreTextEditContext *iface )
++{
++    return CONTAINING_RECORD( iface, struct core_text_edit_context, ICoreTextEditContext_iface );
++}
++
++static HRESULT WINAPI core_text_edit_context_QueryInterface( ICoreTextEditContext *iface, REFIID iid, void **out )
++{
++    struct core_text_edit_context *impl = impl_from_ICoreTextEditContext( iface );
++
++    TRACE( "iface %p, iid %s, out %p.\n", iface, debugstr_guid( iid ), out );
++
++    if (IsEqualGUID( iid, &IID_IUnknown ) ||
++        IsEqualGUID( iid, &IID_IInspectable ) ||
++        IsEqualGUID( iid, &IID_IAgileObject ) ||
++        IsEqualGUID( iid, &IID_ICoreTextEditContext ))
++    {
++        *out = &impl->ICoreTextEditContext_iface;
++        IInspectable_AddRef( *out );
++        return S_OK;
++    }
++
++    FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( iid ) );
++    *out = NULL;
++    return E_NOINTERFACE;
++}
++
++static ULONG WINAPI core_text_edit_context_AddRef( ICoreTextEditContext *iface )
++{
++    struct core_text_edit_context *impl = impl_from_ICoreTextEditContext( iface );
++    ULONG ref = InterlockedIncrement( &impl->ref );
++    TRACE( "iface %p increasing refcount to %lu.\n", iface, ref );
++    return ref;
++}
++
++static ULONG WINAPI core_text_edit_context_Release( ICoreTextEditContext *iface )
++{
++    struct core_text_edit_context *impl = impl_from_ICoreTextEditContext( iface );
++    ULONG ref = InterlockedDecrement( &impl->ref );
++    TRACE( "iface %p decreasing refcount to %lu.\n", iface, ref );
++    return ref;
++}
++
++static HRESULT WINAPI core_text_edit_context_GetIids( ICoreTextEditContext *iface, ULONG *iid_count, IID **iids )
++{
++    FIXME( "iface %p, iid_count %p, iids %p stub!\n", iface, iid_count, iids );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_edit_context_GetRuntimeClassName( ICoreTextEditContext *iface, HSTRING *class_name )
++{
++    FIXME( "iface %p, class_name %p stub!\n", iface, class_name );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_edit_context_GetTrustLevel( ICoreTextEditContext *iface, TrustLevel *trust_level )
++{
++    FIXME( "iface %p, trust_level %p not stub!\n", iface, trust_level );
++    *trust_level = FullTrust;
++    return S_OK;
++}
++
++static HRESULT WINAPI core_text_edit_context_get_Name(ICoreTextEditContext *iface, HSTRING *value)
++{
++    FIXME("iface %p, value %p stub!\n", iface, value);
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_edit_context_put_Name(ICoreTextEditContext *iface, HSTRING value)
++{
++    FIXME("iface %p, value %p stub!\n", iface, (void*)value);
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_edit_context_get_InputScope(ICoreTextEditContext *iface, CoreTextInputScope *value)
++{
++    FIXME("iface %p, value %p stub!\n", iface, value);
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_edit_context_put_InputScope(ICoreTextEditContext *iface, CoreTextInputScope value)
++{
++    FIXME("iface %p, value %d stub!\n", iface, (int)value);
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_edit_context_get_IsReadOnly(ICoreTextEditContext *iface, boolean *value)
++{
++    FIXME("iface %p, value %p stub!\n", iface, value);
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_edit_context_put_IsReadOnly(ICoreTextEditContext *iface, boolean value)
++{
++    FIXME("iface %p, value %d stub!\n", iface, (int)value);
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_edit_context_get_InputPaneDisplayPolicy(ICoreTextEditContext *iface, CoreTextInputPaneDisplayPolicy *value)
++{
++    FIXME("iface %p, value %p stub!\n", iface, value);
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_edit_context_put_InputPaneDisplayPolicy(ICoreTextEditContext *iface, CoreTextInputPaneDisplayPolicy value)
++{
++    FIXME("iface %p, value %d stub!\n", iface, (int)value);
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_edit_context_add_TextRequested(ICoreTextEditContext *iface, ITypedEventHandler_CoreTextEditContext_CoreTextTextRequestedEventArgs *handler, EventRegistrationToken *cookie)
++{
++    FIXME("iface %p, handler %p, cookie %p stub!\n", iface, handler, cookie);
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_edit_context_remove_TextRequested(ICoreTextEditContext *iface, EventRegistrationToken cookie)
++{
++    FIXME("iface %p, cookie %p stub!\n", iface, (void*)&cookie);
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_edit_context_add_SelectionRequested(ICoreTextEditContext *iface, ITypedEventHandler_CoreTextEditContext_CoreTextSelectionRequestedEventArgs *handler, EventRegistrationToken *cookie)
++{
++    FIXME("iface %p, handler %p, cookie %p stub!\n", iface, handler, cookie);
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_edit_context_remove_SelectionRequested(ICoreTextEditContext *iface, EventRegistrationToken cookie)
++{
++    FIXME("iface %p, cookie %p stub!\n", iface, (void*)&cookie);
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_edit_context_add_LayoutRequested(ICoreTextEditContext *iface, ITypedEventHandler_CoreTextEditContext_CoreTextLayoutRequestedEventArgs *handler, EventRegistrationToken *cookie)
++{
++    FIXME("iface %p, handler %p, cookie %p stub!\n", iface, handler, cookie);
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_edit_context_remove_LayoutRequested(ICoreTextEditContext *iface, EventRegistrationToken cookie)
++{
++    FIXME("iface %p, cookie %p stub!\n", iface, (void*)&cookie);
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_edit_context_add_TextUpdating(ICoreTextEditContext *iface, ITypedEventHandler_CoreTextEditContext_CoreTextTextUpdatingEventArgs *handler, EventRegistrationToken *cookie)
++{
++    FIXME("iface %p, handler %p, cookie %p stub!\n", iface, handler, cookie);
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_edit_context_remove_TextUpdating(ICoreTextEditContext *iface, EventRegistrationToken cookie)
++{
++    FIXME("iface %p, cookie %p stub!\n", iface, (void*)&cookie);
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_edit_context_add_SelectionUpdating(ICoreTextEditContext *iface, ITypedEventHandler_CoreTextEditContext_CoreTextSelectionUpdatingEventArgs *handler, EventRegistrationToken *cookie)
++{
++    FIXME("iface %p, handler %p, cookie %p stub!\n", iface, handler, cookie);
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_edit_context_remove_SelectionUpdating(ICoreTextEditContext *iface, EventRegistrationToken cookie)
++{
++    FIXME("iface %p, cookie %p stub!\n", iface, (void*)&cookie);
++    return E_NOTIMPL;
++}
++
++/* FormatUpdating uses no params in your provided IDL "flattened" form */
++static HRESULT WINAPI core_text_edit_context_add_FormatUpdating(ICoreTextEditContext *iface, ITypedEventHandler_CoreTextEditContext_CoreTextFormatUpdatingEventArgs *handler, EventRegistrationToken *cookie)
++{
++    FIXME("iface %p, FormatUpdating add stub!\n", iface);
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_edit_context_remove_FormatUpdating(ICoreTextEditContext *iface, EventRegistrationToken cookie)
++{
++    FIXME("iface %p, FormatUpdating remove stub!\n", iface);
++    return E_NOTIMPL;
++}
++
++/* CompositionStarted (flattened form) */
++static HRESULT WINAPI core_text_edit_context_add_CompositionStarted(ICoreTextEditContext *iface, ITypedEventHandler_CoreTextEditContext_CoreTextCompositionStartedEventArgs *handler, EventRegistrationToken *cookie)
++{
++    FIXME("iface %p, CompositionStarted add stub!\n", iface);
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_edit_context_remove_CompositionStarted(ICoreTextEditContext *iface, EventRegistrationToken cookie)
++{
++    FIXME("iface %p, CompositionStarted remove stub!\n", iface);
++    return E_NOTIMPL;
++}
++
++/* CompositionCompleted (flattened form) */
++static HRESULT WINAPI core_text_edit_context_add_CompositionCompleted(ICoreTextEditContext *iface, ITypedEventHandler_CoreTextEditContext_CoreTextCompositionCompletedEventArgs *handler, EventRegistrationToken *cookie)
++{
++    FIXME("iface %p, CompositionCompleted add stub!\n", iface);
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_edit_context_remove_CompositionCompleted(ICoreTextEditContext *iface, EventRegistrationToken cookie)
++{
++    FIXME("iface %p, CompositionCompleted remove stub!\n", iface);
++    return E_NOTIMPL;
++}
++
++/* FocusRemoved (flattened form) */
++static HRESULT WINAPI core_text_edit_context_add_FocusRemoved(ICoreTextEditContext *iface, ITypedEventHandler_CoreTextEditContext_IInspectable *handler, EventRegistrationToken *cookie)
++{
++    FIXME("iface %p, FocusRemoved add stub!\n", iface);
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_edit_context_remove_FocusRemoved(ICoreTextEditContext *iface, EventRegistrationToken cookie)
++{
++    FIXME("iface %p, FocusRemoved remove stub!\n", iface);
++    return E_NOTIMPL;
++}
++
++/* Notifications */
++static HRESULT WINAPI core_text_edit_context_NotifyFocusEnter(ICoreTextEditContext *iface)
++{
++    FIXME("iface %p, NotifyFocusEnter stub!\n", iface);
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_edit_context_NotifyFocusLeave(ICoreTextEditContext *iface)
++{
++    FIXME("iface %p, NotifyFocusLeave stub!\n", iface);
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_edit_context_NotifyTextChanged(ICoreTextEditContext *iface,
++                                                               CoreTextRange modifiedRange,
++                                                               INT32 newLength,
++                                                               CoreTextRange newSelection)
++{
++    /* print address of ranges (value types) and newLength */
++    FIXME("iface %p, modifiedRange %p, newLength %d, newSelection %p stub!\n",
++          iface, (void*)&modifiedRange, (int)newLength, (void*)&newSelection);
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_edit_context_NotifySelectionChanged(ICoreTextEditContext *iface,
++                                                                    CoreTextRange selection)
++{
++    FIXME("iface %p, selection %p stub!\n", iface, (void*)&selection);
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_edit_context_NotifyLayoutChanged(ICoreTextEditContext *iface)
++{
++    FIXME("iface %p, NotifyLayoutChanged stub!\n", iface);
++    return E_NOTIMPL;
++}
++
++struct ICoreTextEditContextVtbl core_text_edit_context_vtbl =
++{
++    /* IUnknown */
++    core_text_edit_context_QueryInterface,
++    core_text_edit_context_AddRef,
++    core_text_edit_context_Release,
++
++    /* IInspectable */
++    core_text_edit_context_GetIids,
++    core_text_edit_context_GetRuntimeClassName,
++    core_text_edit_context_GetTrustLevel,
++
++    /* ICoreTextEditContext (in IDL order) */
++    core_text_edit_context_get_Name,                      /* propget Name */
++    core_text_edit_context_put_Name,                      /* propput Name */
++    core_text_edit_context_get_InputScope,                /* propget InputScope */
++    core_text_edit_context_put_InputScope,                /* propput InputScope */
++    core_text_edit_context_get_IsReadOnly,                /* propget IsReadOnly */
++    core_text_edit_context_put_IsReadOnly,                /* propput IsReadOnly */
++    core_text_edit_context_get_InputPaneDisplayPolicy,    /* propget InputPaneDisplayPolicy */
++    core_text_edit_context_put_InputPaneDisplayPolicy,    /* propput InputPaneDisplayPolicy */
++
++    core_text_edit_context_add_TextRequested,             /* eventadd TextRequested */
++    core_text_edit_context_remove_TextRequested,          /* eventremove TextRequested */
++    core_text_edit_context_add_SelectionRequested,        /* eventadd SelectionRequested */
++    core_text_edit_context_remove_SelectionRequested,     /* eventremove SelectionRequested */
++    core_text_edit_context_add_LayoutRequested,           /* eventadd LayoutRequested */
++    core_text_edit_context_remove_LayoutRequested,        /* eventremove LayoutRequested */
++    core_text_edit_context_add_TextUpdating,              /* eventadd TextUpdating */
++    core_text_edit_context_remove_TextUpdating,           /* eventremove TextUpdating */
++    core_text_edit_context_add_SelectionUpdating,         /* eventadd SelectionUpdating */
++    core_text_edit_context_remove_SelectionUpdating,      /* eventremove SelectionUpdating */
++    core_text_edit_context_add_FormatUpdating,            /* eventadd FormatUpdating */
++    core_text_edit_context_remove_FormatUpdating,         /* eventremove FormatUpdating */
++    core_text_edit_context_add_CompositionStarted,        /* eventadd CompositionStarted */
++    core_text_edit_context_remove_CompositionStarted,     /* eventremove CompositionStarted */
++    core_text_edit_context_add_CompositionCompleted,      /* eventadd CompositionCompleted */
++    core_text_edit_context_remove_CompositionCompleted,   /* eventremove CompositionCompleted */
++    core_text_edit_context_add_FocusRemoved,              /* eventadd FocusRemoved */
++    core_text_edit_context_remove_FocusRemoved,           /* eventremove FocusRemoved */
++    core_text_edit_context_NotifyFocusEnter,              /* NotifyFocusEnter */
++    core_text_edit_context_NotifyFocusLeave,              /* NotifyFocusLeave */
++    core_text_edit_context_NotifyTextChanged,             /* NotifyTextChanged */
++    core_text_edit_context_NotifySelectionChanged,        /* NotifySelectionChanged */
++    core_text_edit_context_NotifyLayoutChanged            /* NotifyLayoutChanged */
++};
+\ No newline at end of file
+diff --git a/dlls/windows.ui.core.textinput/editcontext.h b/dlls/windows.ui.core.textinput/editcontext.h
+new file mode 100644
+index 00000000000..b08c0afce26
+--- /dev/null
++++ b/dlls/windows.ui.core.textinput/editcontext.h
+@@ -0,0 +1,31 @@
++/* WinRT Windows.UI.Text.Core.CoreTextEditContext Implementation
++ *
++ * Written by Weather
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++
++#ifndef EDITCONTEXT_H
++#define EDITCONTEXT_H
++
++#include "private.h"
++
++struct core_text_edit_context
++{
++    ICoreTextEditContext ICoreTextEditContext_iface;
++    LONG ref;
++};
++
++#endif
+\ No newline at end of file
+diff --git a/dlls/windows.ui.core.textinput/main.c b/dlls/windows.ui.core.textinput/main.c
+new file mode 100644
+index 00000000000..6465d251b56
+--- /dev/null
++++ b/dlls/windows.ui.core.textinput/main.c
+@@ -0,0 +1,44 @@
++/* WinRT Windows.UI.Core.TextInput Implementation
++ *
++ * Written by Weather
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++
++#include "initguid.h"
++#include "private.h"
++
++WINE_DEFAULT_DEBUG_CHANNEL(textinput);
++
++HRESULT WINAPI DllGetClassObject( REFCLSID clsid, REFIID riid, void **out )
++{
++    FIXME( "clsid %s, riid %s, out %p stub!\n", debugstr_guid( clsid ), debugstr_guid( riid ), out );
++    return CLASS_E_CLASSNOTAVAILABLE;
++}
++
++HRESULT WINAPI DllGetActivationFactory( HSTRING classid, IActivationFactory **factory )
++{
++    const WCHAR *buffer = WindowsGetStringRawBuffer( classid, NULL );
++
++    TRACE( "class %s, factory %p.\n", debugstr_hstring( classid ), factory );
++
++    *factory = NULL;
++
++    if (!wcscmp( buffer, RuntimeClass_Windows_UI_Text_Core_CoreTextServicesManager ))
++        IActivationFactory_QueryInterface( core_text_services_manager_factory, &IID_IActivationFactory, (void **)factory );
++
++    if (*factory) return S_OK;
++    return CLASS_E_CLASSNOTAVAILABLE;
++}
+diff --git a/dlls/windows.ui.core.textinput/private.h b/dlls/windows.ui.core.textinput/private.h
+new file mode 100644
+index 00000000000..56f7db88526
+--- /dev/null
++++ b/dlls/windows.ui.core.textinput/private.h
+@@ -0,0 +1,82 @@
++/* WinRT Windows.UI.Core.TextInput Implementation
++ *
++ * Written by Weather
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++
++#ifndef __WINE_WINDOWS_STORAGE_PRIVATE_H
++#define __WINE_WINDOWS_STORAGE_PRIVATE_H
++
++#include <stdarg.h>
++
++#define COBJMACROS
++#include "windef.h"
++#include "winbase.h"
++#include "winstring.h"
++
++#include "activation.h"
++
++#include "wine/debug.h"
++
++#define WIDL_using_Windows_Foundation
++#define WIDL_using_Windows_Foundation_Collections
++#include "windows.foundation.h"
++#define WIDL_using_Windows_Globalization
++#include "windows.globalization.h"
++#define WIDL_using_Windows_UI_Text_Core
++#include "windows.ui.text.core.h"
++
++extern IActivationFactory *core_text_services_manager_factory;
++
++#define DEFINE_IINSPECTABLE_( pfx, iface_type, impl_type, impl_from, iface_mem, expr )             \
++    static inline impl_type *impl_from( iface_type *iface )                                        \
++    {                                                                                              \
++        return CONTAINING_RECORD( iface, impl_type, iface_mem );                                   \
++    }                                                                                              \
++    static HRESULT WINAPI pfx##_QueryInterface( iface_type *iface, REFIID iid, void **out )        \
++    {                                                                                              \
++        impl_type *impl = impl_from( iface );                                                      \
++        return IInspectable_QueryInterface( (IInspectable *)(expr), iid, out );                    \
++    }                                                                                              \
++    static ULONG WINAPI pfx##_AddRef( iface_type *iface )                                          \
++    {                                                                                              \
++        impl_type *impl = impl_from( iface );                                                      \
++        return IInspectable_AddRef( (IInspectable *)(expr) );                                      \
++    }                                                                                              \
++    static ULONG WINAPI pfx##_Release( iface_type *iface )                                         \
++    {                                                                                              \
++        impl_type *impl = impl_from( iface );                                                      \
++        return IInspectable_Release( (IInspectable *)(expr) );                                     \
++    }                                                                                              \
++    static HRESULT WINAPI pfx##_GetIids( iface_type *iface, ULONG *iid_count, IID **iids )         \
++    {                                                                                              \
++        impl_type *impl = impl_from( iface );                                                      \
++        return IInspectable_GetIids( (IInspectable *)(expr), iid_count, iids );                    \
++    }                                                                                              \
++    static HRESULT WINAPI pfx##_GetRuntimeClassName( iface_type *iface, HSTRING *class_name )      \
++    {                                                                                              \
++        impl_type *impl = impl_from( iface );                                                      \
++        return IInspectable_GetRuntimeClassName( (IInspectable *)(expr), class_name );             \
++    }                                                                                              \
++    static HRESULT WINAPI pfx##_GetTrustLevel( iface_type *iface, TrustLevel *trust_level )        \
++    {                                                                                              \
++        impl_type *impl = impl_from( iface );                                                      \
++        return IInspectable_GetTrustLevel( (IInspectable *)(expr), trust_level );                  \
++    }
++#define DEFINE_IINSPECTABLE( pfx, iface_type, impl_type, base_iface )                              \
++    DEFINE_IINSPECTABLE_( pfx, iface_type, impl_type, impl_from_##iface_type, iface_type##_iface, &impl->base_iface )
++
++#endif
+diff --git a/dlls/windows.ui.core.textinput/services.c b/dlls/windows.ui.core.textinput/services.c
+new file mode 100644
+index 00000000000..399d4d8618e
+--- /dev/null
++++ b/dlls/windows.ui.core.textinput/services.c
+@@ -0,0 +1,216 @@
++/* WinRT Windows.UI.Text.Core.CoreTextServicesManager Implementation
++ *
++ * Written by Weather
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++
++#include "private.h"
++#include "editcontext.h"
++
++WINE_DEFAULT_DEBUG_CHANNEL(textinput);
++
++extern const struct ICoreTextEditContextVtbl core_text_edit_context_vtbl;
++
++struct core_text_services_manager_statics
++{
++    IActivationFactory IActivationFactory_iface;
++    ICoreTextServicesManagerStatics ICoreTextServicesManagerStatics_iface;
++    LONG ref;
++};
++
++struct core_text_services_manager
++{
++    ICoreTextServicesManager ICoreTextServicesManager_iface;
++    LONG ref;
++};
++
++static inline struct core_text_services_manager_statics *impl_from_IActivationFactory( IActivationFactory *iface )
++{
++    return CONTAINING_RECORD( iface, struct core_text_services_manager_statics, IActivationFactory_iface );
++}
++
++static HRESULT WINAPI factory_QueryInterface( IActivationFactory *iface, REFIID iid, void **out )
++{
++    struct core_text_services_manager_statics *impl = impl_from_IActivationFactory( iface );
++
++    TRACE( "iface %p, iid %s, out %p.\n", iface, debugstr_guid( iid ), out );
++
++    if (IsEqualGUID( iid, &IID_IUnknown ) ||
++        IsEqualGUID( iid, &IID_IInspectable ) ||
++        IsEqualGUID( iid, &IID_IAgileObject ) ||
++        IsEqualGUID( iid, &IID_IActivationFactory ))
++    {
++        *out = &impl->IActivationFactory_iface;
++        IInspectable_AddRef( *out );
++        return S_OK;
++    }
++
++    if (IsEqualGUID( iid, &IID_ICoreTextServicesManagerStatics ))
++    {
++        *out = &impl->ICoreTextServicesManagerStatics_iface;
++        IInspectable_AddRef( *out );
++        return S_OK;
++    }
++
++    FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( iid ) );
++    *out = NULL;
++    return E_NOINTERFACE;
++}
++
++static ULONG WINAPI factory_AddRef( IActivationFactory *iface )
++{
++    struct core_text_services_manager_statics *impl = impl_from_IActivationFactory( iface );
++    ULONG ref = InterlockedIncrement( &impl->ref );
++    TRACE( "iface %p increasing refcount to %lu.\n", iface, ref );
++    return ref;
++}
++
++static ULONG WINAPI factory_Release( IActivationFactory *iface )
++{
++    struct core_text_services_manager_statics *impl = impl_from_IActivationFactory( iface );
++    ULONG ref = InterlockedDecrement( &impl->ref );
++    TRACE( "iface %p decreasing refcount to %lu.\n", iface, ref );
++    return ref;
++}
++
++static HRESULT WINAPI factory_GetIids( IActivationFactory *iface, ULONG *iid_count, IID **iids )
++{
++    FIXME( "iface %p, iid_count %p, iids %p stub!\n", iface, iid_count, iids );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI factory_GetRuntimeClassName( IActivationFactory *iface, HSTRING *class_name )
++{
++    FIXME( "iface %p, class_name %p stub!\n", iface, class_name );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI factory_GetTrustLevel( IActivationFactory *iface, TrustLevel *trust_level )
++{
++    FIXME( "iface %p, trust_level %p stub!\n", iface, trust_level );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI factory_ActivateInstance( IActivationFactory *iface, IInspectable **instance )
++{
++    FIXME( "iface %p, instance %p stub!\n", iface, instance );
++    return S_OK;
++}
++
++static const struct IActivationFactoryVtbl factory_vtbl =
++{
++    factory_QueryInterface,
++    factory_AddRef,
++    factory_Release,
++    /* IInspectable methods */
++    factory_GetIids,
++    factory_GetRuntimeClassName,
++    factory_GetTrustLevel,
++    /* IActivationFactory methods */
++    factory_ActivateInstance,
++};
++
++DEFINE_IINSPECTABLE( core_text_services_manager, ICoreTextServicesManager, struct core_text_services_manager, ICoreTextServicesManager_iface )
++
++static HRESULT WINAPI core_text_services_manager_get_InputLanguage( ICoreTextServicesManager *iface, ILanguage **value )
++{
++    FIXME( "iface %p, value %p stub!\n", iface, value );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_services_manager_add_InputLanguageChanged( ICoreTextServicesManager *iface, ITypedEventHandler_CoreTextServicesManager_IInspectable *handler, EventRegistrationToken* cookie )
++{
++    FIXME( "iface %p, handler %p, cookie %p stub!\n", iface, handler, cookie );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_services_manager_remove_InputLanguageChanged( ICoreTextServicesManager *iface, EventRegistrationToken cookie )
++{
++    FIXME( "iface %p stub!\n", iface );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI core_text_services_manager_CreateEditContext( ICoreTextServicesManager *iface, ICoreTextEditContext **value )
++{
++    struct core_text_edit_context *context;
++
++    TRACE( "iface %p out %p created\n", iface, value );
++
++    if (!(context = calloc( 1, sizeof(*context) ))) return E_OUTOFMEMORY;
++
++    context->ICoreTextEditContext_iface.lpVtbl = &core_text_edit_context_vtbl;
++    context->ref = 3;
++
++    *value = &context->ICoreTextEditContext_iface;
++
++    return S_OK;
++}
++
++static const struct ICoreTextServicesManagerVtbl core_text_services_manager_vtbl =
++{
++    core_text_services_manager_QueryInterface,
++    core_text_services_manager_AddRef,
++    core_text_services_manager_Release,
++    /* IInspectable methods */
++    core_text_services_manager_GetIids,
++    core_text_services_manager_GetRuntimeClassName,
++    core_text_services_manager_GetTrustLevel,
++    /* ICoreTextServicesManagerStatics methods */
++    core_text_services_manager_get_InputLanguage,
++    core_text_services_manager_add_InputLanguageChanged,
++    core_text_services_manager_remove_InputLanguageChanged,
++    core_text_services_manager_CreateEditContext
++};
++
++DEFINE_IINSPECTABLE( core_text_services_manager_statics, ICoreTextServicesManagerStatics, struct core_text_services_manager_statics, IActivationFactory_iface )
++
++static HRESULT WINAPI core_text_services_manager_statics_GetForCurrentView( ICoreTextServicesManagerStatics *iface, ICoreTextServicesManager **out )
++{
++    struct core_text_services_manager *manager;
++
++    TRACE( "iface %p out %p\n", iface, out );
++
++    if (!(manager = calloc( 1, sizeof(*manager) ))) return E_OUTOFMEMORY;
++
++    manager->ICoreTextServicesManager_iface.lpVtbl = &core_text_services_manager_vtbl;
++    manager->ref = 1;
++
++    *out = &manager->ICoreTextServicesManager_iface;
++
++    return S_OK;
++}
++
++static const struct ICoreTextServicesManagerStaticsVtbl core_text_services_manager_statics_vtbl =
++{
++    core_text_services_manager_statics_QueryInterface,
++    core_text_services_manager_statics_AddRef,
++    core_text_services_manager_statics_Release,
++    /* IInspectable methods */
++    core_text_services_manager_statics_GetIids,
++    core_text_services_manager_statics_GetRuntimeClassName,
++    core_text_services_manager_statics_GetTrustLevel,
++    /* ICoreTextServicesManagerStatics methods */
++    core_text_services_manager_statics_GetForCurrentView
++};
++
++static struct core_text_services_manager_statics core_text_services_manager_statics =
++{
++    {&factory_vtbl},
++    {&core_text_services_manager_statics_vtbl},
++    0,
++};
++
++IActivationFactory *core_text_services_manager_factory = &core_text_services_manager_statics.IActivationFactory_iface;
+diff --git a/dlls/windows.ui.core.textinput/windows.ui.core.textinput.spec b/dlls/windows.ui.core.textinput/windows.ui.core.textinput.spec
+new file mode 100644
+index 00000000000..5faee1f7364
+--- /dev/null
++++ b/dlls/windows.ui.core.textinput/windows.ui.core.textinput.spec
+@@ -0,0 +1,6 @@
++@ stdcall -private DllCanUnloadNow()
++@ stdcall -private DllGetActivationFactory(ptr ptr)
++@ stdcall -private DllGetClassObject(ptr ptr ptr)
++@ stdcall -private DllMain(long long ptr)
++@ stdcall -private DllRegisterServer()
++@ stdcall -private DllUnregisterServer()
+\ No newline at end of file
+diff --git a/dlls/xgameruntime/GDKComponent/InitInternalGDKC.c b/dlls/xgameruntime/GDKComponent/InitInternalGDKC.c
+new file mode 100644
+index 00000000000..9def3524b9a
+--- /dev/null
++++ b/dlls/xgameruntime/GDKComponent/InitInternalGDKC.c
+@@ -0,0 +1,72 @@
++/*
++ * Xbox Game runtime Library
++ *  GDK Component: Internal Initialization
++ * 
++ * Written by Weather
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++
++#include "InitInternalGDKC.h"
++
++WINE_DEFAULT_DEBUG_CHANNEL(gdkc);
++
++static BOOLEAN WINAPI GDKCIgnoreVersionMismatch( void )
++{
++    LSTATUS result;
++    DWORD valueSize;
++    INT32 value;
++
++    result = RegGetValueW( HKEY_LOCAL_MACHINE,
++                           L"Software\\Microsoft\\GamingServices",
++                           L"IgnoreVersionMismatch",
++                           RRF_RT_REG_DWORD,
++                           NULL,
++                           &value,
++                           &valueSize );
++    
++    if ( FAILED( result ) ) return FALSE;
++    if ( value == 0 )
++        return FALSE;
++    else
++        return TRUE;
++}
++
++HRESULT WINAPI GDKC_InitAPI( 
++    ULONG gdkVer, 
++    ULONG gsVer, 
++    CHAR mode,
++    INITIALIZE_OPTIONS *options
++) {
++    HRESULT status = S_OK;
++
++    TRACE("gdkVer %ld, gsVer %ld, mode %d, options %p\n", gdkVer, gsVer, mode, options);
++
++    if ( !GDKCIgnoreVersionMismatch() && ( gdkVer >= GDKC_VERSION && gsVer > GAMING_SERVICES_VERSION ) )
++    {
++        ERR("GDKComponent version mismatch with the requested parameters!\n");
++        ERR("Target GDK Version: %ld, Current Version: %ld\n", gdkVer, GDKC_VERSION );
++        ERR("Target Gaming Services Version: %ld, Current Version: %ld\n", gsVer, GAMING_SERVICES_VERSION );
++
++        // Uncomment once MS Store Services has been implemented within Wine.
++        // ShellExecuteW( NULL, NULL, L"ms-windows-store://pdp?productId=9MWPM2CQNLHN", NULL, NULL, 1 );
++
++        return E_GAMERUNTIME_VERSION_MISMATCH;
++    }
++
++    return status;
++
++    // TODO: Game Specific Initialization
++}
+\ No newline at end of file
+diff --git a/dlls/xgameruntime/GDKComponent/InitInternalGDKC.h b/dlls/xgameruntime/GDKComponent/InitInternalGDKC.h
+new file mode 100644
+index 00000000000..a1594764030
+--- /dev/null
++++ b/dlls/xgameruntime/GDKComponent/InitInternalGDKC.h
+@@ -0,0 +1,29 @@
++/*
++ * Xbox Game runtime Library
++ *  GDK Component: Internal Initialization Header
++ * 
++ * Written by Weather
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++
++#ifndef GDKC_INIT
++#define GDKC_INIT
++
++#include "../private.h"
++
++HRESULT WINAPI GDKC_InitAPI( ULONG gdkVer, ULONG gsVer, CHAR mode, INITIALIZE_OPTIONS *options );
++
++#endif
+\ No newline at end of file
+diff --git a/dlls/xgameruntime/GDKComponent/System/XSystem.c b/dlls/xgameruntime/GDKComponent/System/XSystem.c
+new file mode 100644
+index 00000000000..d2f92890686
+--- /dev/null
++++ b/dlls/xgameruntime/GDKComponent/System/XSystem.c
+@@ -0,0 +1,147 @@
++/*
++ * Xbox Game runtime Library
++ *  GDK Component: System API -> XSystem
++ * 
++ * Written by Weather
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++
++#include "XSystem.h"
++
++WINE_DEFAULT_DEBUG_CHANNEL(gdkc);
++
++static inline struct x_system *impl_from_IXSystemImpl( IXSystemImpl *iface )
++{
++    return CONTAINING_RECORD( iface, struct x_system, IXSystemImpl_iface );
++}
++
++static HRESULT WINAPI x_system_QueryInterface( IXSystemImpl *iface, REFIID iid, void **out )
++{
++    struct x_system *impl = impl_from_IXSystemImpl( iface );
++
++    TRACE( "iface %p, iid %s, out %p.\n", iface, debugstr_guid( iid ), out );
++
++    if (IsEqualGUID( iid, &IID_IUnknown ) ||
++        IsEqualGUID( iid, &IID_IXSystemImpl ))
++    {
++        *out = &impl->IXSystemImpl_iface;
++        impl->IXSystemImpl_iface.lpVtbl->AddRef( *out );
++        return S_OK;
++    }
++
++    FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( iid ) );
++    *out = NULL;
++    return E_NOINTERFACE;
++}
++
++static ULONG WINAPI x_system_AddRef( IXSystemImpl *iface )
++{
++    struct x_system *impl = impl_from_IXSystemImpl( iface );
++    ULONG ref = InterlockedIncrement( &impl->ref );
++    TRACE( "iface %p increasing refcount to %lu.\n", iface, ref );
++    return ref;
++}
++
++static ULONG WINAPI x_system_Release( IXSystemImpl *iface )
++{
++    struct x_system *impl = impl_from_IXSystemImpl( iface );
++    ULONG ref = InterlockedDecrement( &impl->ref );
++    TRACE( "iface %p decreasing refcount to %lu.\n", iface, ref );
++    return ref;
++}
++
++static HRESULT WINAPI x_system_XSystemGetConsoleId( IXSystemImpl *iface, INT32 consoleIdSize, LPSTR consoleId, SIZE_T *consoleIdUsed )
++{    
++    // For Windows, Console ID is always `00000000.00000000.00000000.00000000.00
++    LPCSTR Id = "00000000.00000000.00000000.00000000.00";
++
++    TRACE( "iface %p, consoleIdSize %d, consoleId %p, consoleIdUsed %p\n", iface, consoleIdSize, consoleId, consoleIdUsed );
++
++    if ( !consoleId || !consoleIdUsed )
++        return E_POINTER;
++
++    if ( consoleIdSize < XSystemConsoleIdBytes )
++        return HRESULT_FROM_WIN32( ERROR_INSUFFICIENT_BUFFER );
++
++    strcpy_s( consoleId, consoleIdSize, Id );
++    *consoleIdUsed = strlen( Id );
++    return S_OK;
++}
++
++static HRESULT WINAPI x_system_XSystemGetXboxLiveSandboxId( IXSystemImpl *iface, INT32 sandboxIdSize, LPSTR sandboxId, SIZE_T *sandboxIdUsed )
++{    
++    // Always assume RETAIL environment for Wine
++    LPCSTR Id = "RETAIL";
++
++    TRACE( "iface %p, sandboxIdSize %d, sandboxId %p, sandboxIdUsed %p\n", iface, sandboxIdSize, sandboxId, sandboxIdUsed );
++
++    if ( !sandboxId || !sandboxIdUsed )
++        return E_POINTER;
++
++    if ( sandboxIdSize < XSystemXboxLiveSandboxIdMaxBytes )
++        return HRESULT_FROM_WIN32( ERROR_INSUFFICIENT_BUFFER );
++
++    strcpy_s( sandboxId, sandboxIdSize, Id );
++    *sandboxIdUsed = strlen( Id );
++    return S_OK;
++}
++
++static HRESULT WINAPI x_system_XSystemGetAppSpecificDeviceId( IXSystemImpl *iface, INT32 appSpecificDeviceIdSize, LPSTR appSpecificDeviceId, SIZE_T *appSpecificDeviceIdUsed )
++{    
++    FIXME( "iface %p, appSpecificDeviceIdSize %d, appSpecificDeviceId %p, appSpecificDeviceIdUsed %p stub!\n", iface, appSpecificDeviceIdSize, appSpecificDeviceId, appSpecificDeviceIdUsed );
++    return E_NOTIMPL;
++}
++
++static HRESULT WINAPI x_system_XSystemHandleTrack( IXSystemImpl *iface )
++{
++    FIXME( "iface %p stub!\n", iface );
++    return E_NOTIMPL;
++}
++
++static BOOLEAN WINAPI x_system_XSystemIsHandleValid( IXSystemImpl *iface )
++{
++    // always assume it's valid.
++    FIXME( "iface %p stub!\n", iface );
++    return TRUE;
++}
++
++static HRESULT WINAPI x_system_XSystemAllowFullDownloadBandwidth( IXSystemImpl *iface, boolean enable )
++{
++    FIXME( "iface %p, enable %d stub!\n", iface, enable );
++    return E_NOTIMPL;
++}
++
++static const struct IXSystemImplVtbl x_system_vtbl =
++{
++    x_system_QueryInterface,
++    x_system_AddRef,
++    x_system_Release,
++    /* IXSystemImpl methods */
++    x_system_XSystemGetConsoleId,
++    x_system_XSystemGetXboxLiveSandboxId,
++    x_system_XSystemGetAppSpecificDeviceId,
++    x_system_XSystemHandleTrack,
++    x_system_XSystemIsHandleValid,
++    x_system_XSystemAllowFullDownloadBandwidth
++};
++
++static struct x_system x_system =
++{
++    {&x_system_vtbl},
++    0,
++};
++
++IXSystemImpl *x_system_impl = &x_system.IXSystemImpl_iface;
+\ No newline at end of file
+diff --git a/dlls/xgameruntime/GDKComponent/System/XSystem.h b/dlls/xgameruntime/GDKComponent/System/XSystem.h
+new file mode 100644
+index 00000000000..ad3ab342586
+--- /dev/null
++++ b/dlls/xgameruntime/GDKComponent/System/XSystem.h
+@@ -0,0 +1,39 @@
++/*
++ * Xbox Game runtime Library
++ *  GDK Component: System API -> XSystem
++ * 
++ * Written by Weather
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++
++#ifndef XSYSTEM_H
++#define XSYSTEM_H
++
++#include "../../private.h"
++
++#include <string.h>
++
++struct x_system
++{
++    IXSystemImpl IXSystemImpl_iface;
++    LONG ref;
++};
++
++const SIZE_T XSystemConsoleIdBytes = 39;
++const SIZE_T XSystemXboxLiveSandboxIdMaxBytes = 16;
++const SIZE_T XSystemAppSpecificDeviceIdBytes = 45;
++
++#endif
+\ No newline at end of file
+diff --git a/dlls/xgameruntime/Makefile.in b/dlls/xgameruntime/Makefile.in
+new file mode 100644
+index 00000000000..e08de9c18d8
+--- /dev/null
++++ b/dlls/xgameruntime/Makefile.in
+@@ -0,0 +1,10 @@
++IMPORTS   = user32 advapi32
++MODULE    = xgameruntime.dll
++
++SOURCES = \
++	main.c \
++	provider.idl \
++	\
++	GDKComponent/InitInternalGDKC.c \
++	\
++	GDKComponent/System/XSystem.c
+diff --git a/dlls/xgameruntime/NOTES b/dlls/xgameruntime/NOTES
+new file mode 100644
+index 00000000000..f5d4ad8228f
+--- /dev/null
++++ b/dlls/xgameruntime/NOTES
+@@ -0,0 +1,18 @@
++Wine's Microsoft Game Development Kit Implementation
++
++This consists of a library called `xgameruntime.dll`.
++Most GDK games only rely on this library and wouldn't use anything else for GDK API.
++
++Our GDK implementation here does NOT include functionality that's under NDA.
++Fortunately, this does not tend to affect GDK games published for Microsoft® Windows, and
++is mostly exclusive to the Microsoft® Xbox console.
++
++UNDER NO CIRCUMSTANCES SHOULD YOU ATTEMPT TO IMPLEMENT OR STUB ANY FUNCTIONALITY THAT'S UNDER AN NDA.
++
++These include, and are not limited to:
++
++A) Audio API Reference: https://learn.microsoft.com/en-us/gaming/gdk/docs/reference/audio/gc-reference-audio-toc
++
++B) Developer Kit Only API Reference: https://learn.microsoft.com/en-us/gaming/gdk/docs/reference/devkit/atoc-devkit-reference
++
++C) Graphics API Reference: https://learn.microsoft.com/en-us/gaming/gdk/docs/reference/graphics/gc-reference-graphics-toc
+\ No newline at end of file
+diff --git a/dlls/xgameruntime/main.c b/dlls/xgameruntime/main.c
+new file mode 100644
+index 00000000000..31e8848a170
+--- /dev/null
++++ b/dlls/xgameruntime/main.c
+@@ -0,0 +1,117 @@
++/*
++ * Xbox Game runtime Library
++ * 
++ * Written by Weather
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++
++#include "initguid.h"
++#include "private.h"
++
++#include "GDKComponent/InitInternalGDKC.h"
++
++WINE_DEFAULT_DEBUG_CHANNEL(xgameruntime);
++
++static HMODULE xgameruntime;
++
++BOOL WINAPI DllMain( HINSTANCE hinst, DWORD reason, void *reserved )
++{
++    TRACE("inst %p, reason %lu, reserved %p.\n", hinst, reason, reserved);
++
++    switch (reason)
++    {
++        case DLL_PROCESS_ATTACH:
++            DisableThreadLibraryCalls(hinst);
++            break;
++        case DLL_PROCESS_DETACH:
++            if (reserved) break;
++            if (xgameruntime) FreeLibrary(xgameruntime);
++        break;
++    }
++    return TRUE;
++}
++
++HRESULT WINAPI InitializeApiImplEx2( ULONG gdkVer, ULONG gsVer, CHAR mode, INITIALIZE_OPTIONS *options )
++{
++    //  Initialization can be done however we want on our side.
++    // You can choose to return `S_OK` once the full SDK is implemented.
++    //
++    //  There's no documented information about what `INITIALIZE_OPTIONS` is,
++    // and xgameruntime.lib never utilizes this argument anyway.
++    TRACE("gdkVer %ld, gsVer %ld, mode %d, options %p stub!\n", gdkVer, gsVer, mode, options);
++    return GDKC_InitAPI( gdkVer, gsVer, mode, options );
++}
++
++HRESULT WINAPI InitializeApiImplEx( ULONG gdkVer, ULONG gsVer, CHAR mode )
++{
++    TRACE("gdkVer %ld, gsVer %ld, mode %d\n", gdkVer, gsVer, mode);
++    return InitializeApiImplEx2( gdkVer, gsVer, mode, NULL );
++}
++
++HRESULT WINAPI InitializeApiImpl( ULONG gdkVer, ULONG gsVer )
++{
++    TRACE("gdkVer %ld, gsVer %ld\n", gdkVer, gsVer);
++    return InitializeApiImplEx2( gdkVer, gsVer, 0, NULL );
++}
++
++HRESULT WINAPI QueryApiImpl( GUID *runtimeClassId, REFIID interfaceId, void **out )
++{
++    // Interfaces returned are COM interfaces and inherit IUnknown*
++    // 
++    //  On MSDN, There's no official documentation on the order of these interfaces and functions.
++    // However, we can hook a dummy `xgameruntime.dll` into test environments and individually query
++    // each class and what signatures they posses. Once we've pass through an empty IUnknown* interface,
++    // we can reconstruct the vtable of each class based on what function gets called.
++    //
++    //  Example: (e349bd1a-fc20-4e40-b99c-4178cc6b409f) corresponds to part of the `ISystem` class and implements
++    // these functions in order:
++    //
++    //  /*** IUnknown methods ***/
++    //  IXSystemImpl_QueryInterface,                    (offset 0)
++    //  IXSystemImpl_AddRef,                            (offset 8)
++    //  IXSystemImpl_Release,                           (offset 16)
++    //  /*** IXSystemImpl methods ***/
++    //  IXSystemImpl_XSystemGetConsoleId                (offset 24)
++    //  IXSystemImpl_XSystemGetXboxLiveSandboxId        (offset 32)
++    //  IXSystemImpl_XSystemGetAppSpecificDeviceId      (offset 40)
++    //  IXSystemImpl_XSystemHandleTrack                 (offset 48)
++    //  IXSystemImpl_XSystemIsHandleValid               (offset 56)
++    //  IXSystemImpl_XSystemAllowFullDownloadBandwidth  (offset 64)
++    //
++
++    TRACE("runtimeClassId %s, interfaceId %s, out %p\n", debugstr_guid(runtimeClassId), debugstr_guid(interfaceId), out);
++
++    //if ( IsEqualGUID( runtimeClassId, &CLSID_XSystem ) )
++    //{
++    //    return IXSystemImpl_QueryInterface( x_system_impl, interfaceId, out );
++    //}
++    
++    FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( runtimeClassId ) );
++    return E_NOINTERFACE;
++}
++
++HRESULT WINAPI UninitializeApiImpl( void )
++{
++    TRACE("stub!\n");
++    return E_NOTIMPL;
++}
++
++HRESULT WINAPI XErrorReport( HRESULT status, LPCSTR message )
++{
++    TRACE("stub!\n");
++    return E_NOTIMPL;
++}
++
+diff --git a/dlls/xgameruntime/private.h b/dlls/xgameruntime/private.h
+new file mode 100644
+index 00000000000..d925e50c1ad
+--- /dev/null
++++ b/dlls/xgameruntime/private.h
+@@ -0,0 +1,46 @@
++/*
++ * Xbox Game runtime Library
++ * 
++ * Written by Weather
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++
++#ifndef __WINE_XGAMERUNTIME_PRIVATE_H
++#define __WINE_XGAMERUNTIME_PRIVATE_H
++
++
++#include <stdlib.h>
++#include <windows.h>
++
++#include <xgameerr.h>
++
++#define COBJMACROS
++#include <unknwn.h>
++#include "provider.h"
++#include "wine/debug.h"
++
++// April 2025 Release of GDK
++#define GDKC_VERSION 10001L
++#define GAMING_SERVICES_VERSION 3181L
++
++extern IXSystemImpl *x_system_impl;
++
++typedef struct _INITIALIZE_OPTIONS
++{
++    int unused;
++} INITIALIZE_OPTIONS;
++
++#endif
+\ No newline at end of file
+diff --git a/dlls/xgameruntime/provider.idl b/dlls/xgameruntime/provider.idl
+new file mode 100644
+index 00000000000..5e4b01f51ae
+--- /dev/null
++++ b/dlls/xgameruntime/provider.idl
+@@ -0,0 +1,95 @@
++/*
++ * xgameruntime.dll implementation
++ *
++ * Written by Weather
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++
++#pragma makedep header
++
++import "propidl.idl";
++
++// --- xgameruntime --- //
++typedef void* XSystemHandle;
++
++typedef enum XSystemHandleType XSystemHandleType;
++typedef enum XSystemHandleCallbackReason XSystemHandleCallbackReason;
++
++interface IXSystemImpl;
++
++coclass XSystem;
++
++enum XSystemHandleType
++{
++    AppCaptureScreenshotStream = 0x00,
++    DisplayTimeoutDeferral     = 0x01,
++    GameSaveContainer          = 0x02,
++    GameSaveProvider           = 0x03,
++    GameSaveUpdate             = 0x04,
++    PackageInstallationMonitor = 0x05,
++    PackageMount               = 0x06,
++    SpeechSynthesizer          = 0x07,
++    SpeechSynthesizerStream    = 0x08,
++    StoreContext               = 0x09,
++    StoreLicense               = 0x0a,
++    StoreProductQuery          = 0x0b,
++    TaskQueue                  = 0x0c,
++    User                       = 0x0d,
++    UserSignOutDeferral        = 0x0e,
++    GameUiTextEntry            = 0x0f
++};
++
++enum XSystemHandleCallbackReason
++{
++    Created     = 0x00,
++    Destroyed   = 0x01
++};
++
++/* type-pruning version of XSystemHandleCallback */
++typedef void (__stdcall *XSystemHandleCallback)(
++    XSystemHandle handle,
++    XSystemHandleType type,
++    XSystemHandleCallbackReason reason,
++    void* context
++);
++
++[
++    object,
++    uuid(dadc2895-34b0-4ef5-a83e-45114d629b80)
++]
++interface IXSystemImpl : IUnknown
++{
++    HRESULT XSystemGetConsoleId( [in] INT32 consoleIdSize, [out, size_is(consoleIdSize)] LPSTR consoleId, [out] SIZE_T *consoleIdUsed );
++    HRESULT XSystemGetXboxLiveSandboxId( [in] INT32 sandboxIdSize, [out, size_is(sandboxIdSize)] LPSTR sandboxId, [out] SIZE_T *sandboxIdUsed );
++    HRESULT XSystemGetAppSpecificDeviceId( [in] INT32 appSpecificDeviceIdSize, [out, size_is(appSpecificDeviceIdSize)] LPSTR appSpecificDeviceId, [out] SIZE_T *appSpecificDeviceIdUsed );
++    /*
++     *  BUG: You cannot have function pointer parameters within COM declared interfaces,
++     * yet Microsoft, in their infinite wisdom, declared function pointers within the 2 
++     * functions below, within a COM interface. Unfortunately no workaround can be found 
++     * unless we transition to a WinRT codebase.
++     */
++    HRESULT XSystemHandleTrack( /* [in] XSystemHandleCallback callback, [in] void *context */ );
++    BOOLEAN XSystemIsHandleValid( /* [in] XSystemHandleCallback callback */ );
++    HRESULT XSystemAllowFullDownloadBandwidth( [in] boolean enable );
++}
++
++[
++    uuid(e349bd1a-fc20-4e40-b99c-4178cc6b409f)
++]
++coclass XSystem
++{
++    [default] interface IXSystemImpl;
++}
+\ No newline at end of file
+diff --git a/dlls/xgameruntime/xgameruntime.spec b/dlls/xgameruntime/xgameruntime.spec
+new file mode 100644
+index 00000000000..18de0de1531
+--- /dev/null
++++ b/dlls/xgameruntime/xgameruntime.spec
+@@ -0,0 +1,9 @@
++1 stdcall -private DllCanUnloadNow(long long ptr)
++2 stdcall InitializeApiImpl(long long)
++3 stdcall InitializeApiImplEx(long long long)
++4 stdcall InitializeApiImplEx2(long long long ptr)
++5 stdcall QueryApiImpl(ptr long long)
++6 stdcall UninitializeApiImpl()
++7 stdcall XErrorReport(int64 ptr)
++
++@ stdcall -private DllMain(long long ptr)
+\ No newline at end of file
+diff --git a/include/Makefile.in b/include/Makefile.in
+index a43168baf1f..7fa5e87867a 100644
+--- a/include/Makefile.in
++++ b/include/Makefile.in
+@@ -949,6 +949,7 @@ SOURCES = \
+ 	windows.ui.xaml.hosting.desktopwindowxamlsource.idl \
+ 	windows.ui.xaml.idl \
+ 	windows.ui.xaml.interop.idl \
++	windows.ui.text.core.idl \
+ 	windowscontracts.idl \
+ 	windowsx.h \
+ 	wine/afd.h \
+diff --git a/include/windows.ui.text.core.idl b/include/windows.ui.text.core.idl
+new file mode 100644
+index 00000000000..e4ac7844d2f
+--- /dev/null
++++ b/include/windows.ui.text.core.idl
+@@ -0,0 +1,546 @@
++/*
++ * Written by Weather
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++
++#ifdef __WIDL__
++#pragma winrt ns_prefix
++#endif
++
++import "inspectable.idl";
++import "asyncinfo.idl";
++import "eventtoken.idl";
++import "windowscontracts.idl";
++import "windows.foundation.idl";
++import "windows.globalization.idl";
++import "windows.ui.viewmanagement.idl";
++
++namespace Windows.UI.Text.Core
++{
++    typedef enum CoreTextInputScope CoreTextInputScope;
++    typedef enum CoreTextInputPaneDisplayPolicy CoreTextInputPaneDisplayPolicy;
++    typedef enum CoreTextFormatUpdatingResult CoreTextFormatUpdatingResult;
++    typedef enum CoreTextSelectionUpdatingResult CoreTextSelectionUpdatingResult;
++    typedef enum CoreTextTextUpdatingResult CoreTextTextUpdatingResult;
++
++    typedef struct CoreTextRange CoreTextRange;
++
++    interface ICoreTextCompositionCompletedEventArgs;
++    interface ICoreTextCompositionStartedEventArgs;
++    interface ICoreTextEditContext;
++    interface ICoreTextFormatUpdatingEventArgs;
++    interface ICoreTextLayoutBounds;
++    interface ICoreTextLayoutRequest;
++    interface ICoreTextLayoutRequestedEventArgs;
++    interface ICoreTextSelectionRequest;
++    interface ICoreTextSelectionRequestedEventArgs;
++    interface ICoreTextSelectionUpdatingEventArgs;
++    interface ICoreTextTextRequest;
++    interface ICoreTextTextRequestedEventArgs;
++    interface ICoreTextTextUpdatingEventArgs;
++    interface ICoreTextServicesManager;
++    interface ICoreTextServicesManagerStatics;
++
++    runtimeclass CoreTextCompositionCompletedEventArgs;
++    runtimeclass CoreTextCompositionStartedEventArgs;
++    runtimeclass CoreTextEditContext;
++    runtimeclass CoreTextFormatUpdatingEventArgs;
++    runtimeclass CoreTextLayoutBounds;
++    runtimeclass CoreTextLayoutRequest;
++    runtimeclass CoreTextLayoutRequestedEventArgs;
++    runtimeclass CoreTextSelectionRequest;
++    runtimeclass CoreTextSelectionRequestedEventArgs;
++    runtimeclass CoreTextSelectionUpdatingEventArgs;
++    runtimeclass CoreTextServicesManager;
++    runtimeclass CoreTextTextUpdatingEventArgs;
++    runtimeclass CoreTextTextRequestedEventArgs;
++    runtimeclass CoreTextTextRequest;
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0)
++    ]
++    enum CoreTextInputScope
++    {
++        Default                 = 0,
++        Url                     = 1,
++        FilePath                = 2,
++        FileName                = 3,
++        EmailUserName           = 4,
++        EmailAddress            = 5,
++        UserName                = 6,
++        PersonalFullName        = 7,
++        PersonalNamePrefix      = 8,
++        PersonalGivenName       = 9,
++        PersonalMiddleName      = 10,
++        PersonalSurname         = 11,
++        PersonalNameSuffix      = 12,
++        Address                 = 13,
++        AddressPostalCode       = 14,
++        AddressStreet           = 15,
++        AddressStateOrProvince  = 16,
++        AddressCity             = 17,
++        AddressCountryName      = 18,
++        AddressCountryShortName = 19,
++        CurrencyAmountAndSymbol = 20,
++        CurrencyAmount          = 21,
++        Date                    = 22,
++        DateMonth               = 23,
++        DateDay                 = 24,
++        DateYear                = 25,
++        DateMonthName           = 26,
++        DateDayName             = 27,
++        Number                  = 29,
++        SingleCharacter         = 30,
++        Password                = 31,
++        TelephoneNumber         = 32,
++        TelephoneCountryCode    = 33,
++        TelephoneAreaCode       = 34,
++        TelephoneLocalNumber    = 35,
++        Time                    = 36,
++        TimeHour                = 37,
++        TimeMinuteOrSecond      = 38,
++        NumberFullWidth         = 39,
++        AlphanumericHalfWidth   = 40,
++        AlphanumericFullWidth   = 41,
++        CurrencyChinese         = 42,
++        Bopomofo                = 43,
++        Hiragana                = 44,
++        KatakanaHalfWidth       = 45,
++        KatakanaFullWidth       = 46,
++        Hanja                   = 47,
++        HangulHalfWidth         = 48,
++        HangulFullWidth         = 49,
++        Search                  = 50,
++        Formula                 = 51,
++        SearchIncremental       = 52,
++        ChineseHalfWidth        = 53,
++        ChineseFullWidth        = 54,
++        NativeScript            = 55,
++        Text                    = 57,
++        Chat                    = 58,
++        NameOrPhoneNumber       = 59,
++        EmailUserNameOrAddress  = 60,
++        Private                 = 61,
++        Maps                    = 62,
++        PasswordNumeric         = 63,
++        FormulaNumber           = 67
++    };
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0)
++    ]
++    enum CoreTextInputPaneDisplayPolicy
++    {
++        Automatic = 0,
++        Manual    = 1
++    };
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0)
++    ]
++    enum CoreTextFormatUpdatingResult
++    {
++        Succeeded = 0,
++        Failed    = 1
++    };
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0)
++    ]
++    enum CoreTextSelectionUpdatingResult
++    {
++        Succeeded = 0,
++        Failed    = 1
++    };
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0)
++    ]
++    enum CoreTextTextUpdatingResult
++    {
++        Succeeded = 0,
++        Failed    = 1
++    };
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0)
++    ]
++    struct CoreTextRange
++    {
++        INT32 StartCaretPosition;
++        INT32 EndCaretPosition;
++    };
++
++    declare
++    {
++        interface Windows.Foundation.TypedEventHandler<Windows.UI.Text.Core.CoreTextServicesManager*, IInspectable*>;
++        interface Windows.Foundation.TypedEventHandler<Windows.UI.Text.Core.CoreTextEditContext*, IInspectable*>;
++        interface Windows.Foundation.TypedEventHandler<Windows.UI.Text.Core.CoreTextEditContext*, Windows.UI.Text.Core.CoreTextLayoutRequestedEventArgs*>;
++        interface Windows.Foundation.TypedEventHandler<Windows.UI.Text.Core.CoreTextEditContext*, Windows.UI.Text.Core.CoreTextSelectionRequestedEventArgs*>;
++        interface Windows.Foundation.TypedEventHandler<Windows.UI.Text.Core.CoreTextEditContext*, Windows.UI.Text.Core.CoreTextTextRequestedEventArgs*>;
++        interface Windows.Foundation.TypedEventHandler<Windows.UI.Text.Core.CoreTextEditContext*, Windows.UI.Text.Core.CoreTextSelectionUpdatingEventArgs*>;
++        interface Windows.Foundation.TypedEventHandler<Windows.UI.Text.Core.CoreTextEditContext*, Windows.UI.Text.Core.CoreTextTextUpdatingEventArgs*>;
++        interface Windows.Foundation.TypedEventHandler<Windows.UI.Text.Core.CoreTextEditContext*, Windows.UI.Text.Core.CoreTextFormatUpdatingEventArgs*>;
++        interface Windows.Foundation.TypedEventHandler<Windows.UI.Text.Core.CoreTextEditContext*, Windows.UI.Text.Core.CoreTextCompositionStartedEventArgs*>;
++        interface Windows.Foundation.TypedEventHandler<Windows.UI.Text.Core.CoreTextEditContext*, Windows.UI.Text.Core.CoreTextCompositionCompletedEventArgs*>;
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        exclusiveto(Windows.UI.Text.Core.CoreTextCompositionCompletedEventArgs),
++        uuid(1F34EBB6-B79F-4121-A5E7-FDA9B8616E30)
++    ]
++    interface ICoreTextCompositionCompletedEventArgs : IInspectable
++    {
++        [propget] HRESULT IsCanceled([out] [retval] boolean* value);
++        //[propget] HRESULT CompositionSegments([out] [retval] Windows.Foundation.Collections.IVectorView<Windows.UI.Text.Core.CoreTextCompositionSegment*>** value);
++        HRESULT GetDeferral([out] [retval] Windows.Foundation.Deferral** value);
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        exclusiveto(Windows.UI.Text.Core.CoreTextCompositionStartedEventArgs),
++        uuid(276B16A9-64E7-4AB0-BC4B-A02D73835BFB)
++    ]
++    interface ICoreTextCompositionStartedEventArgs : IInspectable
++    {
++        [propget] HRESULT IsCanceled([out] [retval] boolean* value);
++        HRESULT GetDeferral([out] [retval] Windows.Foundation.Deferral** value);
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        exclusiveto(Windows.UI.Text.Core.CoreTextLayoutBounds),
++        uuid(E972C974-4436-4917-80D0-A525E4CA6780)
++    ]
++    interface ICoreTextLayoutBounds : IInspectable
++    {
++        [propget] HRESULT TextBounds([out] [retval] Windows.Foundation.Rect* value);
++        [propput] HRESULT TextBounds([in] Windows.Foundation.Rect value);
++        [propget] HRESULT ControlBounds([out] [retval] Windows.Foundation.Rect* value);
++        [propput] HRESULT ControlBounds([in] Windows.Foundation.Rect value);
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        exclusiveto(Windows.UI.Text.Core.CoreTextLayoutRequest),
++        uuid(2555A8CC-51FD-4F03-98BF-AC78174D68E0)
++    ]
++    interface ICoreTextLayoutRequest : IInspectable
++    {
++        [propget] HRESULT Range([out] [retval] Windows.UI.Text.Core.CoreTextRange* value);
++        [propget] HRESULT LayoutBounds([out] [retval] Windows.UI.Text.Core.CoreTextLayoutBounds** value);
++        [propget] HRESULT IsCanceled([out] [retval] boolean* value);
++        HRESULT GetDeferral([out] [retval] Windows.Foundation.Deferral** value);
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        exclusiveto(Windows.UI.Text.Core.CoreTextLayoutRequestedEventArgs),
++        uuid(B1DC6AE0-9A7B-4E9E-A566-4A6B5F8AD676)
++    ]
++    interface ICoreTextLayoutRequestedEventArgs : IInspectable
++    {
++        [propget] HRESULT Request([out] [retval] Windows.UI.Text.Core.CoreTextLayoutRequest** value);
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        exclusiveto(Windows.UI.Text.Core.CoreTextSelectionRequest),
++        uuid(F0A70403-208B-4301-883C-74CA7485FD8D)
++    ]
++    interface ICoreTextSelectionRequest : IInspectable
++    {
++        [propget] HRESULT Selection([out] [retval] Windows.UI.Text.Core.CoreTextRange* value);
++        [propput] HRESULT Selection([in] Windows.UI.Text.Core.CoreTextRange value);
++        [propget] HRESULT IsCanceled([out] [retval] boolean* value);
++        HRESULT GetDeferral([out] [retval] Windows.Foundation.Deferral** value);
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        exclusiveto(Windows.UI.Text.Core.CoreTextSelectionRequestedEventArgs),
++        uuid(13C6682B-F614-421A-8F4B-9EC8A5A37FCD)
++    ]
++    interface ICoreTextSelectionRequestedEventArgs : IInspectable
++    {
++        [propget] HRESULT Request([out] [retval] Windows.UI.Text.Core.CoreTextSelectionRequest** value);
++    }
++
++    [contract(Windows.Foundation.UniversalApiContract, 1.0)]
++    [exclusiveto(Windows.UI.Text.Core.CoreTextSelectionUpdatingEventArgs)]
++    [uuid(D445839F-FE7F-4BD5-8A26-0922C1B3E639)]
++    interface ICoreTextSelectionUpdatingEventArgs : IInspectable
++    {
++        [propget] HRESULT Selection([out] [retval] Windows.UI.Text.Core.CoreTextRange* value);
++        [propget] HRESULT Result([out] [retval] Windows.UI.Text.Core.CoreTextSelectionUpdatingResult* value);
++        [propput] HRESULT Result([in] Windows.UI.Text.Core.CoreTextSelectionUpdatingResult value);
++        [propget] HRESULT IsCanceled([out] [retval] boolean* value);
++        HRESULT GetDeferral([out] [retval] Windows.Foundation.Deferral** value);
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        exclusiveto(Windows.UI.Text.Core.CoreTextTextRequest),
++        uuid(50D950A9-F51E-4CC1-8CA1-E6346D1A61BE)
++    ]
++    interface ICoreTextTextRequest : IInspectable
++    {
++        [propget] HRESULT Range([out] [retval] Windows.UI.Text.Core.CoreTextRange* value);
++        [propget] HRESULT Text([out] [retval] HSTRING* value);
++        [propput] HRESULT Text([in] HSTRING value);
++        [propget] HRESULT IsCanceled([out] [retval] boolean* value);
++        HRESULT GetDeferral([out] [retval] Windows.Foundation.Deferral** value);
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        exclusiveto(Windows.UI.Text.Core.CoreTextTextRequestedEventArgs),
++        uuid(F096A2D0-41C6-4C02-8B1A-D953B00CABB3)
++    ]
++    interface ICoreTextTextRequestedEventArgs : IInspectable
++    {
++        [propget] HRESULT Request([out] [retval] Windows.UI.Text.Core.CoreTextTextRequest** value);
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        exclusiveto(Windows.UI.Text.Core.CoreTextTextUpdatingEventArgs),
++        uuid(EEA7918D-CC2B-4F03-8FF6-02FD217DB450)
++    ]
++    interface ICoreTextTextUpdatingEventArgs : IInspectable
++    {
++        [propget] HRESULT Range([out] [retval] Windows.UI.Text.Core.CoreTextRange* value);
++        [propget] HRESULT Text([out] [retval] HSTRING* value);
++        [propget] HRESULT NewSelection([out] [retval] Windows.UI.Text.Core.CoreTextRange* value);
++        [propget] HRESULT InputLanguage([out] [retval] Windows.Globalization.Language** value);
++        [propget] HRESULT Result([out] [retval] Windows.UI.Text.Core.CoreTextTextUpdatingResult* value);
++        [propput] HRESULT Result([in] Windows.UI.Text.Core.CoreTextTextUpdatingResult value);
++        [propget] HRESULT IsCanceled([out] [retval] boolean* value);
++        HRESULT GetDeferral([out] [retval] Windows.Foundation.Deferral** value);
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        exclusiveto(Windows.UI.Text.Core.CoreTextFormatUpdatingEventArgs),
++        uuid(7310BD33-B4A8-43B1-B37B-0724D4ACA7AB)
++    ]
++    interface ICoreTextFormatUpdatingEventArgs : IInspectable
++    {
++        /*
++        [propget] HRESULT Range([out] [retval] Windows.UI.Text.Core.CoreTextRange* value);
++        [propget] HRESULT TextColor([out] [retval] Windows.Foundation.IReference<Windows.UI.ViewManagement.UIElementType>** value);
++        [propget] HRESULT BackgroundColor([out] [retval] Windows.Foundation.IReference<Windows.UI.ViewManagement.UIElementType>** value);
++        [propget] HRESULT UnderlineColor([out] [retval] Windows.Foundation.IReference<Windows.UI.ViewManagement.UIElementType>** value);
++        [propget] HRESULT UnderlineType([out] [retval] Windows.Foundation.IReference<Windows.UI.Text.UnderlineType>** value);
++        [propget] HRESULT Reason([out] [retval] Windows.UI.Text.Core.CoreTextFormatUpdatingReason* value);
++        [propget] HRESULT Result([out] [retval] Windows.UI.Text.Core.CoreTextFormatUpdatingResult* value);
++        [propput] HRESULT Result([in] Windows.UI.Text.Core.CoreTextFormatUpdatingResult value);
++        [propget] HRESULT IsCanceled([out] [retval] boolean* value);
++        */
++        HRESULT GetDeferral([out] [retval] Windows.Foundation.Deferral** value);
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        exclusiveto(Windows.UI.Text.Core.CoreTextEditContext),
++        uuid(BF6608AF-4041-47C3-B263-A918EB5EAEF2)
++    ]
++    interface ICoreTextEditContext : IInspectable
++    {
++        [propget] HRESULT Name([out] [retval] HSTRING* value);
++        [propput] HRESULT Name([in] HSTRING value);
++        [propget] HRESULT InputScope([out] [retval] Windows.UI.Text.Core.CoreTextInputScope* value);
++        [propput] HRESULT InputScope([in] Windows.UI.Text.Core.CoreTextInputScope value);
++        [propget] HRESULT IsReadOnly([out] [retval] boolean* value);
++        [propput] HRESULT IsReadOnly([in] boolean value);
++        [propget] HRESULT InputPaneDisplayPolicy([out] [retval] Windows.UI.Text.Core.CoreTextInputPaneDisplayPolicy* value);
++        [propput] HRESULT InputPaneDisplayPolicy([in] Windows.UI.Text.Core.CoreTextInputPaneDisplayPolicy value);
++        [eventadd] HRESULT TextRequested([in] Windows.Foundation.TypedEventHandler<Windows.UI.Text.Core.CoreTextEditContext*, Windows.UI.Text.Core.CoreTextTextRequestedEventArgs*>* handler, [out] [retval] EventRegistrationToken* cookie);
++        [eventremove] HRESULT TextRequested([in] EventRegistrationToken cookie);
++        [eventadd] HRESULT SelectionRequested([in] Windows.Foundation.TypedEventHandler<Windows.UI.Text.Core.CoreTextEditContext*, Windows.UI.Text.Core.CoreTextSelectionRequestedEventArgs*>* handler, [out] [retval] EventRegistrationToken* cookie);
++        [eventremove] HRESULT SelectionRequested([in] EventRegistrationToken cookie);
++        [eventadd] HRESULT LayoutRequested([in] Windows.Foundation.TypedEventHandler<Windows.UI.Text.Core.CoreTextEditContext*, Windows.UI.Text.Core.CoreTextLayoutRequestedEventArgs*>* handler, [out] [retval] EventRegistrationToken* cookie);
++        [eventremove] HRESULT LayoutRequested([in] EventRegistrationToken cookie);
++        [eventadd] HRESULT TextUpdating([in] Windows.Foundation.TypedEventHandler<Windows.UI.Text.Core.CoreTextEditContext*, Windows.UI.Text.Core.CoreTextTextUpdatingEventArgs*>* handler, [out] [retval] EventRegistrationToken* cookie);
++        [eventremove] HRESULT TextUpdating([in] EventRegistrationToken cookie);
++        [eventadd] HRESULT SelectionUpdating([in] Windows.Foundation.TypedEventHandler<Windows.UI.Text.Core.CoreTextEditContext*, Windows.UI.Text.Core.CoreTextSelectionUpdatingEventArgs*>* handler, [out] [retval] EventRegistrationToken* cookie);
++        [eventremove] HRESULT SelectionUpdating([in] EventRegistrationToken cookie);
++        [eventadd] HRESULT FormatUpdating([in] Windows.Foundation.TypedEventHandler<Windows.UI.Text.Core.CoreTextEditContext*, Windows.UI.Text.Core.CoreTextFormatUpdatingEventArgs*>* handler, [out] [retval] EventRegistrationToken* cookie);
++        [eventremove] HRESULT FormatUpdating([in] EventRegistrationToken cookie);
++        [eventadd] HRESULT CompositionStarted([in] Windows.Foundation.TypedEventHandler<Windows.UI.Text.Core.CoreTextEditContext*, Windows.UI.Text.Core.CoreTextCompositionStartedEventArgs*>* handler, [out] [retval] EventRegistrationToken* cookie);
++        [eventremove] HRESULT CompositionStarted([in] EventRegistrationToken cookie);
++        [eventadd] HRESULT CompositionCompleted([in] Windows.Foundation.TypedEventHandler<Windows.UI.Text.Core.CoreTextEditContext*, Windows.UI.Text.Core.CoreTextCompositionCompletedEventArgs*>* handler, [out] [retval] EventRegistrationToken* cookie);
++        [eventremove] HRESULT CompositionCompleted([in] EventRegistrationToken cookie);
++        [eventadd] HRESULT FocusRemoved([in] Windows.Foundation.TypedEventHandler<Windows.UI.Text.Core.CoreTextEditContext*, IInspectable*>* handler, [out] [retval] EventRegistrationToken* cookie);
++        [eventremove] HRESULT FocusRemoved([in] EventRegistrationToken cookie);
++        HRESULT NotifyFocusEnter();
++        HRESULT NotifyFocusLeave();
++        HRESULT NotifyTextChanged([in] Windows.UI.Text.Core.CoreTextRange modifiedRange, [in] INT32 newLength, [in] Windows.UI.Text.Core.CoreTextRange newSelection);
++        HRESULT NotifySelectionChanged([in] Windows.UI.Text.Core.CoreTextRange selection);
++        HRESULT NotifyLayoutChanged();
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        exclusiveto(Windows.UI.Text.Core.CoreTextServicesManager),
++        uuid(C2507D83-6E0A-4A8A-BDF8-1948874854BA)
++    ]
++    interface ICoreTextServicesManager : IInspectable
++    {
++        [propget] HRESULT InputLanguage([out] [retval] Windows.Globalization.Language** value);
++        [eventadd] HRESULT InputLanguageChanged([in] Windows.Foundation.TypedEventHandler<Windows.UI.Text.Core.CoreTextServicesManager*, IInspectable*>* handler, [out] [retval] EventRegistrationToken* cookie);
++        [eventremove] HRESULT InputLanguageChanged([in] EventRegistrationToken cookie);
++        HRESULT CreateEditContext( [out] [retval] Windows.UI.Text.Core.CoreTextEditContext** out );
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        exclusiveto(Windows.UI.Text.Core.CoreTextServicesManager),
++        uuid(1520A388-E2CF-4D65-AEB9-B32D86FE39B9)
++    ]
++    interface ICoreTextServicesManagerStatics : IInspectable
++    {
++        HRESULT GetForCurrentView([out] [retval] Windows.UI.Text.Core.CoreTextServicesManager** value);
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        marshaling_behavior(agile)
++    ]
++    runtimeclass CoreTextCompositionCompletedEventArgs
++    {
++        [default] interface Windows.UI.Text.Core.ICoreTextCompositionCompletedEventArgs;
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        marshaling_behavior(agile)
++    ]
++    runtimeclass CoreTextCompositionStartedEventArgs
++    {
++        [default] interface Windows.UI.Text.Core.ICoreTextCompositionStartedEventArgs;
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        marshaling_behavior(agile)
++    ]
++    runtimeclass CoreTextEditContext
++    {
++        [default] interface Windows.UI.Text.Core.ICoreTextEditContext;
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        marshaling_behavior(agile)
++    ]
++    runtimeclass CoreTextFormatUpdatingEventArgs
++    {
++        [default] interface Windows.UI.Text.Core.ICoreTextFormatUpdatingEventArgs;
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        marshaling_behavior(agile)
++    ]
++    runtimeclass CoreTextLayoutBounds
++    {
++        [default] interface Windows.UI.Text.Core.ICoreTextLayoutBounds;
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        marshaling_behavior(agile)
++    ]
++    runtimeclass CoreTextLayoutRequest
++    {
++        [default] interface Windows.UI.Text.Core.ICoreTextLayoutRequest;
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        marshaling_behavior(agile)
++    ]
++    runtimeclass CoreTextLayoutRequestedEventArgs
++    {
++        [default] interface Windows.UI.Text.Core.ICoreTextLayoutRequestedEventArgs;
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        marshaling_behavior(agile)
++    ]
++    runtimeclass CoreTextSelectionRequest
++    {
++        [default] interface Windows.UI.Text.Core.ICoreTextSelectionRequest;
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        marshaling_behavior(agile)
++    ]
++    runtimeclass CoreTextSelectionRequestedEventArgs
++    {
++        [default] interface Windows.UI.Text.Core.ICoreTextSelectionRequestedEventArgs;
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        marshaling_behavior(agile)
++    ]
++    runtimeclass CoreTextSelectionUpdatingEventArgs
++    {
++        [default] interface Windows.UI.Text.Core.ICoreTextSelectionUpdatingEventArgs;
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        marshaling_behavior(agile)
++    ]
++    runtimeclass CoreTextTextRequestedEventArgs
++    {
++        [default] interface Windows.UI.Text.Core.ICoreTextTextRequestedEventArgs;
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        marshaling_behavior(agile),
++        static(Windows.UI.Text.Core.ICoreTextServicesManagerStatics, Windows.Foundation.UniversalApiContract, 1.0)
++    ]
++    runtimeclass CoreTextServicesManager
++    {
++        [default] interface Windows.UI.Text.Core.ICoreTextServicesManager;
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        marshaling_behavior(agile)
++    ]
++    runtimeclass CoreTextTextRequest
++    {
++        [default] interface Windows.UI.Text.Core.ICoreTextTextRequest;
++    }
++
++    [
++        contract(Windows.Foundation.UniversalApiContract, 1.0),
++        marshaling_behavior(agile)
++    ]
++    runtimeclass CoreTextTextUpdatingEventArgs
++    {
++        [default] interface Windows.UI.Text.Core.ICoreTextTextUpdatingEventArgs;
++    }
++}
+\ No newline at end of file
+diff --git a/include/windows.ui.text.idl b/include/windows.ui.text.idl
+new file mode 100644
+index 00000000000..e69de29bb2d
+diff --git a/include/xgameerr.h b/include/xgameerr.h
+new file mode 100644
+index 00000000000..0ccbef6815b
+--- /dev/null
++++ b/include/xgameerr.h
+@@ -0,0 +1,92 @@
++/*
++ * Copyright (C) the Wine project
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++
++#ifndef __WINE_XGAMEERR_H
++#define __WINE_XGAMEERR_H
++
++#include <specstrings.h>
++
++#define E_GAMERUNTIME_NOT_INITIALIZED                               _HRESULT_TYPEDEF_(0x89240100L)
++#define E_GAMERUNTIME_DLL_NOT_FOUND                                 _HRESULT_TYPEDEF_(0x89240101L)
++#define E_GAMERUNTIME_VERSION_MISMATCH                              _HRESULT_TYPEDEF_(0x89240102L)
++#define E_GAMERUNTIME_WINDOW_NOT_FOREGROUND                         _HRESULT_TYPEDEF_(0x89240103L)
++#define E_GAMERUNTIME_SUSPENDED                                     _HRESULT_TYPEDEF_(0x89240104L)
++#define E_GAMERUNTIME_UNINITIALIZE_ACTIVEOBJECTS                    _HRESULT_TYPEDEF_(0x89240105L)
++#define E_GAMERUNTIME_MULTIPLAYER_NOT_CONFIGURED                    _HRESULT_TYPEDEF_(0x89240106L)
++#define E_GAMERUNTIME_MISSING_DEPENDENCY                            _HRESULT_TYPEDEF_(0x89240107L)
++#define E_GAMERUNTIME_SUSPEND_ACTIVEOBJECTS                         _HRESULT_TYPEDEF_(0x89240108L)
++#define E_GAMERUNTIME_OPTIONS_MISMATCH                              _HRESULT_TYPEDEF_(0x89240109L)
++#define E_GAMERUNTIME_OPTIONS_NOT_SUPPORTED                         _HRESULT_TYPEDEF_(0x8924010AL)
++#define E_GAMERUNTIME_GAMECONFIG_BAD_FORMAT                         _HRESULT_TYPEDEF_(0x8924010BL)
++#define E_GAMERUNTIME_INVALID_HANDLE                                _HRESULT_TYPEDEF_(0x8924010CL)
++#define E_GAMEUSER_NO_AUTH_USER                                     _HRESULT_TYPEDEF_(0x87DD0013L)
++#define E_GAMEUSER_USER_NOT_IN_SANDBOX                              _HRESULT_TYPEDEF_(0x8015DC12L)
++#define E_GAMEUSER_MAX_USERS_ADDED                                  _HRESULT_TYPEDEF_(0x89245100L)
++#define E_GAMEUSER_SIGNED_OUT                                       _HRESULT_TYPEDEF_(0x89245101L)
++#define E_GAMEUSER_RESOLVE_USER_ISSUE_REQUIRED                      _HRESULT_TYPEDEF_(0x89245102L)
++#define E_GAMEUSER_DEFERRAL_NOT_AVAILABLE                           _HRESULT_TYPEDEF_(0x89245103L)
++#define E_GAMEUSER_USER_NOT_FOUND                                   _HRESULT_TYPEDEF_(0x89245104L)
++#define E_GAMEUSER_NO_TOKEN_REQUIRED                                _HRESULT_TYPEDEF_(0x89245105L)
++#define E_GAMEUSER_NO_DEFAULT_USER                                  _HRESULT_TYPEDEF_(0x89245106L)
++#define E_GAMEUSER_FAILED_TO_RESOLVE                                _HRESULT_TYPEDEF_(0x89245107L)
++#define E_GAMEUSER_NO_TITLE_ID                                      _HRESULT_TYPEDEF_(0x89245108L)
++#define E_GAMEUSER_UNKNOWN_GAME_IDENTITY                            _HRESULT_TYPEDEF_(0x89245109L)
++#define E_GAMEUSER_NO_PACKAGE_IDENTITY                              _HRESULT_TYPEDEF_(0x89245110L)
++#define E_GAMEUSER_FAILED_TO_GET_TOKEN                              _HRESULT_TYPEDEF_(0x89245111L)
++#define E_GAMEUSER_INVALID_APP_CONFIGURATION                        _HRESULT_TYPEDEF_(0x89245112L)
++#define E_GAMEUSER_MALFORMED_MSAAPPID                               _HRESULT_TYPEDEF_(0x89245113L)
++#define E_GAMEUSER_INCONSISTENT_MSAAPPID_AND_TITLEID                _HRESULT_TYPEDEF_(0x89245114L)
++#define E_GAMEUSER_NO_MSAAPPID                                      _HRESULT_TYPEDEF_(0x89245115L)
++#define E_GAMEPACKAGE_APP_NOT_PACKAGED                              _HRESULT_TYPEDEF_(0x89245200L)
++#define E_GAMEPACKAGE_NO_INSTALLED_LANGUAGES                        _HRESULT_TYPEDEF_(0x89245201L)
++#define E_GAMEPACKAGE_NO_STORE_ID                                   _HRESULT_TYPEDEF_(0x89245202L)
++#define E_GAMEPACKAGE_INVALID_SELECTOR                              _HRESULT_TYPEDEF_(0x89245203L)
++#define E_GAMEPACKAGE_DOWNLOAD_REQUIRED                             _HRESULT_TYPEDEF_(0x89245204L)
++#define E_GAMEPACKAGE_NO_TAG_CHANGE                                 _HRESULT_TYPEDEF_(0x89245205L)
++#define E_GAMEPACKAGE_DLC_NOT_SUPPORTED                             _HRESULT_TYPEDEF_(0x89245206L)
++#define E_GAMEPACKAGE_DUPLICATE_ID_VALUES                           _HRESULT_TYPEDEF_(0x89245207L)
++#define E_GAMEPACKAGE_NO_PACKAGE_IDENTIFIER                         _HRESULT_TYPEDEF_(0x89245208L)
++#define E_GAMEPACKAGE_CONFIG_NO_ROOT_NODE                           _HRESULT_TYPEDEF_(0x89245209L)
++#define E_GAMEPACKAGE_CONFIG_ZERO_VERSION                           _HRESULT_TYPEDEF_(0x8924520AL)
++#define E_GAMEPACKAGE_CONFIG_NO_MSAAPPID_OR_TITLEID                 _HRESULT_TYPEDEF_(0x8924520BL)
++#define E_GAMEPACKAGE_CONFIG_DEPRECATED_PC_ENTRIES                  _HRESULT_TYPEDEF_(0x8924520CL)
++#define E_GAMEPACKAGE_CONFIG_SUM_REQUIRES_MSAAPPID                  _HRESULT_TYPEDEF_(0x8924520DL)
++#define E_GAMEPACKAGE_CONFIG_NO_CODE_CLOUD_SAVES_REQUIRES_MSAAPPID  _HRESULT_TYPEDEF_(0x8924520EL)
++#define E_GAMEPACKAGE_CONFIG_MSAAPPID_OR_TITLEID_IS_DEFAULT         _HRESULT_TYPEDEF_(0x8924520FL)
++#define E_GAMEPACKAGE_CONFIG_INVALID_CONTROL_CHARACTERS             _HRESULT_TYPEDEF_(0x89245210L)
++#define E_GAMEPACKAGE_CONFIG_PROTOCOL_REQUIRES_EXECUTABLE           _HRESULT_TYPEDEF_(0x89245211L)
++#define E_GAMESTORE_LICENSE_ACTION_NOT_APPLICABLE_TO_PRODUCT        _HRESULT_TYPEDEF_(0x89245300L)
++#define E_GAMESTORE_NETWORK_ERROR                                   _HRESULT_TYPEDEF_(0x89245301L)
++#define E_GAMESTORE_SERVER_ERROR                                    _HRESULT_TYPEDEF_(0x89245302L)
++#define E_GAMESTORE_INSUFFICIENT_QUANTITY                           _HRESULT_TYPEDEF_(0x89245303L)
++#define E_GAMESTORE_ALREADY_PURCHASED                               _HRESULT_TYPEDEF_(0x89245304L)
++#define E_GAMESTORE_LICENSE_ACTION_THROTTLED                        _HRESULT_TYPEDEF_(0x89245305L)
++#define E_GAMESTREAMING_NOT_INITIALIZED                             _HRESULT_TYPEDEF_(0x89245400L)
++#define E_GAMESTREAMING_CLIENT_NOT_CONNECTED                        _HRESULT_TYPEDEF_(0x89245401L)
++#define E_GAMESTREAMING_NO_DATA                                     _HRESULT_TYPEDEF_(0x89245402L)
++#define E_GAMESTREAMING_NO_DATACENTER                               _HRESULT_TYPEDEF_(0x89245403L)
++#define E_GAMESTREAMING_NOT_STREAMING_CONTROLLER                    _HRESULT_TYPEDEF_(0x89245404L)
++#define E_GAMESTREAMING_NO_MATCH                                    _HRESULT_TYPEDEF_(0x89245405L)
++#define E_GAMESTREAMING_TOO_MANY_CALLS                              _HRESULT_TYPEDEF_(0x89245406L)
++#define E_GAMESTREAMING_CUSTOM_RESOLUTION_NOT_SUPPORTED             _HRESULT_TYPEDEF_(0x89245407L)
++#define E_GAMESTREAMING_CUSTOM_RESOLUTION_TOO_SMALL                 _HRESULT_TYPEDEF_(0x89245408L)
++#define E_GAMESTREAMING_CUSTOM_RESOLUTION_TOO_LARGE                 _HRESULT_TYPEDEF_(0x89245409L)
++#define E_GAMESTREAMING_CUSTOM_RESOLUTION_TOO_MANY_PIXELS           _HRESULT_TYPEDEF_(0x8924540AL)
++#define E_GAMESTREAMING_INVALID_CUSTOM_RESOLUTION                   _HRESULT_TYPEDEF_(0x8924540BL)
++
++#endif
+\ No newline at end of file

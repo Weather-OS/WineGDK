@@ -1877,6 +1877,26 @@ interface IContextMenuCB : IUnknown
 }
 
 /*****************************************************************************
+ * IDataTransferManagerInterop interface
+ */
+[
+   object,
+   uuid(3a3dcd6c-3eab-43dc-bcde-45671ce800c8),
+   pointer_default(unique),
+   local
+]
+interface IDataTransferManagerInterop : IUnknown
+{
+    HRESULT GetForWindow(
+        [in] HWND appWindow,
+        [in] REFIID riid,
+        [out, optional] void **dataTransferManager);
+
+    HRESULT ShowShareUIForWindow(
+        [in] HWND appWindow);
+}
+
+/*****************************************************************************
  * IShellExecuteHookA interface
  */
 [

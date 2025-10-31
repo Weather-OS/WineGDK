@@ -1,0 +1,10 @@
+IMPORTS   = user32 advapi32
+MODULE    = xgameruntime.dll
+
+SOURCES = \
+	main.c \
+	provider.idl \
+	\
+	GDKComponent/InitInternalGDKC.c \
+	\
+	GDKComponent/System/XSystem.c

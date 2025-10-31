@@ -1,5 +1,7 @@
 /*
- * Copyright 2023 Rémi Bernon for CodeWeavers
+ * Runtime Classes for windows.ui.core.textinput.dll
+ *
+ * Written by Weather
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -22,30 +24,16 @@
 import "inspectable.idl";
 import "asyncinfo.idl";
 import "eventtoken.idl";
-import "windowscontracts.idl";
 import "windows.foundation.idl";
-import "windows.globalization.idl";
-import "windows.storage.streams.idl";
-import "windows.ui.windowmanagement.idl";
-import "windows.security.exchangeactivesyncprovisioning.idl";
-import "windows.system.profile.idl";
-import "windows.system.userprofile.idl";
-import "windows.ui.viewmanagement.idl";
-import "windows.applicationmodel.datatransfer.idl";
+import "windowscontracts.idl";
+import "windows.system.idl";
+import "windows.ui.text.core.idl";
+import "windows.ui.viewmanagement.core.idl";
 
-namespace Windows.Security.ExchangeActiveSyncProvisioning {
-    runtimeclass EasClientDeviceInformation;
-}
-namespace Windows.System.Profile {
-    runtimeclass AnalyticsInfo;
-}
-namespace Windows.System.UserProfile {
-    runtimeclass AdvertisingManager;
-}
-namespace Windows.UI.ViewManagement {
-    runtimeclass ApplicationView;
+namespace Windows.UI.ViewManagement.Core {
+    runtimeclass CoreInputView;
 }
 
-namespace Windows.ApplicationModel.DataTransfer {
-    runtimeclass DataTransferManager;
+namespace Windows.UI.Text.Core {
+    runtimeclass CoreTextServicesManager;
 }

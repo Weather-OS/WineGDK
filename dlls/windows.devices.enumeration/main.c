@@ -32,6 +32,8 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(enumeration);
 
+DEFINE_ASYNC_COMPLETED_HANDLER( async_iinspectable_handler, IAsyncOperationCompletedHandler_IInspectable, IAsyncOperation_IInspectable )
+
 struct devquery_params
 {
     IUnknown IUnknown_iface;
@@ -889,9 +891,52 @@ static HRESULT WINAPI device_statics2_CreateFromIdAsync( IDeviceInformationStati
                                                          IIterable_HSTRING *additional_properties, DeviceInformationKind kind,
                                                          IAsyncOperation_DeviceInformation **async_operation )
 {
-    FIXME( "iface %p, device_id %s, additional_properties %p, kind %u, async_operation %p stub!\n",
-            iface, debugstr_hstring( device_id ), additional_properties, kind, async_operation );
-    return E_NOTIMPL;
+    const DEVPROPCOMPKEY device_iface_default_props[] = {
+        { DEVPKEY_DeviceInterface_Enabled, DEVPROP_STORE_SYSTEM, NULL },
+        { DEVPKEY_Device_InstanceId, DEVPROP_STORE_SYSTEM, NULL },
+    };
+    DEVPROPCOMPKEY *prop_keys = NULL;
+    struct aqs_expr *expr = NULL;
+    ULONG prop_keys_len = 0;
+    IUnknown *params;
+    HSTRING filter;
+    HRESULT hr;
+    DWORD asyncRes;
+
+    IAsyncOperation_IInspectable *op = NULL;
+    IVectorView_DeviceInformation *vec = NULL;
+    IDeviceInformation *dev = NULL;
+
+    WindowsCreateString( L"", wcslen( L""), &filter );
+
+    TRACE( "iface %p, device_id %s, additional_properties %p, kind %d, async_operation %p\n", iface, debugstr_hstring(device_id), additional_properties, kind, async_operation );
+
+    if (FAILED(hr = devpropcompkeys_init( &prop_keys, &prop_keys_len, device_iface_default_props, ARRAY_SIZE( device_iface_default_props ) ))) goto failed;
+    if (additional_properties && FAILED(hr = devpropcompkeys_append_names( &prop_keys, &prop_keys_len, additional_properties ))) goto failed;
+    if (FAILED(hr = aqs_parse_query(WindowsGetStringRawBuffer( filter, NULL ), &expr, NULL ))) goto failed;
+    if (FAILED(hr = devquery_params_create( 8, expr, prop_keys, prop_keys_len, &params ))) goto failed;
+
+    hr = async_operation_inspectable_create( &IID_IAsyncOperation_DeviceInformationCollection, (IUnknown *)iface, params, find_all_async, &op );
+    IUnknown_Release( params );
+
+    asyncRes = await_IAsyncOperation_IInspectable( op, INFINITE );
+    if ( asyncRes )
+        return E_UNEXPECTED;
+
+    hr = IAsyncOperation_IInspectable_GetResults( op, (IInspectable **)&vec );
+    if (FAILED(hr)) return hr;
+
+    hr = IVectorView_DeviceInformation_GetAt( vec, 0, &dev );
+    if (FAILED(hr)) return hr;
+
+    hr = async_operation_inspectable_create( &IID_IAsyncOperation_DeviceInformation, (IUnknown *)iface, (IUnknown *)dev, async, (IAsyncOperation_IInspectable **)async_operation );
+
+    return hr;
+
+failed:
+    free( prop_keys );
+    free_aqs_expr( expr );
+    return hr;
 }
 
 static HRESULT WINAPI device_statics2_FindAllAsync( IDeviceInformationStatics2 *iface, HSTRING filter,

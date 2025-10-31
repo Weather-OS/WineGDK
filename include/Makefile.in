@@ -949,6 +949,7 @@ SOURCES = \
 	windows.ui.xaml.hosting.desktopwindowxamlsource.idl \
 	windows.ui.xaml.idl \
 	windows.ui.xaml.interop.idl \
+	windows.ui.text.core.idl \
 	windowscontracts.idl \
 	windowsx.h \
 	wine/afd.h \

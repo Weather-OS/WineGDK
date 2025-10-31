@@ -353,3 +353,15 @@ HRESULT device_information_create( const DEV_OBJECT *obj, IDeviceInformation **i
     TRACE( "created DeviceInformation %p\n", impl );
     return S_OK;
 }
+
+HRESULT async( IUnknown *invoker, IUnknown *param, PROPVARIANT *result )
+{
+    HRESULT hr;
+
+    TRACE( "invoker %p, param %p, result %p\n", invoker, param, result );
+
+    result->vt = VT_UNKNOWN;
+    result->punkVal = (IUnknown *)param;
+
+    return S_OK;
+}

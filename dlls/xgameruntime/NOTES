@@ -1,0 +1,18 @@
+Wine's Microsoft Game Development Kit Implementation
+
+This consists of a library called `xgameruntime.dll`.
+Most GDK games only rely on this library and wouldn't use anything else for GDK API.
+
+Our GDK implementation here does NOT include functionality that's under NDA.
+Fortunately, this does not tend to affect GDK games published for Microsoft® Windows, and
+is mostly exclusive to the Microsoft® Xbox console.
+
+UNDER NO CIRCUMSTANCES SHOULD YOU ATTEMPT TO IMPLEMENT OR STUB ANY FUNCTIONALITY THAT'S UNDER AN NDA.
+
+These include, and are not limited to:
+
+A) Audio API Reference: https://learn.microsoft.com/en-us/gaming/gdk/docs/reference/audio/gc-reference-audio-toc
+
+B) Developer Kit Only API Reference: https://learn.microsoft.com/en-us/gaming/gdk/docs/reference/devkit/atoc-devkit-reference
+
+C) Graphics API Reference: https://learn.microsoft.com/en-us/gaming/gdk/docs/reference/graphics/gc-reference-graphics-toc
