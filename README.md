@@ -1,3 +1,9 @@
+# NOTES FOR PEOPLE TRYING TO RUN MINECRAFT'S GDK BUILD
+
+This is a very quick and dirty repo that incorporates the bare minimum WinRT patches from my other WineCoreUAP project, and currently there's a memory alignment issue regarding console output.   
+You can temporarily fix this by setting `WINEDEBUG=+textinput,+gdkc,+enumeration,+combase,+propsys,+trace`   
+I will fix this at a later date when I apply more commits to my WineCoreUAP project.   
+
 ## INTRODUCTION
 
 Wine is a program which allows running Microsoft Windows programs
