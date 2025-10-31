@@ -246,7 +246,7 @@ static HRESULT WINAPI core_text_edit_context_remove_FocusRemoved(ICoreTextEditCo
 static HRESULT WINAPI core_text_edit_context_NotifyFocusEnter(ICoreTextEditContext *iface)
 {
     FIXME("iface %p, NotifyFocusEnter stub!\n", iface);
-    return E_NOTIMPL;
+    return S_OK;
 }
 
 static HRESULT WINAPI core_text_edit_context_NotifyFocusLeave(ICoreTextEditContext *iface)
