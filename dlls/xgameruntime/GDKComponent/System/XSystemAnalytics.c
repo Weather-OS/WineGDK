@@ -65,27 +65,109 @@ static ULONG WINAPI x_system_analytics_Release( IXSystemAnalyticsImpl *iface )
 
 static XSystemAnalyticsInfo * WINAPI x_system_analytics_XSystemGetAnalyticsInfo( IXSystemAnalyticsImpl *iface, XSystemAnalyticsInfo *__ret )
 {
-    // For Windows, XSystemAnalyticsInfo->family is always "Windows", and XSystemAnalyticsInfo->form is always "Desktop"
-    XSystemAnalyticsInfo info;
-    RTL_OSVERSIONINFOEXW RtlVer = { 0 };
-    NTSTATUS status;
-    
+    // For Windows, XSystemAnalyticsInfo->form is always "Desktop"
+    XSystemAnalyticsInfo info;    
+    ULONGLONG version;
+    LPCWSTR analytics_info_str = RuntimeClass_Windows_System_Profile_AnalyticsInfo;
+    HSTRING analytics_info_class;
+    HSTRING deviceFamilyVersion;
+    HSTRING deviceFamily;
+    LPCWSTR deviceFamilyVersionStr;
+    LPCWSTR deviceFamilyStr;
+    HRESULT status;
+    UINT32 strSize;
+    LPSTR str;
+    PSTR splitter;
+
+    IAnalyticsVersionInfo *analytics_version_info = NULL;
+    IAnalyticsInfoStatics *analytics_info_statics = NULL;
+
     TRACE( "iface %p.\n", iface );
 
-    strcpy( info.family, "Windows" );
-    strcpy( info.form, "Desktop" );
+    status = WindowsCreateString( analytics_info_str, wcslen( analytics_info_str ), &analytics_info_class );
+    if ( FAILED( status ) ) return NULL;
 
-    RtlVer.dwOSVersionInfoSize = sizeof( RtlVer );
-    status = RtlGetVersion( &RtlVer );
-    if ( SUCCEEDED( status ) )
+    status = RoGetActivationFactory( analytics_info_class, &IID_IAnalyticsInfoStatics, (void **)&analytics_info_statics );
+    WindowsDeleteString( analytics_info_class );
+    if ( FAILED( status ) ) return NULL;
+
+    status = IAnalyticsInfoStatics_get_VersionInfo( analytics_info_statics, &analytics_version_info );
+    IAnalyticsInfoStatics_Release( analytics_info_statics );
+    if ( FAILED( status ) ) return NULL;
+
+    status = IAnalyticsVersionInfo_get_DeviceFamilyVersion( analytics_version_info, &deviceFamilyVersion );
+    if ( FAILED( status ) )
     {
-        info.osVersion.major = (UINT16)RtlVer.dwMajorVersion;
-        info.osVersion.minor = (UINT16)RtlVer.dwMinorVersion;
-        info.osVersion.build = (UINT16)RtlVer.dwBuildNumber;
-        info.osVersion.revision = (UINT16)RtlVer.dwPlatformId;
-
-        info.hostingOsVersion = info.osVersion;
+        IAnalyticsVersionInfo_Release( analytics_version_info );
+        return NULL;
     }
+
+    status = IAnalyticsVersionInfo_get_DeviceFamily( analytics_version_info, &deviceFamily );
+    IAnalyticsVersionInfo_Release( analytics_version_info );
+    if ( FAILED( status ) )
+    {
+        WindowsDeleteString( deviceFamilyVersion );
+        return NULL;
+    }
+
+    deviceFamilyStr = WindowsGetStringRawBuffer( deviceFamily, NULL );
+    strSize = WideCharToMultiByte( CP_UTF8, 0, deviceFamilyStr, -1, NULL, 0, NULL, NULL );
+
+    str = (LPSTR)malloc( strSize );
+    if ( !str )
+    {
+        WindowsDeleteString( deviceFamilyVersion );
+        WindowsDeleteString( deviceFamily );
+        return NULL;
+    }
+
+    if ( !WideCharToMultiByte( CP_UTF8, 0, deviceFamilyStr, -1, str, strSize, NULL, NULL ) )
+    {
+        WindowsDeleteString( deviceFamilyVersion );
+        WindowsDeleteString( deviceFamily );
+        free( str );
+        return NULL;
+    }
+
+    splitter = strchr( str, '.' );
+    if ( splitter )
+    {
+        *splitter = '\0';
+
+        strcpy( info.family, str );
+        strcpy( info.form, splitter + 1 );
+    }
+
+    WindowsDeleteString( deviceFamily );
+    free( str );
+
+    deviceFamilyVersionStr = WindowsGetStringRawBuffer( deviceFamilyVersion, NULL );
+    strSize = WideCharToMultiByte( CP_UTF8, 0, deviceFamilyVersionStr, -1, NULL, 0, NULL, NULL );
+
+    str = (LPSTR)malloc( strSize );
+    if ( !str )
+    {
+        WindowsDeleteString( deviceFamilyVersion );
+        return NULL;
+    }
+
+    if ( !WideCharToMultiByte( CP_UTF8, 0, deviceFamilyVersionStr, -1, str, strSize, NULL, NULL ) )
+    {
+        WindowsDeleteString( deviceFamilyVersion );
+        free( str );
+        return NULL;
+    }
+
+    version = strtoull( str, NULL, 10 );
+    info.osVersion.major = (UINT16)(version >> 48);
+    info.osVersion.minor = (UINT16)((version >> 32) & 0xFFFF);
+    info.osVersion.build = (UINT16)((version >> 16) & 0xFFFF);
+    info.osVersion.revision = (UINT16)(version & 0xFFFF);
+
+    WindowsDeleteString( deviceFamilyVersion );
+    free( str );
+
+    info.hostingOsVersion = info.osVersion;
 
     *__ret = info;
 

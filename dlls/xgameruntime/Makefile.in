@@ -1,4 +1,4 @@
-IMPORTS   = user32 advapi32
+IMPORTS   = user32 advapi32 combase
 MODULE    = xgameruntime.dll
 
 SOURCES = \

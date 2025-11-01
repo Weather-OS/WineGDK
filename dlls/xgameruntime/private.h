@@ -24,7 +24,9 @@
 
 #include <stdlib.h>
 #include <windows.h>
-#include <winternl.h>
+#include <winstring.h>
+#include <roapi.h>
+#include <activation.h>
 
 #include <xgameerr.h>
 
@@ -32,6 +34,15 @@
 #include <unknwn.h>
 #include "provider.h"
 #include "wine/debug.h"
+
+
+#define WIDL_using_Windows_Foundation
+#define WIDL_using_Windows_Foundation_Collections
+#include "windows.foundation.h"
+#define WIDL_using_Windows_Globalization
+#include "windows.globalization.h"
+#define WIDL_using_Windows_System_Profile
+#include "windows.system.profile.h"
 
 // April 2025 Release of GDK
 #define GDKC_VERSION 10001L
