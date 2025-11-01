@@ -485,7 +485,7 @@ static HRESULT WINAPI game_input2_QueryInterface( v2_IGameInput *iface, REFIID i
 
     if (IsEqualGUID( iid, &IID_v1_IGameInput ))
     {
-        *out = &impl->v2_IGameInput_iface;
+        *out = &impl->v1_IGameInput_iface;
         impl->ref++;
         return S_OK;
     }
