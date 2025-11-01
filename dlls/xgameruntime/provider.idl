@@ -29,10 +29,15 @@ typedef enum XSystemHandleType XSystemHandleType;
 typedef enum XSystemHandleCallbackReason XSystemHandleCallbackReason;
 typedef enum XGameRuntimeFeature XGameRuntimeFeature;
 
+typedef struct XVersion XVersion;
+typedef struct XSystemAnalyticsInfo XSystemAnalyticsInfo;
+
 interface IXSystemImpl;
+interface IXSystemAnalyticsImpl;
 interface IXGameRuntimeFeatureImpl;
 
 coclass XSystemImpl;
+coclass XSystemAnalyticsImpl;
 coclass XGameRuntimeFeatureImpl;
 
 enum XSystemHandleType
@@ -87,6 +92,28 @@ enum XSystemHandleCallbackReason
     Destroyed   = 0x01
 };
 
+struct XVersion {  
+    union
+    {
+        struct
+        {
+            UINT16 major;  
+            UINT16 minor;  
+            UINT16 build;  
+            UINT16 revision;
+        };
+        UINT64 Value;
+    };
+};
+
+struct XSystemAnalyticsInfo
+{
+    XVersion osVersion;  
+    XVersion hostingOsVersion;  
+    CHAR family[64];  
+    CHAR form[64];
+};
+
 /* type-pruning version of XSystemHandleCallback */
 typedef void (__stdcall *XSystemHandleCallback)(
     XSystemHandle handle,
@@ -117,6 +144,15 @@ interface IXSystemImpl : IUnknown
 
 [
     object,
+    uuid(b884675d-b738-4a9c-815d-9a9a1e0c6c9b)
+]
+interface IXSystemAnalyticsImpl : IUnknown
+{
+    XSystemAnalyticsInfo XSystemGetAnalyticsInfo();
+}
+
+[
+    object,
     uuid(8836fe87-edb9-4fe3-8dad-05f0d2cd5b40)
 ]
 interface IXGameRuntimeFeatureImpl : IUnknown
@@ -133,9 +169,18 @@ coclass XSystemImpl
 }
 
 [
+    uuid(b884675d-b738-4a9c-815d-9a9a1e0c6c9b)
+]
+coclass XSystemAnalyticsImpl
+{
+    [default] interface IXSystemAnalyticsImpl;
+}
+
+[
     uuid(8836fe87-edb9-4fe3-8dad-05f0d2cd5b40)
 ]
 coclass XGameRuntimeFeatureImpl
 {
     [default] interface IXGameRuntimeFeatureImpl;
 }
+

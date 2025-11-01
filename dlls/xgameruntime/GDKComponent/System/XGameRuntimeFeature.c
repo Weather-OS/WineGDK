@@ -1,6 +1,6 @@
 /*
  * Xbox Game runtime Library
- *  GDK Component: System API -> XSystem
+ *  GDK Component: System API -> XGameRuntimeFeature
  * 
  * Written by Weather
  *

@@ -24,6 +24,7 @@
 
 #include <stdlib.h>
 #include <windows.h>
+#include <winternl.h>
 
 #include <xgameerr.h>
 
@@ -37,6 +38,7 @@
 #define GAMING_SERVICES_VERSION 3181L
 
 extern IXSystemImpl *x_system_impl;
+extern IXSystemAnalyticsImpl *x_system_analytics_impl;
 extern IXGameRuntimeFeatureImpl *x_game_runtime_feature_impl;
 
 typedef struct _INITIALIZE_OPTIONS

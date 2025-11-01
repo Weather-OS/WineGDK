@@ -1,6 +1,6 @@
 /*
  * Xbox Game runtime Library
- *  GDK Component: System API -> XGameRuntimeFeature
+ *  GDK Component: System API -> XSystem
  * 
  * Written by Weather
  *
@@ -19,16 +19,16 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef XGAMERUNTIMEFEATURE_H
-#define XGAMERUNTIMEFEATURE_H
+#ifndef XSYSTEM_ANALYTICS_H
+#define XSYSTEM_ANALYTICS_H
 
 #include "../../private.h"
 
 #include <string.h>
 
-struct x_game_runtime_feature
+struct x_system_analytics
 {
-    IXGameRuntimeFeatureImpl IXGameRuntimeFeatureImpl_iface;
+    IXSystemAnalyticsImpl IXSystemAnalyticsImpl_iface;
     LONG ref;
 };
 
