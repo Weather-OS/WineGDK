@@ -4,6 +4,9 @@ This is a very quick and dirty repo that incorporates the bare minimum WinRT pat
 You can temporarily fix this by setting `WINEDEBUG=+textinput,+gdkc,+enumeration,+combase,+propsys,+trace`   
 I will fix this at a later date when I apply more commits to my WineCoreUAP project.   
 
+Since IGameInput is still not implemented yet, the game does not support mouse inputs.
+You can either use a game pad or turn on "Full Keyboard Gameplay" within Mouse/Keyboard settings within the game.
+
 ## INTRODUCTION
 
 Wine is a program which allows running Microsoft Windows programs
