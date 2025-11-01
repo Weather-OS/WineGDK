@@ -4,6 +4,6 @@
 4 stdcall InitializeApiImplEx2(long long long ptr)
 5 stdcall QueryApiImpl(ptr long long)
 6 stdcall UninitializeApiImpl()
-7 stdcall XErrorReport(int64 ptr)
+7 stdcall XErrorReport(long ptr)
 
 @ stdcall -private DllMain(long long ptr)

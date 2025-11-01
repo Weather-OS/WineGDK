@@ -27,6 +27,11 @@ WINE_DEFAULT_DEBUG_CHANNEL(xgameruntime);
 
 static HMODULE xgameruntime;
 
+HRESULT WINAPI DllCanUnloadNow(void)
+{
+    return xgameruntime != NULL ? S_FALSE : S_OK;
+}
+
 BOOL WINAPI DllMain( HINSTANCE hinst, DWORD reason, void *reserved )
 {
     TRACE("inst %p, reason %lu, reserved %p.\n", hinst, reason, reserved);
