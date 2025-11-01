@@ -27,10 +27,13 @@ typedef void* XSystemHandle;
 
 typedef enum XSystemHandleType XSystemHandleType;
 typedef enum XSystemHandleCallbackReason XSystemHandleCallbackReason;
+typedef enum XGameRuntimeFeature XGameRuntimeFeature;
 
 interface IXSystemImpl;
+interface IXGameRuntimeFeatureImpl;
 
-coclass XSystem;
+coclass XSystemImpl;
+coclass XGameRuntimeFeatureImpl;
 
 enum XSystemHandleType
 {
@@ -50,6 +53,32 @@ enum XSystemHandleType
     User                       = 0x0d,
     UserSignOutDeferral        = 0x0e,
     GameUiTextEntry            = 0x0f
+};
+
+enum XGameRuntimeFeature
+{  
+    XAccessibility             = 0,  
+    XAppCapture                = 1,  
+    XAsync                     = 2,  
+    XAsyncProvider             = 3,  
+    XDisplay                   = 4,  
+    XGame                      = 5,  
+    XGameInvite                = 6,  
+    XGameSave                  = 7,  
+    XGameUI                    = 8,  
+    XLauncher                  = 9,  
+    XNetworking                = 10,  
+    XPackage                   = 11,  
+    XPersistentLocalStorage    = 12,  
+    XSpeechSynthesizer         = 13,  
+    XStore                     = 14,  
+    XSystem                    = 15,  
+    XTaskQueue                 = 16,  
+    XThread                    = 17,  
+    XUser                      = 18,  
+    XError                     = 19,  
+    XGameEvent                 = 20, 
+    XGameStreaming             = 21, 
 };
 
 enum XSystemHandleCallbackReason
@@ -87,9 +116,26 @@ interface IXSystemImpl : IUnknown
 }
 
 [
+    object,
+    uuid(8836fe87-edb9-4fe3-8dad-05f0d2cd5b40)
+]
+interface IXGameRuntimeFeatureImpl : IUnknown
+{
+    BOOLEAN XGameRuntimeIsFeatureAvailable( [in] XGameRuntimeFeature feature );
+}
+
+[
     uuid(e349bd1a-fc20-4e40-b99c-4178cc6b409f)
 ]
-coclass XSystem
+coclass XSystemImpl
 {
     [default] interface IXSystemImpl;
+}
+
+[
+    uuid(8836fe87-edb9-4fe3-8dad-05f0d2cd5b40)
+]
+coclass XGameRuntimeFeatureImpl
+{
+    [default] interface IXGameRuntimeFeatureImpl;
 }

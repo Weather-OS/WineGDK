@@ -7,4 +7,5 @@ SOURCES = \
 	\
 	GDKComponent/InitInternalGDKC.c \
 	\
-	GDKComponent/System/XSystem.c
+	GDKComponent/System/XSystem.c \
+	GDKComponent/System/XGameRuntimeFeature.c
