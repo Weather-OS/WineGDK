@@ -36,6 +36,7 @@ struct game_input
 {
     v0_IGameInput v0_IGameInput_iface;
     v1_IGameInput v1_IGameInput_iface;
+    v2_IGameInput v2_IGameInput_iface;
     LONG ref;
 };
 
@@ -65,6 +66,14 @@ static HRESULT WINAPI game_input_QueryInterface( v0_IGameInput *iface, REFIID ii
         impl->ref++;
         return S_OK;
     }
+
+    if (IsEqualGUID( iid, &IID_v2_IGameInput ))
+    {
+        *out = &impl->v2_IGameInput_iface;
+        impl->ref++;
+        return S_OK;
+    }
+
 
     FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( iid ) );
     *out = NULL;
@@ -291,6 +300,13 @@ static HRESULT WINAPI game_input1_QueryInterface( v1_IGameInput *iface, REFIID i
         return S_OK;
     }
 
+    if (IsEqualGUID( iid, &IID_v2_IGameInput ))
+    {
+        *out = &impl->v2_IGameInput_iface;
+        impl->ref++;
+        return S_OK;
+    }
+
     FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( iid ) );
     *out = NULL;
     return E_NOINTERFACE;
@@ -447,6 +463,196 @@ static const struct v1_IGameInputVtbl game_input1_vtbl =
     game_input1_SetFocusPolicy
 };
 
+static inline struct game_input *impl_from_v2_IGameInput( v2_IGameInput *iface )
+{
+    return CONTAINING_RECORD( iface, struct game_input, v2_IGameInput_iface );
+}
+
+static HRESULT WINAPI game_input2_QueryInterface( v2_IGameInput *iface, REFIID iid, void **out )
+{
+    struct game_input *impl = impl_from_v2_IGameInput( iface );
+
+    TRACE( "iface %p, iid %s, out %p.\n", iface, debugstr_guid( iid ), out );
+
+    if (IsEqualGUID( iid, &IID_IUnknown ) ||
+        IsEqualGUID( iid, &IID_IAgileObject ) ||
+        IsEqualGUID( iid, &IID_v0_IGameInput ))
+    {
+        *out = &impl->v0_IGameInput_iface;
+        impl->ref++;
+        return S_OK;
+    }
+
+    if (IsEqualGUID( iid, &IID_v1_IGameInput ))
+    {
+        *out = &impl->v2_IGameInput_iface;
+        impl->ref++;
+        return S_OK;
+    }
+
+    if (IsEqualGUID( iid, &IID_v2_IGameInput ))
+    {
+        *out = &impl->v2_IGameInput_iface;
+        impl->ref++;
+        return S_OK;
+    }
+
+    FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( iid ) );
+    *out = NULL;
+    return E_NOINTERFACE;
+}
+
+static ULONG WINAPI game_input2_AddRef( v2_IGameInput *iface )
+{
+    struct game_input *impl = impl_from_v2_IGameInput( iface );
+    ULONG ref = InterlockedIncrement( &impl->ref );
+    TRACE( "iface %p increasing refcount to %lu.\n", iface, ref );
+    return ref;
+}
+
+static ULONG WINAPI game_input2_Release( v2_IGameInput *iface )
+{
+    struct game_input *impl = impl_from_v2_IGameInput( iface );
+    ULONG ref = InterlockedDecrement( &impl->ref );
+    TRACE( "iface %p decreasing refcount to %lu.\n", iface, ref );
+    return ref;
+};
+
+static UINT64 WINAPI game_input2_GetCurrentTimestamp( v2_IGameInput *iface )
+{
+    TRACE( "iface %p, stub GetCurrentTimestamp.\n", iface );
+    return (UINT64)0;
+}
+
+static HRESULT WINAPI game_input2_GetCurrentReading( v2_IGameInput *iface, GameInputKind kind,
+                                                   v2_IGameInputDevice *device, v2_IGameInputReading **reading )
+{
+    FIXME( "iface %p GetCurrentReading kind=%d device=%p reading_out=%p\n", iface, (int)kind, device, reading );
+    if (reading) *reading = NULL;
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI game_input2_GetNextReading( v2_IGameInput *iface, v2_IGameInputReading *reference,
+                                                 GameInputKind kind, v2_IGameInputDevice *device,
+                                                 v2_IGameInputReading **reading )
+{
+    FIXME( "iface %p GetNextReading reference=%p kind=%d device=%p reading_out=%p\n", iface, reference, (int)kind, device, reading );
+    if (reading) *reading = NULL;
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI game_input2_GetPreviousReading( v2_IGameInput *iface, v2_IGameInputReading *reference,
+                                                     GameInputKind kind, v2_IGameInputDevice *device,
+                                                     v2_IGameInputReading **reading )
+{
+    FIXME( "iface %p GetPreviousReading reference=%p kind=%d device=%p reading_out=%p\n", iface, reference, (int)kind, device, reading );
+    if (reading) *reading = NULL;
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI game_input2_RegisterReadingCallback( v2_IGameInput *iface, v2_IGameInputDevice *device,
+                                                          GameInputKind kind, void *context,
+                                                          v2_GameInputReadingCallback callback, GameInputCallbackToken *token )
+{
+    FIXME( "iface %p RegisterReadingCallback device=%p kind=%d callback=%p token_out=%p\n",
+           iface, device, (int)kind, callback, token );
+    if (token) *token = (GameInputCallbackToken)0;
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI game_input2_RegisterDeviceCallback( v2_IGameInput *iface, v2_IGameInputDevice *device,
+                                                         GameInputKind kind, GameInputDeviceStatus filter,
+                                                         GameInputEnumerationKind enum_kind, void *context,
+                                                         v2_GameInputDeviceCallback callback, GameInputCallbackToken *token )
+{
+    FIXME( "iface %p RegisterDeviceCallback device=%p kind=%d filter=%d enum_kind=%d callback=%p token_out=%p\n",
+           iface, device, (int)kind, (int)filter, (int)enum_kind, callback, token );
+    if (token) *token = (GameInputCallbackToken)0;
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI game_input2_RegisterSystemButtonCallback( v2_IGameInput *iface, v2_IGameInputDevice *device,
+                                                               GameInputSystemButtons filter, void *context,
+                                                               v2_GameInputSystemButtonCallback callback, GameInputCallbackToken *token )
+{
+    FIXME( "iface %p RegisterSystemButtonCallback device=%p filter=%u callback=%p token_out=%p\n",
+           iface, device, (unsigned)filter, callback, token );
+    if (token) *token = (GameInputCallbackToken)0;
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI game_input2_RegisterKeyboardLayoutCallback( v2_IGameInput *iface, v2_IGameInputDevice *device,
+                                                                 void *context, v2_GameInputKeyboardLayoutCallback callback,
+                                                                 GameInputCallbackToken *token )
+{
+    FIXME( "iface %p RegisterKeyboardLayoutCallback device=%p callback=%p token_out=%p\n",
+           iface, device, callback, token );
+    if (token) *token = (GameInputCallbackToken)0;
+    return E_NOTIMPL;
+}
+
+static void WINAPI game_input2_StopCallback( v2_IGameInput *iface, GameInputCallbackToken token )
+{
+    FIXME( "iface %p StopCallback token=%llu\n", iface, (unsigned long long)token );
+    /* no-op stub */
+}
+
+static bool WINAPI game_input2_UnregisterCallback( v2_IGameInput *iface, GameInputCallbackToken token )
+{
+    FIXME( "iface %p UnregisterCallback token=%llu\n", iface, (unsigned long long)token );
+    return false;
+}
+
+static HRESULT WINAPI game_input2_CreateDispatcher( v2_IGameInput *iface, IGameInputDispatcher **dispatcher )
+{
+    FIXME( "iface %p CreateDispatcher dispatcher_out=%p\n", iface, dispatcher );
+    if (dispatcher) *dispatcher = NULL;
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI game_input2_FindDeviceFromId( v2_IGameInput *iface, const APP_LOCAL_DEVICE_ID *value, v2_IGameInputDevice **device )
+{
+    FIXME( "iface %p FindDeviceFromId value=%p device_out=%p\n", iface, value, device );
+    if (device) *device = NULL;
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI game_input2_FindDeviceFromPlatformString( v2_IGameInput *iface, const WCHAR *value, v2_IGameInputDevice **device )
+{
+    FIXME( "iface %p FindDeviceFromPlatformString value=%p device_out=%p\n", iface, value, device );
+    if (device) *device = NULL;
+    return E_NOTIMPL;
+}
+
+static void WINAPI game_input2_SetFocusPolicy( v2_IGameInput *iface, GameInputFocusPolicy policy )
+{
+    FIXME( "iface %p SetFocusPolicy policy=%d\n", iface, (int)policy );
+    /* no-op stub */
+}
+
+static const struct v2_IGameInputVtbl game_input2_vtbl =
+{
+    /* IUnknown methods */
+    game_input2_QueryInterface,
+    game_input2_AddRef,
+    game_input2_Release,
+    /* v0_IGameInput methods */
+    game_input2_GetCurrentTimestamp,
+    game_input2_GetCurrentReading,
+    game_input2_GetNextReading,
+    game_input2_GetPreviousReading,
+    game_input2_RegisterReadingCallback,
+    game_input2_RegisterDeviceCallback,
+    game_input2_RegisterSystemButtonCallback,
+    game_input2_RegisterKeyboardLayoutCallback,
+    game_input2_StopCallback,
+    game_input2_UnregisterCallback,
+    game_input2_CreateDispatcher,
+    game_input2_FindDeviceFromId,
+    game_input2_FindDeviceFromPlatformString,
+    game_input2_SetFocusPolicy
+};
+
 HRESULT WINAPI GameInputCreate( v0_IGameInput **out )
 {
     struct game_input *input;
@@ -457,6 +663,7 @@ HRESULT WINAPI GameInputCreate( v0_IGameInput **out )
 
     input->v0_IGameInput_iface.lpVtbl = &game_input_vtbl;
     input->v1_IGameInput_iface.lpVtbl = &game_input1_vtbl;
+    input->v2_IGameInput_iface.lpVtbl = &game_input2_vtbl;
     input->ref = 1;
 
     *out = &input->v0_IGameInput_iface;
