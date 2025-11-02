@@ -83,23 +83,30 @@ HRESULT WINAPI XCheckBlockAndInitialize( XAsyncBlock* asyncBlock )
 {
     struct x_async_work *newImpl;
     struct x_async_work *impl = impl_from_XAsyncBlock( asyncBlock );   
-    PVOID p; 
+    PVOID p;
     
     TRACE( "asyncBlock %p.\n", asyncBlock );
 
-    if ( impl->IWineAsyncWorkImpl_iface.lpVtbl != &x_async_work_vtbl )
-    {
-        if (!(newImpl = calloc( 1, sizeof(*newImpl) ))) return E_OUTOFMEMORY;
+    if ( impl && impl->IWineAsyncWorkImpl_iface.lpVtbl == &x_async_work_vtbl )
+        return S_OK;
 
-        newImpl->IWineAsyncWorkImpl_iface.lpVtbl = &x_async_work_vtbl;
-        newImpl->threadBlock = asyncBlock;
-        newImpl->status = S_OK;
-        p = (PVOID)newImpl;
-        memcpy( asyncBlock->internal, &p, sizeof(p) );
-        return S_FALSE;
+    if (!(newImpl = calloc( 1, sizeof(*newImpl) ))) return E_OUTOFMEMORY;
+
+    newImpl->IWineAsyncWorkImpl_iface.lpVtbl = &x_async_work_vtbl;
+    newImpl->threadBlock = asyncBlock;
+    newImpl->status = S_OK;
+    newImpl->ref = 1;
+    newImpl->provider.data = NULL;
+
+    p = InterlockedCompareExchangePointer( (PVOID *)asyncBlock->Internal, newImpl, NULL );
+
+    if ( p != NULL )
+    {
+        free( newImpl );
+        return S_OK;
     }
 
-    return S_OK;
+    return S_FALSE;
 }
 
 VOID CALLBACK XTPCallback( TP_CALLBACK_INSTANCE *instance, void *iface, TP_WORK *work )
