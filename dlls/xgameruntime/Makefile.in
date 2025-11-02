@@ -7,6 +7,9 @@ SOURCES = \
 	\
 	GDKComponent/InitInternalGDKC.c \
 	\
+	GDKComponent/System/XAsyncWork.c \
 	GDKComponent/System/XSystem.c \
+	GDKComponent/System/XThreading.c \
 	GDKComponent/System/XSystemAnalytics.c \
-	GDKComponent/System/XGameRuntimeFeature.c
+	GDKComponent/System/XGameRuntimeFeature.c \
+
