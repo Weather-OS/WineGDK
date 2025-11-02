@@ -98,7 +98,7 @@ HRESULT WINAPI XCheckBlockAndInitialize( XAsyncBlock* asyncBlock )
     newImpl->ref = 1;
     newImpl->provider.data = NULL;
 
-    p = InterlockedCompareExchangePointer( (PVOID *)asyncBlock->Internal, newImpl, NULL );
+    p = InterlockedCompareExchangePointer( (PVOID *)asyncBlock->internal, newImpl, NULL );
 
     if ( p != NULL )
     {
