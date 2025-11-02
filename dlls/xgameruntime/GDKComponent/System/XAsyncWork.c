@@ -31,7 +31,10 @@ static inline struct x_async_work *impl_from_IWineAsyncWorkImpl( IWineAsyncWorkI
 /* static object inheritence */
 struct x_async_work *impl_from_XAsyncBlock( XAsyncBlock *block )
 {
-    return CONTAINING_RECORD( block, struct x_async_work, threadBlock );
+    PVOID p;
+    if (!block) return NULL;
+    memcpy( &p, block->internal, sizeof(p) );
+    return (struct x_async_work *)p;
 }
 
 static HRESULT WINAPI x_async_work_QueryInterface( IWineAsyncWorkImpl *iface, REFIID iid, void **out )
@@ -67,4 +70,50 @@ static ULONG WINAPI x_async_work_Release( IWineAsyncWorkImpl *iface )
     ULONG ref = InterlockedDecrement( &impl->ref );
     TRACE( "iface %p decreasing refcount to %lu.\n", iface, ref );
     return ref;
+}
+
+static const struct IWineAsyncWorkImplVtbl x_async_work_vtbl =
+{
+    x_async_work_QueryInterface,
+    x_async_work_AddRef,
+    x_async_work_Release
+};
+
+HRESULT WINAPI XCheckBlockAndInitialize( XAsyncBlock* asyncBlock )
+{
+    struct x_async_work *newImpl;
+    struct x_async_work *impl = impl_from_XAsyncBlock( asyncBlock );   
+    PVOID p; 
+    
+    TRACE( "asyncBlock %p.\n", asyncBlock );
+
+    if ( impl->IWineAsyncWorkImpl_iface.lpVtbl != &x_async_work_vtbl )
+    {
+        if (!(newImpl = calloc( 1, sizeof(*newImpl) ))) return E_OUTOFMEMORY;
+
+        newImpl->IWineAsyncWorkImpl_iface.lpVtbl = &x_async_work_vtbl;
+        newImpl->threadBlock = asyncBlock;
+        newImpl->status = S_OK;
+        p = (PVOID)newImpl;
+        memcpy( asyncBlock->internal, &p, sizeof(p) );
+        return S_FALSE;
+    }
+
+    return S_OK;
+}
+
+VOID CALLBACK XTPCallback( TP_CALLBACK_INSTANCE *instance, void *iface, TP_WORK *work )
+{
+    struct x_async_work *impl = impl_from_IWineAsyncWorkImpl( (IWineAsyncWorkImpl *)iface );
+
+    TRACE( "instance %p, iface %p, work %p.\n", instance, iface, work );
+
+    EnterCriticalSection( &impl->cs );
+    if ( impl->provider.operation == DoWork )
+        Sleep( impl->provider.workDelay );
+    impl->provider.callback( impl->provider.operation, impl->provider.data );
+    /* It's the client's job to call XAsyncComplete and set the status, such as E_PENDING, E_ABORT or S_OK.*/
+    LeaveCriticalSection( &impl->cs );
+
+    return;
 }

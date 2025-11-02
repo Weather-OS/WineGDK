@@ -32,6 +32,21 @@ struct x_threading
     LONG ref;
 };
 
+struct x_async_provider
+{
+    XAsyncProviderCallback *callback;
+    XAsyncProviderData *data;
+    OPTIONAL PVOID identity;
+    OPTIONAL LPCSTR identityName;
+    XAsyncOp operation;
+    UINT32 workDelay;
+};
+
+/**
+ * The threadBlock in here is used as the root thread block, kind of like an iface.
+ * The threadBlock in provider->data is used as the actual thread work.
+ * IMPORTANT!: Only 1 continuous threadpool can run.
+ */
 struct x_async_work
 {
     IWineAsyncWorkImpl IWineAsyncWorkImpl_iface;
@@ -39,10 +54,16 @@ struct x_async_work
     HRESULT status;
     LONG ref;
 
+    struct x_async_provider provider;
+    HANDLE event;
     TP_WORK *async_run_work;
     CRITICAL_SECTION cs;
 };
 
 struct x_async_work *impl_from_XAsyncBlock( XAsyncBlock *block );
+
+HRESULT WINAPI XCheckBlockAndInitialize( XAsyncBlock* asyncBlock );
+
+VOID CALLBACK XTPCallback( TP_CALLBACK_INSTANCE *instance, void *iface, TP_WORK *work );
 
 #endif
