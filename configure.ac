@@ -9,9 +9,10 @@ AC_PREREQ(2.63b)
 AC_INIT([Wine],[WINE_VERSION],[wine-devel@winehq.org],[wine],[https://www.winehq.org])
 AC_CONFIG_SRCDIR(server/atom.c)
 AC_CONFIG_HEADERS(include/config.h)
-AC_CONFIG_AUX_DIR(tools)
 
-libwine_version="1.0"
+dnl Work around install-sh requirement in autoconf <= 2.69
+AC_PREREQ([2.69d],[AC_CONFIG_AUX_DIR(tools)],
+                  [AC_PROVIDE([AC_CONFIG_AUX_DIR_DEFAULT])ac_aux_dir="${srcdir}/tools"])
 
 dnl **** Command-line arguments ****
 
@@ -1415,11 +1416,9 @@ then
                             [`test -n "$PKG_CONFIG" && $PKG_CONFIG --variable=wayland_scanner wayland-scanner 2>/dev/null`])],
               [WAYLAND_CLIENT_LIBS=""],[$WAYLAND_CLIENT_LIBS])])])
     WINE_PACKAGE_FLAGS(XKBCOMMON,[xkbcommon],,,,
-        [AC_CHECK_HEADERS([xkbcommon/xkbcommon.h])
-         AC_CHECK_LIB(xkbcommon,xkb_context_new,[:],[XKBCOMMON_LIBS=""],[$XKBCOMMON_LIBS])])
+        [AC_CHECK_LIB(xkbcommon,xkb_context_new,[:],[XKBCOMMON_LIBS=""],[$XKBCOMMON_LIBS])])
     WINE_PACKAGE_FLAGS(XKBREGISTRY,[xkbregistry],,,,
-        [AC_CHECK_HEADERS([xkbcommon/xkbregistry.h])
-         AC_CHECK_LIB(xkbregistry,rxkb_context_new,[:],[XKBREGISTRY_LIBS=""],[$XKBREGISTRY_LIBS])])
+        [AC_CHECK_LIB(xkbregistry,rxkb_context_new,[:],[XKBREGISTRY_LIBS=""],[$XKBREGISTRY_LIBS])])
     if test "x$with_opengl" != "xno"
     then
         WINE_PACKAGE_FLAGS(WAYLAND_EGL,[wayland-egl],,,,
@@ -1484,7 +1483,7 @@ WINE_NOTICE_WITH(pcsclite,[test "x$PCSCLITE_LIBS" = x],
 dnl **** Check for inotify ****
 if test "x$with_inotify" != "xno"
 then
-    WINE_PACKAGE_FLAGS(INOTIFY,[libinotify],,,,
+    WINE_PACKAGE_FLAGS(INOTIFY,[libinotify],[-linotify],,,
         [AC_CHECK_HEADERS([sys/inotify.h])
          AC_CHECK_LIB(inotify,inotify_add_watch,[:],[INOTIFY_LIBS=""],[$INOTIFY_LIBS])])
 fi
@@ -2134,6 +2133,8 @@ AC_CHECK_FUNCS(\
 	posix_fadvise \
 	posix_fallocate \
 	prctl \
+	process_vm_readv \
+	process_vm_writev \
 	sched_getcpu \
 	sched_yield \
 	setproctitle \
@@ -2161,8 +2162,6 @@ then
 fi
 
 dnl **** Check for types ****
-
-AC_CHECK_TYPES([request_sense],,,[#include <linux/cdrom.h>])
 
 AC_CACHE_CHECK([whether we can use re-entrant gethostbyname_r Linux style],
    	wine_cv_linux_gethostbyname_r_6,
@@ -2195,8 +2194,8 @@ AC_CHECK_MEMBERS([struct sockaddr_un.sun_len],,,
 # include <sys/un.h>
 #endif])
 
-dnl Check for scsireq_t and sg_io_hdr_t members
-AC_CHECK_MEMBERS([scsireq_t.cmd, sg_io_hdr_t.interface_id],,,
+dnl Check for sg_io_hdr_t members
+AC_CHECK_MEMBERS([sg_io_hdr_t.interface_id],,,
 [#include <sys/types.h>
 #ifdef HAVE_SCSI_SG_H
 #include <scsi/sg.h>
@@ -2359,8 +2358,6 @@ AC_CHECK_MEMBERS([struct sysinfo.totalram, struct sysinfo.mem_unit],,,
 [#ifdef HAVE_SYS_SYSINFO_H
 # include <sys/sysinfo.h>
 #endif])
-
-LIBS="$ac_save_LIBS"
 
 dnl Check for __builtin_popcount
 AC_CACHE_CHECK([for __builtin_popcount], ac_cv_have___builtin_popcount,
@@ -3206,6 +3203,7 @@ WINE_CONFIG_MAKEFILE(dlls/taskschd)
 WINE_CONFIG_MAKEFILE(dlls/taskschd/tests)
 WINE_CONFIG_MAKEFILE(dlls/tbs)
 WINE_CONFIG_MAKEFILE(dlls/tdh)
+WINE_CONFIG_MAKEFILE(dlls/tdh/tests)
 WINE_CONFIG_MAKEFILE(dlls/tdi.sys)
 WINE_CONFIG_MAKEFILE(dlls/threadpoolwinrt)
 WINE_CONFIG_MAKEFILE(dlls/threadpoolwinrt/tests)
@@ -3342,6 +3340,8 @@ WINE_CONFIG_MAKEFILE(dlls/windows.system.profile.systemid)
 WINE_CONFIG_MAKEFILE(dlls/windows.system.profile.systemid/tests)
 WINE_CONFIG_MAKEFILE(dlls/windows.system.profile.systemmanufacturers)
 WINE_CONFIG_MAKEFILE(dlls/windows.system.profile.systemmanufacturers/tests)
+WINE_CONFIG_MAKEFILE(dlls/windows.ui.core.textinput)
+WINE_CONFIG_MAKEFILE(dlls/windows.ui.core.textinput/tests)
 WINE_CONFIG_MAKEFILE(dlls/windows.ui.xaml)
 WINE_CONFIG_MAKEFILE(dlls/windows.ui.xaml/tests)
 WINE_CONFIG_MAKEFILE(dlls/windows.ui)

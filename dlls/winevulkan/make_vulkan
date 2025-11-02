@@ -226,6 +226,8 @@ USER_DRIVER_FUNCS = {
     "vkGetPhysicalDeviceImageFormatProperties2",
     "vkGetPhysicalDeviceImageFormatProperties2KHR",
     "vkGetPhysicalDevicePresentRectanglesKHR",
+    "vkGetPhysicalDeviceProperties2",
+    "vkGetPhysicalDeviceProperties2KHR",
     "vkGetPhysicalDeviceSurfaceCapabilities2KHR",
     "vkGetPhysicalDeviceSurfaceCapabilitiesKHR",
     "vkGetPhysicalDeviceSurfaceFormats2KHR",
@@ -299,8 +301,6 @@ MANUAL_LOADER_THUNKS = {
     "vkEnumerateInstanceExtensionProperties",
     "vkEnumerateInstanceVersion",
     "vkFreeCommandBuffers",
-    "vkGetPhysicalDeviceProperties2",
-    "vkGetPhysicalDeviceProperties2KHR",
 }
 
 STRUCT_CHAIN_CONVERSIONS = {

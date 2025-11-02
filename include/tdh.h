@@ -1,7 +1,5 @@
 /*
- * MAC driver definitions
- *
- * Copyright 2022 Jacek Caban for CodeWeavers
+ * Copyright (C) 2025 Paul Gofman for CodeWeavers
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -18,19 +16,27 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef __WINE_MACDRV_DLL_H
-#define __WINE_MACDRV_DLL_H
+#ifndef __WINE_TDH_H
+#define __WINE_TDH_H
 
-#include <stdarg.h>
-#include "windef.h"
-#include "winbase.h"
-#include "ntgdi.h"
-#include "unixlib.h"
+ULONG WINAPI TdhLoadManifest( WCHAR *manifest );
+ULONG WINAPI TdhLoadManifestFromBinary( WCHAR *binary );
 
-extern NTSTATUS WINAPI macdrv_dnd_query_drag(void *arg, ULONG size);
-extern NTSTATUS WINAPI macdrv_dnd_query_drop(void *arg, ULONG size);
-extern NTSTATUS WINAPI macdrv_dnd_query_exited(void *arg, ULONG size);
+typedef struct _TRACE_PROVIDER_INFO
+{
+    GUID ProviderGuid;
+    ULONG SchemaSource;
+    ULONG ProviderNameOffset;
+}
+TRACE_PROVIDER_INFO;
 
-extern HMODULE macdrv_module;
+typedef struct _PROVIDER_ENUMERATION_INFO
+{
+    ULONG NumberOfProviders;
+    ULONG Reserved;
+    TRACE_PROVIDER_INFO TraceProviderInfoArray[ANYSIZE_ARRAY];
+}
+PROVIDER_ENUMERATION_INFO;
 
-#endif /* __WINE_MACDRV_DLL_H */
+ULONG WINAPI TdhEnumerateProviders( PROVIDER_ENUMERATION_INFO *buffer, ULONG *buffer_size );
+#endif

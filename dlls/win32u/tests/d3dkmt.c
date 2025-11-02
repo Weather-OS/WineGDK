@@ -93,6 +93,7 @@ static const char *debugstr_ok( const char *cond )
 #define ok_i4( r, op, e )   ok_ex( r, op, e, int, "%i" )
 #define ok_u4( r, op, e )   ok_ex( r, op, e, UINT, "%u" )
 #define ok_x4( r, op, e )   ok_ex( r, op, e, UINT, "%#x" )
+#define ok_x8( r, op, e )   ok_ex( r, op, e, UINT64, "%#I64x" )
 #define ok_u1( r, op, e )   ok_ex( r, op, e, unsigned char, "%u" )
 #define ok_ptr( r, op, e )  ok_ex( r, op, e, const void *, "%p" )
 
@@ -129,9 +130,7 @@ static void run_in_process_( const char *file, int line, const char *args )
     ok_(file, line)( ret, "CreateProcessA failed, error %lu\n", GetLastError() );
     if (!ret) return;
 
-    wait_child_process( info.hProcess );
-    CloseHandle( info.hThread );
-    CloseHandle( info.hProcess );
+    wait_child_process( &info );
 }
 
 #define check_d3dkmt_global( a ) check_d3dkmt_global_( __LINE__, a )
@@ -224,8 +223,8 @@ static void check_dxgi_runtime_desc_( struct dxgi_runtime_desc *desc, const stru
     else if (!d3d12) ok_x4( desc->unknown_0, ==, 0 );
     ok_x4( desc->unknown_1, ==, 0 );
     ok_x4( desc->keyed_mutex, ==, expect->keyed_mutex );
-    if (desc->keyed_mutex) check_d3dkmt_global( desc->mutex_handle );
-    if (desc->keyed_mutex) check_d3dkmt_global( desc->sync_handle );
+    if (desc->keyed_mutex && !desc->nt_shared) check_d3dkmt_global( desc->mutex_handle );
+    if (desc->keyed_mutex && !desc->nt_shared) check_d3dkmt_global( desc->sync_handle );
     ok_x4( desc->nt_shared, ==, expect->nt_shared );
     ok_x4( desc->unknown_2, ==, 0 );
     ok_x4( desc->unknown_3, ==, 0 );
@@ -2070,6 +2069,139 @@ static void test_D3DKMTCreateKeyedMutex( void )
     ok_nt( STATUS_SUCCESS, status );
 }
 
+static DWORD WINAPI test_acquire_mutex( void *arg )
+{
+    NTSTATUS status = D3DKMTAcquireKeyedMutex( arg );
+    ok_nt( STATUS_ABANDONED, status );
+    return 0;
+}
+
+static void test_D3DKMTAcquireKeyedMutex( void )
+{
+    LARGE_INTEGER timeout = {.QuadPart = 10 * -10000};
+    D3DKMT_DESTROYKEYEDMUTEX destroy = {0};
+    D3DKMT_ACQUIREKEYEDMUTEX acquire = {0};
+    D3DKMT_RELEASEKEYEDMUTEX release = {0};
+    D3DKMT_CREATEKEYEDMUTEX create = {0};
+    D3DKMT_OPENKEYEDMUTEX open = {0};
+    D3DKMT_HANDLE next_local = 0;
+    NTSTATUS status;
+    HANDLE thread;
+    DWORD ret;
+
+    create.hKeyedMutex = create.hSharedHandle = 0x1eadbeed;
+    status = D3DKMTCreateKeyedMutex( &create );
+    ok_nt( STATUS_SUCCESS, status );
+    check_d3dkmt_local( create.hKeyedMutex, &next_local );
+    check_d3dkmt_global( create.hSharedHandle );
+
+    status = D3DKMTAcquireKeyedMutex( NULL );
+    ok_nt( STATUS_INVALID_PARAMETER, status );
+    acquire.hKeyedMutex = 0x1eadbeed;
+    acquire.Key = 0xdeadbeef;
+    acquire.pTimeout = &timeout;
+    acquire.FenceValue = 0xdeadbeef;
+    status = D3DKMTAcquireKeyedMutex( &acquire );
+    ok_nt( STATUS_INVALID_PARAMETER, status );
+    ok_x4( acquire.Key, ==, 0xdeadbeef );
+    ok_x8( acquire.FenceValue, ==, 0xdeadbeef );
+
+    acquire.hKeyedMutex = create.hKeyedMutex;
+    acquire.Key = 0xdeadbeef;
+    acquire.FenceValue = 0xdeadbeef;
+    status = D3DKMTAcquireKeyedMutex( &acquire );
+    ok_nt( STATUS_TIMEOUT, status );
+    ok_x4( acquire.Key, ==, 0xdeadbeef );
+    ok_x8( acquire.FenceValue, ==, 0 );
+
+    acquire.hKeyedMutex = create.hKeyedMutex;
+    acquire.Key = 0;
+    acquire.FenceValue = 0xdeadbeef;
+    status = D3DKMTAcquireKeyedMutex( &acquire );
+    ok_nt( STATUS_SUCCESS, status );
+    ok_x4( acquire.Key, ==, 0 );
+    ok_x8( acquire.FenceValue, ==, 0 );
+
+    status = D3DKMTReleaseKeyedMutex( NULL );
+    ok_nt( STATUS_INVALID_PARAMETER, status );
+    release.hKeyedMutex = 0x1eadbeed;
+    release.Key = 0xdeadbeef;
+    release.FenceValue = 0xdeadbeef;
+    status = D3DKMTReleaseKeyedMutex( &release );
+    ok_nt( STATUS_INVALID_PARAMETER, status );
+    ok_x4( release.Key, ==, 0xdeadbeef );
+    ok_x8( release.FenceValue, ==, 0xdeadbeef );
+    release.hKeyedMutex = create.hKeyedMutex;
+    release.Key = 1;
+    release.FenceValue = 1234;
+    status = D3DKMTReleaseKeyedMutex( &release );
+    ok_nt( STATUS_SUCCESS, status );
+    ok_x4( release.Key, ==, 1 );
+    ok_x8( release.FenceValue, ==, 1234 );
+    release.FenceValue = 0xdeadbeef;
+    status = D3DKMTReleaseKeyedMutex( &release );
+    ok_nt( STATUS_INVALID_PARAMETER, status );
+    ok_x4( release.Key, ==, 1 );
+    ok_x8( release.FenceValue, ==, 0xdeadbeef );
+
+    acquire.Key = 0;
+    acquire.FenceValue = 0xdeadbeef;
+    status = D3DKMTAcquireKeyedMutex( &acquire );
+    ok_nt( STATUS_TIMEOUT, status );
+    ok_x8( acquire.FenceValue, ==, 0 );
+    acquire.Key = 1;
+    acquire.FenceValue = 0xdeadbeef;
+    status = D3DKMTAcquireKeyedMutex( &acquire );
+    ok_nt( STATUS_SUCCESS, status );
+    ok_x8( acquire.FenceValue, ==, 1234 );
+
+    release.Key = 0;
+    release.FenceValue = 0;
+    status = D3DKMTReleaseKeyedMutex( &release );
+    ok_nt( STATUS_SUCCESS, status );
+    acquire.Key = 0;
+    acquire.FenceValue = 0xdeadbeef;
+    status = D3DKMTAcquireKeyedMutex( &acquire );
+    ok_nt( STATUS_SUCCESS, status );
+    ok_x8( acquire.FenceValue, ==, 0 );
+
+    open.hSharedHandle = create.hSharedHandle;
+    open.hKeyedMutex = 0xdeadbeef;
+    status = D3DKMTOpenKeyedMutex( &open );
+    ok_nt( STATUS_SUCCESS, status );
+    check_d3dkmt_local( open.hKeyedMutex, &next_local );
+
+    acquire.hKeyedMutex = open.hKeyedMutex;
+    acquire.Key = 0;
+    acquire.FenceValue = 0xdeadbeef;
+    timeout.QuadPart = 5000 * -10000;
+    thread = CreateThread( NULL, 0, test_acquire_mutex, &acquire, 0, NULL );
+    ok_ptr( thread, !=, NULL );
+    ret = WaitForSingleObject( thread, 100 );
+    ok_u4( ret, ==, WAIT_TIMEOUT );
+
+    destroy.hKeyedMutex = create.hKeyedMutex;
+    status = D3DKMTDestroyKeyedMutex( &destroy );
+    ok_nt( STATUS_SUCCESS, status );
+    ret = WaitForSingleObject( thread, 5000 );
+    ok_u4( ret, ==, 0 );
+    CloseHandle( thread );
+
+    acquire.Key = 0xdeadbeef;
+    acquire.FenceValue = 0xdeadbeef;
+    timeout.QuadPart = 100 * -10000;
+    status = D3DKMTAcquireKeyedMutex( &acquire );
+    ok_nt( STATUS_ABANDONED, status );
+    ok_x8( acquire.FenceValue, ==, 0 );
+    status = D3DKMTAcquireKeyedMutex( &acquire );
+    ok_nt( STATUS_ABANDONED, status );
+    ok_x8( acquire.FenceValue, ==, 0 );
+
+    destroy.hKeyedMutex = open.hKeyedMutex;
+    status = D3DKMTDestroyKeyedMutex( &destroy );
+    ok_nt( STATUS_SUCCESS, status );
+}
+
 static void test_D3DKMTCreateAllocation( void )
 {
     OBJECT_ATTRIBUTES attr = {.Length = sizeof(attr)};
@@ -2527,6 +2659,7 @@ static void test_D3DKMTShareObjects( void )
     D3DKMT_CLOSEADAPTER close_adapter = {0};
 
     D3DKMT_QUERYRESOURCEINFOFROMNTHANDLE query_resource = {0};
+    D3DKMT_OPENKEYEDMUTEXFROMNTHANDLE open_mutex_nt = {0};
     D3DKMT_OPENRESOURCEFROMNTHANDLE open_resource = {0};
     D3DKMT_CREATESTANDARDALLOCATION standard = {0};
     D3DKMT_DESTROYALLOCATION destroy_alloc = {0};
@@ -3055,6 +3188,12 @@ static void test_D3DKMTShareObjects( void )
     ok_nt( STATUS_SUCCESS, status );
     open_resource.hSyncObject = 0;
 
+    /* D3DKMTOpenKeyedMutexFromNtHandle doesn't work with resource handle */
+    open_mutex_nt.hNtHandle = handle;
+    open_mutex_nt.hKeyedMutex = 0xdeadbeef;
+    status = D3DKMTOpenKeyedMutexFromNtHandle( &open_mutex_nt );
+    todo_wine ok_nt( STATUS_OBJECT_TYPE_MISMATCH, status );
+
     memset( &open_resource, 0, sizeof(open_resource) );
     CloseHandle( handle );
 
@@ -3318,6 +3457,7 @@ static struct vulkan_device *create_vulkan_device( LUID *luid )
         "VK_KHR_dedicated_allocation",
         "VK_KHR_external_memory",
         "VK_KHR_external_memory_win32",
+        "VK_KHR_win32_keyed_mutex",
     };
 
     VkDeviceQueueCreateInfo queue_info = {.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
@@ -3920,6 +4060,190 @@ static HRESULT get_d3d12_shared_handle( ID3D12Device *d3d12, IUnknown *obj, cons
     return hr;
 }
 
+static void test_shared_keyed_mutex( LUID luid, struct vulkan_device *vulkan_imp, struct vulkan_image *img, HANDLE handle, BOOL shared )
+{
+    uint64_t release_key = 0, acquire_key = 0;
+    uint32_t acquire_timeout = 100;
+
+    VkWin32KeyedMutexAcquireReleaseInfoKHR mutex_acquire =
+    {
+        .sType = VK_STRUCTURE_TYPE_WIN32_KEYED_MUTEX_ACQUIRE_RELEASE_INFO_KHR,
+        .acquireCount = 1,
+        .pAcquireSyncs = &img->memory,
+        .pAcquireKeys = &acquire_key,
+        .pAcquireTimeouts = &acquire_timeout,
+    };
+    VkWin32KeyedMutexAcquireReleaseInfoKHR mutex_release =
+    {
+        .sType = VK_STRUCTURE_TYPE_WIN32_KEYED_MUTEX_ACQUIRE_RELEASE_INFO_KHR,
+        .releaseCount = 1,
+        .pReleaseSyncs = &img->memory,
+        .pReleaseKeys = &release_key,
+    };
+    VkSubmitInfo submit_acquire =
+    {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .pNext = &mutex_acquire,
+    };
+    VkSubmitInfo submit_release =
+    {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .pNext = &mutex_release,
+    };
+    LARGE_INTEGER timeout = {.QuadPart = 10 * -10000};
+    PFN_vkGetDeviceQueue p_vkGetDeviceQueue;
+    D3DKMT_DESTROYKEYEDMUTEX destroy = {0};
+    D3DKMT_ACQUIREKEYEDMUTEX acquire = {0};
+    D3DKMT_RELEASEKEYEDMUTEX release = {0};
+    D3DKMT_HANDLE next_local = 0, mutex = 0;
+    PFN_vkQueueSubmit p_vkQueueSubmit;
+    NTSTATUS status;
+    VkQueue queue;
+    VkResult vr;
+
+    if (is_d3dkmt_handle( handle ))
+    {
+        D3DKMT_OPENKEYEDMUTEX open = {0};
+
+        open.hSharedHandle = HandleToULong( handle );
+        open.hKeyedMutex = 0xdeadbeef;
+        status = D3DKMTOpenKeyedMutex( &open );
+        ok_nt( STATUS_SUCCESS, status );
+        check_d3dkmt_local( open.hKeyedMutex, &next_local );
+        mutex = open.hKeyedMutex;
+    }
+    else
+    {
+        D3DKMT_DESTROYSYNCHRONIZATIONOBJECT destroy_sync = {0};
+        D3DKMT_QUERYRESOURCEINFOFROMNTHANDLE query = {0};
+        D3DKMT_OPENADAPTERFROMLUID open_adapter = {0};
+        D3DKMT_DESTROYALLOCATION destroy_alloc = {0};
+        D3DDDI_OPENALLOCATIONINFO2 open_alloc = {0};
+        D3DKMT_OPENRESOURCEFROMNTHANDLE open = {0};
+        D3DKMT_DESTROYDEVICE destroy_device = {0};
+        D3DKMT_CREATEDEVICE create_device = {0};
+        D3DKMT_CLOSEADAPTER close_adapter = {0};
+        char resource_data[0x100] = {0};
+        char runtime_data[0x400] = {0};
+        char driver_data[0x4000] = {0};
+
+        open_adapter.AdapterLuid = luid;
+        status = D3DKMTOpenAdapterFromLuid( &open_adapter );
+        ok_nt( status, STATUS_SUCCESS );
+        check_d3dkmt_local( open_adapter.hAdapter, NULL );
+        create_device.hAdapter = open_adapter.hAdapter;
+        status = D3DKMTCreateDevice( &create_device );
+        ok_nt( status, STATUS_SUCCESS );
+        check_d3dkmt_local( create_device.hDevice, NULL );
+
+        query.hDevice = create_device.hDevice;
+        query.hNtHandle = handle;
+        query.pPrivateRuntimeData = runtime_data;
+        query.PrivateRuntimeDataSize = sizeof(runtime_data);
+        status = D3DKMTQueryResourceInfoFromNtHandle( &query );
+        ok_nt( STATUS_SUCCESS, status );
+
+        open.hDevice = create_device.hDevice;
+        open.hNtHandle = handle;
+        open.NumAllocations = 1;
+        open.pOpenAllocationInfo2 = &open_alloc;
+        open.pPrivateRuntimeData = runtime_data;
+        open.PrivateRuntimeDataSize = query.PrivateRuntimeDataSize;
+        open.pResourcePrivateDriverData = resource_data;
+        open.ResourcePrivateDriverDataSize = query.ResourcePrivateDriverDataSize;
+        open.pTotalPrivateDriverDataBuffer = driver_data;
+        open.TotalPrivateDriverDataBufferSize = query.TotalPrivateDriverDataSize;
+        /* exported NT handle doesn't seem to bundle the keyed mutex */
+        status = D3DKMTOpenResourceFromNtHandle( &open );
+        ok_nt( STATUS_SUCCESS, status );
+        check_d3dkmt_local( open.hResource, NULL );
+        check_d3dkmt_local( open.hKeyedMutex, NULL );
+        check_d3dkmt_local( open.hSyncObject, NULL );
+        todo_wine check_d3dkmt_local( open_alloc.hAllocation, NULL );
+        todo_wine ok_x4( open_alloc.PrivateDriverDataSize, >, 0 );
+
+        destroy_alloc.hDevice = create_device.hDevice;
+        destroy_alloc.hResource = open.hResource;
+        status = D3DKMTDestroyAllocation( &destroy_alloc );
+        ok_nt( STATUS_SUCCESS, status );
+
+        destroy_sync.hSyncObject = open.hSyncObject;
+        status = D3DKMTDestroySynchronizationObject( &destroy_sync );
+        ok_nt( STATUS_SUCCESS, status );
+
+        destroy_device.hDevice = create_device.hDevice;
+        status = D3DKMTDestroyDevice( &destroy_device );
+        ok_nt( status, STATUS_SUCCESS );
+        close_adapter.hAdapter = open_adapter.hAdapter;
+        status = D3DKMTCloseAdapter( &close_adapter );
+        ok_nt( status, STATUS_SUCCESS );
+
+        mutex = open.hKeyedMutex;
+    }
+
+    p_vkGetDeviceQueue = (void *)p_vkGetDeviceProcAddr( vulkan_imp->device, "vkGetDeviceQueue" );
+    ok_ptr( p_vkGetDeviceQueue, !=, NULL );
+    p_vkQueueSubmit = (void *)p_vkGetDeviceProcAddr( vulkan_imp->device, "vkQueueSubmit" );
+    ok_ptr( p_vkQueueSubmit, !=, NULL );
+
+    p_vkGetDeviceQueue( vulkan_imp->device, get_vulkan_queue_family( vulkan_imp->instance, vulkan_imp->physical_device ), 0, &queue );
+    ok_ptr( queue, !=, VK_NULL_HANDLE );
+
+    vr = p_vkQueueSubmit( queue, 1, &submit_acquire, VK_NULL_HANDLE );
+    ok_vk( VK_SUCCESS, vr );
+    vr = p_vkQueueSubmit( queue, 1, &submit_release, VK_NULL_HANDLE );
+    ok_vk( VK_SUCCESS, vr );
+
+    vr = p_vkQueueSubmit( queue, 1, &submit_acquire, VK_NULL_HANDLE );
+    ok_vk( VK_SUCCESS, vr );
+    /* acquiring again from vulkan-owned mutex generates an error */
+    vr = p_vkQueueSubmit( queue, 1, &submit_acquire, VK_NULL_HANDLE );
+    ok( vr == VK_ERROR_UNKNOWN || vr == VK_ERROR_INITIALIZATION_FAILED, "got %d\n", vr );
+
+    vr = p_vkQueueSubmit( queue, 1, &submit_release, VK_NULL_HANDLE );
+    ok_vk( VK_SUCCESS, vr );
+    /* releasing a non-owned mutex may succeed or generate an error */
+    vr = p_vkQueueSubmit( queue, 1, &submit_release, VK_NULL_HANDLE );
+    ok( vr == VK_SUCCESS /* NVIDIA */ || vr == VK_ERROR_UNKNOWN /* AMD */, "got %d\n", vr );
+
+    acquire.hKeyedMutex = mutex;
+    acquire.Key = 0;
+    acquire.pTimeout = &timeout;
+    acquire.FenceValue = 0xdeadbeef;
+    status = D3DKMTAcquireKeyedMutex( &acquire );
+    ok_nt( STATUS_SUCCESS, status );
+    ok_x8( acquire.FenceValue, ==, 2 );
+    /* acquiring from non-vulkan-owned mutex generates a timeout */
+    vr = p_vkQueueSubmit( queue, 1, &submit_acquire, VK_NULL_HANDLE );
+    ok_vk( VK_TIMEOUT, vr );
+
+    release.hKeyedMutex = mutex;
+    release.Key = 0;
+    release.FenceValue = 0; /* reset the fence value */
+    status = D3DKMTReleaseKeyedMutex( &release );
+    ok_nt( STATUS_SUCCESS, status );
+    /* releasing a non-owned mutex may succeed or generate an error */
+    vr = p_vkQueueSubmit( queue, 1, &submit_release, VK_NULL_HANDLE );
+    ok( vr == VK_SUCCESS /* NVIDIA */ || vr == VK_ERROR_UNKNOWN /* AMD */, "got %d\n", vr );
+
+    vr = p_vkQueueSubmit( queue, 1, &submit_acquire, VK_NULL_HANDLE );
+    ok_vk( VK_SUCCESS, vr );
+    vr = p_vkQueueSubmit( queue, 1, &submit_release, VK_NULL_HANDLE );
+    ok_vk( VK_SUCCESS, vr );
+
+    /* mutex fence value reset seems to be accepted by vulkan */
+    acquire.FenceValue = 0xdeadbeef;
+    status = D3DKMTAcquireKeyedMutex( &acquire );
+    ok_nt( STATUS_SUCCESS, status );
+    ok_x8( acquire.FenceValue, ==, 1 );
+    status = D3DKMTReleaseKeyedMutex( &release );
+    ok_nt( STATUS_SUCCESS, status );
+
+    destroy.hKeyedMutex = mutex;
+    status = D3DKMTDestroyKeyedMutex( &destroy );
+    ok_nt( STATUS_SUCCESS, status );
+}
+
 static void test_shared_resources(void)
 {
     struct vulkan_device *vulkan_imp = NULL, *vulkan_exp = NULL;
@@ -4423,6 +4747,25 @@ static void test_shared_resources(void)
             check_d3d11_runtime_desc( (struct d3d11_runtime_desc *)runtime_desc, &desc );
             break;
         }
+        case MAKETEST(2, 2, 4):
+        {
+            const struct dxgi_runtime_desc dxgi = {.size = 0x68, .version = 4, .keyed_mutex = 1, .nt_shared = 1};
+            const struct d3d11_runtime_desc desc = {.dxgi = dxgi, .dimension = D3D11_RESOURCE_DIMENSION_TEXTURE2D, .d3d11_2d = {
+                .Width = width_2d, .Height = height_2d, .MipLevels = 1, .ArraySize = 1, .Format = DXGI_FORMAT_R8G8B8A8_UNORM, .SampleDesc.Count = 1,
+                .Usage = D3D11_USAGE_DEFAULT, .BindFlags = D3D11_BIND_SHADER_RESOURCE, .CPUAccessFlags = D3D11_CPU_ACCESS_WRITE,
+                .MiscFlags = D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX | D3D11_RESOURCE_MISC_SHARED_NTHANDLE,
+            }};
+            hr = ID3D11Device1_CreateTexture2D( d3d11_exp, &desc.d3d11_2d, NULL, (ID3D11Texture2D **)&export );
+            ok_hr( S_OK, hr );
+            hr = get_dxgi_global_handle( export, &handle );
+            todo_wine ok_hr( E_INVALIDARG, hr );
+            hr = get_dxgi_shared_handle( export, name, &handle );
+            todo_wine ok_hr( S_OK, hr );
+            if (hr != S_OK) break;
+            get_d3dkmt_resource_desc( luid, handle, FALSE, sizeof(desc), runtime_desc );
+            check_d3d11_runtime_desc( (struct d3d11_runtime_desc *)runtime_desc, &desc );
+            break;
+        }
         case MAKETEST(2, 3, 0):
         {
             const struct dxgi_runtime_desc dxgi = {.size = 0x68, .version = 4};
@@ -4861,6 +5204,8 @@ static void test_shared_resources(void)
 
         if (vulkan_imp)
         {
+            struct dxgi_runtime_desc *desc = (struct dxgi_runtime_desc *)runtime_desc;
+            HANDLE mutex_handle = desc->keyed_mutex && !desc->nt_shared ? UlongToHandle(desc->mutex_handle) : handle;
             struct vulkan_buffer *buf_imp = NULL;
             struct vulkan_image *img_imp = NULL;
             VkResult vr;
@@ -4883,6 +5228,7 @@ static void test_shared_resources(void)
                     destroy_vulkan_image( vulkan_imp, img_imp );
                     vr = import_vulkan_image( vulkan_imp, width_1d, 1, array_1d, name, handle, VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT, &img_imp );
                     ok_vk( VK_SUCCESS, vr );
+                    if (desc->keyed_mutex) test_shared_keyed_mutex( luid, vulkan_imp, img_imp, mutex_handle, desc->nt_shared );
                     destroy_vulkan_image( vulkan_imp, img_imp );
                     break;
                 case 2:
@@ -4891,6 +5237,7 @@ static void test_shared_resources(void)
                     destroy_vulkan_image( vulkan_imp, img_imp );
                     vr = import_vulkan_image( vulkan_imp, width_2d, height_2d, 1, name, handle, VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT, &img_imp );
                     ok_vk( VK_SUCCESS, vr );
+                    if (desc->keyed_mutex) test_shared_keyed_mutex( luid, vulkan_imp, img_imp, mutex_handle, desc->nt_shared );
                     destroy_vulkan_image( vulkan_imp, img_imp );
                     break;
                 case 3:
@@ -4899,6 +5246,7 @@ static void test_shared_resources(void)
                     destroy_vulkan_image( vulkan_imp, img_imp );
                     vr = import_vulkan_image( vulkan_imp, width_3d, height_3d, depth_3d, name, handle, VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT, &img_imp );
                     ok_vk( VK_SUCCESS, vr );
+                    if (desc->keyed_mutex) test_shared_keyed_mutex( luid, vulkan_imp, img_imp, mutex_handle, desc->nt_shared );
                     destroy_vulkan_image( vulkan_imp, img_imp );
                     break;
                 }
@@ -4923,10 +5271,12 @@ static void test_shared_resources(void)
                     ok_vk( VK_SUCCESS, vr );
                     destroy_vulkan_image( vulkan_imp, img_imp );
                     vr = import_vulkan_image( vulkan_imp, width_1d, 1, array_1d, name, handle, VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT, &img_imp );
+                    if (desc->keyed_mutex) test_shared_keyed_mutex( luid, vulkan_imp, img_imp, mutex_handle, desc->nt_shared );
                     ok_vk( VK_SUCCESS, vr );
                     destroy_vulkan_image( vulkan_imp, img_imp );
                     vr = import_vulkan_image( vulkan_imp, width_1d, 1, array_1d, name, handle, VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT, &img_imp );
                     ok_vk( VK_SUCCESS, vr );
+                    if (desc->keyed_mutex) test_shared_keyed_mutex( luid, vulkan_imp, img_imp, mutex_handle, desc->nt_shared );
                     destroy_vulkan_image( vulkan_imp, img_imp );
                     break;
                 case 2:
@@ -4934,9 +5284,11 @@ static void test_shared_resources(void)
                     ok_vk( VK_SUCCESS, vr );
                     destroy_vulkan_image( vulkan_imp, img_imp );
                     vr = import_vulkan_image( vulkan_imp, width_2d, height_2d, 1, name, handle, VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT, &img_imp );
+                    if (desc->keyed_mutex) test_shared_keyed_mutex( luid, vulkan_imp, img_imp, mutex_handle, desc->nt_shared );
                     ok_vk( VK_SUCCESS, vr );
                     destroy_vulkan_image( vulkan_imp, img_imp );
                     vr = import_vulkan_image( vulkan_imp, width_2d, height_2d, 1, name, handle, VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT, &img_imp );
+                    if (desc->keyed_mutex) test_shared_keyed_mutex( luid, vulkan_imp, img_imp, mutex_handle, desc->nt_shared );
                     ok_vk( VK_SUCCESS, vr );
                     destroy_vulkan_image( vulkan_imp, img_imp );
                     break;
@@ -4946,9 +5298,11 @@ static void test_shared_resources(void)
                     destroy_vulkan_image( vulkan_imp, img_imp );
                     vr = import_vulkan_image( vulkan_imp, width_3d, height_3d, depth_3d, name, handle, VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT, &img_imp );
                     ok_vk( VK_SUCCESS, vr );
+                    if (desc->keyed_mutex) test_shared_keyed_mutex( luid, vulkan_imp, img_imp, mutex_handle, desc->nt_shared );
                     destroy_vulkan_image( vulkan_imp, img_imp );
                     vr = import_vulkan_image( vulkan_imp, width_3d, height_3d, depth_3d, name, handle, VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT, &img_imp );
                     ok_vk( VK_SUCCESS, vr );
+                    if (desc->keyed_mutex) test_shared_keyed_mutex( luid, vulkan_imp, img_imp, mutex_handle, desc->nt_shared );
                     destroy_vulkan_image( vulkan_imp, img_imp );
                     break;
                 }
@@ -5089,6 +5443,7 @@ START_TEST( d3dkmt )
     test_gpu_device_properties();
     test_D3DKMTCreateSynchronizationObject();
     test_D3DKMTCreateKeyedMutex();
+    test_D3DKMTAcquireKeyedMutex();
     test_D3DKMTCreateAllocation();
     test_D3DKMTShareObjects();
     test_shared_resources();

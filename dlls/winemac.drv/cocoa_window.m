@@ -21,7 +21,6 @@
 #include "config.h"
 
 #define GL_SILENCE_DEPRECATION
-#import <Carbon/Carbon.h>
 #import <CoreVideo/CoreVideo.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/QuartzCore.h>
@@ -414,6 +413,8 @@ static CVReturn WineDisplayLinkCallback(CVDisplayLinkRef displayLink, const CVTi
 @property (nonatomic) BOOL commandDone;
 
 @property (readonly, copy, nonatomic) NSArray* childWineWindows;
+
+@property (retain, nonatomic) CAShapeLayer* contentViewMaskLayer;
 
     - (void) setShape:(CGPathRef)newShape;
 
@@ -1014,6 +1015,7 @@ static CVReturn WineDisplayLinkCallback(CVDisplayLinkRef displayLink, const CVTi
     @synthesize shapeChangedSinceLastDraw;
     @synthesize usePerPixelAlpha;
     @synthesize himc, commandDone;
+    @synthesize contentViewMaskLayer;
 
     + (WineWindow*) createWindowWithFeatures:(const struct macdrv_window_features*)wf
                                  windowFrame:(NSRect)window_frame
@@ -1107,6 +1109,7 @@ static CVReturn WineDisplayLinkCallback(CVDisplayLinkRef displayLink, const CVTi
         [queue release];
         [latentChildWindows release];
         [latentParentWindow release];
+        [contentViewMaskLayer release];
         [super dealloc];
     }
 
@@ -2781,11 +2784,14 @@ static CVReturn WineDisplayLinkCallback(CVDisplayLinkRef displayLink, const CVTi
         /* Draw black bars to cover every part of the window except for 'rect'.
          * Intended for use on a window covering the full screen.
          */
-        if (CGRectIsEmpty(rect))
+        if (self.contentViewMaskLayer)
         {
-            [[[self.contentView.layer sublayers] firstObject] removeFromSuperlayer];
-            return;
+            [self.contentViewMaskLayer removeFromSuperlayer];
+            self.contentViewMaskLayer = nil;
         }
+
+        if (CGRectIsEmpty(rect))
+            return;
 
         CAShapeLayer *shapeLayer = [CAShapeLayer layer];
         shapeLayer.bounds = self.contentView.layer.bounds;
@@ -2816,11 +2822,8 @@ static CVReturn WineDisplayLinkCallback(CVDisplayLinkRef displayLink, const CVTi
         shapeLayer.path = path;
         CGPathRelease(path);
 
-        if ([[self.contentView.layer sublayers] firstObject])
-            [self.contentView.layer replaceSublayer:[[self.contentView.layer sublayers] firstObject]
-                                               with:shapeLayer];
-        else
-            [self.contentView.layer addSublayer:shapeLayer];
+        [self.contentView.layer addSublayer:shapeLayer];
+        self.contentViewMaskLayer = shapeLayer;
     }
 
 
@@ -4035,13 +4038,14 @@ uint32_t macdrv_window_background_color(void)
 }
 
 /***********************************************************************
- *              macdrv_send_keydown_to_input_source
+ *              macdrv_ime_process_key
  *
  * Sends a key down event to the active window's inputContext so that it can be
  * processed by input sources (AKA IMEs). This is only called when there is an
  * active non-keyboard input source.
  */
-void macdrv_send_keydown_to_input_source(unsigned int flags, int repeat, int keyc, void* himc, int* done)
+void macdrv_ime_process_key(int keyc, unsigned int flags, int repeat, void *himc,
+                            int *done, void *ime_done_event)
 {
     OnMainThreadAsync(^{
         BOOL ret;
@@ -4081,6 +4085,7 @@ void macdrv_send_keydown_to_input_source(unsigned int flags, int repeat, int key
         event = macdrv_create_event(SENT_TEXT_INPUT, window);
         event->sent_text_input.handled = ret;
         event->sent_text_input.done = done;
+        event->sent_text_input.ime_done_event = ime_done_event;
         [[window queue] postEvent:event];
         macdrv_release_event(event);
     });

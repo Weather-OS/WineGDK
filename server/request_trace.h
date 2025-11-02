@@ -1075,6 +1075,11 @@ static void dump_write_process_memory_request( const struct write_process_memory
     dump_varargs_bytes( ", data=", cur_size );
 }
 
+static void dump_write_process_memory_reply( const struct write_process_memory_reply *req )
+{
+    fprintf( stderr, " written=%u", req->written );
+}
+
 static void dump_create_key_request( const struct create_key_request *req )
 {
     fprintf( stderr, " access=%08x", req->access );
@@ -1364,6 +1369,7 @@ static void dump_get_msg_queue_handle_request( const struct get_msg_queue_handle
 static void dump_get_msg_queue_handle_reply( const struct get_msg_queue_handle_reply *req )
 {
     fprintf( stderr, " handle=%04x", req->handle );
+    fprintf( stderr, ", idle_event=%04x", req->idle_event );
 }
 
 static void dump_get_msg_queue_request( const struct get_msg_queue_request *req )
@@ -3397,6 +3403,7 @@ static void dump_d3dkmt_object_create_request( const struct d3dkmt_object_create
 {
     fprintf( stderr, " type=%08x", req->type );
     fprintf( stderr, ", fd=%d", req->fd );
+    fprintf( stderr, ", value=%08x", req->value );
     dump_varargs_bytes( ", runtime=", cur_size );
 }
 
@@ -3466,6 +3473,32 @@ static void dump_d3dkmt_object_open_name_request( const struct d3dkmt_object_ope
 static void dump_d3dkmt_object_open_name_reply( const struct d3dkmt_object_open_name_reply *req )
 {
     fprintf( stderr, " handle=%04x", req->handle );
+}
+
+static void dump_d3dkmt_mutex_acquire_request( const struct d3dkmt_mutex_acquire_request *req )
+{
+    fprintf( stderr, " mutex=%08x", req->mutex );
+    fprintf( stderr, ", key_value=%08x", req->key_value );
+    fprintf( stderr, ", wait_handle=%04x", req->wait_handle );
+    fprintf( stderr, ", wait_status=%08x", req->wait_status );
+}
+
+static void dump_d3dkmt_mutex_acquire_reply( const struct d3dkmt_mutex_acquire_reply *req )
+{
+    dump_uint64( " fence_value=", &req->fence_value );
+    fprintf( stderr, ", runtime_size=%u", req->runtime_size );
+    fprintf( stderr, ", wait_handle=%04x", req->wait_handle );
+    dump_varargs_bytes( ", runtime=", cur_size );
+}
+
+static void dump_d3dkmt_mutex_release_request( const struct d3dkmt_mutex_release_request *req )
+{
+    fprintf( stderr, " mutex=%08x", req->mutex );
+    fprintf( stderr, ", abandon=%d", req->abandon );
+    fprintf( stderr, ", key_value=%08x", req->key_value );
+    dump_uint64( ", fence_value=", &req->fence_value );
+    fprintf( stderr, ", runtime_size=%u", req->runtime_size );
+    dump_varargs_bytes( ", runtime=", cur_size );
 }
 
 typedef void (*dump_func)( const void *req );
@@ -3776,6 +3809,8 @@ static const dump_func req_dumpers[REQ_NB_REQUESTS] =
     (dump_func)dump_d3dkmt_object_open_request,
     (dump_func)dump_d3dkmt_share_objects_request,
     (dump_func)dump_d3dkmt_object_open_name_request,
+    (dump_func)dump_d3dkmt_mutex_acquire_request,
+    (dump_func)dump_d3dkmt_mutex_release_request,
 };
 
 static const dump_func reply_dumpers[REQ_NB_REQUESTS] =
@@ -3865,7 +3900,7 @@ static const dump_func reply_dumpers[REQ_NB_REQUESTS] =
     NULL,
     NULL,
     (dump_func)dump_read_process_memory_reply,
-    NULL,
+    (dump_func)dump_write_process_memory_reply,
     (dump_func)dump_create_key_reply,
     (dump_func)dump_open_key_reply,
     NULL,
@@ -4084,6 +4119,8 @@ static const dump_func reply_dumpers[REQ_NB_REQUESTS] =
     (dump_func)dump_d3dkmt_object_open_reply,
     (dump_func)dump_d3dkmt_share_objects_reply,
     (dump_func)dump_d3dkmt_object_open_name_reply,
+    (dump_func)dump_d3dkmt_mutex_acquire_reply,
+    NULL,
 };
 
 static const char * const req_names[REQ_NB_REQUESTS] =
@@ -4392,6 +4429,8 @@ static const char * const req_names[REQ_NB_REQUESTS] =
     "d3dkmt_object_open",
     "d3dkmt_share_objects",
     "d3dkmt_object_open_name",
+    "d3dkmt_mutex_acquire",
+    "d3dkmt_mutex_release",
 };
 
 static const struct
@@ -4400,6 +4439,7 @@ static const struct
     unsigned int value;
 } status_names[] =
 {
+    { "ABANDONED",                   STATUS_ABANDONED },
     { "ABANDONED_WAIT_0",            STATUS_ABANDONED_WAIT_0 },
     { "ACCESS_DENIED",               STATUS_ACCESS_DENIED },
     { "ACCESS_VIOLATION",            STATUS_ACCESS_VIOLATION },
@@ -4502,6 +4542,7 @@ static const struct
     { "OBJECT_PATH_NOT_FOUND",       STATUS_OBJECT_PATH_NOT_FOUND },
     { "OBJECT_PATH_SYNTAX_BAD",      STATUS_OBJECT_PATH_SYNTAX_BAD },
     { "OBJECT_TYPE_MISMATCH",        STATUS_OBJECT_TYPE_MISMATCH },
+    { "PARTIAL_COPY",                STATUS_PARTIAL_COPY },
     { "PENDING",                     STATUS_PENDING },
     { "PIPE_BROKEN",                 STATUS_PIPE_BROKEN },
     { "PIPE_BUSY",                   STATUS_PIPE_BUSY },

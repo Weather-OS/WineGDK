@@ -4288,11 +4288,7 @@ sync_test("prototype props", function() {
         ["autofocus",10], ["checkValidity",10], "createTextRange", ["dataFld",9,10], ["dataFormatAs",9,10], ["dataSrc",9,10],
         "form", ["formAction",10], ["formEnctype",10], ["formMethod",10], ["formNoValidate",10], ["formTarget",10], "name",
         ["setCustomValidity",10], "status", "type", ["validationMessage",10], ["validity",10], "value", ["willValidate",10]
-    ], [
-        ["autofocus",10], ["checkValidity",10], ["dataFld",9,10], ["dataFormatAs",9,10], ["dataSrc",9,10], ["formAction",10],
-        ["formEnctype",10], ["formMethod",10], ["formNoValidate",10], ["formTarget",10], ["setCustomValidity",10],
-        ["validationMessage",10], ["validity",10], ["willValidate",10]
-    ]);
+    ], [ ["dataFld",9,10], ["dataFormatAs",9,10], ["dataSrc",9,10] ]);
     if(v >= 11)
         check(HTMLDocument, []);
     check(HTMLElement, [
@@ -4326,7 +4322,7 @@ sync_test("prototype props", function() {
     check(HTMLFormElement, [
         "acceptCharset", "action", ["autocomplete",10], ["checkValidity",10], "elements", "encoding", "enctype", "item",
         "length", "method", "name", "namedItem", ["noValidate",10], "reset", "submit", "tags", "target", "urns"
-    ], [ "_newEnum", "acceptCharset", ["autocomplete",10], ["checkValidity",10], "enctype", "namedItem", ["noValidate",10], "urns" ]);
+    ], [ "_newEnum", "acceptCharset", ["autocomplete",10], "namedItem", "urns" ]);
     check(HTMLFrameElement, [
         "border", "borderColor", "contentDocument", "contentWindow", ["dataFld",9,10], ["dataFormatAs",9,10], ["dataSrc",9,10], "frameBorder", "frameSpacing",
         "getSVGDocument", "height", "longDesc", "marginHeight", "marginWidth", "name", "noResize", "onload", "scrolling", "security", "src", "width"
@@ -4361,10 +4357,8 @@ sync_test("prototype props", function() {
         "size", "src", "start", "status", ["step",10], ["stepDown",10], ["stepUp",10], "type", "useMap", ["validationMessage",10], ["validity",10], "value",
         ["valueAsNumber",10], "vrml", "vspace", "width", ["willValidate",10]
     ], [
-        "accept", ["autocomplete",10], ["autofocus",10], ["checkValidity",10], ["dataFld",9,10], ["dataFormatAs",9,10], ["dataSrc",9,10], ["files",10], ["formAction",10],
-        ["formEnctype",10], ["formMethod",10], ["formNoValidate",10], ["formTarget",10], ["list",10], ["max",10], ["min",10], ["multiple",10], ["pattern",10],
-        ["placeholder",10], ["readyState",11], ["required",10], ["setCustomValidity",10], ["step",10], ["stepDown",10], ["stepUp",10], "useMap", ["validationMessage",10],
-        ["validity",10], ["valueAsNumber",10], ["willValidate",10]
+        "accept", ["autocomplete",10], ["dataFld",9,10], ["dataFormatAs",9,10], ["dataSrc",9,10], ["files",10],["list",10], ["max",10], ["min",10], ["multiple",10],
+        ["pattern",10], ["placeholder",10], ["readyState",11], ["required",10], ["step",10], ["stepDown",10], ["stepUp",10], "useMap", ["valueAsNumber",10]
     ]);
     check(HTMLLabelElement, [ ["dataFld",9,10], ["dataFormatAs",9,10], ["dataSrc",9,10], "form", "htmlFor" ], [ ["dataFld",9,10], ["dataFormatAs",9,10], ["dataSrc",9,10], "form" ]);
     check(HTMLLinkElement, [ "charset", "href", "hreflang", "media", "rel", "rev", "sheet", ["styleSheet",9,10], "target", "type" ],
@@ -4376,9 +4370,8 @@ sync_test("prototype props", function() {
         ["msPlayToPreferredSourceUri",11], ["msPlayToPrimary",11], "name", "namedRecordset", "object", ["readyState",11], "recordset", ["setCustomValidity",10],
         "standby", "type", "useMap", ["validationMessage",10], ["validity",10], "vspace", "width", ["willValidate",10]
     ], [
-        "alt", "archive", "border", ["checkValidity",10], "contentDocument", ["dataFld",9,10], ["dataFormatAs",9,10], ["dataSrc",9,10], "declare", "getSVGDocument",
-        ["msPlayToDisabled",11], ["msPlayToPreferredSourceUri",11], ["msPlayToPrimary",11], ["onreadystatechange",11], ["readyState",11], ["setCustomValidity",10],
-        "standby", "useMap", ["validationMessage",10], ["validity",10], ["willValidate",10]
+        "alt", "archive", "border", "contentDocument", ["dataFld",9,10], ["dataFormatAs",9,10], ["dataSrc",9,10], "declare", "getSVGDocument", ["msPlayToDisabled",11],
+        ["msPlayToPreferredSourceUri",11], ["msPlayToPrimary",11], ["onreadystatechange",11], ["readyState",11], "standby", "useMap"
     ]);
     check(HTMLOptionElement, [ ["dataFld",9,10], ["dataFormatAs",9,10], ["dataSrc",9,10], "defaultSelected", "form", "index", "label", "selected", "text", "value" ],
                              [ ["dataFld",9,10], ["dataFormatAs",9,10], ["dataSrc",9,10], "label" ]);
@@ -4387,10 +4380,7 @@ sync_test("prototype props", function() {
         "add", ["autofocus",10], ["checkValidity",10], ["dataFld",9,10], ["dataFormatAs",9,10], ["dataSrc",9,10], "form", "item", "length",
         "multiple", "name", "namedItem", "options", "remove", ["required",10], "selectedIndex", ["setCustomValidity",10], "size", "tags",
         "type", "urns", ["validationMessage",10], ["validity",10], "value", ["willValidate",10]
-    ], [
-        ["autofocus",10], ["checkValidity",10], ["dataFld",9,10], ["dataFormatAs",9,10], ["dataSrc",9,10], "namedItem", ["required",10],
-        ["setCustomValidity",10], "urns", ["validationMessage",10], ["validity",10], ["willValidate",10]
-    ]);
+    ], [ ["dataFld",9,10], ["dataFormatAs",9,10], ["dataSrc",9,10], "namedItem", ["required",10], "urns" ]);
     check(HTMLStyleElement, [ "media", "sheet", ["styleSheet",9,10], "type" ], [ ["onreadystatechange",11] ]);
     check(HTMLTableCellElement, [
         "abbr", "align", "axis", "background", "bgColor", "borderColor", "borderColorDark", "borderColorLight",
@@ -4415,8 +4405,8 @@ sync_test("prototype props", function() {
         ["maxLength",10], "name", ["placeholder",10], "readOnly", ["required",10], "rows", "select", "selectionEnd", "selectionStart", ["setCustomValidity",10],
         "setSelectionRange", "status", "type", ["validationMessage",10], ["validity",10], "value", ["willValidate",10], "wrap"
     ], [
-        ["autofocus",10], ["checkValidity",10], ["dataFld",9,10], ["dataFormatAs",9,10], ["dataSrc",9,10], ["maxLength",10], ["placeholder",10], ["required",10],
-        "selectionEnd", "selectionStart", ["setCustomValidity",10], "setSelectionRange", ["validationMessage",10], ["validity",10], ["willValidate",10]
+        ["dataFld",9,10], ["dataFormatAs",9,10], ["dataSrc",9,10], ["maxLength",10], ["placeholder",10], ["required",10], "selectionEnd", "selectionStart",
+        "setSelectionRange"
     ]);
     check(HTMLTitleElement, [ "text" ]);
     check(HTMLUnknownElement, [ "namedRecordset", "recordset" ]);

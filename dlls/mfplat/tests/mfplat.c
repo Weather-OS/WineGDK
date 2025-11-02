@@ -75,9 +75,7 @@ static void run_child_test(const char *name)
     sprintf(path_name, "%s mfplat %s", argv[0], name);
     ok(CreateProcessA( NULL, path_name, NULL, NULL, FALSE, 0, NULL, NULL, &startup, &info),
             "CreateProcess failed.\n" );
-    wait_child_process(info.hProcess);
-    CloseHandle(info.hProcess);
-    CloseHandle(info.hThread);
+    wait_child_process(&info);
 }
 
 DEFINE_GUID(DUMMY_CLSID, 0x12345678,0x1234,0x1234,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19);
@@ -7180,9 +7178,7 @@ static void test_queue_com(void)
         sprintf(path_name, "%s mfplat s%d", argv[0], system_queues[i]);
         ok(CreateProcessA( NULL, path_name, NULL, NULL, FALSE, 0, NULL, NULL, &startup, &info),
                 "CreateProcess failed.\n" );
-        wait_child_process(info.hProcess);
-        CloseHandle(info.hProcess);
-        CloseHandle(info.hThread);
+        wait_child_process(&info);
     }
 
     for (i = 0; i < ARRAY_SIZE(user_queues); ++i)
@@ -7192,9 +7188,7 @@ static void test_queue_com(void)
         sprintf(path_name, "%s mfplat u%d", argv[0], user_queues[i]);
         ok(CreateProcessA( NULL, path_name, NULL, NULL, FALSE, 0, NULL, NULL, &startup, &info),
                 "CreateProcess failed.\n" );
-        wait_child_process(info.hProcess);
-        CloseHandle(info.hProcess);
-        CloseHandle(info.hThread);
+        wait_child_process(&info);
     }
 }
 

@@ -38,6 +38,7 @@
 46 stub -noname ClassicAdjustWindowRectEx
 47 stdcall DrawThemeBackgroundEx(ptr ptr long long ptr ptr)
 48 stub -noname GetThemeParseErrorInfo
+49 stub @
 60 stub -noname CreateThemeDataFromObjects
 61 stdcall OpenThemeDataEx(ptr wstr long)
 62 stub -noname ServerClearStockObjects
@@ -94,6 +95,7 @@
 @ stdcall GetThemePosition(ptr long long long ptr)
 @ stdcall GetThemePropertyOrigin(ptr long long long ptr)
 @ stdcall GetThemeRect(ptr long long long ptr)
+@ stdcall GetThemeStream(ptr long long long ptr ptr ptr)
 @ stdcall GetThemeString(ptr long long long wstr long)
 @ stdcall GetThemeSysBool(ptr long)
 @ stdcall GetThemeSysColor(ptr long)

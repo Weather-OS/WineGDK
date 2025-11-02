@@ -4312,9 +4312,7 @@ static void test_FreeConsole(HANDLE input, HANDLE orig_output)
     /* Test that our handles are now designaled in the child. */
     SetEvent(parent_event);
 
-    CloseHandle(info.hThread);
-    wait_child_process(info.hProcess);
-    CloseHandle(info.hProcess);
+    wait_child_process(&info);
 
     ret = WriteConsoleInputW(input, &ir, 1, &size);
     ok(ret, "got error %lu\n", GetLastError());
@@ -4622,17 +4620,13 @@ static void test_GetConsoleOriginalTitle(void)
     si.lpTitle = title;
     ret = CreateProcessA(NULL, buf, NULL, NULL, TRUE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &info);
     ok(ret, "CreateProcess failed: %lu\n", GetLastError());
-    CloseHandle(info.hThread);
-    wait_child_process(info.hProcess);
-    CloseHandle(info.hProcess);
+    wait_child_process(&info);
 
     strcat(buf, " empty");
     title[0] = 0;
     ret = CreateProcessA(NULL, buf, NULL, NULL, TRUE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &info);
     ok(ret, "CreateProcess failed: %lu\n", GetLastError());
-    CloseHandle(info.hThread);
-    wait_child_process(info.hProcess);
-    CloseHandle(info.hProcess);
+    wait_child_process(&info);
 }
 
 static void test_GetConsoleTitleA(void)
@@ -4907,10 +4901,7 @@ static void test_AttachConsole(HANDLE console)
     sprintf(buf, "\"%s\" console attach_console %lx", argv[0], GetCurrentProcessId());
     res = CreateProcessA(NULL, buf, NULL, NULL, TRUE, 0, NULL, NULL, &si, &info);
     ok(res, "CreateProcess failed: %lu\n", GetLastError());
-    CloseHandle(info.hThread);
-
-    wait_child_process(info.hProcess);
-    CloseHandle(info.hProcess);
+    wait_child_process(&info);
 
     res = ReadConsoleOutputCharacterA(console, buf, 5, c, &len);
     ok(res, "ReadConsoleOutputCharacterA failed: %lu\n", GetLastError());
@@ -5003,9 +4994,7 @@ static void test_AllocConsole(void)
     sprintf(buf, "\"%s\" console alloc_console", argv[0]);
     res = CreateProcessA(NULL, buf, NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &info);
     ok(res, "CreateProcess failed: %lu\n", GetLastError());
-    CloseHandle(info.hThread);
-    wait_child_process(info.hProcess);
-    CloseHandle(info.hProcess);
+    wait_child_process(&info);
 
     res = CreatePipe(&pipe_read, &pipe_write, &inheritable_attr, 0);
     ok(res, "CreatePipe failed: %lu\n", GetLastError());
@@ -5014,9 +5003,7 @@ static void test_AllocConsole(void)
     si.hStdError = pipe_write;
     res = CreateProcessA(NULL, buf, NULL, NULL, TRUE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &info);
     ok(res, "CreateProcess failed: %lu\n", GetLastError());
-    CloseHandle(info.hThread);
-    wait_child_process(info.hProcess);
-    CloseHandle(info.hProcess);
+    wait_child_process(&info);
 
     CloseHandle(pipe_read);
     CloseHandle(pipe_write);
@@ -5155,10 +5142,8 @@ static void test_pseudo_console(void)
     ret = CreateProcessA(NULL, cmdline, NULL, NULL, FALSE, EXTENDED_STARTUPINFO_PRESENT, NULL, NULL, &startup.StartupInfo, &info);
     ok(ret, "CreateProcessW failed: %lu\n", GetLastError());
 
-    CloseHandle(info.hThread);
     HeapFree(GetProcessHeap(), 0, startup.lpAttributeList);
-    wait_child_process(info.hProcess);
-    CloseHandle(info.hProcess);
+    wait_child_process(&info);
 
     pClosePseudoConsole(pseudo_console);
 }

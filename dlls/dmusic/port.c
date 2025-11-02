@@ -42,6 +42,7 @@ struct synth_port {
     IDirectSound *dsound;
     IDirectSoundBuffer *dsbuffer;
     IDirectMusicSynth *synth;
+    IKsControl *synth_control;
     IDirectMusicSynthSink *synth_sink;
     BOOL active;
     DMUS_PORTPARAMS params;
@@ -129,6 +130,7 @@ static ULONG WINAPI synth_port_Release(IDirectMusicPort *iface)
         IDirectMusicSynthSink_Release(This->synth_sink);
         IDirectMusicSynth_Activate(This->synth, FALSE);
         IDirectMusicSynth_Close(This->synth);
+        IKsControl_Release(This->synth_control);
         IDirectMusicSynth_Release(This->synth);
         if (This->dsbuffer)
            IDirectSoundBuffer_Release(This->dsbuffer);
@@ -639,13 +641,50 @@ static ULONG WINAPI IKsControlImpl_Release(IKsControl *iface)
 static HRESULT WINAPI IKsControlImpl_KsProperty(IKsControl *iface, KSPROPERTY *prop,
         ULONG prop_len, void *data, ULONG data_len, ULONG *ret_len)
 {
+    struct synth_port *This = synth_from_IKsControl(iface);
+
     TRACE("(%p, %p, %lu, %p, %lu, %p)\n", iface, prop, prop_len, data, data_len, ret_len);
     TRACE("prop = %s - %lu - %lu\n", debugstr_guid(&prop->Set), prop->Id, prop->Flags);
+
+    if (prop->Flags == KSPROPERTY_TYPE_SET)
+    {
+        if (data_len < sizeof(LONG))
+            return E_NOT_SUFFICIENT_BUFFER;
+
+        if (IsEqualGUID(&prop->Set, &GUID_DMUS_PROP_Volume))
+        {
+            KSPROPERTY volume_prop;
+            DWORD volume_size;
+
+            if (prop->Id != 0)
+                return DMUS_E_UNKNOWN_PROPERTY;
+
+            volume_prop.Set = GUID_DMUS_PROP_Volume;
+            volume_prop.Id = 1;
+            volume_prop.Flags = KSPROPERTY_TYPE_SET;
+
+            return IKsControl_KsProperty(This->synth_control, &volume_prop, sizeof(volume_prop),
+                    data, data_len, &volume_size);
+        }
+        else
+        {
+            FIXME("Unknown property %s\n", debugstr_guid(&prop->Set));
+        }
+
+        return S_OK;
+    }
 
     if (prop->Flags != KSPROPERTY_TYPE_GET)
     {
         FIXME("prop flags %lu not yet supported\n", prop->Flags);
         return S_FALSE;
+    }
+
+    if (IsEqualGUID(&prop->Set, &GUID_DMUS_PROP_Volume))
+    {
+        if (prop->Id != 0)
+            return DMUS_E_UNKNOWN_PROPERTY;
+        return DMUS_E_GET_UNSUPPORTED;
     }
 
     if (data_len <  sizeof(DWORD))
@@ -712,6 +751,9 @@ HRESULT synth_port_create(IDirectMusic8Impl *parent, DMUS_PORTPARAMS *port_param
             (void **)&obj->synth);
 
     if (SUCCEEDED(hr))
+        hr = IDirectMusicSynth_QueryInterface(obj->synth, &IID_IKsControl, (void **)&obj->synth_control);
+
+    if (SUCCEEDED(hr))
         hr = CoCreateInstance(&CLSID_DirectMusicSynthSink, NULL, CLSCTX_INPROC_SERVER, &IID_IDirectMusicSynthSink, (void**)&obj->synth_sink);
 
     if (SUCCEEDED(hr))
@@ -725,6 +767,29 @@ HRESULT synth_port_create(IDirectMusic8Impl *parent, DMUS_PORTPARAMS *port_param
 
     if (SUCCEEDED(hr))
         hr = IDirectMusicSynth_Open(obj->synth, port_params);
+
+    if (SUCCEEDED(hr))
+    {
+        KSPROPERTY volume_prop;
+        DWORD volume_size;
+        LONG volume = 0;
+
+        volume = -600;
+        volume_prop.Set = GUID_DMUS_PROP_Volume;
+        volume_prop.Id = 0;
+        volume_prop.Flags = KSPROPERTY_TYPE_SET;
+
+        IKsControl_KsProperty(obj->synth_control, &volume_prop, sizeof(volume_prop), &volume,
+                sizeof(volume), &volume_size);
+
+        volume = 0;
+        volume_prop.Set = GUID_DMUS_PROP_Volume;
+        volume_prop.Id = 1;
+        volume_prop.Flags = KSPROPERTY_TYPE_SET;
+
+        IKsControl_KsProperty(obj->synth_control, &volume_prop, sizeof(volume_prop), &volume,
+                sizeof(volume), &volume_size);
+    }
 
     if (0)
     {
@@ -758,6 +823,8 @@ HRESULT synth_port_create(IDirectMusic8Impl *parent, DMUS_PORTPARAMS *port_param
         return S_OK;
     }
 
+    if (obj->synth_control)
+        IKsControl_Release(obj->synth_control);
     if (obj->synth)
         IDirectMusicSynth_Release(obj->synth);
     if (obj->synth_sink)

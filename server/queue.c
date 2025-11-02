@@ -1415,16 +1415,6 @@ static int check_queue_input_window( struct msg_queue *queue, user_handle_t wind
     return ret;
 }
 
-/* check if the thread queue is idle and set the process idle event if so */
-void check_thread_queue_idle( struct thread *thread )
-{
-    struct msg_queue *queue = thread->queue;
-    queue_shm_t *queue_shm = queue->shared;
-
-    if ((queue_shm->wake_mask & QS_SMRESULT)) return;
-    if (thread->process->idle_event) set_event( thread->process->idle_event );
-}
-
 /* make sure the specified thread has a queue */
 int init_thread_queue( struct thread *thread )
 {
@@ -1768,7 +1758,6 @@ static void release_hardware_message( struct msg_queue *queue, unsigned int hw_i
         }
     }
     if (clr_bit) clear_queue_bits( queue, clr_bit );
-    if (list_empty( &input->msg_list )) clear_queue_bits( queue, QS_HARDWARE );
 
     update_thread_input_key_state( input, msg->msg, msg->wparam );
     list_remove( &msg->entry );
@@ -1827,6 +1816,7 @@ static user_handle_t find_hardware_message_window( struct desktop *desktop, stru
     {
     case QS_POINTER:
     case QS_RAWINPUT:
+    case QS_HARDWARE:
         if (!(win = msg->win) && input) win = input_shm->focus;
         break;
     case QS_KEY:
@@ -1953,7 +1943,7 @@ static void queue_hardware_message( struct desktop *desktop, struct message *msg
     {
         msg->unique_id = 0;  /* will be set once we return it to the app */
         list_add_tail( &input->msg_list, &msg->entry );
-        set_queue_bits( thread->queue, QS_HARDWARE | msg_bit );
+        set_queue_bits( thread->queue, msg_bit );
     }
     release_object( thread );
 }
@@ -2721,7 +2711,7 @@ static int get_hardware_message( struct thread *thread, unsigned int hw_id, user
     }
 
     if (ptr == list_head( &input->msg_list ))
-        clear_bits = QS_INPUT;
+        clear_bits = QS_INPUT | QS_HARDWARE;
     else
         clear_bits = 0;  /* don't clear bits if we don't go through the whole list */
 
@@ -2752,7 +2742,7 @@ static int get_hardware_message( struct thread *thread, unsigned int hw_id, user
             if (win_thread->queue->input == input)
             {
                 /* wake the other thread */
-                set_queue_bits( win_thread->queue, QS_HARDWARE | msg_bit );
+                set_queue_bits( win_thread->queue, msg_bit );
                 got_one = 1;
             }
             else
@@ -2802,7 +2792,7 @@ static int get_hardware_message( struct thread *thread, unsigned int hw_id, user
         return 1;
     }
     /* nothing found, clear the hardware queue bits */
-    clear_queue_bits( thread->queue, QS_HARDWARE | clear_bits );
+    if (clear_bits) clear_queue_bits( thread->queue, clear_bits );
     return 0;
 }
 
@@ -3051,9 +3041,12 @@ DECL_HANDLER(is_window_hung)
 DECL_HANDLER(get_msg_queue_handle)
 {
     struct msg_queue *queue = get_current_queue();
+    struct process *process = current->process;
+    struct event *event;
 
     reply->handle = 0;
-    if (queue) reply->handle = alloc_handle( current->process, queue, SYNCHRONIZE, 0 );
+    if (queue) reply->handle = alloc_handle( process, queue, SYNCHRONIZE, 0 );
+    if ((event = process->idle_event)) reply->idle_event = alloc_handle( process, event, GENERIC_ALL, 0 );
 }
 
 
@@ -3107,7 +3100,6 @@ DECL_HANDLER(set_queue_mask)
         if (!queue->fd) return;
         clear_queue_bits( queue, QS_DRIVER );
         set_fd_events( queue->fd, POLLIN );
-        return;
     }
 
     SHARED_WRITE_BEGIN( queue_shm, queue_shm_t )
@@ -3389,12 +3381,8 @@ DECL_HANDLER(get_message)
         reply->wparam = timer->id;
         reply->lparam = timer->lparam;
         get_message_defaults( queue, &reply->x, &reply->y, &reply->time );
-        if (!(req->flags & PM_NOYIELD) && current->process->idle_event)
-            set_event( current->process->idle_event );
         return;
     }
-
-    if (get_win == -1 && current->process->idle_event) set_event( current->process->idle_event );
 
     SHARED_WRITE_BEGIN( queue_shm, queue_shm_t )
     {
@@ -4125,7 +4113,7 @@ DECL_HANDLER(get_rawinput_buffer)
 
         if (!next_size)
         {
-            clear_queue_bits( queue, QS_RAWINPUT | (list_empty( &queue->input->msg_list ) ? QS_HARDWARE : 0) );
+            clear_queue_bits( queue, QS_RAWINPUT );
             if (count) next_size = sizeof(RAWINPUT);
             else reply->next_size = 0;
         }

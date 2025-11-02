@@ -27,7 +27,23 @@
 #include "msxml2did.h"
 #include "ocidl.h"
 
+#include "xmlparser.h"
 #include "wine/test.h"
+
+#define check_interface(a, b, c) check_interface_(__LINE__, a, b, c)
+static void check_interface_(unsigned int line, void *iface_ptr, REFIID iid, BOOL supported)
+{
+    IUnknown *iface = iface_ptr;
+    HRESULT hr, expected_hr;
+    IUnknown *unk;
+
+    expected_hr = supported ? S_OK : E_NOINTERFACE;
+
+    hr = IUnknown_QueryInterface(iface, iid, (void **)&unk);
+    ok_(__FILE__, line)(hr == expected_hr, "Got hr %#lx, expected %#lx.\n", hr, expected_hr);
+    if (SUCCEEDED(hr))
+        IUnknown_Release(unk);
+}
 
 /* Deprecated Error Code */
 #define XML_E_INVALIDATROOTLEVEL    0xc00ce556
@@ -77,6 +93,33 @@ static void create_stream_on_file(IStream **stream, LPCSTR path)
     GlobalUnlock(hglobal);
 }
 
+static HRESULT load_document(IXMLDocument *doc, const void *data, unsigned int size)
+{
+    IPersistStreamInit *stream_init;
+    LARGE_INTEGER zero = { 0 };
+    IStream *stream;
+    HRESULT hr;
+
+    hr = IXMLDocument_QueryInterface(doc, &IID_IPersistStreamInit, (void **)&stream_init);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = CreateStreamOnHGlobal(NULL, TRUE, &stream);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(!!stream, "Failed to create a stream.\n");
+
+    hr = IStream_Write(stream, data, size, NULL);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    hr = IStream_Seek(stream, zero, STREAM_SEEK_SET, NULL);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = IPersistStreamInit_Load(stream_init, stream);
+
+    IPersistStreamInit_Release(stream_init);
+    IStream_Release(stream);
+
+    return hr;
+}
+
 static void test_xmldoc(void)
 {
     IXMLElement *element = NULL, *child = NULL, *value = NULL;
@@ -86,7 +129,9 @@ static void test_xmldoc(void)
     IStream *stream = NULL;
     VARIANT vIndex, vName;
     LONG type, num_child;
+    IXMLDocument2 *doc2;
     CHAR path[MAX_PATH];
+    TYPEATTR *tattr;
     IDispatch *disp;
     ITypeInfo *ti;
     HRESULT hr;
@@ -96,9 +141,36 @@ static void test_xmldoc(void)
                           &IID_IXMLDocument, (void**)&doc);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
+    check_interface(doc, &IID_IUnknown, TRUE);
+    check_interface(doc, &IID_IDispatch, TRUE);
+    check_interface(doc, &IID_IXMLDocument, TRUE);
+    check_interface(doc, &IID_IXMLDocument2, TRUE);
+    check_interface(doc, &IID_IPersistStreamInit, TRUE);
+    check_interface(doc, &IID_IPersistStream, TRUE);
+    todo_wine
+    check_interface(doc, &IID_IPersistMoniker, TRUE);
+    todo_wine
+    check_interface(doc, &IID_IXMLError, TRUE);
+    check_interface(doc, &IID_IXMLDOMDocument, FALSE);
+
+    hr = IXMLDocument_QueryInterface(doc, &IID_IXMLDocument2, (void **)&doc2);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    hr = IXMLDocument2_QueryInterface(doc2, &IID_IDispatch, (void **)&disp);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(disp == (IDispatch *)doc2, "Unexpected pointer.\n");
+    hr = IDispatch_GetTypeInfo(disp, 0, 0, &ti);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    hr = ITypeInfo_GetTypeAttr(ti, &tattr);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(IsEqualGUID(&tattr->guid, &IID_IXMLDocument2), "Unexpected guid %s.\n", wine_dbgstr_guid(&tattr->guid));
+    ITypeInfo_ReleaseTypeAttr(ti, tattr);
+    ITypeInfo_Release(ti);
+    IDispatch_Release(disp);
+
     /* IDispatch */
     hr = IXMLDocument_QueryInterface(doc, &IID_IDispatch, (void**)&disp);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(disp == (IDispatch *)doc, "Unexpected pointer.\n");
 
     /* just to make sure we're on right type data */
     hr = IDispatch_GetTypeInfo(disp, 0, 0, &ti);
@@ -111,9 +183,6 @@ static void test_xmldoc(void)
 
     ITypeInfo_Release(ti);
     IDispatch_Release(disp);
-
-    hr = IXMLDocument_QueryInterface(doc, &IID_IXMLDOMDocument, (void**)&disp);
-    ok(hr == E_NOINTERFACE, "Unexpected hr %#lx.\n", hr);
 
     create_xml_file("bank.xml");
     GetFullPathNameA("bank.xml", MAX_PATH, path, NULL);
@@ -133,25 +202,6 @@ static void test_xmldoc(void)
         goto cleanup;
 
     ok(stream != NULL, "Expected non-NULL stream\n");
-
-    /* version field */
-    hr = IXMLDocument_get_version(doc, NULL);
-    ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
-
-    name = NULL;
-    hr = IXMLDocument_get_version(doc, &name);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(!lstrcmpW(name, L"1.0"), "Expected 1.0, got %s\n", wine_dbgstr_w(name));
-    SysFreeString(name);
-
-    /* doctype */
-    hr = IXMLDocument_get_doctype(doc, NULL);
-    ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
-
-    hr = IXMLDocument_get_doctype(doc, &name);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(!lstrcmpW(name, L"BANKACCOUNT"), "Expected BANKACCOUNT, got %s\n", wine_dbgstr_w(name));
-    SysFreeString(name);
 
     hr = IXMLDocument_get_root(doc, &element);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
@@ -1073,6 +1123,179 @@ static void test_xmlelem(void)
     IXMLDocument_Release(doc);
 }
 
+static const char doc_data1[] =
+    "<?xml version=\"1.0\" encoding=\"uTf-8\"?><a/>";
+
+static const char doc_data2[] =
+    "<?xml version=\"1.0\"?><a/>";
+
+static const char doc_data3[] =
+    "<?xml version=\"1.0\" encoding=\"bad\"?><a/>";
+
+static const char doc_data4[] =
+    "<?xml version=\"1.1\"?><a/>";
+
+static void test_xmldoc_charset(void)
+{
+    IXMLDocument *doc;
+    HRESULT hr;
+    BSTR s;
+
+    hr = CoCreateInstance(&CLSID_XMLDocument, NULL, CLSCTX_INPROC_SERVER, &IID_IXMLDocument, (void **)&doc);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = IXMLDocument_get_charset(doc, NULL);
+    todo_wine
+    ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
+
+    hr = IXMLDocument_get_charset(doc, &s);
+    todo_wine
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    if (hr == S_OK)
+    {
+        ok(!wcscmp(s, L"UTF-8"), "Unexpected %s.\n", wine_dbgstr_w(s));
+        SysFreeString(s);
+    }
+
+    hr = load_document(doc, doc_data1, sizeof(doc_data1) - 1);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = IXMLDocument_get_charset(doc, NULL);
+    todo_wine
+    ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
+
+    hr = IXMLDocument_get_charset(doc, &s);
+    todo_wine
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    if (hr == S_OK)
+    {
+        ok(!wcscmp(s, L"uTf-8"), "Unexpected %s.\n", wine_dbgstr_w(s));
+        SysFreeString(s);
+    }
+
+    /* Unspecified encoding, single-byte data */
+    hr = load_document(doc, doc_data2, sizeof(doc_data2) - 1);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = IXMLDocument_get_charset(doc, &s);
+    todo_wine
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    if (hr == S_OK)
+    {
+        ok(!wcscmp(s, L"UTF-8"), "Unexpected %s.\n", wine_dbgstr_w(s));
+        SysFreeString(s);
+    }
+
+    /* Invalid encoding */
+    hr = load_document(doc, doc_data3, sizeof(doc_data3) - 1);
+    todo_wine
+    ok(hr == XML_E_INVALIDENCODING, "Unexpected hr %#lx.\n", hr);
+
+    IXMLDocument_Release(doc);
+}
+
+static void test_xmldoc_version(void)
+{
+    IXMLDocument *doc;
+    HRESULT hr;
+    BSTR s;
+
+    hr = CoCreateInstance(&CLSID_XMLDocument, NULL, CLSCTX_INPROC_SERVER, &IID_IXMLDocument, (void **)&doc);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = IXMLDocument_get_version(doc, NULL);
+    ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
+
+    s = NULL;
+    hr = IXMLDocument_get_version(doc, &s);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(!wcscmp(s, L"1.0"), "Unexpected version %s.\n", wine_dbgstr_w(s));
+    SysFreeString(s);
+
+    hr = load_document(doc, "<a/>", 4);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    s = NULL;
+    hr = IXMLDocument_get_version(doc, &s);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(!wcscmp(s, L"1.0"), "Unexpected version %s.\n", wine_dbgstr_w(s));
+    SysFreeString(s);
+
+    hr = load_document(doc, doc_data4, sizeof(doc_data4) - 1);
+    todo_wine
+    ok(hr == XML_E_INVALID_VERSION, "Unexpected hr %#lx.\n", hr);
+
+    IXMLDocument_Release(doc);
+}
+
+static const char doc_data5[] =
+    "<?xml version=\"1.0\"?>\n"
+    "<!DOCTYPE name1 SYSTEM \"sys.url\">\n"
+    "<a/>";
+
+static const char doc_data6[] =
+    "<?xml version=\"1.0\"?>\n"
+    "<!DOCTYPE name2 PUBLIC \"pudid\" \"pub.url\">\n"
+    "<a/>";
+
+static const char doc_data7[] =
+    "<?xml version=\"1.0\"?>\n"
+    "<!DOCTYPE greeting [<!ELEMENT greeting (#PCDATA)>]>\n"
+    "<a/>";
+
+static void test_xmldoc_doctype(void)
+{
+    IXMLDocument *doc;
+    HRESULT hr;
+    BSTR s;
+
+    hr = CoCreateInstance(&CLSID_XMLDocument, NULL, CLSCTX_INPROC_SERVER, &IID_IXMLDocument, (void **)&doc);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = IXMLDocument_get_doctype(doc, NULL);
+    ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
+
+    /* Without doctype. */
+    hr = load_document(doc, doc_data2, sizeof(doc_data2) - 1);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    s = (void *)0x1;
+    hr = IXMLDocument_get_doctype(doc, &s);
+    ok(hr == S_FALSE, "Unexpected hr %#lx.\n", hr);
+    todo_wine
+    ok(!s, "Unexpected doctype %s.\n", wine_dbgstr_w(s));
+
+    /* With doctype. */
+    hr = load_document(doc, doc_data5, sizeof(doc_data5) - 1);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    s = NULL;
+    hr = IXMLDocument_get_doctype(doc, &s);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(!wcscmp(s, L"NAME1"), "Unexpected doctype %s.\n", wine_dbgstr_w(s));
+    SysFreeString(s);
+
+    hr = load_document(doc, doc_data6, sizeof(doc_data6) - 1);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    s = NULL;
+    hr = IXMLDocument_get_doctype(doc, &s);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(!wcscmp(s, L"NAME2"), "Unexpected doctype %s.\n", wine_dbgstr_w(s));
+    SysFreeString(s);
+
+    hr = load_document(doc, doc_data7, sizeof(doc_data7) - 1);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    s = NULL;
+    hr = IXMLDocument_get_doctype(doc, &s);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(!wcscmp(s, L"GREETING"), "Unexpected doctype %s.\n", wine_dbgstr_w(s));
+    SysFreeString(s);
+
+    IXMLDocument_Release(doc);
+}
+
 START_TEST(xmldoc)
 {
     HRESULT hr;
@@ -1087,6 +1310,9 @@ START_TEST(xmldoc)
     }
 
     test_xmldoc();
+    test_xmldoc_charset();
+    test_xmldoc_version();
+    test_xmldoc_doctype();
     test_createElement();
     test_persiststreaminit();
     test_xmlelem();

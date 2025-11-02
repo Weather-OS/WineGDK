@@ -101,11 +101,37 @@ void *__cdecl Allocate(size_t size)
     return addr;
 }
 
+struct exception_alloc
+{
+    void *unknown;
+    void *exception_inner;
+    char data[0];
+};
+
+void *__cdecl AllocateException(size_t size)
+{
+    struct exception_alloc *base;
+
+    TRACE("(%Iu)\n", size);
+
+    base = Allocate(offsetof(struct exception_alloc, data[size]));
+    return &base->data;
+}
+
 void __cdecl Free(void *addr)
 {
     TRACE("(%p)\n", addr);
 
     free(addr);
+}
+
+void __cdecl FreeException(void *addr)
+{
+    struct exception_alloc *base = CONTAINING_RECORD(addr, struct exception_alloc, data);
+
+    TRACE("(%p)\n", addr);
+
+    Free(base);
 }
 
 struct control_block
@@ -115,9 +141,10 @@ struct control_block
     LONG ref_strong;
     IUnknown *object;
     bool is_inline;
-    UINT16 unknown;
+    bool unknown;
+    bool is_exception;
 #ifdef _WIN32
-    char _padding[4];
+    char _padding[5];
 #endif
 };
 
@@ -217,8 +244,30 @@ void *__cdecl AllocateWithWeakRef(ptrdiff_t offset, size_t size)
     weakref->object = object;
     weakref->ref_strong = weakref->ref_weak = 1;
     weakref->unknown = 0;
+    weakref->is_exception = FALSE;
 
     return weakref->object;
+}
+
+void *__cdecl AllocateExceptionWithWeakRef(ptrdiff_t offset, size_t size)
+{
+    struct control_block *weakref;
+    void *excp;
+
+    TRACE("(%Iu, %Iu)\n", offset, size);
+
+    /* AllocateExceptionWithWeakRef does not store the control block inline, regardless of size. */
+    weakref = Allocate(sizeof(*weakref));
+    excp = AllocateException(size);
+    *(struct control_block **)((char *)excp + offset) = weakref;
+    weakref->IWeakReference_iface.lpVtbl = &control_block_vtbl;
+    weakref->object = excp;
+    weakref->ref_strong = weakref->ref_weak = 1;
+    weakref->is_inline = FALSE;
+    weakref->unknown = 0;
+    weakref->is_exception = TRUE;
+
+    return excp;
 }
 
 DEFINE_THISCALL_WRAPPER(control_block_ReleaseTarget, 4)
@@ -230,7 +279,12 @@ void __thiscall control_block_ReleaseTarget(struct control_block *weakref)
 
     if (weakref->is_inline || ReadNoFence(&weakref->ref_strong) >= 0) return;
     if ((object = InterlockedCompareExchangePointer((void *)&weakref->object, NULL, weakref->object)))
-        Free(object);
+    {
+        if (weakref->is_exception)
+            FreeException(object);
+        else
+            Free(object);
+    }
 }
 
 struct __abi_type_descriptor
@@ -555,6 +609,88 @@ void *WINAPI CreateValue(int typecode, const void *val)
         return NULL;
     }
     return obj;
+}
+
+void *__cdecl CreateExceptionWithMessage(HRESULT hr, HSTRING msg)
+{
+    FIXME("(%#lx, %s): stub!\n", hr, debugstr_hstring(msg));
+    return NULL;
+}
+
+void *__cdecl CreateException(HRESULT hr)
+{
+    FIXME("(%#lx): stub!\n", hr);
+    return NULL;
+}
+
+void WINAPI __abi_WinRTraiseCOMException(HRESULT hr)
+{
+    FIXME("(%#lx): stub!\n", hr);
+}
+
+#define WINRT_EXCEPTIONS                                     \
+    WINRT_EXCEPTION(AccessDenied, E_ACCESSDENIED)            \
+    WINRT_EXCEPTION(ChangedState, E_CHANGED_STATE)           \
+    WINRT_EXCEPTION(ClassNotRegistered, REGDB_E_CLASSNOTREG) \
+    WINRT_EXCEPTION(Disconnected, RPC_E_DISCONNECTED)        \
+    WINRT_EXCEPTION(Failure, E_FAIL)                         \
+    WINRT_EXCEPTION(InvalidArgument, E_INVALIDARG)           \
+    WINRT_EXCEPTION(InvalidCast, E_NOINTERFACE)              \
+    WINRT_EXCEPTION(NotImplemented, E_NOTIMPL)               \
+    WINRT_EXCEPTION(NullReference, E_POINTER)                \
+    WINRT_EXCEPTION(ObjectDisposed, RO_E_CLOSED)             \
+    WINRT_EXCEPTION(OperationCanceled, E_ABORT)              \
+    WINRT_EXCEPTION(OutOfBounds, E_BOUNDS)                   \
+    WINRT_EXCEPTION(OutOfMemory, E_OUTOFMEMORY)              \
+    WINRT_EXCEPTION(WrongThread, RPC_E_WRONG_THREAD)
+
+#define WINRT_EXCEPTION(name, hr)                                                  \
+    void WINAPI __abi_WinRTraise##name##Exception(void)                            \
+    {                                                                              \
+        FIXME("(): stub!\n");                                                      \
+    }                                                                              \
+    void *__cdecl platform_##name##Exception_ctor(void *this)                      \
+    {                                                                              \
+        FIXME("(%p): stub!\n", this);                                              \
+        return this;                                                               \
+    }                                                                              \
+    void *__cdecl platform_##name##Exception_hstring_ctor(void *this, HSTRING msg) \
+    {                                                                              \
+        FIXME("(%p, %s): stub!\n", this, debugstr_hstring(msg));                   \
+        return this;                                                               \
+    }
+
+WINRT_EXCEPTIONS
+#undef WINRT_EXCEPTION
+
+void *__cdecl platform_Exception_ctor(void *this, HRESULT hr)
+{
+    FIXME("(%p, %#lx): stub!\n", this, hr);
+    return this;
+}
+
+void *__cdecl platform_Exception_hstring_ctor(void *this, HRESULT hr, HSTRING msg)
+{
+    FIXME("(%p, %#lx, %s): stub!\n", this, hr, debugstr_hstring(msg));
+    return this;
+}
+
+void *__cdecl platform_COMException_ctor(void *this, HRESULT hr)
+{
+    FIXME("(%p, %#lx): stub!\n", this, hr);
+    return this;
+}
+
+void *__cdecl platform_COMException_hstring_ctor(void *this, HRESULT hr, HSTRING msg)
+{
+    FIXME("(%p, %#lx, %s): stub!\n", this, hr, debugstr_hstring(msg));
+    return this;
+}
+
+HSTRING __cdecl platform_exception_get_Message(void *excp)
+{
+    FIXME("(%p): stub!\n", excp);
+    return NULL;
 }
 
 BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, void *reserved)

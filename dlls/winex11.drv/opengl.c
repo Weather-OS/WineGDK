@@ -521,6 +521,10 @@ static BOOL x11drv_egl_surface_create( HWND hwnd, int format, struct opengl_draw
     gl = opengl_drawable_create( sizeof(*gl), &x11drv_egl_surface_funcs, format, client );
     client_surface_release( client );
     if (!gl) return FALSE;
+    gl->base.buffer_map[0] = GL_BACK_LEFT;
+    gl->base.buffer_map[1] = GL_BACK_RIGHT;
+    gl->base.buffer_map[GL_FRONT - GL_FRONT_LEFT] = GL_BACK;
+    gl->base.buffer_map[GL_FRONT_AND_BACK - GL_FRONT_LEFT] = GL_BACK;
 
     if (!(gl->base.surface = funcs->p_eglCreateWindowSurface( egl->display, egl_config_for_format( format ),
                                                               (void *)window, NULL )))
@@ -551,10 +555,9 @@ UINT X11DRV_OpenGLInit( UINT version, const struct opengl_funcs *opengl_funcs, c
     }
     funcs = opengl_funcs;
 
-    if (use_egl)
+    if (use_egl && opengl_funcs->egl_handle)
     {
-        if (!opengl_funcs->egl_handle) return STATUS_NOT_SUPPORTED;
-        WARN( "Using experimental EGL OpenGL backend\n" );
+        TRACE( "Using EGL OpenGL backend\n" );
         x11drv_driver_funcs = **driver_funcs;
         x11drv_driver_funcs.p_init_egl_platform = x11drv_init_egl_platform;
         x11drv_driver_funcs.p_surface_create = x11drv_egl_surface_create;

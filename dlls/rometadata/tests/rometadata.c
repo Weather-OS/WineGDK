@@ -17,6 +17,7 @@
  */
 
 #define COBJMACROS
+#define _DEFINE_META_DATA_META_CONSTANTS
 #include <windows.h>
 #include "initguid.h"
 #include "cor.h"
@@ -214,6 +215,31 @@ struct type_info
     const char *exp_namespace;
 };
 
+struct column_info
+{
+    ULONG exp_offset;
+    ULONG exp_col_size;
+    ULONG exp_type;
+    const char *exp_name;
+};
+
+enum coded_idx_type
+{
+    CT_TypeDefOrRef        = 64,
+    CT_HasConstant         = 65,
+    CT_HasCustomAttribute  = 66,
+    CT_HasFieldMarshal     = 67,
+    CT_HasDeclSecurity     = 68,
+    CT_MemberRefParent     = 69,
+    CT_HasSemantics        = 70,
+    CT_MethodDefOrRef      = 71,
+    CT_MemberForwarded     = 72,
+    CT_Implementation      = 73,
+    CT_CustomAttributeType = 74,
+    CT_ResolutionScope     = 75,
+    CT_TypeOrMethodDef     = 76
+};
+
 static void test_MetaDataDispenser_OpenScope(void)
 {
     static const struct table_info tables[TABLE_MAX] = {
@@ -263,6 +289,246 @@ static void test_MetaDataDispenser_OpenScope(void)
         {4, 0, 2, -1, "MethodSpec"},
         {4, 0, 2, 0, "GenericParamConstraint"},
     };
+    static const struct {
+        ULONG len;
+        const struct column_info columns[9];
+    } table_columns[TABLE_MAX] = {
+        {5,
+         {
+             {0, 2, iUSHORT, "Generation"},
+             {2, 2, iSTRING, "Name"},
+             {4, 2, iGUID, "Mvid"},
+             {6, 2, iGUID, "EncId"},
+             {8, 2, iGUID, "EncBaseId"}
+         }},
+        {3,
+         {
+             {0, 2, CT_ResolutionScope, "ResolutionScope"},
+             {2, 2, iSTRING, "Name"},
+             {4, 2, iSTRING, "Namespace"}
+         }},
+        {6,
+         {
+             {0, 4, iULONG, "Flags"},
+             {4, 2, iSTRING, "Name"},
+             {6, 2, iSTRING, "Namespace"},
+             {8, 2, CT_TypeDefOrRef, "Extends"},
+             {10, 2, TABLE_FIELD, "FieldList"},
+             {12, 2, TABLE_METHODDEF, "MethodList"}
+         }},
+        {1, {{0, 2, TABLE_FIELD, "Field"}}},
+        {3,
+         {
+             {0, 2, iUSHORT, "Flags"},
+             {2, 2, iSTRING, "Name"},
+             {4, 2, iBLOB, "Signature"},
+         }},
+        {1, {{0, 2, TABLE_METHODDEF, "Method"}}},
+        {6,
+         {
+             {0, 4, iULONG, "RVA"},
+             {4, 2, iUSHORT, "ImplFlags"},
+             {6, 2, iUSHORT, "Flags"},
+             {8, 2, iSTRING, "Name"},
+             {10, 2, iBLOB, "Signature"},
+             {12, 2, TABLE_PARAM, "ParamList"}
+         }},
+        {1, {{0, 2, TABLE_PARAM, "Param"}}},
+        {3,
+         {
+             {0, 2, iUSHORT, "Flags"},
+             {2, 2, iUSHORT, "Sequence"},
+             {4, 2, iSTRING, "Name"}
+         }},
+        {2,
+         {
+             {0, 2, TABLE_TYPEDEF, "Class"},
+             {2, 2, CT_TypeDefOrRef, "Interface"},
+         }},
+        {3,
+         {
+             {0, 2, CT_MemberRefParent, "Class"},
+             {2, 2, iSTRING, "Name"},
+             {4, 2, iBLOB, "Signature"},
+         }},
+        {3,
+         {
+             {0, 1, iBYTE, "Type"},
+             {2, 2, CT_HasConstant, "Parent"},
+             {4, 2, iBLOB, "Value"}
+         }},
+        {3,
+         {
+             {0, 2, CT_HasCustomAttribute, "Parent"},
+             {2, 2, CT_CustomAttributeType, "Type"},
+             {4, 2, iBLOB, "Value"}
+         }},
+        {2,
+         {
+             {0, 2, CT_HasFieldMarshal, "Parent"},
+             {2, 2, iBLOB, "NativeType"}
+         }},
+        {3,
+         {
+             {0, 2, iSHORT, "Action"},
+             {2, 2, CT_HasDeclSecurity, "Parent"},
+             {4, 2, iBLOB, "PermissionSet"}
+         }},
+        {3,
+         {
+             {0, 2, iUSHORT, "PackingSize"},
+             {2, 4, iULONG, "ClassSize"},
+             {6, 2, TABLE_TYPEDEF, "Parent"}
+         }},
+        {2,
+         {
+             {0, 4, iULONG, "OffSet"},
+             {4, 2, TABLE_FIELD, "Field"}
+         }},
+        {1, {{0, 2, iBLOB, "Signature"}}},
+        {2,
+         {
+             {0, 2, TABLE_TYPEDEF, "Parent"},
+             {2, 2, TABLE_EVENT, "EventList"},
+         }},
+        {1, {{0, 2, TABLE_EVENT, "Event"}}},
+        {3,
+         {
+             {0, 2, iUSHORT, "EventFlags"},
+             {2, 2, iSTRING, "Name"},
+             {4, 2, CT_TypeDefOrRef, "EventType"}
+         }},
+        {2,
+         {
+             {0, 2, TABLE_TYPEDEF, "Parent"},
+             {2, 2, TABLE_PROPERTY, "PropertyList"}
+         }},
+        {1, {{0, 2, TABLE_PROPERTY, "Property"}}},
+        {3,
+         {
+             {0, 2, iUSHORT, "PropFlags"},
+             {2, 2, iSTRING, "Name"},
+             {4, 2, iBLOB, "Type"}
+         }},
+        {3,
+         {
+             {0, 2, iUSHORT, "Semantic"},
+             {2, 2, TABLE_METHODDEF, "Method"},
+             {4, 2, CT_HasSemantics, "Association"}
+         }},
+        {3,
+         {
+             {0, 2, TABLE_TYPEDEF, "Class"},
+             {2, 2, CT_MethodDefOrRef, "MethodBody"},
+             {4, 2, CT_MethodDefOrRef, "MethodDeclaration"}
+         }},
+        {1, {{0, 2, iSTRING, "Name"}}},
+        {1, {{0, 2, iBLOB, "Signature"}}},
+        {4,
+         {
+             {0, 2, iUSHORT, "MappingFlags"},
+             {2, 2, CT_MemberForwarded, "MemberForwarded"},
+             {4, 2, iSTRING, "ImportName"},
+             {6, 2, TABLE_MODULEREF, "ImportScope"}
+         }},
+        {2,
+         {
+             {0, 4, iULONG, "RVA"},
+             {4, 2, TABLE_FIELD, "Field"}
+         }},
+        {2,
+         {
+             {0, 4, iULONG, "Token"},
+             {4, 4, iULONG, "FuncCode"}
+         }},
+        {1, {{0, 4, iULONG, "Token"}}},
+        {9,
+         {
+             {0, 4, iULONG, "HashAlgId"},
+             {4, 2, iUSHORT, "MajorVersion"},
+             {6, 2, iUSHORT, "MinorVersion"},
+             {8, 2, iUSHORT, "BuildNumber"},
+             {10, 2, iUSHORT, "RevisionNumber"},
+             {12, 4, iULONG, "Flags"},
+             {16, 2, iBLOB, "PublicKey"},
+             {18, 2, iSTRING, "Name"},
+             {20, 2, iSTRING, "Locale"}
+         }},
+        {1, {{0, 4, iULONG, "Processor"}}},
+        {3,
+         {
+             {0, 4, iULONG, "OSPlatformId"},
+             {4, 4, iULONG, "OSMajorVersion"},
+             {8, 4, iULONG, "OSMinorVersion"}
+         }},
+        {9,
+         {
+             {0, 2, iUSHORT, "MajorVersion"},
+             {2, 2, iUSHORT, "MinorVersion"},
+             {4, 2, iUSHORT, "BuildNumber"},
+             {6, 2, iUSHORT, "RevisionNumber"},
+             {8, 4, iULONG, "Flags"},
+             {12, 2, iBLOB, "PublicKeyOrToken"},
+             {14, 2, iSTRING, "Name"},
+             {16, 2, iSTRING, "Locale"},
+             {18, 2, iBLOB, "HashValue"}
+         }},
+        {2,
+         {
+             {0, 4, iULONG, "Processor"},
+             {4, 2, TABLE_ASSEMBLYREF, "AssemblyRef"}
+         }},
+        {4,
+         {
+             {0, 4, iULONG, "OSPlatformId"},
+             {4, 4, iULONG, "OSMajorVersion"},
+             {8, 4, iULONG, "OSMinorVersion"},
+             {12, 2, TABLE_ASSEMBLYREF, "AssemblyRef"}
+         }},
+        {3,
+         {
+             {0, 4, iULONG, "Flags"},
+             {4, 2, iSTRING, "Name"},
+             {6, 2, iBLOB, "HashValue"}
+         }},
+        {5,
+         {
+             {0, 4, iULONG, "Flags"},
+             {4, 4, iULONG, "TypeDefId"},
+             {8, 2, iSTRING, "TypeName"},
+             {10, 2, iSTRING, "TypeNamespace"},
+             {12, 2, CT_Implementation, "Implementation"}
+         }},
+        {4,
+         {
+             {0, 4, iULONG, "Offset"},
+             {4, 4, iULONG, "Flags"},
+             {8, 2, iSTRING, "Name"},
+             {10, 2, CT_Implementation, "Implementation"}
+         }},
+        {2,
+         {
+             {0, 2, TABLE_TYPEDEF, "NestedClass"},
+             {2, 2, TABLE_TYPEDEF, "EnclosingClass"}
+         }},
+        {4,
+         {
+             {0, 2, iUSHORT, "Number"},
+             {2, 2, iUSHORT, "Flags"},
+             {4, 2, CT_TypeOrMethodDef, "Owner"},
+             {6, 2, iSTRING, "Name"}
+         }},
+        {2,
+         {
+             {0, 2, CT_MethodDefOrRef, "Method"},
+             {2, 2, iBLOB, "Instantiation"}
+         }},
+        {2,
+         {
+             {0, 2, TABLE_GENERICPARAM, "Owner"},
+             {2, 2, CT_TypeDefOrRef, "Constraint"}
+         }},
+    };
     static const struct type_info type_defs[3] =
     {
         { 0, "<Module>", NULL },
@@ -287,37 +553,27 @@ static void test_MetaDataDispenser_OpenScope(void)
     IMetaDataDispenser_Release(dispenser);
 
     hr = IMetaDataTables_GetStringHeapSize(md_tables, &val);
-    todo_wine
     ok(hr == S_OK, "got hr %#lx\n", hr);
-    todo_wine
     ok(val == 329, "got val %lu\n", val);
 
     val = 0;
     hr = IMetaDataTables_GetBlobHeapSize(md_tables, &val);
-    todo_wine
     ok(hr == S_OK, "got hr %#lx\n", hr);
-    todo_wine
     ok(val == 156, "got val %lu\n", val);
 
     val = 0;
     hr = IMetaDataTables_GetGuidHeapSize(md_tables, &val);
-    todo_wine
     ok(hr == S_OK, "got hr %#lx\n", hr);
-    todo_wine
     ok(val == 16, "got val %lu\n", val);
 
     val = 0;
     hr = IMetaDataTables_GetUserStringHeapSize(md_tables, &val);
-    todo_wine
     ok(hr == S_OK, "got hr %#lx\n", hr);
-    todo_wine
     ok(val == 8, "got val %lu\n", val);
 
     val = 0;
     hr = IMetaDataTables_GetNumTables(md_tables, &val);
-    todo_wine
     ok(hr == S_OK, "got hr %#lx\n", hr);
-    todo_wine
     ok(val == TABLE_MAX, "got val %lu\n", val);
 
     for (i = 0; i < TABLE_MAX; i++)
@@ -325,50 +581,61 @@ static void test_MetaDataDispenser_OpenScope(void)
         const struct table_info *table = &tables[i];
         ULONG row_size, rows, cols, key_idx;
         const char *name;
+        ULONG j;
 
         winetest_push_context("tables[%lu]", i);
 
         hr = IMetaDataTables_GetTableInfo(md_tables, i, &row_size, &rows, &cols, &key_idx, &name);
-        todo_wine
         ok(hr == S_OK, "got hr %#lx\n", hr);
-        if (FAILED(hr))
-        {
-            winetest_pop_context();
-            continue;
-        }
 
-        todo_wine
         ok(row_size == table->exp_row_size, "got row_size %lu != %lu\n", row_size, table->exp_row_size);
-        todo_wine
         ok(rows == table->exp_rows, "got rows %lu != %lu\n", rows, table->exp_rows);
-        todo_wine
         ok(cols == table->exp_cols, "got cols %lu != %lu\n", cols, table->exp_cols);
-        todo_wine
         ok(key_idx == table->exp_key_idx, "got key_idx %lu != %lu\n", key_idx, table->exp_key_idx);
-        todo_wine
         ok(!strcmp(name, table->exp_name), "got name %s != %s\n", debugstr_a(name), debugstr_a(table->exp_name));
+
+        for (j = 0; j < table_columns[i].len; j++)
+        {
+            const struct column_info *column = &table_columns[i].columns[j];
+            ULONG offset, col_size, type;
+
+            winetest_push_context("column=%lu", j);
+
+            hr = IMetaDataTables_GetColumnInfo(md_tables, i, j, &offset, &col_size, &type, &name);
+            ok(hr == S_OK, "got hr %#lx\n", hr);
+
+            ok(offset == column->exp_offset, "got offset %lu != %lu\n", offset, column->exp_offset);
+            ok(col_size == column->exp_col_size, "got col_size %lu != %lu\n", col_size, column->exp_col_size);
+            ok(type == column->exp_type, "got type %lu != %lu\n", type, column->exp_type);
+            ok(!strcmp(name, column->exp_name), "got name %s != %s\n", debugstr_a(name), debugstr_a(column->exp_name));
+
+            winetest_pop_context();
+        }
 
         winetest_pop_context();
     }
 
     /* Read module information */
     hr = IMetaDataTables_GetRow(md_tables, TABLE_MODULE, 1, (BYTE *)&module);
-    todo_wine
     ok(hr == S_OK, "got hr %#lx\n", hr);
-    todo_wine
     ok(!!module, "got module=%p\n", module);
 
-    if (SUCCEEDED(hr))
-    {
-        str = NULL;
-        hr = IMetaDataTables_GetString(md_tables, module->Name, &str);
-        ok(hr == S_OK, "got hr %#lx\n", hr);
-        ok(str &&!strcmp(str, "dlls/rometadata/tests/test-simple.winmd"), "got str %s\n", debugstr_a(str));
+    str = NULL;
+    hr = IMetaDataTables_GetString(md_tables, module->Name, &str);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
+    ok(str &&!strcmp(str, "dlls/rometadata/tests/test-simple.winmd"), "got str %s\n", debugstr_a(str));
 
-        hr = IMetaDataTables_GetGuid(md_tables, module->Mvid, &guid);
-        ok(hr == S_OK, "got hr %#lx\n", hr);
-        ok(!!guid, "got guid %p\n", guid);
-    }
+    hr = IMetaDataTables_GetGuid(md_tables, module->Mvid, &guid);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
+    ok(!!guid, "got guid %p\n", guid);
+
+    hr = IMetaDataTables_GetColumn(md_tables, TABLE_MODULE, 1, 1, &val);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
+    ok(val == module->Name, "got val %#lx != %#x\n", val, module->Name);
+
+    hr = IMetaDataTables_GetColumn(md_tables, TABLE_MODULE, 2, 1, &val);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
+    ok(val == module->Mvid, "got val %#lx != %#x\n", val, module->Mvid);
 
     /* Read defined types. */
     for (i = 0; i < ARRAY_SIZE(type_defs); i++)
@@ -379,15 +646,8 @@ static void test_MetaDataDispenser_OpenScope(void)
 
         type_def = NULL;
         hr = IMetaDataTables_GetRow(md_tables, TABLE_TYPEDEF, i + 1, (BYTE *)&type_def);
-        todo_wine
         ok(hr == S_OK, "got hr %#lx\n", hr);
-        todo_wine
         ok(!!type_def, "got type_def=%p\n", type_def);
-        if (FAILED(hr))
-        {
-            winetest_pop_context();
-            continue;
-        }
 
         ok(type_def->Flags == type_info->exp_flags, "got Flags %#lx != %#lx\n", type_def->Flags, type_info->exp_flags);
         str = NULL;
@@ -399,11 +659,24 @@ static void test_MetaDataDispenser_OpenScope(void)
         {
             str = NULL;
             hr = IMetaDataTables_GetString(md_tables, type_def->Namespace, &str);
+            ok(hr == S_OK, "got hr %#lx\n", hr);
             ok(str && !strcmp(str, type_info->exp_namespace), "got str %s != %s\n", debugstr_a(str),
                debugstr_a(type_info->exp_namespace));
             if (!strcmp(type_info->exp_name, "ITest1") && !strcmp(type_info->exp_namespace, "Wine.Test"))
                 itest1_def_idx = ((i + 1) << 5) | 3;
         }
+
+        hr = IMetaDataTables_GetColumn(md_tables, TABLE_TYPEDEF, 0, i + 1, &val);
+        ok(hr == S_OK, "got hr %#lx\n", hr);
+        ok(val == type_def->Flags, "got val %#lx != %#lx\n", val, type_def->Flags);
+
+        hr = IMetaDataTables_GetColumn(md_tables, TABLE_TYPEDEF, 1, i + 1, &val);
+        ok(hr == S_OK, "got hr %#lx\n", hr);
+        ok(val == type_def->Name, "got val %#lx != %#x\n", val, type_def->Name);
+
+        hr = IMetaDataTables_GetColumn(md_tables, TABLE_TYPEDEF, 2, i + 1, &val);
+        ok(hr == S_OK, "got hr %#lx\n", hr);
+        ok(val == type_def->Namespace, "got val %#lx != %#x\n", val, type_def->Namespace);
 
         winetest_pop_context();
     }
@@ -416,22 +689,17 @@ static void test_MetaDataDispenser_OpenScope(void)
         winetest_push_context("i=%lu", i);
 
         hr = IMetaDataTables_GetRow(md_tables, TABLE_MEMBERREF, i + 1, (BYTE *)&ref);
-        todo_wine
         ok(hr == S_OK, "got hr %#lx\n", hr);
-        if (FAILED(hr))
-        {
-            winetest_pop_context();
-            continue;
-        }
 
         hr = IMetaDataTables_GetString(md_tables, ref->Name, &str);
         ok(hr == S_OK, "got hr %#lx\n", hr);
         if (str && !strcmp(str, ".ctor"))
         {
+            ULONG rid, type, typeref_row = (ref->Class & ~7) >> 3;
             const struct row_typeref *typeref = NULL;
 
             /* All MemberRefParent coded indices in test-simple.winmd point to TypeRef entries. */
-            hr = IMetaDataTables_GetRow(md_tables, TABLE_TYPEREF, (ref->Class & ~7) >> 3, (BYTE *)&typeref);
+            hr = IMetaDataTables_GetRow(md_tables, TABLE_TYPEREF, typeref_row, (BYTE *)&typeref);
             ok(hr == S_OK, "got hr %#lx\n", hr);
             hr = IMetaDataTables_GetString(md_tables, typeref->Name, &str);
             ok(hr == S_OK, "got hr %#lx\n", hr);
@@ -446,12 +714,30 @@ static void test_MetaDataDispenser_OpenScope(void)
                     break;
                 }
             }
+
+            hr = IMetaDataTables_GetColumn(md_tables, TABLE_TYPEREF, 1, typeref_row, &val);
+            ok(hr == S_OK, "got hr %#lx\n", hr);
+            ok(val == typeref->Name, "got val %#lx != %#x\n", val, typeref->Name);
+
+            hr = IMetaDataTables_GetColumn(md_tables, TABLE_TYPEREF, 2, typeref_row, &val);
+            ok(hr == S_OK, "got hr %#lx\n", hr);
+            ok(val == typeref->Namespace, "got val %#lx != %#x\n", val, typeref->Namespace);
+
+            hr = IMetaDataTables_GetColumn(md_tables, TABLE_MEMBERREF, 0, i + 1, &val);
+            ok(hr == S_OK, "got hr %#lx\n", hr);
+            rid = RidFromToken(val);
+            type = TypeFromToken(val);
+            ok(rid == typeref_row, "got rid %#lx != %#lx\n", rid, typeref_row);
+            ok(type == mdtTypeRef, "got type %#lx != %#x\n", type, mdtTypeRef);
         }
+
+        hr  = IMetaDataTables_GetColumn(md_tables, TABLE_MEMBERREF, 1, i + 1, &val);
+        ok(hr == S_OK, "got hr %#lx\n", hr);
+        ok(val == ref->Name, "got val %#lx != %#x\n", val, ref->Name);
 
         winetest_pop_context();
     }
 
-    todo_wine
     ok(!!guid_ctor_idx, "got guid_ctor_coded_idx %lu\n", guid_ctor_idx);
 
     /* Verify ITest1 has the correct GuidAttribute value. */
@@ -463,13 +749,7 @@ static void test_MetaDataDispenser_OpenScope(void)
 
         attr = NULL;
         hr = IMetaDataTables_GetRow(md_tables, TABLE_CUSTOMATTRIBUTE, i + 1, (BYTE *)&attr);
-        todo_wine
         ok(hr == S_OK, "got hr %#lx\n", hr);
-        if (FAILED(hr))
-        {
-            winetest_pop_context();
-            continue;
-        }
 
         if (attr->Type == guid_ctor_idx && attr->Parent == itest1_def_idx)
         {
@@ -483,6 +763,10 @@ static void test_MetaDataDispenser_OpenScope(void)
             guid = (GUID *)&value[2];
             ok(IsEqualGUID(guid, &IID_ITest1), "got guid %s\n", debugstr_guid(guid));
         }
+
+        hr = IMetaDataTables_GetColumn(md_tables, TABLE_CUSTOMATTRIBUTE, 2, i + 1, &val);
+        ok(hr == S_OK, "got hr %#lx\n", hr);
+        ok(val == attr->Value, "got val %#lx != %#x\n", val, attr->Value);
 
         winetest_pop_context();
     }

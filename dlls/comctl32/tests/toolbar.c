@@ -292,7 +292,7 @@ static LRESULT parent_wnd_notify(WPARAM wParam, LPARAM lParam)
             if (save->iItem == -1)
             {
                 save->cbData = save->cbData * 2 + 11 * sizeof(DWORD);
-                save->pData = heap_alloc( save->cbData );
+                save->pData = HeapAlloc( GetProcessHeap(), 0, save->cbData );
                 save->pData[0] = 0xcafe;
                 save->pCurrent = save->pData + 1;
             }
@@ -368,7 +368,7 @@ static LRESULT parent_wnd_notify(WPARAM wParam, LPARAM lParam)
 
                 if (restore->iItem == 0)
                 {
-                    restore->tbButton.iString = (INT_PTR)heap_alloc_zero( 8 );
+                    restore->tbButton.iString = (INT_PTR)HeapAlloc( GetProcessHeap(), HEAP_ZERO_MEMORY, 8 );
                     strcpy( (char *)restore->tbButton.iString, "foo" );
                 }
                 else if (restore->iItem == 1)
@@ -398,7 +398,7 @@ static LRESULT parent_wnd_notify(WPARAM wParam, LPARAM lParam)
             {
             case 0:
                 tb->tbButton.idCommand = 7;
-                alloced_str = heap_alloc_zero( 8 );
+                alloced_str = HeapAlloc( GetProcessHeap(), HEAP_ZERO_MEMORY, 8 );
                 strcpy( alloced_str, "foo" );
                 tb->tbButton.iString = (INT_PTR)alloced_str;
                 return 1;
@@ -1147,7 +1147,7 @@ static tbsize_result_t init_tbsize_result(int nButtonsAlloc, int cleft, int ctop
     ret.szMin.cx = minx;
     ret.szMin.cy = miny;
     ret.nButtons = 0;
-    ret.prcButtons = heap_alloc_zero(nButtonsAlloc * sizeof(*ret.prcButtons));
+    ret.prcButtons = calloc( nButtonsAlloc, sizeof(*ret.prcButtons) );
 
     return ret;
 }
@@ -1169,7 +1169,7 @@ static void init_tbsize_results(void) {
     int fontheight = system_font_height();
     int buttonwidth;
 
-    tbsize_results = heap_alloc_zero(tbsize_results_num * sizeof(*tbsize_results));
+    tbsize_results = calloc( tbsize_results_num, sizeof(*tbsize_results) );
 
     tbsize_results[0] = init_tbsize_result(5, 0, 0 ,672 ,26, 100 ,22);
     tbsize_addbutton(&tbsize_results[0],   0,   2,  23,  24);
@@ -1427,8 +1427,8 @@ static void free_tbsize_results(void) {
     int i;
 
     for (i = 0; i < tbsize_results_num; i++)
-        heap_free(tbsize_results[i].prcButtons);
-    heap_free(tbsize_results);
+        free(tbsize_results[i].prcButtons);
+    free(tbsize_results);
     tbsize_results = NULL;
 }
 
@@ -2940,6 +2940,25 @@ static void test_WM_NOTIFY(void)
     DestroyWindow(toolbar);
 }
 
+static void test_unicode_format(void)
+{
+    HWND hwnd = NULL;
+    LRESULT lr;
+
+    rebuild_toolbar(&hwnd);
+
+    /* Test that CCM_SETVERSION shouldn't change the Unicode character format flag for the control */
+    SendMessageA(hwnd, CCM_SETVERSION, 5, 0);
+    lr = SendMessageA(hwnd, TB_GETUNICODEFORMAT, 0, 0);
+    ok(lr == 0, "Got unexpected %Id.\n", lr);
+
+    SendMessageA(hwnd, CCM_SETVERSION, 6, 0);
+    lr = SendMessageA(hwnd, TB_GETUNICODEFORMAT, 0, 0);
+    ok(lr == 0, "Got unexpected %Id.\n", lr);
+
+    DestroyWindow(hwnd);
+}
+
 START_TEST(toolbar)
 {
     ULONG_PTR ctx_cookie;
@@ -2992,6 +3011,7 @@ START_TEST(toolbar)
     test_imagelist();
     test_BTNS_SEP();
     test_WM_NOTIFY();
+    test_unicode_format();
 
     if (!load_v6_module(&ctx_cookie, &ctx))
         return;
@@ -2999,6 +3019,7 @@ START_TEST(toolbar)
     test_create(TRUE);
     test_visual();
     test_BTNS_SEP();
+    test_unicode_format();
 
     PostQuitMessage(0);
     while(GetMessageA(&msg,0,0,0)) {

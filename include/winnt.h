@@ -401,7 +401,9 @@ extern "C" {
 
 /* Compile time assertion */
 
-#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 202311L)
+#define C_ASSERT(e) static_assert(e, #e)
+#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
 #define C_ASSERT(e) _Static_assert(e, #e)
 #else
 #define C_ASSERT(e) extern void __C_ASSERT__(int [(e)?1:-1])
@@ -2560,14 +2562,20 @@ static FORCEINLINE struct _TEB * WINAPI NtCurrentTeb(void)
 #define IO_REPARSE_TAG_CLOUD_F          __MSABI_LONG(0x9000F01A)
 #define IO_REPARSE_TAG_CLOUD_MASK       __MSABI_LONG(0x0000F000)
 #define IO_REPARSE_TAG_APPEXECLINK      __MSABI_LONG(0x8000001B)
-#define IO_REPARSE_TAG_GVFS             __MSABI_LONG(0x9000001C)
+#define IO_REPARSE_TAG_PROJFS           __MSABI_LONG(0x9000001C)
 #define IO_REPARSE_TAG_STORAGE_SYNC     __MSABI_LONG(0x8000001E)
 #define IO_REPARSE_TAG_WCI_TOMBSTONE    __MSABI_LONG(0xA000001F)
 #define IO_REPARSE_TAG_UNHANDLED        __MSABI_LONG(0x80000020)
 #define IO_REPARSE_TAG_ONEDRIVE         __MSABI_LONG(0x80000021)
-#define IO_REPARSE_TAG_GVFS_TOMBSTONE   __MSABI_LONG(0xA0000022)
+#define IO_REPARSE_TAG_PROJFS_TOMBSTONE __MSABI_LONG(0xA0000022)
+#define IO_REPARSE_TAG_AF_UNIX          __MSABI_LONG(0x80000023)
+#define IO_REPARSE_TAG_WCI_LINK         __MSABI_LONG(0xA0000027)
+#define IO_REPARSE_TAG_WCI_LINK_1       __MSABI_LONG(0xA0001027)
+#define IO_REPARSE_TAG_DATALESS_CIM     __MSABI_LONG(0xA0000028)
 
+#define IsReparseTagDirectory(x)        ((x) & 0x10000000)
 #define IsReparseTagNameSurrogate(x)    ((x) & 0x20000000)
+#define IsReparseTagMicrosoft(x)        ((x) & 0x80000000)
 
 /*
  * File formats definitions
@@ -6234,6 +6242,14 @@ NTSYSAPI DWORD WINAPI RtlRunOnceExecuteOnce(PRTL_RUN_ONCE,PRTL_RUN_ONCE_INIT_FN,
 NTSYSAPI DWORD WINAPI RtlRunOnceBeginInitialize(PRTL_RUN_ONCE, DWORD, PVOID*);
 NTSYSAPI DWORD WINAPI RtlRunOnceComplete(PRTL_RUN_ONCE, DWORD, PVOID);
 NTSYSAPI WORD WINAPI RtlCaptureStackBackTrace(DWORD,DWORD,void**,DWORD*);
+
+typedef struct _RTL_BARRIER {
+    DWORD Reserved1;
+    DWORD Reserved2;
+    ULONG_PTR Reserved3[2];
+    DWORD Reserved4;
+    DWORD Reserved5;
+} RTL_BARRIER, *PRTL_BARRIER;
 
 #pragma pack(push,8)
 typedef struct _IO_COUNTERS {

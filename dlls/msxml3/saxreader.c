@@ -2000,6 +2000,71 @@ static void libxml_cdatablock(void *ctx, const xmlChar *value, int len)
         format_error_message_from_id(locator, hr);
 }
 
+static void libxml_pi(void *ctx, const xmlChar *_target, const xmlChar *_data)
+{
+    saxlocator *locator = ctx;
+    struct saxcontenthandler_iface *handler = saxreader_get_contenthandler(locator->saxreader);
+    BSTR target, data;
+    HRESULT hr = S_OK;
+
+    update_position(locator, FALSE);
+    if (!saxreader_has_handler(locator, SAXContentHandler)) return;
+
+    target = pooled_bstr_from_xmlChar(&locator->saxreader->pool, _target);
+    data = pooled_bstr_from_xmlChar(&locator->saxreader->pool, _data);
+
+    if (locator->vbInterface)
+        hr = IVBSAXContentHandler_processingInstruction(handler->vbhandler, &target, &data);
+    else
+        hr = ISAXContentHandler_processingInstruction(handler->handler, target, SysStringLen(target),
+                data, SysStringLen(data));
+
+    if (FAILED(hr))
+        format_error_message_from_id(locator, hr);
+}
+
+static void libxml_internalsubset(void *ctx, const xmlChar *_name, const xmlChar *external_id, const xmlChar *system_id)
+{
+    saxlocator *locator = ctx;
+    struct saxlexicalhandler_iface *lexical = saxreader_get_lexicalhandler(locator->saxreader);
+    BSTR name, pubid, sysid;
+    HRESULT hr;
+
+    update_position(locator, FALSE);
+    if (!saxreader_has_handler(locator, SAXLexicalHandler)) return;
+
+    name = pooled_bstr_from_xmlChar(&locator->saxreader->pool, _name);
+    pubid = pooled_bstr_from_xmlChar(&locator->saxreader->pool, external_id);
+    sysid = pooled_bstr_from_xmlChar(&locator->saxreader->pool, system_id);
+
+    if (locator->vbInterface)
+        hr = IVBSAXLexicalHandler_startDTD(lexical->vbhandler, &name, &pubid, &sysid);
+    else
+        hr = ISAXLexicalHandler_startDTD(lexical->handler, name, SysStringLen(name),
+                pubid, SysStringLen(pubid), sysid, SysStringLen(sysid));
+
+    if (FAILED(hr))
+        format_error_message_from_id(locator, hr);
+}
+
+static void libxml_externalsubset(void *ctx, const xmlChar *name, const xmlChar *external_id, const xmlChar *system_id)
+{
+    saxlocator *locator = ctx;
+    struct saxlexicalhandler_iface *lexical = saxreader_get_lexicalhandler(locator->saxreader);
+    HRESULT hr = S_OK;
+
+    update_position(locator, FALSE);
+    if (!saxreader_has_handler(locator, SAXLexicalHandler)) return;
+
+    if (locator->vbInterface)
+        hr = IVBSAXLexicalHandler_endDTD(lexical->vbhandler);
+    else
+        hr = ISAXLexicalHandler_endDTD(lexical->handler);
+
+    if (FAILED(hr))
+        format_error_message_from_id(locator, hr);
+}
+
 static xmlParserInputPtr libxmlresolveentity(void *ctx, const xmlChar *publicid, const xmlChar *systemid)
 {
     FIXME("entity resolving not implemented, %s, %s\n", publicid, systemid);
@@ -3377,6 +3442,9 @@ HRESULT SAXXMLReader_create(MSXML_VERSION version, LPVOID *ppObj)
     reader->sax.fatalError = libxmlFatalError;
     reader->sax.cdataBlock = libxml_cdatablock;
     reader->sax.resolveEntity = libxmlresolveentity;
+    reader->sax.processingInstruction = libxml_pi;
+    reader->sax.internalSubset = libxml_internalsubset;
+    reader->sax.externalSubset = libxml_externalsubset;
 
     *ppObj = &reader->IVBSAXXMLReader_iface;
 

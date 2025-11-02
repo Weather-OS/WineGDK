@@ -33,14 +33,35 @@
 #define GetProcessInformation MacGetProcessInformation
 #define LoadResource MacLoadResource
 #define Polygon MacPolygon
+#ifdef __i386__
+#  define CheckMenuItem MacCheckMenuItem
+#  define DeleteMenu MacDeleteMenu
+#  define DrawMenuBar MacDrawMenuBar
+#  define EnableMenuItem MacEnableMenuItem
+#  define GetMenu MacGetMenu
+#  define IsWindowVisible MacIsWindowVisible
+#  define MoveWindow MacMoveWindow
+#  define ShowWindow MacShowWindow
+#endif
 
 #include <ApplicationServices/ApplicationServices.h>
+#include <Carbon/Carbon.h>
 
 #undef GetCurrentProcess
 #undef GetCurrentThread
 #undef GetProcessInformation
 #undef LoadResource
 #undef Polygon
+#ifdef __i386__
+#  undef CheckMenuItem
+#  undef DeleteMenu
+#  undef DrawMenuBar
+#  undef EnableMenuItem
+#  undef GetMenu
+#  undef IsWindowVisible
+#  undef MoveWindow
+#  undef ShowWindow
+#endif
 
 #include <pthread.h>
 
@@ -76,8 +97,6 @@ enum {
     MACDRV_HOTKEY_ALREADY_REGISTERED,
     MACDRV_HOTKEY_FAILURE,
 };
-
-typedef struct __TISInputSource *TISInputSourceRef;
 
 typedef struct macdrv_opaque_window* macdrv_window;
 typedef struct macdrv_opaque_event_queue* macdrv_event_queue;
@@ -362,6 +381,7 @@ typedef struct macdrv_event {
         struct {
             int handled;
             int *done;
+            void *ime_done_event;
         }                                           sent_text_input;
         struct {
             macdrv_status_item  item;
@@ -526,8 +546,8 @@ extern void macdrv_view_release_metal_view(macdrv_metal_view v);
 extern int macdrv_get_view_backing_size(macdrv_view v, int backing_size[2]);
 extern void macdrv_set_view_backing_size(macdrv_view v, const int backing_size[2]);
 extern uint32_t macdrv_window_background_color(void);
-extern void macdrv_send_keydown_to_input_source(unsigned int flags, int repeat, int keyc,
-                                                void* data, int* done);
+extern void macdrv_ime_process_key(int keyc, unsigned int flags, int repeat, void *data,
+                                   int *done, void *ime_done_event);
 extern int macdrv_is_any_wine_window_visible(void);
 
 

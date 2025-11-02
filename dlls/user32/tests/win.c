@@ -3964,9 +3964,7 @@ static void test_SetActiveWindow_0( char **argv )
         SetEvent( events[2] );
     }
 
-    wait_child_process( info.hProcess );
-    CloseHandle( info.hProcess );
-    CloseHandle( info.hThread );
+    wait_child_process( &info );
     CloseHandle( events[1] );
     CloseHandle( events[2] );
 
@@ -10700,11 +10698,9 @@ static void test_window_from_point(HWND main_window, const char *argv0)
     ok(win == child, "WindowFromPoint returned %p, expected %p\n", win, child);
 
     SetEvent(end_event);
-    wait_child_process(info.hProcess);
+    wait_child_process(&info);
     CloseHandle(start_event);
     CloseHandle(end_event);
-    CloseHandle(info.hProcess);
-    CloseHandle(info.hThread);
 
     DestroyWindow(hwnd);
 }
@@ -11555,9 +11551,7 @@ static void test_winproc_handles(const char *argv0)
     startup.cb = sizeof(startup);
     ok(CreateProcessA(NULL, cmd, NULL, NULL, FALSE, 0, NULL, NULL,
                 &startup, &info), "CreateProcess failed.\n");
-    wait_child_process(info.hProcess);
-    CloseHandle(info.hProcess);
-    CloseHandle(info.hThread);
+    wait_child_process(&info);
 }
 
 static void test_winproc_limit(void)
@@ -13280,11 +13274,9 @@ static void test_other_process_window(const char *argv0)
     ret = WaitForSingleObject(test_done_event, 5000);
     ok(ret == WAIT_OBJECT_0, "Unexpected ret %x.\n", ret);
 
-    wait_child_process(info.hProcess);
+    wait_child_process(&info);
     CloseHandle(window_ready_event);
     CloseHandle(test_done_event);
-    CloseHandle(info.hProcess);
-    CloseHandle(info.hThread);
     DestroyWindow(hwnd);
 }
 
@@ -13789,10 +13781,397 @@ static void test_startupinfo_showwindow( char **argv )
         sprintf( cmdline, "%s %s showwindow_proc %d", argv[0], argv[1], i );
         ret = CreateProcessA( NULL, cmdline, NULL, NULL, FALSE, 0, NULL, NULL, &sa, &info );
         ok( ret, "got error %lu\n", GetLastError() );
-        wait_child_process( info.hProcess );
-        CloseHandle( info.hProcess );
-        CloseHandle( info.hThread );
+        wait_child_process( &info );
     }
+}
+
+static void test_cascade_windows(void)
+{
+    unsigned int spacing = GetSystemMetrics(SM_CYCAPTION) + GetSystemMetrics(SM_CYDLGFRAME);
+    static const unsigned int zorder[] = {1, 3, 5, 2, 9, 4, 8, 6, 0, 7};
+    RECT orig = {100, 200, 300, 400}, parent_client, rect, prev, expect;
+    unsigned int width, height;
+    HWND parent, hwnds[10];
+    POINT pt = {0};
+    WORD ret;
+
+    parent = CreateWindowA("static", "parent", WS_OVERLAPPEDWINDOW,
+            0, 0, 600, 300, NULL, 0, 0, NULL);
+    ok(!!parent, "failed to create window, error %lu\n", GetLastError());
+
+    GetClientRect(parent, &parent_client);
+
+    ClientToScreen(parent, &pt);
+
+    SetLastError(0xdeadbeef);
+    ret = CascadeWindows(parent, 0, NULL, 0, NULL);
+    ok(!ret, "got %d\n", ret);
+    ok(GetLastError() == 0xdeadbeef, "got error %lu\n", GetLastError());
+
+    for (unsigned int i = 0; i < ARRAY_SIZE(hwnds); ++i)
+    {
+        DWORD style = WS_CHILD | WS_CAPTION | WS_THICKFRAME | WS_VISIBLE;
+        unsigned int index = zorder[i];
+
+        if (index == 3)
+            style &= ~WS_VISIBLE;
+        if (index == 4)
+            style &= ~WS_THICKFRAME;
+        if (index == 6)
+            style |= WS_DISABLED;
+        if (index == 7)
+            style |= WS_MAXIMIZE;
+        if (index == 8)
+            style &= ~WS_BORDER;
+        if (index == 2)
+            style &= ~WS_DLGFRAME;
+
+        hwnds[index] = CreateWindowA("MainWindowClass", "child", style,
+                orig.left, orig.top, orig.right - orig.left, orig.bottom - orig.top, parent, 0, 0, NULL);
+        ok(!!hwnds[index], "failed to create window %u, error %lu\n", index, GetLastError());
+        SetWindowPos(hwnds[index], HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE);
+    }
+
+    ret = CascadeWindows(parent, MDITILE_SKIPDISABLED, NULL, 0, NULL);
+    ok(ret == 6, "got %d\n", ret);
+
+    for (unsigned int i = 0; i < ARRAY_SIZE(hwnds); ++i)
+    {
+        unsigned int index = zorder[i];
+
+        GetWindowRect(hwnds[index], &rect);
+        OffsetRect(&rect, -pt.x, -pt.y);
+
+        if (i == 0)
+        {
+            ok(!rect.left && !rect.top, "got position (%ld, %ld)\n", rect.left, rect.top);
+            width = rect.right - rect.left;
+            height = rect.bottom - rect.top;
+        }
+        else if (index == 3 /* invisible */ || index == 6 /* disabled */
+                 || index == 8 /* no border */ || index == 2 /* no dlgframe */)
+        {
+            ok(EqualRect(&rect, &orig), "hwnd %u: expected rect %s, got %s\n",
+                    index, wine_dbgstr_rect(&orig), wine_dbgstr_rect(&rect));
+            continue;
+        }
+        else
+        {
+            if (index == 4 /* no THICKFRAME */)
+                SetRect(&expect, prev.left + spacing, prev.top + spacing,
+                        prev.left + spacing + 200, prev.top + spacing + 200);
+            else
+                SetRect(&expect, prev.left + spacing, prev.top + spacing,
+                        prev.left + spacing + width, prev.top + spacing + height);
+
+            if (prev.left + spacing + width > parent_client.right)
+            {
+                expect.right = expect.right - expect.left;
+                expect.left = 0;
+            }
+            if (prev.top + spacing + height > parent_client.bottom)
+            {
+                expect.bottom = expect.bottom - expect.top;
+                expect.top = 0;
+            }
+            ok(EqualRect(&rect, &expect), "hwnd %u: expected rect %s, got %s\n",
+                    index, wine_dbgstr_rect(&expect), wine_dbgstr_rect(&rect));
+        }
+
+        prev = rect;
+    }
+
+    SetRect(&rect, 10, 10, 300, 200);
+    ret = CascadeWindows(parent, 0, &rect, 0, NULL);
+    ok(ret == 7, "got %d\n", ret);
+
+    for (unsigned int i = 0; i < ARRAY_SIZE(hwnds); ++i)
+    {
+        unsigned int index = zorder[i];
+
+        GetWindowRect(hwnds[index], &rect);
+        OffsetRect(&rect, -pt.x, -pt.y);
+
+        if (i == 0)
+        {
+            ok(rect.left == 10 && rect.top == 10, "got position (%ld, %ld)\n", rect.left, rect.top);
+            width = rect.right - rect.left;
+            height = rect.bottom - rect.top;
+        }
+        else if (index == 3 /* invisible */ || index == 8 /* no border */ || index == 2 /* no dlgframe */)
+        {
+            ok(EqualRect(&rect, &orig), "hwnd %u: expected rect %s, got %s\n",
+                    index, wine_dbgstr_rect(&orig), wine_dbgstr_rect(&rect));
+            continue;
+        }
+        else
+        {
+            if (index == 4 /* no THICKFRAME */)
+                SetRect(&expect, prev.left + spacing, prev.top + spacing,
+                        prev.left + spacing + 200, prev.top + spacing + 200);
+            else
+                SetRect(&expect, prev.left + spacing, prev.top + spacing,
+                        prev.left + spacing + width, prev.top + spacing + height);
+
+            /* Overflow calculation is based on the width as if the window
+             * could be resized. */
+            if (prev.left + spacing + width > 300)
+            {
+                expect.right = 10 + (expect.right - expect.left);
+                expect.left = 10;
+            }
+            if (prev.top + spacing + height > 200)
+            {
+                expect.bottom = 10 + (expect.bottom - expect.top);
+                expect.top = 10;
+            }
+            ok(EqualRect(&rect, &expect), "hwnd %u: expected rect %s, got %s\n",
+                    index, wine_dbgstr_rect(&expect), wine_dbgstr_rect(&rect));
+        }
+
+        prev = rect;
+    }
+
+    /* Pass a list. */
+
+    /* Destroy one child and replace it with a non-child. */
+    DestroyWindow(hwnds[5]);
+    hwnds[5] = CreateWindowA("MainWindowClass", "child", WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+            orig.left, orig.top, orig.right - orig.left, orig.bottom - orig.top, parent, 0, 0, NULL);
+
+    MoveWindow(hwnds[6], orig.left, orig.top, orig.right - orig.left, orig.bottom - orig.top, FALSE);
+    ret = CascadeWindows(parent, MDITILE_SKIPDISABLED, NULL, ARRAY_SIZE(hwnds), hwnds);
+    ok(ret == 5, "got %d\n", ret);
+
+    for (unsigned int i = 0; i < ARRAY_SIZE(hwnds); ++i)
+    {
+        unsigned int index = 9 - i;
+
+        GetWindowRect(hwnds[index], &rect);
+        if (index != 5)
+            OffsetRect(&rect, -pt.x, -pt.y);
+
+        if (i == 0)
+        {
+            ok(!rect.left && !rect.top, "got position (%ld, %ld)\n", rect.left, rect.top);
+            width = rect.right - rect.left;
+            height = rect.bottom - rect.top;
+        }
+        else if (index == 3 /* invisible */ || index == 6 /* disabled */ || index == 5 /* not a child */
+                 || index == 8 /* no border */ || index == 2 /* no dlgframe */)
+        {
+            ok(EqualRect(&rect, &orig), "hwnd %u: expected rect %s, got %s\n",
+                    index, wine_dbgstr_rect(&orig), wine_dbgstr_rect(&rect));
+            continue;
+        }
+        else
+        {
+            if (index == 4 /* no THICKFRAME */)
+                SetRect(&expect, prev.left + spacing, prev.top + spacing,
+                        prev.left + spacing + 200, prev.top + spacing + 200);
+            else
+                SetRect(&expect, prev.left + spacing, prev.top + spacing,
+                        prev.left + spacing + width, prev.top + spacing + height);
+
+            if (prev.left + spacing + width > parent_client.right)
+            {
+                expect.right = expect.right - expect.left;
+                expect.left = 0;
+            }
+            if (prev.top + spacing + height > parent_client.bottom)
+            {
+                expect.bottom = expect.bottom - expect.top;
+                expect.top = 0;
+            }
+            ok(EqualRect(&rect, &expect), "hwnd %u: expected rect %s, got %s\n",
+                    index, wine_dbgstr_rect(&expect), wine_dbgstr_rect(&rect));
+        }
+
+        prev = rect;
+    }
+
+    for (unsigned int i = 0; i < ARRAY_SIZE(hwnds); ++i)
+        DestroyWindow(hwnds[i]);
+    DestroyWindow(parent);
+}
+
+static void test_tile_windows(void)
+{
+    static const unsigned int zorder[] = {1, 3, 13, 10, 16, 5, 11, 2, 9, 12, 4, 8, 15, 14, 6, 0, 7};
+    RECT orig = {100, 200, 300, 400}, parent_client, rect, expect;
+    unsigned int column, row;
+    HWND parent, hwnds[17];
+    POINT pt = {0};
+    WORD ret;
+
+    parent = CreateWindowA("static", "parent", WS_OVERLAPPEDWINDOW,
+            0, 0, 600, 300, NULL, 0, 0, NULL);
+    ok(!!parent, "failed to create window, error %lu\n", GetLastError());
+
+    GetClientRect(parent, &parent_client);
+    ClientToScreen(parent, &pt);
+
+    SetLastError(0xdeadbeef);
+    ret = TileWindows(parent, 0, NULL, 0, NULL);
+    ok(!ret, "got %d\n", ret);
+    ok(GetLastError() == 0xdeadbeef, "got error %lu\n", GetLastError());
+
+    for (unsigned int i = 0; i < ARRAY_SIZE(hwnds); ++i)
+    {
+        DWORD style = WS_CHILD | WS_CAPTION | WS_THICKFRAME | WS_VISIBLE;
+        unsigned int index = zorder[i];
+
+        if (index == 2)
+            style &= ~WS_DLGFRAME;
+        if (index == 3)
+            style &= ~WS_VISIBLE;
+        if (index == 4)
+            style &= ~WS_THICKFRAME;
+        if (index == 6)
+            style |= WS_DISABLED;
+        if (index == 7)
+            style |= WS_MAXIMIZE;
+        if (index == 8)
+            style &= ~WS_BORDER;
+
+        hwnds[index] = CreateWindowA("MainWindowClass", "child", style,
+                orig.left, orig.top, orig.right - orig.left, orig.bottom - orig.top, parent, 0, 0, NULL);
+        ok(!!hwnds[index], "failed to create window %u, error %lu\n", index, GetLastError());
+        SetWindowPos(hwnds[index], HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE);
+    }
+
+    ret = TileWindows(parent, MDITILE_SKIPDISABLED | MDITILE_HORIZONTAL, NULL, 0, NULL);
+    ok(ret == 13, "got %d\n", ret);
+
+    /* 3 columns: 4, 4, 5 */
+
+    row = column = 0;
+    for (unsigned int i = 0; i < ARRAY_SIZE(hwnds); ++i)
+    {
+        unsigned int width = (parent_client.right - parent_client.left) / 3;
+        unsigned int height = (parent_client.bottom - parent_client.top) / (column < 2 ? 4 : 5);
+        unsigned int index = zorder[ARRAY_SIZE(hwnds) - 1 - i];
+
+        GetWindowRect(hwnds[index], &rect);
+        OffsetRect(&rect, -pt.x, -pt.y);
+
+        if (index == 3 /* invisible */ || index == 6 /* disabled */
+                 || index == 8 /* no border */ || index == 2 /* no dlgframe */)
+        {
+            ok(EqualRect(&rect, &orig), "hwnd %u: expected rect %s, got %s\n",
+                    index, wine_dbgstr_rect(&orig), wine_dbgstr_rect(&rect));
+            continue;
+        }
+
+        if (index == 4 /* no THICKFRAME */)
+            SetRect(&expect, column * width, row * height, (column * width) + 200, (row * height) + 200);
+        else
+            SetRect(&expect, column * width, row * height, (column + 1) * width, (row + 1) * height);
+
+        ok(EqualRect(&rect, &expect), "hwnd %u: expected rect %s, got %s\n",
+                index, wine_dbgstr_rect(&expect), wine_dbgstr_rect(&rect));
+
+        ++row;
+        if (row == 4 && column < 2)
+        {
+            row = 0;
+            ++column;
+        }
+    }
+
+    SetRect(&rect, 10, 10, 300, 200);
+    ret = TileWindows(parent, 0, &rect, 0, NULL);
+    ok(ret == 14, "got %d\n", ret);
+
+    /* 4 columns: 3, 3, 4, 4 */
+
+    row = column = 0;
+    for (unsigned int i = 0; i < ARRAY_SIZE(hwnds); ++i)
+    {
+        unsigned int width = (300 - 10) / 4;
+        unsigned int height = (200 - 10) / (column < 2 ? 3 : 4);
+        unsigned int index = zorder[ARRAY_SIZE(hwnds) - 1 - i];
+
+        GetWindowRect(hwnds[index], &rect);
+        OffsetRect(&rect, -pt.x, -pt.y);
+
+        if (index == 3 /* invisible */ || index == 8 /* no border */ || index == 2 /* no dlgframe */)
+        {
+            ok(EqualRect(&rect, &orig), "hwnd %u: expected rect %s, got %s\n",
+                    index, wine_dbgstr_rect(&orig), wine_dbgstr_rect(&rect));
+            continue;
+        }
+
+        if (index == 4 /* no THICKFRAME */)
+            SetRect(&expect, column * width, row * height, (column * width) + 200, (row * height) + 200);
+        else
+            SetRect(&expect, column * width, row * height, (column + 1) * width, (row + 1) * height);
+        OffsetRect(&expect, 10, 10);
+        expect.right = max(expect.right, expect.left + GetSystemMetrics(SM_CXMIN));
+
+        ok(EqualRect(&rect, &expect), "hwnd %u: expected rect %s, got %s\n",
+                index, wine_dbgstr_rect(&expect), wine_dbgstr_rect(&rect));
+
+        ++row;
+        if ((row == 3 && column < 2) || row == 4)
+        {
+            row = 0;
+            ++column;
+        }
+    }
+
+    /* Pass a list. */
+
+    /* Destroy one child and replace it with a non-child. */
+    DestroyWindow(hwnds[5]);
+    hwnds[5] = CreateWindowA("MainWindowClass", "child", WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+            orig.left, orig.top, orig.right - orig.left, orig.bottom - orig.top, parent, 0, 0, NULL);
+
+    MoveWindow(hwnds[6], orig.left, orig.top, orig.right - orig.left, orig.bottom - orig.top, FALSE);
+    ret = TileWindows(parent, MDITILE_SKIPDISABLED, NULL, ARRAY_SIZE(hwnds), hwnds);
+    ok(ret == 12, "got %d\n", ret);
+
+    /* 4 columns: 3, 3, 3, 3 */
+
+    row = column = 0;
+    for (unsigned int i = 0; i < ARRAY_SIZE(hwnds); ++i)
+    {
+        unsigned int width = (parent_client.right - parent_client.left) / 4;
+        unsigned int height = (parent_client.bottom - parent_client.top) / 3;
+        unsigned int index = i;
+
+        GetWindowRect(hwnds[index], &rect);
+        if (index != 5)
+            OffsetRect(&rect, -pt.x, -pt.y);
+
+        if (index == 3 /* invisible */ || index == 6 /* disabled */ || index == 5 /* not a child */
+                 || index == 8 /* no border */ || index == 2 /* no dlgframe */)
+        {
+            ok(EqualRect(&rect, &orig), "hwnd %u: expected rect %s, got %s\n",
+                    index, wine_dbgstr_rect(&orig), wine_dbgstr_rect(&rect));
+            continue;
+        }
+
+        if (index == 4 /* no THICKFRAME */)
+            SetRect(&expect, column * width, row * height, (column * width) + 200, (row * height) + 200);
+        else
+            SetRect(&expect, column * width, row * height, (column + 1) * width, (row + 1) * height);
+        expect.right = max(expect.right, expect.left + GetSystemMetrics(SM_CXMIN));
+
+        ok(EqualRect(&rect, &expect), "hwnd %u: expected rect %s, got %s\n",
+                index, wine_dbgstr_rect(&expect), wine_dbgstr_rect(&rect));
+
+        ++row;
+        if (row == 3)
+        {
+            row = 0;
+            ++column;
+        }
+    }
+
+    for (unsigned int i = 0; i < ARRAY_SIZE(hwnds); ++i)
+        DestroyWindow(hwnds[i]);
+    DestroyWindow(parent);
 }
 
 START_TEST(win)
@@ -13988,6 +14367,8 @@ START_TEST(win)
     test_ReleaseCapture();
     test_SetProcessLaunchForegroundPolicy();
     test_startupinfo_showwindow(argv);
+    test_cascade_windows();
+    test_tile_windows();
 
     /* add the tests above this line */
     if (hhook) UnhookWindowsHookEx(hhook);

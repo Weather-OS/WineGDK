@@ -34,6 +34,9 @@
 #include "winuser.h"
 #include "winnls.h"
 #include "commctrl.h"
+#include "uxtheme.h"
+#include "vsstyle.h"
+#include "vssym32.h"
 
 extern HMODULE COMCTL32_hModule;
 extern HBRUSH  COMCTL32_hPattern55AABrush;
@@ -184,13 +187,19 @@ typedef struct
 extern COMCTL32_SysColor  comctl32_color;
 
 /* Internal function */
+void COMCTL32_CloseThemeForWindow(HWND hwnd);
 HWND COMCTL32_CreateToolTip(HWND);
 void COMCTL32_DrawStatusText(HDC hdc, LPCRECT lprc, LPCWSTR text, UINT style, BOOL draw_background);
+void COMCTL32_OpenThemeForWindow(HWND hwnd, const WCHAR *theme_class);
 VOID COMCTL32_RefreshSysColors(void);
 void COMCTL32_DrawInsertMark(HDC hDC, const RECT *lpRect, COLORREF clrInsertMark, BOOL bHorizontal);
 void COMCTL32_EnsureBitmapSize(HBITMAP *pBitmap, int cxMinWidth, int cyMinHeight, COLORREF crBackground);
 void COMCTL32_GetFontMetrics(HFONT hFont, TEXTMETRICW *ptm);
 BOOL COMCTL32_IsReflectedMessage(UINT uMsg);
+BOOL COMCTL32_IsThemed(HWND hwnd);
+LRESULT COMCTL32_NCPaint(HWND hwnd, WPARAM wp, LPARAM lp, const WCHAR *theme_class);
+LRESULT COMCTL32_SetVersion(INT *current_version, INT new_version);
+LRESULT COMCTL32_ThemeChanged(HWND hwnd, const WCHAR *theme_class, BOOL invalidate, BOOL erase);
 INT  Str_GetPtrWtoA(LPCWSTR lpSrc, LPSTR lpDest, INT nMaxLen);
 INT  Str_GetPtrAtoW(LPCSTR lpSrc, LPWSTR lpDest, INT nMaxLen);
 BOOL Str_SetPtrAtoW(LPWSTR *lppDest, LPCSTR lpSrc);

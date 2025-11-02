@@ -410,7 +410,8 @@ RETURN_CODE WCMD_choice(WCHAR *args)
             char choice;
 
             overlapped.hEvent = CreateEventW(NULL, TRUE, FALSE, NULL);
-            if (SetFilePointerEx(GetStdHandle(STD_INPUT_HANDLE), zeroli, &li, FILE_CURRENT))
+            if (GetFileType(GetStdHandle(STD_INPUT_HANDLE)) == FILE_TYPE_DISK &&
+                SetFilePointerEx(GetStdHandle(STD_INPUT_HANDLE), zeroli, &li, FILE_CURRENT))
             {
                 overlapped.Offset = li.LowPart;
                 overlapped.OffsetHigh = li.HighPart;
@@ -2387,7 +2388,7 @@ RETURN_CODE WCMD_setshow_default(const WCHAR *args)
        change of directory, even if path was restored due to missing
        /D (allows changing drive letter when not resident on that
        drive                                                          */
-    if ((string[1] == ':') && IsCharAlphaW(string[0])) {
+    if (IsCharAlphaW(string[0]) && string[1] == L':') {
       WCHAR env[4];
       lstrcpyW(env, L"=");
       memcpy(env+1, string, 2 * sizeof(WCHAR));
@@ -3963,7 +3964,7 @@ RETURN_CODE WCMD_mklink(WCHAR *args)
     WCHAR file1[MAX_PATH];
     WCHAR file2[MAX_PATH];
 
-    file1[0] = 0;
+    file1[0] = file2[0] = L'\0';
 
     while (argN) {
         WCHAR *thisArg = WCMD_parameter (args, argno++, &argN, FALSE, FALSE);

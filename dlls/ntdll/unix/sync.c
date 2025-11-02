@@ -355,7 +355,7 @@ static NTSTATUS linux_pulse_event_obj( int obj, LONG *prev_state )
     return STATUS_SUCCESS;
 }
 
-static NTSTATUS linux_query_event_obj( int obj, enum inproc_sync_type type, EVENT_BASIC_INFORMATION *info )
+static NTSTATUS linux_query_event_obj( int obj, EVENT_BASIC_INFORMATION *info )
 {
     struct ntsync_event_args args = {0};
     if (ioctl( obj, NTSYNC_IOC_EVENT_READ, &args ) < 0) return errno_to_status( errno );
@@ -397,8 +397,8 @@ static NTSTATUS linux_query_mutex_obj( int obj, MUTANT_BASIC_INFORMATION *info )
     return STATUS_SUCCESS;
 }
 
-static NTSTATUS linux_wait_objs( int device, const DWORD count, const int *objs,
-                                 BOOLEAN wait_any, int alert_fd, const LARGE_INTEGER *timeout )
+static NTSTATUS linux_wait_objs( int device, DWORD count, const int *objs, WAIT_TYPE type,
+                                 int alert_fd, const LARGE_INTEGER *timeout )
 {
     struct ntsync_wait_args args = {0};
     unsigned long request;
@@ -426,7 +426,7 @@ static NTSTATUS linux_wait_objs( int device, const DWORD count, const int *objs,
     args.index = ~0u;
     args.alert = alert_fd;
 
-    if (wait_any || count == 1) request = NTSYNC_IOC_WAIT_ANY;
+    if (type != WaitAll || count == 1) request = NTSYNC_IOC_WAIT_ANY;
     else request = NTSYNC_IOC_WAIT_ALL;
 
     do { ret = ioctl( device, request, &args ); }
@@ -443,9 +443,9 @@ static NTSTATUS linux_wait_objs( int device, const DWORD count, const int *objs,
             return ret;
         }
 
-        return wait_any ? args.index : 0;
+        return type != WaitAll ? args.index : 0;
     }
-    if (errno == EOWNERDEAD) return STATUS_ABANDONED + (wait_any ? args.index : 0);
+    if (errno == EOWNERDEAD) return STATUS_ABANDONED + (type != WaitAll ? args.index : 0);
     if (errno == ETIMEDOUT) return STATUS_TIMEOUT;
     return errno_to_status( errno );
 }
@@ -477,7 +477,7 @@ static NTSTATUS linux_pulse_event_obj( int obj, LONG *prev_state )
     return STATUS_NOT_IMPLEMENTED;
 }
 
-static NTSTATUS linux_query_event_obj( int obj, enum inproc_sync_type type, EVENT_BASIC_INFORMATION *info )
+static NTSTATUS linux_query_event_obj( int obj, EVENT_BASIC_INFORMATION *info )
 {
     return STATUS_NOT_IMPLEMENTED;
 }
@@ -492,8 +492,8 @@ static NTSTATUS linux_query_mutex_obj( int obj, MUTANT_BASIC_INFORMATION *info )
     return STATUS_NOT_IMPLEMENTED;
 }
 
-static NTSTATUS linux_wait_objs( int device, const DWORD count, const int *objs,
-                                 BOOLEAN wait_any, int alert_fd, const LARGE_INTEGER *timeout )
+static NTSTATUS linux_wait_objs( int device, DWORD count, const int *objs, WAIT_TYPE type,
+                                 int alert_fd, const LARGE_INTEGER *timeout )
 {
     return STATUS_NOT_IMPLEMENTED;
 }
@@ -579,8 +579,7 @@ static struct inproc_sync *cache_inproc_sync( HANDLE handle, struct inproc_sync 
             static const size_t size = INPROC_SYNC_CACHE_BLOCK_SIZE * sizeof(struct inproc_sync);
             void *ptr = anon_mmap_alloc( size, PROT_READ | PROT_WRITE );
             if (ptr == MAP_FAILED) return sync;
-            if (InterlockedCompareExchangePointer( (void **)&inproc_sync_cache[entry], ptr, NULL ))
-                munmap( ptr, size ); /* someone beat us to it */
+            inproc_sync_cache[entry] = ptr;
         }
     }
 
@@ -702,14 +701,21 @@ static NTSTATUS get_inproc_sync( HANDLE handle, enum inproc_sync_type desired_ty
          * and we need to use an uninterrupted section to prevent reentrancy.
          * We also need fd_cache_mutex to protect against the same race with
          * NtClose, that is, to prevent the object from being cached again between
-         * close_inproc_sync() and close_handle. */
+         * close_inproc_sync() and close_handle.
+         *
+         * The mutex also protects cache_inproc_sync(). Accessing the cache is
+         * done without a lock, but populating it currently is not. */
         server_enter_uninterrupted_section( &fd_cache_mutex, &sigset );
-        if ((sync = get_cached_inproc_sync( handle ))) ret = STATUS_SUCCESS;
-        else ret = get_server_inproc_sync( handle, stack );
+        if (!(sync = get_cached_inproc_sync( handle )))
+        {
+            if ((ret = get_server_inproc_sync( handle, stack )))
+            {
+                server_leave_uninterrupted_section( &fd_cache_mutex, &sigset );
+                return ret;
+            }
+            sync = cache_inproc_sync( handle, stack );
+        }
         server_leave_uninterrupted_section( &fd_cache_mutex, &sigset );
-        if (ret) return ret;
-
-        if (!sync) sync = cache_inproc_sync( handle, stack );
     }
 
     if (desired_type != INPROC_SYNC_UNKNOWN && desired_type != sync->type)
@@ -830,7 +836,7 @@ static NTSTATUS inproc_query_event( HANDLE handle, EVENT_BASIC_INFORMATION *info
 
     if (inproc_device_fd < 0) return STATUS_NOT_IMPLEMENTED;
     if ((ret = get_inproc_sync( handle, INPROC_SYNC_EVENT, EVENT_QUERY_STATE, &stack, &sync ))) return ret;
-    ret = linux_query_event_obj( sync->fd, sync->type, info );
+    ret = linux_query_event_obj( sync->fd, info );
     release_inproc_sync( sync );
     return ret;
 }
@@ -886,7 +892,7 @@ static int get_inproc_alert_fd(void)
     return fd;
 }
 
-static NTSTATUS inproc_wait( DWORD count, const HANDLE *handles, BOOLEAN wait_any,
+static NTSTATUS inproc_wait( DWORD count, const HANDLE *handles, WAIT_TYPE type,
                              BOOLEAN alertable, const LARGE_INTEGER *timeout )
 {
     struct inproc_sync *syncs[64], stack[ARRAY_SIZE(syncs)];
@@ -907,7 +913,7 @@ static NTSTATUS inproc_wait( DWORD count, const HANDLE *handles, BOOLEAN wait_an
     }
 
     if (alertable) alert_fd = get_inproc_alert_fd();
-    ret = linux_wait_objs( inproc_device_fd, count, objs, wait_any, alert_fd, timeout );
+    ret = linux_wait_objs( inproc_device_fd, count, objs, type, alert_fd, timeout );
 
     while (count--) release_inproc_sync( syncs[count] );
     return ret;
@@ -938,7 +944,7 @@ static NTSTATUS inproc_signal_and_wait( HANDLE signal, HANDLE wait,
     if (!ret)
     {
         if (alertable) alert_fd = get_inproc_alert_fd();
-        ret = linux_wait_objs( inproc_device_fd, 1, &wait_sync->fd, TRUE, alert_fd, timeout );
+        ret = linux_wait_objs( inproc_device_fd, 1, &wait_sync->fd, WaitAny, alert_fd, timeout );
     }
 
     release_inproc_sync( wait_sync );
@@ -2290,7 +2296,7 @@ NTSTATUS WINAPI NtQueryTimer( HANDLE handle, TIMER_INFORMATION_CLASS class,
 /******************************************************************
  *		NtWaitForMultipleObjects (NTDLL.@)
  */
-NTSTATUS WINAPI NtWaitForMultipleObjects( DWORD count, const HANDLE *handles, BOOLEAN wait_any,
+NTSTATUS WINAPI NtWaitForMultipleObjects( DWORD count, const HANDLE *handles, WAIT_TYPE type,
                                           BOOLEAN alertable, const LARGE_INTEGER *timeout )
 {
     union select_op select_op;
@@ -2298,22 +2304,23 @@ NTSTATUS WINAPI NtWaitForMultipleObjects( DWORD count, const HANDLE *handles, BO
     unsigned int ret;
 
     if (!count || count > MAXIMUM_WAIT_OBJECTS) return STATUS_INVALID_PARAMETER_1;
+    if (type != WaitAll && type != WaitAny) FIXME( "Unsupported wait type %u\n", type );
 
     if (TRACE_ON(sync))
     {
-        TRACE( "wait_any %u, alertable %u, handles {%p", wait_any, alertable, handles[0] );
+        TRACE( "type %u, alertable %u, handles {%p", type, alertable, handles[0] );
         for (i = 1; i < count; i++) TRACE( ", %p", handles[i] );
         TRACE( "}, timeout %s\n", debugstr_timeout(timeout) );
     }
 
-    if ((ret = inproc_wait( count, handles, wait_any, alertable, timeout )) != STATUS_NOT_IMPLEMENTED)
+    if ((ret = inproc_wait( count, handles, type, alertable, timeout )) != STATUS_NOT_IMPLEMENTED)
     {
         TRACE( "-> %#x\n", ret );
         return ret;
     }
 
     if (alertable) flags |= SELECT_ALERTABLE;
-    select_op.wait.op = wait_any ? SELECT_WAIT : SELECT_WAIT_ALL;
+    select_op.wait.op = type == WaitAll ? SELECT_WAIT_ALL : SELECT_WAIT;
     for (i = 0; i < count; i++) select_op.wait.handles[i] = wine_server_obj_handle( handles[i] );
     ret = server_wait( &select_op, offsetof( union select_op, wait.handles[count] ), flags, timeout );
     TRACE( "-> %#x\n", ret );

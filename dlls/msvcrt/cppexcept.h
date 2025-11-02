@@ -21,7 +21,10 @@
 #ifndef __MSVCRT_CPPEXCEPT_H
 #define __MSVCRT_CPPEXCEPT_H
 
+#define COBJMACROS
+
 #include <fpieee.h>
+#include "unknwn.h"
 #include "cxx.h"
 
 #define CXX_FRAME_MAGIC_VC6 0x19930520
@@ -132,10 +135,25 @@ typedef struct
 
 #define CLASS_IS_SIMPLE_TYPE          1
 #define CLASS_HAS_VIRTUAL_BASE_CLASS  4
+#define CLASS_IS_WINRT                8
 
 #define TYPE_FLAG_CONST      1
 #define TYPE_FLAG_VOLATILE   2
 #define TYPE_FLAG_REFERENCE  8
+#define TYPE_FLAG_WINRT     16
+
+typedef struct winrt_exception_info
+{
+    BSTR description;
+    BSTR restricted_desc;
+    void *unknown1;
+    void *unknown2;
+    HRESULT hr;
+    void *error_info; /* IRestrictedErrorInfo */
+    const cxx_exception_type *exception_type;
+    UINT32 unknown3;
+    void (*WINAPI set_exception_info)(struct winrt_exception_info **);
+} winrt_exception_info;
 
 void WINAPI DECLSPEC_NORETURN _CxxThrowException(void*,const cxx_exception_type*);
 
@@ -243,6 +261,8 @@ static inline void copy_exception( void *object, void **dest, UINT catch_flags,
     }
     else if (type->flags & CLASS_IS_SIMPLE_TYPE)
     {
+        if (type->flags & CLASS_IS_WINRT && *(IUnknown**)object)
+            IUnknown_AddRef(*(IUnknown**)object);
         memmove( dest, object, type->size );
         /* if it is a pointer, adjust it */
         if (type->size == sizeof(void*)) *dest = get_this_pointer( &type->offsets, *dest );
@@ -250,11 +270,17 @@ static inline void copy_exception( void *object, void **dest, UINT catch_flags,
     else  /* copy the object */
     {
         if (type->copy_ctor)
+        {
             call_copy_ctor( cxx_rva( type->copy_ctor, base ), dest,
                             get_this_pointer( &type->offsets, object ),
                             (type->flags & CLASS_HAS_VIRTUAL_BASE_CLASS) );
+        }
         else
+        {
+            if (type->flags & CLASS_IS_WINRT && *(IUnknown**)object)
+                IUnknown_AddRef(*(IUnknown**)object);
             memmove( dest, get_this_pointer( &type->offsets, object ), type->size );
+        }
     }
 }
 

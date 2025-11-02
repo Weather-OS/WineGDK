@@ -3130,7 +3130,7 @@ static void lexer_push_command(struct node_builder *builder,
                 }
                 else
                 {
-                    filename = WCMD_parameter(p + 1, 0, NULL, FALSE, FALSE);
+                    filename = WCMD_parameter(p, 0, NULL, FALSE, FALSE);
                     tkn_pmt.redirection = redirection_create_file(REDIR_READ_FROM, 0, filename);
                 }
             }
@@ -3291,6 +3291,19 @@ static BOOL rebuild_expand_and_append(struct command_rebuild *rb, const WCHAR *t
     return rebuild_append(rb, output);
 }
 
+static BOOL rebuild_sprintf(struct command_rebuild *rb, const WCHAR *format, ...)
+{
+   int ret;
+   va_list args;
+
+   va_start( args, format );
+   ret = vswprintf(rb->buffer + rb->pos, rb->buffer_size - rb->pos, format, args);
+   va_end( args );
+   if (ret < 0 || rb->pos + ret > rb->buffer_size) return FALSE;
+   rb->pos += ret;
+   return TRUE;
+}
+
 static BOOL rebuild_insert(struct command_rebuild *rb, unsigned pos, const WCHAR *toinsert)
 {
     size_t len = wcslen(toinsert);
@@ -3343,6 +3356,202 @@ static BOOL rebuild_append_all_redirections(struct command_rebuild *rb, const CM
             ret = ret && rebuild_append(rb, L" ");
         ret = ret && rebuild_append_redirection(rb, redir, expand);
     }
+    return ret;
+}
+
+static BOOL rebuild_append_command(struct command_rebuild *rb, const CMD_NODE *node, struct rebuild_flags rbflags);
+
+static BOOL rebuild_command_binary(struct command_rebuild *rb, const CMD_NODE *node, struct rebuild_flags rbflags)
+{
+    const WCHAR *op_string;
+    struct rebuild_flags new_rbflags = {.depth = rbflags.depth + 1};
+
+    switch (node->op)
+    {
+    case CMD_PIPE:       op_string = L"|";  new_rbflags.precedence = 4; break;
+    case CMD_CONCAT:     op_string = L"&";  new_rbflags.precedence = 3; break;
+    case CMD_ONFAILURE:  op_string = L"||"; new_rbflags.precedence = 2; break;
+    case CMD_ONSUCCESS:  op_string = L"&&"; new_rbflags.precedence = 1; break;
+    default: return FALSE;
+    }
+
+    return ((new_rbflags.precedence >= rbflags.precedence) || rebuild_append(rb, L"(")) &&
+        rebuild_append_command(rb, node->left, new_rbflags) &&
+        ((node->left->op == CMD_SINGLE && node->op == CMD_CONCAT) ? rebuild_append(rb, L" ") : TRUE) &&
+        rebuild_append(rb, op_string) &&
+        rebuild_append_command(rb, node->right, new_rbflags) &&
+        ((new_rbflags.precedence >= rbflags.precedence) || rebuild_append(rb, L")"));
+}
+
+static BOOL rebuild_command_if(struct command_rebuild *rb, const CMD_NODE *node, struct rebuild_flags rbflags)
+{
+    const WCHAR *unop = NULL, *binop = NULL;
+    struct rebuild_flags new_rbflags = {.precedence = 0, .depth = rbflags.depth + 1};
+    BOOL ret;
+
+    ret = rebuild_append(rb, L"if ");
+    if (node->condition.case_insensitive) ret = ret && rebuild_append(rb, L"/i ");
+    if (node->condition.negated)          ret = ret && rebuild_append(rb, L"not ");
+
+    switch (node->condition.op)
+    {
+    case CMD_IF_ERRORLEVEL:   unop = L"errorlevel "; break;
+    case CMD_IF_EXIST:        unop = L"exist "; break;
+    case CMD_IF_DEFINED:      unop = L"defined "; break;
+    case CMD_IF_BINOP_EQUAL:  binop = L" == "; break;
+    case CMD_IF_BINOP_LSS:    binop = L" LSS "; break;
+    case CMD_IF_BINOP_LEQ:    binop = L" LEQ "; break;
+    case CMD_IF_BINOP_EQU:    binop = L" EQU "; break;
+    case CMD_IF_BINOP_NEQ:    binop = L" NEQ "; break;
+    case CMD_IF_BINOP_GEQ:    binop = L" GEQ "; break;
+    case CMD_IF_BINOP_GTR:    binop = L" GTR "; break;
+    default:
+        FIXME("Unexpected condition operator %u\n", node->condition.op);
+        ret = FALSE;
+        break;
+    }
+    if (unop)
+    {
+        ret = ret && rebuild_append(rb, unop);
+        ret = ret && rebuild_expand_and_append(rb, node->condition.operand, rbflags.depth == 0);
+    }
+    else if (binop)
+    {
+        ret = ret && rebuild_expand_and_append(rb, node->condition.left, rbflags.depth == 0);
+        ret = ret && rebuild_append(rb, binop);
+        ret = ret && rebuild_expand_and_append(rb, node->condition.right, rbflags.depth == 0);
+    }
+    else
+        return FALSE;
+    ret = ret && rebuild_append(rb, L" ");
+    if (node->else_block)
+    {
+        ret = ret && rebuild_append(rb, L"(");
+        ret = ret && rebuild_append_command(rb, node->then_block, new_rbflags);
+        ret = ret && rebuild_append(rb, L" ) else ( ");
+        ret = ret && rebuild_append_command(rb, node->else_block, new_rbflags);
+        ret = ret && rebuild_append(rb, L" ) ");
+    }
+    else
+        ret = ret && rebuild_append_command(rb, node->then_block, new_rbflags);
+
+    return ret;
+}
+
+static const WCHAR *state_to_delim(int state)
+{
+    if (!state) return L"\"";
+    return (state == 1) ? L"" : L",";
+}
+
+static BOOL rebuild_command_for(struct command_rebuild *rb, const CMD_NODE *node, struct rebuild_flags rbflags)
+{
+    const CMD_FOR_CONTROL *for_ctrl = &node->for_ctrl;
+    struct rebuild_flags new_rflags = {.precedence = 0, .depth = rbflags.depth + 1};
+    const WCHAR *opt = NULL;
+    BOOL ret;
+
+    ret = rebuild_append(rb, L"for ");
+
+    /* append qualifiers (if needed) */
+    switch (for_ctrl->operator)
+    {
+    case CMD_FOR_FILETREE:
+        switch (for_ctrl->flags)
+        {
+        case CMD_FOR_FLAG_TREE_INCLUDE_FILES: opt = L""; break;
+        case CMD_FOR_FLAG_TREE_INCLUDE_DIRECTORIES: opt = L"/D "; break;
+        case CMD_FOR_FLAG_TREE_INCLUDE_DIRECTORIES|CMD_FOR_FLAG_TREE_RECURSE: opt = L"/D/R "; break;
+        case CMD_FOR_FLAG_TREE_INCLUDE_FILES|CMD_FOR_FLAG_TREE_RECURSE: opt = L"/R "; break;
+        default: FIXME("Shouldn't happen\n"); break;
+        }
+        break;
+    case CMD_FOR_NUMBERS: opt = L"/L "; break;
+    case CMD_FOR_FILE_SET: opt = L"/F "; break;
+    }
+    if (opt)
+        ret = ret && rebuild_append(rb, opt);
+
+    /* append options (when needed) */
+    switch (for_ctrl->operator)
+    {
+    case CMD_FOR_FILETREE:
+        if ((for_ctrl->flags & CMD_FOR_FLAG_TREE_RECURSE) && for_ctrl->root_dir)
+            ret = ret && rebuild_expand_and_append(rb, for_ctrl->root_dir, rbflags.depth == 0) &&
+                rebuild_append(rb, L" ");
+        break;
+    case CMD_FOR_FILE_SET:
+        {
+            int state = 0;
+
+            if (for_ctrl->eol != L'\0')
+                ret = ret && rebuild_append(rb, state_to_delim(state++)) &&
+                    rebuild_sprintf(rb, L"eol=%c", for_ctrl->eol);
+            if (for_ctrl->num_lines_to_skip)
+                ret = ret && rebuild_append(rb, state_to_delim(state++)) &&
+                    rebuild_sprintf(rb, L"skip=%d", for_ctrl->num_lines_to_skip);
+            if (for_ctrl->use_backq)
+                ret = ret && rebuild_append(rb, state_to_delim(state++)) &&
+                    rebuild_append(rb, L"useback");
+            if (for_ctrl->delims[0])
+                ret = ret && rebuild_append(rb, state_to_delim(state++)) &&
+                    rebuild_sprintf(rb, L"delims=%s", for_ctrl->delims);
+            if (for_ctrl->tokens[0])
+                ret = ret && rebuild_append(rb, state_to_delim(state++)) &&
+                    rebuild_sprintf(rb, L"tokens=%s", for_ctrl->tokens);
+            if (state)
+                ret = ret && rebuild_append(rb, L"\" ");
+        }
+        break;
+    default:
+        break;
+    }
+
+    /* append variable and the rest */
+    ret = ret && rebuild_sprintf(rb, L"%%%c in (", for_ctrl->variable_index) &&
+        rebuild_expand_and_append(rb, for_ctrl->set, rbflags.depth == 0) &&
+        rebuild_append(rb, L") do ") &&
+        rebuild_append_command(rb, node->do_block, new_rflags);
+    if (ret && node->do_block->op == CMD_SINGLE)
+        ret = rebuild_append(rb, L" ");
+    return ret;
+}
+
+static BOOL rebuild_append_command(struct command_rebuild *rb, const CMD_NODE *node, struct rebuild_flags rbflags)
+{
+    BOOL ret;
+
+    switch (node->op)
+    {
+    case CMD_SINGLE:
+        ret = rebuild_expand_and_append(rb, node->command, rbflags.depth == 0);
+        break;
+    case CMD_PIPE:
+    case CMD_CONCAT:
+    case CMD_ONFAILURE:
+    case CMD_ONSUCCESS:
+        ret = rebuild_command_binary(rb, node, rbflags);
+        break;
+    case CMD_IF:
+        ret = rebuild_command_if(rb, node, rbflags);
+        break;
+    case CMD_FOR:
+        ret = rebuild_command_for(rb, node, rbflags);
+        break;
+    case CMD_BLOCK:
+        {
+            struct rebuild_flags new_rbflags = {.precedence = 0, .depth = rbflags.depth = 1};
+            ret = rebuild_append(rb, L"( ") &&
+                rebuild_append_command(rb, node->block, new_rbflags) &&
+                rebuild_append(rb, L" ) ");
+        }
+        break;
+    default:
+        FIXME("Shouldn't happen\n");
+        ret = FALSE;
+    }
+    ret = ret && rebuild_append_all_redirections(rb, node, rbflags.depth == 0);
+
     return ret;
 }
 
@@ -4245,81 +4454,12 @@ static RETURN_CODE for_control_execute(CMD_FOR_CONTROL *for_ctrl, CMD_NODE *node
     return return_code;
 }
 
-static RETURN_CODE handle_pipe_command_old(CMD_NODE *node)
-{
-    static SECURITY_ATTRIBUTES sa = {.nLength = sizeof(sa), .lpSecurityDescriptor = NULL, .bInheritHandle = TRUE};
-    WCHAR temp_path[MAX_PATH];
-    WCHAR filename[MAX_PATH];
-    CMD_REDIRECTION *output;
-    HANDLE saved[3];
-    struct batch_context *saved_context = context;
-    RETURN_CODE return_code;
-
-    /* pipe LHS & RHS are run outside of any batch context */
-    context = NULL;
-    /* FIXME: a real pipe instead of writing to an intermediate file would be
-     * better.
-     * But waiting for completion of commands will require more work.
-     */
-    /* FIXME check precedence (eg foo > a | more)
-     * with following code, | has higher precedence than > a
-     * (which is likely wrong IIRC, and not what previous code was doing)
-     */
-    /* Generate a unique temporary filename */
-    GetTempPathW(ARRAY_SIZE(temp_path), temp_path);
-    GetTempFileNameW(temp_path, L"CMD", 0, filename);
-    TRACE("Using temporary file of %ls\n", filename);
-
-    /* set output for left hand side command */
-    output = redirection_create_file(REDIR_WRITE_TO, 1, filename);
-    if (push_std_redirections(output, saved))
-    {
-        RETURN_CODE return_code_left = node_execute(node->left);
-        pop_std_redirections(saved);
-
-        if (errorlevel == RETURN_CODE_CANT_LAUNCH && saved_context)
-            ExitProcess(255);
-        return_code = ERROR_INVALID_FUNCTION;
-        if (!WCMD_is_break(return_code_left) && errorlevel != RETURN_CODE_CANT_LAUNCH)
-        {
-            HANDLE h = CreateFileW(filename, GENERIC_READ,
-                                   FILE_SHARE_READ | FILE_SHARE_WRITE, &sa, OPEN_EXISTING,
-                                   FILE_ATTRIBUTE_NORMAL, NULL);
-            if (h != INVALID_HANDLE_VALUE)
-            {
-                SetStdHandle(STD_INPUT_HANDLE, h);
-                return_code = node_execute(node->right);
-                if (errorlevel == RETURN_CODE_CANT_LAUNCH && saved_context)
-                    ExitProcess(255);
-            }
-        }
-        DeleteFileW(filename);
-        errorlevel = return_code;
-    }
-    else return_code = ERROR_INVALID_FUNCTION;
-    redirection_dispose_list(output);
-    context = saved_context;
-
-    return return_code;
-}
-
-/* temp helper during migration */
-static BOOL can_run_new_pipe(CMD_NODE *node)
-{
-    switch (node->op)
-    {
-    case CMD_SINGLE:
-        return TRUE;
-    default:
-        return FALSE;
-    }
-}
-
 static RETURN_CODE spawn_pipe_sub_command(CMD_NODE *node, HANDLE *child)
 {
     WCHAR cmd_string[MAXSTRING];
     WCHAR comspec[MAX_PATH];
     struct command_rebuild rb = {cmd_string, ARRAY_SIZE(cmd_string), 0};
+    struct rebuild_flags rbflags = {};
     RETURN_CODE return_code;
 
     switch (node->op)
@@ -4335,8 +4475,8 @@ static RETURN_CODE spawn_pipe_sub_command(CMD_NODE *node, HANDLE *child)
             if ((sc.cmd_index <= WCMD_EXIT && (return_code != NO_ERROR || (!sc.has_path && !sc.has_extension))) ||
                 (sc.has_path && sc.is_command_file))
             {
-                rebuild_expand_and_append(&rb, node->command, TRUE);
-                rebuild_append_all_redirections(&rb, node, TRUE);
+                if (!rebuild_append_command(&rb, node, rbflags))
+                    return ERROR_INVALID_FUNCTION;
             }
             else
             {
@@ -4353,6 +4493,16 @@ static RETURN_CODE spawn_pipe_sub_command(CMD_NODE *node, HANDLE *child)
                 return return_code;
             }
         }
+        break;
+    case CMD_PIPE:
+    case CMD_CONCAT:
+    case CMD_ONFAILURE:
+    case CMD_ONSUCCESS:
+    case CMD_IF:
+    case CMD_FOR:
+    case CMD_BLOCK:
+        if (!rebuild_append_command(&rb, node, rbflags))
+            return ERROR_INVALID_FUNCTION;
         break;
     default:
         FIXME("Shouldn't happen\n");
@@ -4388,9 +4538,6 @@ static RETURN_CODE handle_pipe_command(CMD_NODE *node)
     HANDLE read_pipe, write_pipe;
     HANDLE saved_output;
     RETURN_CODE return_code;
-
-    if (!can_run_new_pipe(node->left) || !can_run_new_pipe(node->right))
-        return handle_pipe_command_old(node);
 
     if (!CreatePipe(&read_pipe, &write_pipe, &sa, 0))
         return ERROR_INVALID_FUNCTION;

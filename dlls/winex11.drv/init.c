@@ -352,7 +352,7 @@ static void client_surface_update_offscreen( HWND hwnd, struct x11drv_client_sur
     }
     else
     {
-        static const WCHAR displayW[] = {'D','I','S','P','L','A','Y'};
+        static const WCHAR displayW[] = {'D','I','S','P','L','A','Y', 0};
         UNICODE_STRING device_str = RTL_CONSTANT_STRING(displayW);
         surface->hdc_dst = NtGdiOpenDCW( &device_str, NULL, NULL, 0, TRUE, NULL, NULL, NULL );
         surface->hdc_src = NtGdiOpenDCW( &device_str, NULL, NULL, 0, TRUE, NULL, NULL, NULL );
@@ -446,9 +446,10 @@ Window x11drv_client_surface_create( HWND hwnd, int format, struct client_surfac
     if (!colormap) return None;
 
     if (!(surface = client_surface_create( sizeof(*surface), &x11drv_client_surface_funcs, hwnd ))) goto failed;
+    surface->colormap = colormap;
+
     if (!(surface->window = create_client_window( hwnd, &visual, colormap ))) goto failed;
     if (!NtUserGetClientRect( hwnd, &surface->rect, NtUserGetDpiForWindow( hwnd ) )) goto failed;
-    surface->colormap = colormap;
 
     TRACE( "Created %s for client window %lx\n", debugstr_client_surface( &surface->client ), surface->window );
     *client = &surface->client;
@@ -456,7 +457,7 @@ Window x11drv_client_surface_create( HWND hwnd, int format, struct client_surfac
 
 failed:
     if (surface) client_surface_release( &surface->client );
-    XFreeColormap( gdi_display, colormap );
+    else if (colormap != default_colormap) XFreeColormap( gdi_display, colormap );
     return None;
 }
 

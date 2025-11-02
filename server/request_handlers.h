@@ -311,6 +311,8 @@ DECL_HANDLER(d3dkmt_object_query);
 DECL_HANDLER(d3dkmt_object_open);
 DECL_HANDLER(d3dkmt_share_objects);
 DECL_HANDLER(d3dkmt_object_open_name);
+DECL_HANDLER(d3dkmt_mutex_acquire);
+DECL_HANDLER(d3dkmt_mutex_release);
 
 typedef void (*req_handler)( const void *req, void *reply );
 static const req_handler req_handlers[REQ_NB_REQUESTS] =
@@ -619,6 +621,8 @@ static const req_handler req_handlers[REQ_NB_REQUESTS] =
     (req_handler)req_d3dkmt_object_open,
     (req_handler)req_d3dkmt_share_objects,
     (req_handler)req_d3dkmt_object_open_name,
+    (req_handler)req_d3dkmt_mutex_acquire,
+    (req_handler)req_d3dkmt_mutex_release,
 };
 
 C_ASSERT( sizeof(abstime_t) == 8 );
@@ -1180,6 +1184,8 @@ C_ASSERT( sizeof(struct read_process_memory_reply) == 8 );
 C_ASSERT( offsetof(struct write_process_memory_request, handle) == 12 );
 C_ASSERT( offsetof(struct write_process_memory_request, addr) == 16 );
 C_ASSERT( sizeof(struct write_process_memory_request) == 24 );
+C_ASSERT( offsetof(struct write_process_memory_reply, written) == 8 );
+C_ASSERT( sizeof(struct write_process_memory_reply) == 16 );
 C_ASSERT( offsetof(struct create_key_request, access) == 12 );
 C_ASSERT( offsetof(struct create_key_request, options) == 16 );
 C_ASSERT( sizeof(struct create_key_request) == 24 );
@@ -1308,6 +1314,7 @@ C_ASSERT( offsetof(struct get_user_atom_name_reply, total) == 8 );
 C_ASSERT( sizeof(struct get_user_atom_name_reply) == 16 );
 C_ASSERT( sizeof(struct get_msg_queue_handle_request) == 16 );
 C_ASSERT( offsetof(struct get_msg_queue_handle_reply, handle) == 8 );
+C_ASSERT( offsetof(struct get_msg_queue_handle_reply, idle_event) == 12 );
 C_ASSERT( sizeof(struct get_msg_queue_handle_reply) == 16 );
 C_ASSERT( sizeof(struct get_msg_queue_request) == 16 );
 C_ASSERT( offsetof(struct get_msg_queue_reply, locator) == 8 );
@@ -2311,6 +2318,7 @@ C_ASSERT( offsetof(struct get_inproc_alert_fd_reply, handle) == 8 );
 C_ASSERT( sizeof(struct get_inproc_alert_fd_reply) == 16 );
 C_ASSERT( offsetof(struct d3dkmt_object_create_request, type) == 12 );
 C_ASSERT( offsetof(struct d3dkmt_object_create_request, fd) == 16 );
+C_ASSERT( offsetof(struct d3dkmt_object_create_request, value) == 20 );
 C_ASSERT( sizeof(struct d3dkmt_object_create_request) == 24 );
 C_ASSERT( offsetof(struct d3dkmt_object_create_reply, global) == 8 );
 C_ASSERT( offsetof(struct d3dkmt_object_create_reply, handle) == 12 );
@@ -2346,3 +2354,18 @@ C_ASSERT( offsetof(struct d3dkmt_object_open_name_request, rootdir) == 24 );
 C_ASSERT( sizeof(struct d3dkmt_object_open_name_request) == 32 );
 C_ASSERT( offsetof(struct d3dkmt_object_open_name_reply, handle) == 8 );
 C_ASSERT( sizeof(struct d3dkmt_object_open_name_reply) == 16 );
+C_ASSERT( offsetof(struct d3dkmt_mutex_acquire_request, mutex) == 12 );
+C_ASSERT( offsetof(struct d3dkmt_mutex_acquire_request, key_value) == 16 );
+C_ASSERT( offsetof(struct d3dkmt_mutex_acquire_request, wait_handle) == 20 );
+C_ASSERT( offsetof(struct d3dkmt_mutex_acquire_request, wait_status) == 24 );
+C_ASSERT( sizeof(struct d3dkmt_mutex_acquire_request) == 32 );
+C_ASSERT( offsetof(struct d3dkmt_mutex_acquire_reply, fence_value) == 8 );
+C_ASSERT( offsetof(struct d3dkmt_mutex_acquire_reply, runtime_size) == 16 );
+C_ASSERT( offsetof(struct d3dkmt_mutex_acquire_reply, wait_handle) == 20 );
+C_ASSERT( sizeof(struct d3dkmt_mutex_acquire_reply) == 24 );
+C_ASSERT( offsetof(struct d3dkmt_mutex_release_request, mutex) == 12 );
+C_ASSERT( offsetof(struct d3dkmt_mutex_release_request, abandon) == 16 );
+C_ASSERT( offsetof(struct d3dkmt_mutex_release_request, key_value) == 20 );
+C_ASSERT( offsetof(struct d3dkmt_mutex_release_request, fence_value) == 24 );
+C_ASSERT( offsetof(struct d3dkmt_mutex_release_request, runtime_size) == 32 );
+C_ASSERT( sizeof(struct d3dkmt_mutex_release_request) == 40 );

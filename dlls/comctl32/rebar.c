@@ -89,8 +89,6 @@
 #include "winnls.h"
 #include "commctrl.h"
 #include "comctl32.h"
-#include "uxtheme.h"
-#include "vssym32.h"
 #include "wine/debug.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(rebar);
@@ -2862,20 +2860,7 @@ REBAR_SetUnicodeFormat (REBAR_INFO *infoPtr, BOOL unicode)
 static LRESULT
 REBAR_SetVersion (REBAR_INFO *infoPtr, INT iVersion)
 {
-#if __WINE_COMCTL32_VERSION == 6
-    return infoPtr->iVersion;
-#else
-    INT iOldVersion = infoPtr->iVersion;
-
-    if (iVersion > 5)
-	return -1;
-
-    infoPtr->iVersion = iVersion;
-
-    TRACE("new version %d\n", iVersion);
-
-    return iOldVersion;
-#endif
+    return COMCTL32_SetVersion(&infoPtr->iVersion, iVersion);
 }
 
 

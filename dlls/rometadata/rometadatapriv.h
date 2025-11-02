@@ -19,6 +19,49 @@
 #ifndef __WINE_ROMETADATA_PRIVATE__
 #define __WINE_ROMETADATA_PRIVATE__
 
-extern HRESULT IMetaDataTables_create(IMetaDataTables **iface);
+#include <rometadataapi.h>
+
+extern HRESULT IMetaDataTables_create(const WCHAR *path, IMetaDataTables **iface);
+
+typedef struct assembly assembly_t;
+struct metadata_table_info
+{
+    ULONG num_rows;
+    ULONG num_columns;
+
+    ULONG key_idx;
+
+    ULONG row_size;
+    const ULONG *column_sizes;
+
+    const char *name;
+    const BYTE *start;
+};
+
+struct metadata_column_info
+{
+    ULONG offset;
+    ULONG size;
+    ULONG type;
+    const char *name;
+};
+
+enum heap_type
+{
+    HEAP_STRING      = 0,
+    HEAP_GUID        = 1,
+    HEAP_BLOB        = 2,
+    HEAP_USER_STRING = 3
+};
+
+extern HRESULT assembly_open_from_file(const WCHAR *path, assembly_t **out);
+extern void assembly_free(assembly_t *assembly);
+extern HRESULT assembly_get_table(const assembly_t *assembly, ULONG table_idx, struct metadata_table_info *info);
+extern HRESULT assembly_get_column(const assembly_t *assembly, ULONG table_idx, ULONG column_idx, struct metadata_column_info *info);
+extern ULONG assembly_get_heap_size(const assembly_t *assembly, enum heap_type heap);
+extern const char *assembly_get_string(const assembly_t *assembly, ULONG idx);
+extern HRESULT assembly_get_blob(const assembly_t *assembly, ULONG idx, const BYTE **blob, ULONG *size);
+extern const GUID *assembly_get_guid(const assembly_t *assembly, ULONG idx);
+extern ULONG metadata_coded_value_as_token(ULONG table_idx, ULONG column_idx, ULONG value);
 
 #endif /* __WINE_ROMETADATA_PRIVATE__ */

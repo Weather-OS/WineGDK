@@ -22,11 +22,13 @@
 #define COBJMACROS
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "initguid.h"
 #include "activation.h"
 #include "objbase.h"
 #include "weakreference.h"
+#include "restrictederrorinfo.h"
 #define WIDL_using_Windows_Foundation
 #include "windows.foundation.h"
 #include "winstring.h"
@@ -110,6 +112,22 @@ DEFINE_EXPECT(PostInitialize);
 DEFINE_EXPECT(PreUninitialize);
 DEFINE_EXPECT(PostUninitialize);
 
+#define WINRT_EXCEPTIONS                                     \
+    WINRT_EXCEPTION(AccessDenied, E_ACCESSDENIED)            \
+    WINRT_EXCEPTION(ChangedState, E_CHANGED_STATE)           \
+    WINRT_EXCEPTION(ClassNotRegistered, REGDB_E_CLASSNOTREG) \
+    WINRT_EXCEPTION(Disconnected, RPC_E_DISCONNECTED)        \
+    WINRT_EXCEPTION(Failure, E_FAIL)                         \
+    WINRT_EXCEPTION(InvalidArgument, E_INVALIDARG)           \
+    WINRT_EXCEPTION(InvalidCast, E_NOINTERFACE)              \
+    WINRT_EXCEPTION(NotImplemented, E_NOTIMPL)               \
+    WINRT_EXCEPTION(NullReference, E_POINTER)                \
+    WINRT_EXCEPTION(ObjectDisposed, RO_E_CLOSED)             \
+    WINRT_EXCEPTION(OperationCanceled, E_ABORT)              \
+    WINRT_EXCEPTION(OutOfBounds, E_BOUNDS)                   \
+    WINRT_EXCEPTION(OutOfMemory, E_OUTOFMEMORY)              \
+    WINRT_EXCEPTION(WrongThread, RPC_E_WRONG_THREAD)
+
 struct __abi_type_descriptor
 {
     const WCHAR *name;
@@ -130,6 +148,21 @@ static int (__cdecl *p_platform_type_GetTypeCode)(void *);
 static HSTRING (__cdecl *p_platform_type_ToString)(void *);
 static HSTRING (__cdecl *p_platform_type_get_FullName)(void *);
 static void *(WINAPI *pCreateValue)(int type, const void *);
+static void *(__cdecl *pCreateException)(HRESULT);
+static void *(__cdecl *pCreateExceptionWithMessage)(HRESULT, HSTRING);
+static HSTRING (__cdecl *p_platform_exception_get_Message)(void *);
+static void *(__cdecl *pAllocateException)(size_t);
+static void *(__cdecl *pAllocateExceptionWithWeakRef)(ptrdiff_t, size_t);
+static void (__cdecl *pFreeException)(void *);
+static void *(__cdecl *p_platform_Exception_ctor)(void *, HRESULT);
+static void *(__cdecl *p_platform_Exception_hstring_ctor)(void *, HRESULT, HSTRING);
+static void *(__cdecl *p_platform_COMException_ctor)(void *, HRESULT);
+static void *(__cdecl *p_platform_COMException_hstring_ctor)(void *, HRESULT, HSTRING);
+#define WINRT_EXCEPTION(name, ...)                                                     \
+    static void *(__cdecl *p_platform_##name##Exception_ctor)(void *);         \
+    static void *(__cdecl *p_platform_##name##Exception_hstring_ctor)(void *, HSTRING);
+WINRT_EXCEPTIONS
+#undef WINRT_EXCEPTION
 
 static void *(__cdecl *p__RTtypeid)(const void *);
 static const char *(__thiscall *p_type_info_name)(void *);
@@ -137,11 +170,13 @@ static const char *(__thiscall *p_type_info_raw_name)(void *);
 static int (__thiscall *p_type_info_opequals_equals)(void *, void *);
 static int (__thiscall *p_type_info_opnot_equals)(void *, void *);
 
+static HMODULE hmod;
+
 static BOOL init(void)
 {
-    HMODULE hmod = LoadLibraryA("vccorlib140.dll");
     HMODULE msvcrt = LoadLibraryA("msvcrt.dll");
 
+    hmod = LoadLibraryA("vccorlib140.dll");
     if (!hmod)
     {
         win_skip("vccorlib140.dll not available\n");
@@ -173,6 +208,28 @@ static BOOL init(void)
     p_platform_type_ToString = (void *)GetProcAddress(hmod, "?ToString@Type@Platform@@U$AAAP$AAVString@2@XZ");
     p_platform_type_get_FullName = (void *)GetProcAddress(hmod, "?get@FullName@Type@Platform@@Q$AAAP$AAVString@3@XZ");
     pCreateValue = (void *)GetProcAddress(hmod, "?CreateValue@Details@Platform@@YAP$AAVObject@2@W4TypeCode@2@PBX@Z");
+    pCreateException = (void *)GetProcAddress(hmod, "?CreateException@Exception@Platform@@SAP$AAV12@H@Z");
+    pCreateExceptionWithMessage = (void *)GetProcAddress(hmod,
+            "?CreateException@Exception@Platform@@SAP$AAV12@HP$AAVString@2@@Z");
+    p_platform_exception_get_Message = (void *)GetProcAddress(hmod,
+            "?get@Message@Exception@Platform@@Q$AAAP$AAVString@3@XZ");
+    pAllocateException = (void *)GetProcAddress(hmod, "?AllocateException@Heap@Details@Platform@@SAPAXI@Z");
+    pAllocateExceptionWithWeakRef = (void *)GetProcAddress(hmod,
+            "?AllocateException@Heap@Details@Platform@@SAPAXII@Z");
+    pFreeException = (void *)GetProcAddress(hmod, "?FreeException@Heap@Details@Platform@@SAXPAX@Z");
+    p_platform_Exception_ctor = (void *)GetProcAddress(hmod, "??0Exception@Platform@@Q$AAA@H@Z");
+    p_platform_Exception_hstring_ctor = (void *)GetProcAddress(hmod, "??0Exception@Platform@@Q$AAA@HP$AAVString@1@@Z");
+    p_platform_COMException_ctor = (void *)GetProcAddress(hmod, "??0COMException@Platform@@Q$AAA@H@Z");
+    p_platform_COMException_hstring_ctor = (void *)GetProcAddress(hmod,
+            "??0COMException@Platform@@Q$AAA@HP$AAVString@1@@Z");
+#define WINRT_EXCEPTION(name, ...) do { \
+    p_platform_##name##Exception_ctor = (void *)GetProcAddress(hmod, \
+        "??0" #name "Exception@Platform@@Q$AAA@XZ");                         \
+    p_platform_##name##Exception_hstring_ctor = (void *)GetProcAddress(hmod, \
+        "??0" #name "Exception@Platform@@Q$AAA@P$AAVString@1@@Z");           \
+    } while(0);
+    WINRT_EXCEPTIONS
+#undef WINRT_EXCEPTION
     p_type_info_name = (void *)GetProcAddress(msvcrt, "?name@type_info@@QBAPBDXZ");
     p_type_info_raw_name = (void *)GetProcAddress(msvcrt, "?raw_name@type_info@@QBAPBDXZ");
     p_type_info_opequals_equals = (void *)GetProcAddress(msvcrt, "??8type_info@@QBAHABV0@@Z");
@@ -198,6 +255,30 @@ static BOOL init(void)
                 "?get@FullName@Type@Platform@@QE$AAAPE$AAVString@3@XZ");
         pCreateValue = (void *)GetProcAddress(hmod,
                 "?CreateValue@Details@Platform@@YAPE$AAVObject@2@W4TypeCode@2@PEBX@Z");
+        pCreateException = (void *)GetProcAddress(hmod,
+                "?CreateException@Exception@Platform@@SAPE$AAV12@H@Z");
+        pCreateExceptionWithMessage = (void *)GetProcAddress(hmod,
+                "?CreateException@Exception@Platform@@SAPE$AAV12@HPE$AAVString@2@@Z");
+        p_platform_exception_get_Message = (void *)GetProcAddress(hmod,
+                "?get@Message@Exception@Platform@@QE$AAAPE$AAVString@3@XZ");
+        pAllocateException = (void *)GetProcAddress(hmod, "?AllocateException@Heap@Details@Platform@@SAPEAX_K@Z");
+        pAllocateExceptionWithWeakRef = (void *)GetProcAddress(hmod,
+                "?AllocateException@Heap@Details@Platform@@SAPEAX_K0@Z");
+        pFreeException = (void *)GetProcAddress(hmod, "?FreeException@Heap@Details@Platform@@SAXPEAX@Z");
+        p_platform_Exception_ctor = (void *)GetProcAddress(hmod, "??0Exception@Platform@@QE$AAA@H@Z");
+        p_platform_Exception_hstring_ctor = (void *)GetProcAddress(hmod,
+               "??0Exception@Platform@@QE$AAA@HPE$AAVString@1@@Z");
+        p_platform_COMException_ctor = (void *)GetProcAddress(hmod, "??0COMException@Platform@@QE$AAA@H@Z");
+        p_platform_COMException_hstring_ctor = (void *)GetProcAddress(hmod,
+            "??0COMException@Platform@@QE$AAA@HPE$AAVString@1@@Z");
+#define WINRT_EXCEPTION(name, ...) do { \
+    p_platform_##name##Exception_ctor = (void *)GetProcAddress(hmod, \
+            "??0" #name "Exception@Platform@@QE$AAA@XZ");                    \
+    p_platform_##name##Exception_hstring_ctor = (void *)GetProcAddress(hmod, \
+            "??0" #name "Exception@Platform@@QE$AAA@PE$AAVString@1@@Z");     \
+    } while(0);
+        WINRT_EXCEPTIONS
+#undef WINRT_EXCEPTION
         p_type_info_name = (void *)GetProcAddress(msvcrt, "?name@type_info@@QEBAPEBDXZ");
         p_type_info_raw_name = (void *)GetProcAddress(msvcrt, "?raw_name@type_info@@QEBAPEBDXZ");
         p_type_info_opequals_equals = (void *)GetProcAddress(msvcrt, "??8type_info@@QEBAHAEBV0@@Z");
@@ -222,6 +303,30 @@ static BOOL init(void)
                 "?get@FullName@Type@Platform@@Q$AAAP$AAVString@3@XZ");
         pCreateValue = (void *)GetProcAddress(hmod,
                 "?CreateValue@Details@Platform@@YGP$AAVObject@2@W4TypeCode@2@PBX@Z");
+        pCreateException = (void *)GetProcAddress(hmod,
+                "?CreateException@Exception@Platform@@SAP$AAV12@H@Z");
+        pCreateExceptionWithMessage = (void *)GetProcAddress(hmod,
+                "?CreateException@Exception@Platform@@SAP$AAV12@HP$AAVString@2@@Z");
+        p_platform_exception_get_Message = (void *)GetProcAddress(hmod,
+                    "?get@Message@Exception@Platform@@Q$AAAP$AAVString@3@XZ");
+        pAllocateException = (void *)GetProcAddress(hmod, "?AllocateException@Heap@Details@Platform@@SAPAXI@Z");
+        pAllocateExceptionWithWeakRef = (void *)GetProcAddress(hmod,
+                    "?AllocateException@Heap@Details@Platform@@SAPAXII@Z");
+        pFreeException = (void *)GetProcAddress(hmod, "?FreeException@Heap@Details@Platform@@SAXPAX@Z");
+        p_platform_Exception_ctor = (void *)GetProcAddress(hmod, "??0Exception@Platform@@Q$AAA@H@Z");
+        p_platform_Exception_hstring_ctor = (void *)GetProcAddress(hmod,
+                "??0Exception@Platform@@Q$AAA@HP$AAVString@1@@Z");
+        p_platform_COMException_ctor = (void *)GetProcAddress(hmod, "??0COMException@Platform@@Q$AAA@H@Z");
+        p_platform_COMException_hstring_ctor = (void *)GetProcAddress(hmod,
+                "??0COMException@Platform@@Q$AAA@HP$AAVString@1@@Z");
+#define WINRT_EXCEPTION(name, ...) do { \
+    p_platform_##name##Exception_ctor = (void *)GetProcAddress(hmod, \
+            "??0" #name "Exception@Platform@@Q$AAA@XZ");                     \
+    p_platform_##name##Exception_hstring_ctor = (void *)GetProcAddress(hmod, \
+            "??0" #name "Exception@Platform@@Q$AAA@P$AAVString@1@@Z");       \
+    } while(0);
+        WINRT_EXCEPTIONS
+#undef WINRT_EXCEPTION
         p_type_info_name = (void *)GetProcAddress(msvcrt, "?name@type_info@@QBEPBDXZ");
         p_type_info_raw_name = (void *)GetProcAddress(msvcrt, "?raw_name@type_info@@QBEPBDXZ");
         p_type_info_opequals_equals = (void *)GetProcAddress(msvcrt, "??8type_info@@QBEHABV0@@Z");
@@ -240,6 +345,22 @@ static BOOL init(void)
     ok(p_platform_type_ToString != NULL, "Platform::Type::ToString not available\n");
     ok(p_platform_type_get_FullName != NULL, "Platform::Type::FullName not available\n");
     ok(pCreateValue != NULL, "CreateValue not available\n");
+    ok(pCreateException != NULL, "CreateException not available\n");
+    ok(pCreateExceptionWithMessage != NULL, "CreateExceptionWithMessage not available\n");
+    ok(p_platform_exception_get_Message != NULL, "Platform::Exception::Message::get not available\n");
+    ok(pAllocateException != NULL, "AllocateException not available\n");
+    ok(pAllocateExceptionWithWeakRef != NULL, "AllocateExceptionWithWeakRef not available.\n");
+    ok(pFreeException != NULL, "FreeException not available\n");
+    ok(p_platform_Exception_ctor != NULL, "Platform::Exception not available.\n");
+    ok(p_platform_Exception_hstring_ctor != NULL, "Platform::Exception(HRESULT, HSTRING) not available.\n");
+    ok(p_platform_COMException_ctor != NULL, "Platform::COMException not available.\n");
+    ok(p_platform_COMException_hstring_ctor != NULL, "Platform::COMException(HRESULT, HSTRING) not available.\n");
+#define WINRT_EXCEPTION(name, ...) do {                                                                              \
+    ok(p_platform_##name##Exception_ctor != NULL, "Platform::" #name "Exception not available.\n");          \
+    ok(p_platform_##name##Exception_hstring_ctor != NULL, "Platform::" #name "Exception(HSTRING) not available.\n"); \
+    } while(0);
+    WINRT_EXCEPTIONS
+#undef WINRT_EXCEPTION
 
     ok(p_type_info_name != NULL, "type_info::name not available\n");
     ok(p_type_info_raw_name != NULL, "type_info::raw_name not available\n");
@@ -444,7 +565,7 @@ static void test_GetIidsFn(void)
 
 static void test_Allocate(void)
 {
-    void *addr;
+    void *addr, **ptr, **base;
 
     addr = pAllocate(0);
     ok(!!addr, "got addr %p\n", addr);
@@ -454,6 +575,34 @@ static void test_Allocate(void)
     ok(!!addr, "got addr %p\n", addr);
     pFree(addr);
     pFree(NULL);
+
+    /* AllocateException allocates additional space for two pointer-width fields, with the second field used as the
+     * back-pointer to the exception data. */
+    addr = pAllocateException(0);
+    ok(!!addr, "got addr %p\n", addr);
+    ptr = (void **)((ULONG_PTR)addr - sizeof(void *));
+    *ptr = NULL; /* The write should succeed. */
+    base = (void **)((ULONG_PTR)addr - 2 * sizeof(void *));
+    *base = NULL;
+    /* Since base is the actual allocation base, Free(base) should succeed. */
+    pFree(base);
+
+    addr = pAllocateException(sizeof(void *));
+    ok(!!addr, "got addr %p\n", addr);
+    ptr = (void **)((ULONG_PTR)addr - sizeof(void *));
+    *ptr = NULL;
+    base = (void **)((ULONG_PTR)addr - 2 * sizeof(void *));
+    *base = NULL;
+    /* FreeException will derive the allocation base itself. */
+    pFreeException(addr);
+
+    /* Do what AllocateException does, manually. */
+    base = pAllocate(sizeof(void *) * 2 + sizeof(UINT32));
+    ok(!!base, "got base %p\n", base);
+    /* addr is what AllocateException would return. */
+    addr = (void *)((ULONG_PTR)base + sizeof(void *) * 2);
+    /* FreeException should succeed with addr. */
+    pFreeException(addr);
 }
 
 #define test_refcount(a, b) test_refcount_(__LINE__, (a), (b))
@@ -473,9 +622,10 @@ struct control_block
     LONG ref_strong;
     IUnknown *object;
     bool is_inline;
-    UINT16 unknown;
+    bool unknown;
+    bool is_exception;
 #ifdef _WIN32
-    char _padding[4];
+    char _padding[5];
 #endif
 };
 
@@ -607,6 +757,7 @@ static void test_AllocateWithWeakRef_inline(void)
     ok(object->weakref->object == &object->IUnknown_iface, "got object %p != %p\n", object->weakref->object,
        &object->IUnknown_iface);
     ok(object->weakref->unknown == 0, "got unknown %d\n", object->weakref->unknown);
+    ok(!object->weakref->is_exception, "got is_exception %d\n", object->weakref->is_exception);
     /* The object is allocate within the weakref. */
     ok((char *)object->weakref == ((char *)object - sizeof(struct control_block)), "got %p != %p\n", object->weakref,
        (char *)object - sizeof(struct control_block));
@@ -664,6 +815,48 @@ static void test_AllocateWithWeakRef(void)
     ok(object->weakref->object == &object->IUnknown_iface, "got object %p != %p\n", object->weakref->object,
        &object->IUnknown_iface);
     ok(object->weakref->unknown == 0, "got unknown %d\n", object->weakref->unknown);
+    ok(!object->weakref->is_exception, "got is_exception %d\n", object->weakref->is_exception);
+
+    hr = IWeakReference_Resolve(weakref, &IID_IAgileObject, (IInspectable **)&out);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
+    test_refcount(&object->IUnknown_iface, 2);
+    IUnknown_Release(out);
+
+    call_func1(pReleaseTarget, object->weakref);
+    hr = IWeakReference_Resolve(weakref, &IID_IAgileObject, (IInspectable **)&out);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
+    test_refcount(&object->IUnknown_iface, 2);
+    IUnknown_Release(out);
+
+    count = IWeakReference_AddRef(weakref);
+    ok(count == 2, "got count %lu\n", count);
+
+    count = IUnknown_Release(&object->IUnknown_iface);
+    ok(count == 0, "got count %lu\n", count);
+    test_refcount(weakref, 1);
+    out = (IUnknown *)0xdeadbeef;
+    hr = IWeakReference_Resolve(weakref, &IID_IAgileObject, (IInspectable **)&out);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
+    ok(out == (IUnknown *)0xdeadbeef, "got out %p\n", out);
+    count = IWeakReference_Release(weakref);
+    ok(count == 0, "got count %lu\n", count);
+
+    /* AllocateExceptionWithWeakRef will not store the control block inline, regardless of the size. */
+    object = pAllocateExceptionWithWeakRef(offsetof(struct unknown_impl, weakref), sizeof(struct unknown_impl));
+    ok(object != NULL, "got object %p\n", object);
+
+    object->strong_ref_free_val = -100;
+    ok(object->weakref != NULL, "got weakref %p\n", object->weakref);
+    object->IUnknown_iface.lpVtbl = &unknown_impl_vtbl;
+    weakref = &object->weakref->IWeakReference_iface;
+
+    test_refcount(weakref, 1);
+    ok(!object->weakref->is_inline, "got is_inline %d\n", object->weakref->is_inline);
+    ok(object->weakref->ref_strong == 1, "got ref_strong %lu\n", object->weakref->ref_strong);
+    ok(object->weakref->object == &object->IUnknown_iface, "got object %p != %p\n", object->weakref->object,
+       &object->IUnknown_iface);
+    ok(object->weakref->unknown == 0, "got unknown %d\n", object->weakref->unknown);
+    ok(object->weakref->is_exception, "got is_exception %d\n", object->weakref->is_exception);
 
     hr = IWeakReference_Resolve(weakref, &IID_IAgileObject, (IInspectable **)&out);
     ok(hr == S_OK, "got hr %#lx\n", hr);
@@ -1020,6 +1213,389 @@ static void test_CreateValue(void)
     pUninitializeData(0);
 }
 
+#define CLASS_IS_SIMPLE_TYPE          1
+#define CLASS_HAS_VIRTUAL_BASE_CLASS  4
+#define CLASS_IS_IUNKNOWN             8
+
+#define TYPE_FLAG_CONST      1
+#define TYPE_FLAG_VOLATILE   2
+#define TYPE_FLAG_REFERENCE  8
+#define TYPE_FLAG_IUNKNOWN  16
+
+typedef struct __type_info
+{
+    const void *vtable;
+    char *name;
+    char mangled[128];
+} rtti_type_info;
+
+typedef struct
+{
+    UINT flags;
+    unsigned int type_info;
+    DWORD offsets[3];
+    unsigned int size;
+    unsigned int copy_ctor;
+} cxx_type_info;
+
+typedef struct
+{
+    UINT count;
+    unsigned int info[1];
+} cxx_type_info_table;
+
+typedef struct
+{
+    UINT flags;
+    unsigned int destructor;
+    unsigned int custom_handler;
+    unsigned int type_info_table;
+} cxx_exception_type;
+
+struct exception_inner
+{
+    /* This only gets set when the exception is thrown. */
+    BSTR message1;
+    /* Likewise, but can also be set by CreateExceptionWithMessage. */
+    BSTR message2;
+    void *unknown1;
+    void *unknown2;
+    HRESULT hr;
+    /* Only gets set when the exception is thrown. */
+    IRestrictedErrorInfo *error_info;
+    const cxx_exception_type *exception_type;
+    UINT32 unknown3;
+    void *unknown4;
+};
+
+struct platform_exception
+{
+    IInspectable IInspectable_iface;
+    const void *IPrintable_iface;
+    const void *IEquatable_iface;
+    IClosable IClosable_iface;
+    struct exception_inner inner;
+    /* Exceptions use the weakref control block for reference counting, even though they don't implement
+     * IWeakReferenceSource. */
+    struct control_block *control_block;
+    /* This is lazily initialized, i.e, only when QueryInterface(IID_IMarshal) gets called.
+     * The default value is UINTPTR_MAX/-1 */
+    IUnknown *marshal;
+};
+
+static void test_interface_layout_(int line, IUnknown *iface, const GUID *iid, const void *exp_ptr)
+{
+    IUnknown *out = NULL;
+    HRESULT hr;
+
+    hr = IUnknown_QueryInterface(iface, iid, (void **)&out);
+    ok_(__FILE__, line)(hr == S_OK, "got hr %#lx\n", hr);
+    if (SUCCEEDED(hr))
+    {
+        ok_(__FILE__, line)((ULONG_PTR)out == (ULONG_PTR)exp_ptr, "got out %p != %p\n", out, exp_ptr);
+        IUnknown_Release(out);
+    }
+}
+#define test_interface_layout(iface, iid, exp_ptr) test_interface_layout_(__LINE__, (IUnknown *)(iface), iid, exp_ptr)
+
+static void test_exceptions(void)
+{
+#define EXCEPTION_RTTI_NAME(name) (sizeof(void *) == 8) ? \
+    ".PE$AAV" #name "Exception@Platform@@" : ".P$AAV" #name "Exception@Platform@@"
+#define WINRT_EXCEPTION(name, hr)                \
+    {hr,                                         \
+     L"Platform." #name "Exception",             \
+     ".?AV" #name "Exception@Platform@@",        \
+     "class Platform::" #name "Exception",       \
+     EXCEPTION_RTTI_NAME(name),                  \
+     p_platform_##name##Exception_ctor,  \
+     p_platform_##name##Exception_hstring_ctor},
+    const struct exception_test_case
+    {
+        HRESULT hr;
+        const WCHAR *exp_winrt_name;
+        const char *exp_rtti_mangled_name;
+        const char *exp_rtti_name;
+        /* The mangled RTTI name of the cxx_exception_type received by the exception handler/filter. */
+        const char *exp_exception_rtti_mangled_name;
+        void *(__cdecl *ctor)(void *); /* The default constructor for this exception class */
+        void *(__cdecl *hstring_ctor)(void *, HSTRING);
+    } test_cases[] = {
+        WINRT_EXCEPTIONS
+        /* Generic exceptions */
+        {E_HANDLE, L"Platform.COMException", ".?AVCOMException@Platform@@",
+            "class Platform::COMException", EXCEPTION_RTTI_NAME(COM)},
+        {0xdeadbeef, L"Platform.COMException", ".?AVCOMException@Platform@@",
+            "class Platform::COMException", EXCEPTION_RTTI_NAME(COM)},
+    };
+#undef EXCEPTION_RTTI_NAME
+#undef WINRT_EXCEPTION
+
+#ifdef __i386__
+    const ULONG_PTR base = 0;
+#else
+    const ULONG_PTR base = (ULONG_PTR)hmod;
+#endif
+    const struct exception_test_case *cur_test;
+    static const WCHAR *msg_bufW = L"foo";
+    HSTRING_HEADER hdr;
+    HSTRING msg;
+    HRESULT hr;
+    ULONG i;
+
+    hr = WindowsCreateStringReference(msg_bufW, wcslen(msg_bufW), &hdr, &msg);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
+
+    for (i = 0; i < ARRAY_SIZE(test_cases); i++)
+    {
+        const cxx_type_info_table *type_info_table;
+        const char *rtti_name, *rtti_raw_name;
+        const struct exception_inner *inner;
+        const rtti_type_info *rtti_info;
+        const cxx_exception_type *type;
+        struct platform_exception *obj;
+        const cxx_type_info *cxx_info;
+        IInspectable *inspectable;
+        const WCHAR *bufW;
+        INT32 j, ret = 0;
+        void *type_info;
+        WCHAR buf[256];
+        IUnknown *out;
+        HSTRING str;
+        ULONG count;
+        HRESULT hr;
+        GUID *iids;
+
+        winetest_push_context("test_cases[%lu]", i);
+
+        cur_test = &test_cases[i];
+        obj = pCreateException(cur_test->hr);
+        todo_wine ok(obj != NULL, "got obj %p\n", obj);
+        if (!obj)
+        {
+            winetest_pop_context();
+            continue;
+        }
+
+        inspectable = (IInspectable *)obj;
+        /* Verify that the IMarshal field is lazily-initialized. */
+        ok((ULONG_PTR)obj->marshal == UINTPTR_MAX, "got marshal %p\n", obj->marshal);
+        todo_wine check_interface(inspectable, &IID_IMarshal);
+        ok(obj->marshal != NULL && (ULONG_PTR)obj->marshal != UINTPTR_MAX, "got marshal %p\n", obj->marshal);
+
+        test_interface_layout(obj, &IID_IUnknown, &obj->IInspectable_iface);
+        test_interface_layout(obj, &IID_IInspectable, &obj->IInspectable_iface);
+        test_interface_layout(obj, &IID_IAgileObject, &obj->IInspectable_iface);
+        todo_wine test_interface_layout(obj, &IID_IPrintable, &obj->IPrintable_iface);
+        todo_wine test_interface_layout(obj, &IID_IEquatable, &obj->IEquatable_iface);
+        test_interface_layout(obj, &IID_IClosable, &obj->IClosable_iface);
+
+        hr = IInspectable_GetRuntimeClassName(inspectable, &str);
+        ok(hr == S_OK, "got hr %#lx\n", hr);
+        bufW = WindowsGetStringRawBuffer(str, NULL);
+        ok(!wcscmp(cur_test->exp_winrt_name, bufW), "got str %s != %s\n", debugstr_hstring(str),
+           debugstr_w(cur_test->exp_winrt_name));
+        WindowsDeleteString(str);
+
+        /* Verify control block fields. */
+        ok(!obj->control_block->is_inline, "got is_inline %d\n", obj->control_block->is_inline);
+        ok(obj->control_block->ref_strong == 1, "got ref_strong %lu\n", obj->control_block->ref_strong);
+        ok(obj->control_block->object == (IUnknown *)&obj->IInspectable_iface, "got object %p != %p\n",
+           obj->control_block->object, &obj->IInspectable_iface);
+        ok(obj->control_block->unknown == 0, "got unknown %d\n", obj->control_block->unknown);
+        ok(obj->control_block->is_exception, "got is_exception %d\n", obj->control_block->is_exception);
+        test_refcount(obj->control_block, 1);
+        count = IInspectable_AddRef(inspectable);
+        ok(count == 2, "got count %lu\n", count);
+        ok(obj->control_block->ref_strong == 2, "got ref_strong %lu\n", obj->control_block->ref_strong);
+        count = IInspectable_Release(inspectable);
+        ok(count == 1, "got count %lu\n", count);
+        ok(obj->control_block->ref_strong == 1, "got ref_strong %lu\n", obj->control_block->ref_strong);
+
+        /* While Exceptions do *not* implement IWeakReferenceSource, the control block vtable still implements
+         * IWeakReference. */
+        hr = IInspectable_QueryInterface(inspectable, &IID_IWeakReferenceSource, (void **)&out);
+        ok(hr == E_NOINTERFACE, "got hr %#lx\n", hr);
+
+        hr = IWeakReference_Resolve(&obj->control_block->IWeakReference_iface,
+                &IID_IAgileObject, (IInspectable **)&out);
+        ok(hr == S_OK, "got hr %#lx\n", hr);
+        test_refcount(inspectable, 2);
+        count = IUnknown_Release(out);
+        ok(count == 1, "got count %lu\n", count);
+        test_refcount(inspectable, 1);
+        ok(obj->control_block->ref_strong == 1, "got ref_strong %lu\n", obj->control_block->ref_strong);
+
+        count = 1;
+        iids = (void*)0xdeadbeef;
+        /* GetIids does not return any IIDs for Platform::Exception objects. */
+        hr = IInspectable_GetIids(inspectable, &count, &iids);
+        ok(hr == S_OK, "got hr %#lx\n", hr);
+        ok(count == 0, "got count %lu\n", count);
+        ok(!iids, "iids = %p\n", iids);
+
+        type_info = p__RTtypeid(obj);
+        ok(type_info != NULL, "got type_info %p\n", type_info);
+        rtti_name = (char *)call_func1(p_type_info_name, type_info);
+        ok(rtti_name && !strcmp(rtti_name, cur_test->exp_rtti_name), "got rtti_name %s != %s\n",
+           debugstr_a(rtti_name), debugstr_a(cur_test->exp_rtti_name));
+        rtti_raw_name = (char *)call_func1(p_type_info_raw_name, type_info);
+        ok(rtti_raw_name && !strcmp(rtti_raw_name, cur_test->exp_rtti_mangled_name), "got rtti_raw_name %s != %s\n",
+           debugstr_a(rtti_raw_name), debugstr_a(cur_test->exp_rtti_mangled_name));
+
+        /* By default, the message returned is from FormatMessageW. */
+        str = p_platform_exception_get_Message(obj);
+        ret = FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM, NULL, cur_test->hr, 0, buf, ARRAY_SIZE(buf), NULL);
+        ok(!!str == !!ret, "got str %s\n", debugstr_hstring(str));
+        if(ret)
+        {
+            bufW = WindowsGetStringRawBuffer(str, NULL);
+            ok(!wcscmp(bufW, buf), "got str %s != %s\n", debugstr_hstring(str), debugstr_w(buf));
+        }
+        WindowsDeleteString(str);
+
+        inner = *(const struct exception_inner **)((ULONG_PTR)obj - sizeof(ULONG_PTR));
+        ok(inner == &obj->inner, "got inner %p != %p\n", inner, &obj->inner);
+        ok(inner->message1 == NULL, "got message1 %p\n", inner->message1);
+        ok(inner->message2 == NULL, "got message2 %p\n", inner->message2);
+        ok(inner->unknown1 == NULL, "got unknown1 %p\n", inner->unknown1);
+        ok(inner->unknown2 == NULL, "got unknown2 %p\n", inner->unknown2);
+        ok(inner->hr == cur_test->hr, "got hr %#lx != %#lx\n", inner->hr, cur_test->hr);
+        ok(inner->error_info == NULL, "got error_info %p\n", inner->error_info);
+        ok(inner->exception_type != NULL, "got exception_type %p\n", inner->exception_type);
+        if (sizeof(void *) == 8)
+            ok(inner->unknown3 == 64, "got unknown3 %u\n", inner->unknown3);
+        else
+            ok(inner->unknown3 == 32, "got unknown3 %u \n", inner->unknown3);
+
+        type = inner->exception_type;
+        ok(type->flags == TYPE_FLAG_IUNKNOWN, "got flags %#x\n", type->flags);
+        /* There is no destructor, presumbly because COMException objects already have COM semantics? */
+        ok(type->destructor == 0, "got destructor %#x\n", type->destructor);
+        ok(type->custom_handler == 0, "got custom_handler %#x\n", type->custom_handler);
+        ok(type->type_info_table != 0, "got type_info_table %#x\n", type->type_info_table);
+
+        type_info_table = (cxx_type_info_table *)(base + type->type_info_table);
+        ok(type_info_table->count != 0, "got count %u\n", type_info_table->count);
+
+        for (j = 0; j < type_info_table->count; j++)
+        {
+            winetest_push_context("j=%u", j);
+
+            cxx_info = (cxx_type_info *)(base + type_info_table->info[j]);
+            if (j == type_info_table->count - 1)
+                ok(cxx_info->flags == CLASS_IS_SIMPLE_TYPE, "got flags %u\n", cxx_info->flags);
+            else
+                ok(cxx_info->flags == (CLASS_IS_SIMPLE_TYPE | CLASS_IS_IUNKNOWN), "got flags %u\n", cxx_info->flags);
+            ok(cxx_info->size == sizeof(void *), "got size %u\n", cxx_info->size);
+            ok(cxx_info->copy_ctor == 0, "got copy_ctor %#x\n", cxx_info->copy_ctor);
+            ok(cxx_info->type_info != 0, "got type_info");
+
+            winetest_pop_context();
+        }
+
+        cxx_info = (cxx_type_info *)(base + type_info_table->info[0]);
+        rtti_info = (rtti_type_info *)(base + cxx_info->type_info);
+        ok(!strcmp(rtti_info->mangled, cur_test->exp_exception_rtti_mangled_name), "got mangled %s != %s\n",
+           debugstr_a(rtti_info->mangled), debugstr_a(cur_test->exp_exception_rtti_mangled_name));
+
+        count = IInspectable_Release(inspectable);
+        ok(count == 0, "got count %lu\n", count);
+
+        /* Create an Exception object with a custom message. */
+        inspectable = pCreateExceptionWithMessage(cur_test->hr, msg);
+        ok(inspectable != NULL, "got excp %p\n", inspectable);
+        str = p_platform_exception_get_Message(inspectable);
+        hr = WindowsCompareStringOrdinal(str, msg, &ret);
+        ok(hr == S_OK, "got hr %#lx\n", hr);
+        ok(!ret, "got str %s != %s\n", debugstr_hstring(str), debugstr_hstring(msg));
+        WindowsDeleteString(str);
+
+        inner = (const struct exception_inner *)*(ULONG_PTR *)((ULONG_PTR)inspectable - sizeof(ULONG_PTR));
+        ok(inner->message1 == NULL, "got message1 %p\n", inner->message1);
+        ok(inner->message2 != NULL, "got message2 %p\n", inner->message2);
+        ok(inner->unknown1 == NULL, "got unknown3 %p\n", inner->unknown1);
+        ok(inner->unknown2 == NULL, "got unknown4 %p\n", inner->unknown2);
+        ok(!wcscmp(inner->message2, msg_bufW), "got message2 %s != %s\n", debugstr_w(inner->message2),
+           debugstr_w(msg_bufW));
+        ret = SysStringLen(inner->message2); /* Verify that message2 is a BSTR. */
+        ok(ret == wcslen(msg_bufW), "got ret %u != %Iu\n", ret, wcslen(msg_bufW));
+
+        count = IInspectable_Release(inspectable);
+        ok(count == 0, "got count %lu\n", count);
+
+        /* Test the constructors for this class. */
+        if (cur_test->ctor)
+        {
+            obj = pAllocateExceptionWithWeakRef(offsetof(struct platform_exception, control_block), sizeof(*obj));
+            inspectable = (IInspectable *)obj;
+            ok(obj != NULL, "got obj %p\n", obj);
+            /* Zero out all the fields that the constructor will initialize, including the back-pointer. */
+            memset((char *)obj - sizeof(void *), 0, sizeof(void *) + offsetof(struct platform_exception, control_block));
+            obj->marshal = NULL;
+
+            cur_test->ctor(obj);
+            test_interface_layout(obj, &IID_IUnknown, &obj->IInspectable_iface);
+            test_interface_layout(obj, &IID_IInspectable, &obj->IInspectable_iface);
+            test_interface_layout(obj, &IID_IAgileObject, &obj->IInspectable_iface);
+            todo_wine test_interface_layout(obj, &IID_IPrintable, &obj->IPrintable_iface);
+            todo_wine test_interface_layout(obj, &IID_IEquatable, &obj->IEquatable_iface);
+            test_interface_layout(obj, &IID_IClosable, &obj->IClosable_iface);
+            ok((ULONG_PTR)obj->marshal == UINTPTR_MAX, "got marshal %p\n", obj->marshal);
+
+            inner = *(const struct exception_inner **)((ULONG_PTR)obj - sizeof(ULONG_PTR));
+            ok(inner == &obj->inner, "got inner %p != %p\n", inner, &obj->inner);
+            ok(inner->message1 == NULL, "got message1 %p\n", inner->message1);
+            ok(inner->message2 == NULL, "got message2 %p\n", inner->message2);
+            ok(inner->unknown1 == NULL, "got unknown1 %p\n", inner->unknown1);
+            ok(inner->unknown2 == NULL, "got unknown2 %p\n", inner->unknown2);
+            ok(obj->inner.exception_type == type, "got inner.exception_type %p != %p\n", obj->inner.exception_type,
+               type);
+            ok(obj->inner.hr == cur_test->hr, "got inner.hr %#lx != %#lx", obj->inner.hr, cur_test->hr);
+
+            count = IInspectable_Release(inspectable);
+            ok(count == 0, "got count %lu\n", count);
+        }
+        if (cur_test->hstring_ctor)
+        {
+            obj = pAllocateExceptionWithWeakRef(offsetof(struct platform_exception, control_block), sizeof(*obj));
+            inspectable = (IInspectable *)obj;
+            ok(obj != NULL, "got obj %p\n", obj);
+            /* Zero out all the fields that the constructor will initialize, including the back-pointer. */
+            memset((char *)obj - sizeof(void *), 0, sizeof(void *) + offsetof(struct platform_exception, control_block));
+            obj->marshal = NULL;
+
+            cur_test->hstring_ctor(obj, msg);
+            test_interface_layout(obj, &IID_IUnknown, &obj->IInspectable_iface);
+            test_interface_layout(obj, &IID_IInspectable, &obj->IInspectable_iface);
+            test_interface_layout(obj, &IID_IAgileObject, &obj->IInspectable_iface);
+            todo_wine test_interface_layout(obj, &IID_IPrintable, &obj->IPrintable_iface);
+            todo_wine test_interface_layout(obj, &IID_IEquatable, &obj->IEquatable_iface);
+            test_interface_layout(obj, &IID_IClosable, &obj->IClosable_iface);
+            ok((ULONG_PTR)obj->marshal == UINTPTR_MAX, "got marshal %p\n", obj->marshal);
+
+            inner = *(const struct exception_inner **)((ULONG_PTR)obj - sizeof(ULONG_PTR));
+            ok(inner == &obj->inner, "got inner %p != %p\n", inner, &obj->inner);
+            ok(inner->message1 == NULL, "got message1 %p\n", inner->message1);
+            ok(inner->message2 != NULL, "got message2 %p\n", inner->message2);
+            ok(!wcscmp(inner->message2, msg_bufW), "got message2 %s != %s\n", debugstr_w(inner->message2),
+               debugstr_w(msg_bufW));
+            ret = SysStringLen(inner->message2); /* Verify that message2 is a BSTR. */
+            ok(ret == wcslen(msg_bufW), "got ret %u != %Iu\n", ret, wcslen(msg_bufW));
+            ok(inner->unknown1 == NULL, "got unknown1 %p\n", inner->unknown1);
+            ok(inner->unknown2 == NULL, "got unknown2 %p\n", inner->unknown2);
+            ok(obj->inner.exception_type == type, "got inner.exception_type %p != %p\n", obj->inner.exception_type,
+               type);
+            ok(obj->inner.hr == cur_test->hr, "got inner.hr %#lx != %#lx", obj->inner.hr, cur_test->hr);
+
+            count = IInspectable_Release(inspectable);
+            ok(count == 0, "got count %lu\n", count);
+        }
+
+        winetest_pop_context();
+    }
+}
+
 START_TEST(vccorlib)
 {
     if(!init())
@@ -1033,4 +1609,5 @@ START_TEST(vccorlib)
     test_AllocateWithWeakRef();
     test___abi_make_type_id();
     test_CreateValue();
+    test_exceptions();
 }

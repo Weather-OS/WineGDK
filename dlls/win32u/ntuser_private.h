@@ -112,6 +112,7 @@ struct user_thread_info
 {
     struct ntuser_thread_info     client_info;            /* Data shared with client */
     HANDLE                        server_queue;           /* Handle to server-side queue */
+    HANDLE                        idle_event;             /* Handle to the process idle event */
     LONGLONG                      last_driver_time;       /* Get/PeekMessage driver event time */
     WORD                          hook_call_depth;        /* Number of recursively called hook procs */
     WORD                          hook_unicode;           /* Is current hook unicode? */
@@ -212,7 +213,6 @@ extern void free_dce( struct dce *dce, HWND hwnd );
 extern void invalidate_dce( WND *win, const RECT *old_rect );
 
 /* message.c */
-extern BOOL process_driver_events( UINT mask );
 extern void check_for_events( UINT flags );
 
 /* systray.c */

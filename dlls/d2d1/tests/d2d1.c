@@ -60,6 +60,78 @@ static void check_interface_(unsigned int line, void *iface_ptr, REFIID iid, BOO
         IUnknown_Release(unk);
 }
 
+#define effect_get_float_prop(a,b) _effect_get_float_prop(a,b,__LINE__)
+static float _effect_get_float_prop(ID2D1Effect *effect, UINT32 prop, int line)
+{
+    float v = 123321.0f;
+    HRESULT hr;
+
+    hr = ID2D1Effect_GetValue(effect, prop, D2D1_PROPERTY_TYPE_FLOAT, (BYTE *)&v, sizeof(v));
+    ok_(__FILE__, line)(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    return v;
+}
+
+#define effect_get_vec4_prop(a,b) _effect_get_vec4_prop(a,b,__LINE__)
+static D2D_VECTOR_4F _effect_get_vec4_prop(ID2D1Effect *effect, UINT32 prop, int line)
+{
+    D2D_VECTOR_4F v = { 123321.0f, 123321.0f, 123321.0f, 123321.0f };
+    HRESULT hr;
+
+    hr = ID2D1Effect_GetValue(effect, prop, D2D1_PROPERTY_TYPE_VECTOR4, (BYTE *)&v, sizeof(v));
+    ok_(__FILE__, line)(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    return v;
+}
+
+#define effect_get_vec3_prop(a,b) _effect_get_vec3_prop(a,b,__LINE__)
+static D2D_VECTOR_3F _effect_get_vec3_prop(ID2D1Effect *effect, UINT32 prop, int line)
+{
+    D2D_VECTOR_3F v = { 123321.0f, 123321.0f, 123321.0f };
+    HRESULT hr;
+
+    hr = ID2D1Effect_GetValue(effect, prop, D2D1_PROPERTY_TYPE_VECTOR3, (BYTE *)&v, sizeof(v));
+    ok_(__FILE__, line)(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    return v;
+}
+
+#define effect_get_vec2_prop(a,b) _effect_get_vec2_prop(a,b,__LINE__)
+static D2D_VECTOR_2F _effect_get_vec2_prop(ID2D1Effect *effect, UINT32 prop, int line)
+{
+    D2D_VECTOR_2F v = { 123321.0f, 123321.0f };
+    HRESULT hr;
+
+    hr = ID2D1Effect_GetValue(effect, prop, D2D1_PROPERTY_TYPE_VECTOR2, (BYTE *)&v, sizeof(v));
+    ok_(__FILE__, line)(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    return v;
+}
+
+#define effect_get_enum_prop(a,b) _effect_get_enum_prop(a,b,__LINE__)
+static UINT32 _effect_get_enum_prop(ID2D1Effect *effect, UINT32 prop, int line)
+{
+    UINT32 v = 123321;
+    HRESULT hr;
+
+    hr = ID2D1Effect_GetValue(effect, prop, D2D1_PROPERTY_TYPE_ENUM, (BYTE *)&v, sizeof(v));
+    ok_(__FILE__, line)(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    return v;
+}
+
+#define effect_get_bool_prop(a,b) _effect_get_bool_prop(a,b,__LINE__)
+static UINT32 _effect_get_bool_prop(ID2D1Effect *effect, UINT32 prop, int line)
+{
+    UINT32 v = 123321;
+    HRESULT hr;
+
+    hr = ID2D1Effect_GetValue(effect, prop, D2D1_PROPERTY_TYPE_BOOL, (BYTE *)&v, sizeof(v));
+    ok_(__FILE__, line)(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    return v;
+}
+
 static const WCHAR *effect_xml_a =
 L"<?xml version='1.0'?>                                                       \
     <Effect>                                                                  \
@@ -347,7 +419,7 @@ struct figure
 
 struct geometry_sink
 {
-    ID2D1SimplifiedGeometrySink ID2D1SimplifiedGeometrySink_iface;
+    ID2D1GeometrySink ID2D1GeometrySink_iface;
 
     struct geometry_figure
     {
@@ -359,11 +431,15 @@ struct geometry_sink
             enum
             {
                 SEGMENT_BEZIER,
+                SEGMENT_QUADRATIC_BEZIER,
+                SEGMENT_ARC,
                 SEGMENT_LINE,
             } type;
             union
             {
                 D2D1_BEZIER_SEGMENT bezier;
+                D2D1_QUADRATIC_BEZIER_SEGMENT quadratic_bezier;
+                D2D1_ARC_SEGMENT arc;
                 D2D1_POINT_2F line;
             } u;
             DWORD flags;
@@ -830,6 +906,24 @@ static BOOL compare_bezier_segment(const D2D1_BEZIER_SEGMENT *b, float x1, float
     return compare_point(&b->point1, x1, y1, ulps)
             && compare_point(&b->point2, x2, y2, ulps)
             && compare_point(&b->point3, x3, y3, ulps);
+}
+
+static BOOL compare_quadratic_bezier_segment(const D2D1_QUADRATIC_BEZIER_SEGMENT *b, float x1, float y1,
+        float x2, float y2, unsigned int ulps)
+{
+    return compare_point(&b->point1, x1, y1, ulps)
+            && compare_point(&b->point2, x2, y2, ulps);
+}
+
+static BOOL compare_arc_segment(const D2D1_ARC_SEGMENT *a, float x, float y, float width, float height,
+        float angle, D2D1_SWEEP_DIRECTION sweep_direction, D2D1_ARC_SIZE arc_size, unsigned int ulps)
+{
+    return compare_point(&a->point, x, y, ulps)
+            && compare_float(a->size.width, width, ulps)
+            && compare_float(a->size.height, height, ulps)
+            && compare_float(a->rotationAngle, angle, ulps)
+            && a->sweepDirection == sweep_direction
+            && a->arcSize == arc_size;
 }
 
 static BOOL compare_sha1(void *data, unsigned int pitch, unsigned int bpp,
@@ -1418,15 +1512,16 @@ static void check_bitmap_surface_(unsigned int line, ID2D1Bitmap *bitmap, BOOL h
     ID2D1Bitmap1_Release(bitmap1);
 }
 
-static inline struct geometry_sink *impl_from_ID2D1SimplifiedGeometrySink(ID2D1SimplifiedGeometrySink *iface)
+static inline struct geometry_sink *impl_from_ID2D1GeometrySink(ID2D1GeometrySink *iface)
 {
-    return CONTAINING_RECORD(iface, struct geometry_sink, ID2D1SimplifiedGeometrySink_iface);
+    return CONTAINING_RECORD(iface, struct geometry_sink, ID2D1GeometrySink_iface);
 }
 
-static HRESULT STDMETHODCALLTYPE geometry_sink_QueryInterface(ID2D1SimplifiedGeometrySink *iface,
+static HRESULT STDMETHODCALLTYPE geometry_sink_QueryInterface(ID2D1GeometrySink *iface,
         REFIID iid, void **out)
 {
-    if (IsEqualGUID(iid, &IID_ID2D1SimplifiedGeometrySink)
+    if (IsEqualGUID(iid, &IID_ID2D1GeometrySink)
+            || IsEqualGUID(iid, &IID_ID2D1SimplifiedGeometrySink)
             || IsEqualGUID(iid, &IID_IUnknown))
     {
         *out = iface;
@@ -1437,35 +1532,35 @@ static HRESULT STDMETHODCALLTYPE geometry_sink_QueryInterface(ID2D1SimplifiedGeo
     return E_NOINTERFACE;
 }
 
-static ULONG STDMETHODCALLTYPE geometry_sink_AddRef(ID2D1SimplifiedGeometrySink *iface)
+static ULONG STDMETHODCALLTYPE geometry_sink_AddRef(ID2D1GeometrySink *iface)
 {
     return 0;
 }
 
-static ULONG STDMETHODCALLTYPE geometry_sink_Release(ID2D1SimplifiedGeometrySink *iface)
+static ULONG STDMETHODCALLTYPE geometry_sink_Release(ID2D1GeometrySink *iface)
 {
     return 0;
 }
 
-static void STDMETHODCALLTYPE geometry_sink_SetFillMode(ID2D1SimplifiedGeometrySink *iface, D2D1_FILL_MODE mode)
+static void STDMETHODCALLTYPE geometry_sink_SetFillMode(ID2D1GeometrySink *iface, D2D1_FILL_MODE mode)
 {
-    struct geometry_sink *sink = impl_from_ID2D1SimplifiedGeometrySink(iface);
+    struct geometry_sink *sink = impl_from_ID2D1GeometrySink(iface);
 
     sink->fill_mode = mode;
 }
 
-static void STDMETHODCALLTYPE geometry_sink_SetSegmentFlags(ID2D1SimplifiedGeometrySink *iface,
+static void STDMETHODCALLTYPE geometry_sink_SetSegmentFlags(ID2D1GeometrySink *iface,
         D2D1_PATH_SEGMENT flags)
 {
-    struct geometry_sink *sink = impl_from_ID2D1SimplifiedGeometrySink(iface);
+    struct geometry_sink *sink = impl_from_ID2D1GeometrySink(iface);
 
     sink->segment_flags = flags;
 }
 
-static void STDMETHODCALLTYPE geometry_sink_BeginFigure(ID2D1SimplifiedGeometrySink *iface,
+static void STDMETHODCALLTYPE geometry_sink_BeginFigure(ID2D1GeometrySink *iface,
         D2D1_POINT_2F start_point, D2D1_FIGURE_BEGIN figure_begin)
 {
-    struct geometry_sink *sink = impl_from_ID2D1SimplifiedGeometrySink(iface);
+    struct geometry_sink *sink = impl_from_ID2D1GeometrySink(iface);
     struct geometry_figure *figure;
 
     if (sink->figure_count == sink->figures_size)
@@ -1494,10 +1589,10 @@ static struct geometry_segment *geometry_figure_add_segment(struct geometry_figu
     return &figure->segments[figure->segment_count++];
 }
 
-static void STDMETHODCALLTYPE geometry_sink_AddLines(ID2D1SimplifiedGeometrySink *iface,
+static void STDMETHODCALLTYPE geometry_sink_AddLines(ID2D1GeometrySink *iface,
         const D2D1_POINT_2F *points, UINT32 count)
 {
-    struct geometry_sink *sink = impl_from_ID2D1SimplifiedGeometrySink(iface);
+    struct geometry_sink *sink = impl_from_ID2D1GeometrySink(iface);
     struct geometry_figure *figure = &sink->figures[sink->figure_count - 1];
     struct geometry_segment *segment;
     unsigned int i;
@@ -1511,10 +1606,10 @@ static void STDMETHODCALLTYPE geometry_sink_AddLines(ID2D1SimplifiedGeometrySink
     }
 }
 
-static void STDMETHODCALLTYPE geometry_sink_AddBeziers(ID2D1SimplifiedGeometrySink *iface,
+static void STDMETHODCALLTYPE geometry_sink_AddBeziers(ID2D1GeometrySink *iface,
         const D2D1_BEZIER_SEGMENT *beziers, UINT32 count)
 {
-    struct geometry_sink *sink = impl_from_ID2D1SimplifiedGeometrySink(iface);
+    struct geometry_sink *sink = impl_from_ID2D1GeometrySink(iface);
     struct geometry_figure *figure = &sink->figures[sink->figure_count - 1];
     struct geometry_segment *segment;
     unsigned int i;
@@ -1528,25 +1623,71 @@ static void STDMETHODCALLTYPE geometry_sink_AddBeziers(ID2D1SimplifiedGeometrySi
     }
 }
 
-static void STDMETHODCALLTYPE geometry_sink_EndFigure(ID2D1SimplifiedGeometrySink *iface,
+static void STDMETHODCALLTYPE geometry_sink_EndFigure(ID2D1GeometrySink *iface,
         D2D1_FIGURE_END figure_end)
 {
-    struct geometry_sink *sink = impl_from_ID2D1SimplifiedGeometrySink(iface);
+    struct geometry_sink *sink = impl_from_ID2D1GeometrySink(iface);
     struct geometry_figure *figure = &sink->figures[sink->figure_count - 1];
 
     figure->end = figure_end;
 }
 
-static HRESULT STDMETHODCALLTYPE geometry_sink_Close(ID2D1SimplifiedGeometrySink *iface)
+static HRESULT STDMETHODCALLTYPE geometry_sink_Close(ID2D1GeometrySink *iface)
 {
-    struct geometry_sink *sink = impl_from_ID2D1SimplifiedGeometrySink(iface);
+    struct geometry_sink *sink = impl_from_ID2D1GeometrySink(iface);
 
     sink->closed = TRUE;
 
     return S_OK;
 }
 
-static const struct ID2D1SimplifiedGeometrySinkVtbl geometry_sink_vtbl =
+static void STDMETHODCALLTYPE geometry_sink_AddLine(ID2D1GeometrySink *iface, D2D1_POINT_2F point)
+{
+    geometry_sink_AddLines(iface, &point, 1);
+}
+
+static void STDMETHODCALLTYPE geometry_sink_AddBezier(ID2D1GeometrySink *iface,
+        const D2D1_BEZIER_SEGMENT *bezier)
+{
+    geometry_sink_AddBeziers(iface, bezier, 1);
+}
+
+static void STDMETHODCALLTYPE geometry_sink_AddQuadraticBezier(ID2D1GeometrySink *iface,
+        const D2D1_QUADRATIC_BEZIER_SEGMENT *bezier)
+{
+    ID2D1GeometrySink_AddQuadraticBeziers(iface, bezier, 1);
+}
+
+static void STDMETHODCALLTYPE geometry_sink_AddQuadraticBeziers(ID2D1GeometrySink *iface,
+        const D2D1_QUADRATIC_BEZIER_SEGMENT *beziers, UINT32 count)
+{
+    struct geometry_sink *sink = impl_from_ID2D1GeometrySink(iface);
+    struct geometry_figure *figure = &sink->figures[sink->figure_count - 1];
+    struct geometry_segment *segment;
+    unsigned int i;
+
+    for (i = 0; i < count; ++i)
+    {
+        segment = geometry_figure_add_segment(figure);
+        segment->type = SEGMENT_QUADRATIC_BEZIER;
+        segment->u.quadratic_bezier = beziers[i];
+        segment->flags = sink->segment_flags;
+    }
+}
+
+static void STDMETHODCALLTYPE geometry_sink_AddArc(ID2D1GeometrySink *iface,
+        const D2D1_ARC_SEGMENT *arc)
+{
+    struct geometry_sink *sink = impl_from_ID2D1GeometrySink(iface);
+    struct geometry_figure *figure = &sink->figures[sink->figure_count - 1];
+    struct geometry_segment *segment = geometry_figure_add_segment(figure);
+
+    segment->type = SEGMENT_ARC;
+    segment->u.arc = *arc;
+    segment->flags = sink->segment_flags;
+}
+
+static const struct ID2D1GeometrySinkVtbl geometry_sink_vtbl =
 {
     geometry_sink_QueryInterface,
     geometry_sink_AddRef,
@@ -1558,12 +1699,17 @@ static const struct ID2D1SimplifiedGeometrySinkVtbl geometry_sink_vtbl =
     geometry_sink_AddBeziers,
     geometry_sink_EndFigure,
     geometry_sink_Close,
+    geometry_sink_AddLine,
+    geometry_sink_AddBezier,
+    geometry_sink_AddQuadraticBezier,
+    geometry_sink_AddQuadraticBeziers,
+    geometry_sink_AddArc,
 };
 
 static void geometry_sink_init(struct geometry_sink *sink)
 {
     memset(sink, 0, sizeof(*sink));
-    sink->ID2D1SimplifiedGeometrySink_iface.lpVtbl = &geometry_sink_vtbl;
+    sink->ID2D1GeometrySink_iface.lpVtbl = &geometry_sink_vtbl;
     sink->figures_size = 4;
     sink->figures = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY,
             sink->figures_size * sizeof(*sink->figures));
@@ -1657,6 +1803,36 @@ static void geometry_sink_check_(unsigned int line, const struct geometry_sink *
                             expected_segment->u.bezier.point2.x, expected_segment->u.bezier.point2.y,
                             expected_segment->u.bezier.point3.x, expected_segment->u.bezier.point3.y);
                     break;
+               case SEGMENT_QUADRATIC_BEZIER:
+                    match = compare_quadratic_bezier_segment(&segment->u.quadratic_bezier,
+                            expected_segment->u.bezier.point1.x, expected_segment->u.bezier.point1.y,
+                            expected_segment->u.bezier.point2.x, expected_segment->u.bezier.point2.y,
+                            ulps);
+                    ok_(__FILE__, line)(match, "Got unexpected figure %u segment %u "
+                            "{%.8e, %.8e, %.8e, %.8e}, "
+                            "expected {%.8e, %.8e, %.8e, %.8e}.\n",
+                            i, j, segment->u.bezier.point1.x, segment->u.bezier.point1.y,
+                            segment->u.bezier.point2.x, segment->u.bezier.point2.y,
+                            expected_segment->u.bezier.point1.x, expected_segment->u.bezier.point1.y,
+                            expected_segment->u.bezier.point2.x, expected_segment->u.bezier.point2.y);
+                    break;
+               case SEGMENT_ARC:
+                    match = compare_arc_segment(&segment->u.arc,
+                            expected_segment->u.arc.point.x, expected_segment->u.arc.point.y,
+                            expected_segment->u.arc.size.width, expected_segment->u.arc.size.height,
+                            expected_segment->u.arc.rotationAngle, expected_segment->u.arc.sweepDirection,
+                            expected_segment->u.arc.arcSize, ulps);
+                    ok_(__FILE__, line)(match, "Got unexpected figure %u segment %u "
+                            "{%.8e, %.8e, %.8e, %.8e, %.8e, %u, %u}, "
+                            "expected {%.8e, %.8e, %.8e, %.8e, %.8e, %u, %u}.\n",
+                            i, j, segment->u.arc.point.x, segment->u.arc.point.y,
+                            segment->u.arc.size.width, segment->u.arc.size.height,
+                            segment->u.arc.rotationAngle, segment->u.arc.sweepDirection, segment->u.arc.arcSize,
+                            expected_segment->u.arc.point.x, expected_segment->u.arc.point.y,
+                            expected_segment->u.arc.size.width, expected_segment->u.arc.size.height,
+                            expected_segment->u.arc.rotationAngle, expected_segment->u.arc.sweepDirection,
+                            expected_segment->u.arc.arcSize);
+                    break;
             }
         }
 
@@ -1676,6 +1852,20 @@ static void geometry_sink_check_(unsigned int line, const struct geometry_sink *
                             segment->u.bezier.point2.x, segment->u.bezier.point2.y,
                             segment->u.bezier.point3.x, segment->u.bezier.point3.y);
                     break;
+                case SEGMENT_QUADRATIC_BEZIER:
+                    ok_(__FILE__, line)(FALSE, "Missing figure %u segment %u "
+                            "{%.8e, %.8e, %.8e, %.8e}\n",
+                            i, j, segment->u.bezier.point1.x, segment->u.bezier.point1.y,
+                            segment->u.bezier.point2.x, segment->u.bezier.point2.y);
+                    break;
+                case SEGMENT_ARC:
+                    ok_(__FILE__, line)(FALSE, "Missing figure %u segment %u "
+                            "{%.8e, %.8e, %.8e, %.8e, %.8e, %u, %u}\n",
+                            i, j, segment->u.arc.point.x, segment->u.arc.point.y,
+                            segment->u.arc.size.width, segment->u.arc.size.height,
+                            segment->u.arc.rotationAngle, segment->u.arc.sweepDirection,
+                            segment->u.arc.arcSize);
+                    break;
             }
         }
 
@@ -1694,6 +1884,20 @@ static void geometry_sink_check_(unsigned int line, const struct geometry_sink *
                             i, j, segment->u.bezier.point1.x, segment->u.bezier.point1.y,
                             segment->u.bezier.point2.x, segment->u.bezier.point2.y,
                             segment->u.bezier.point3.x, segment->u.bezier.point3.y);
+                    break;
+                case SEGMENT_QUADRATIC_BEZIER:
+                    ok_(__FILE__, line)(FALSE, "Got unexpected figure %u segment %u "
+                            "{%.8e, %.8e, %.8e, %.8e}\n",
+                            i, j, segment->u.bezier.point1.x, segment->u.bezier.point1.y,
+                            segment->u.bezier.point2.x, segment->u.bezier.point2.y);
+                    break;
+                case SEGMENT_ARC:
+                    ok_(__FILE__, line)(FALSE, "Got unexpected figure %u segment %u "
+                            "{%.8e, %.8e, %.8e, %.8e, %.8e, %u, %u}\n",
+                            i, j, segment->u.arc.point.x, segment->u.arc.point.y,
+                            segment->u.arc.size.width, segment->u.arc.size.height,
+                            segment->u.arc.rotationAngle, segment->u.arc.sweepDirection,
+                            segment->u.arc.arcSize);
                     break;
             }
         }
@@ -3308,6 +3512,7 @@ static void test_path_geometry(BOOL d3d11)
     D2D1_COLOR_F color;
     D2D1_RECT_F rect;
     UINT32 count;
+    float area;
     HRESULT hr;
 
     static const struct geometry_segment expected_segments[] =
@@ -3690,6 +3895,17 @@ static void test_path_geometry(BOOL d3d11)
     ok(!count, "Got unexpected segment count %u.\n", count);
     ID2D1PathGeometry_Release(geometry);
 
+    /* Invalid segment flags. */
+    hr = ID2D1Factory_CreatePathGeometry(factory, &geometry);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    hr = ID2D1PathGeometry_Open(geometry, &sink);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    ID2D1GeometrySink_SetSegmentFlags(sink, 0xff);
+    hr = ID2D1GeometrySink_Close(sink);
+    ok(hr == E_INVALIDARG, "Got unexpected hr %#lx.\n", hr);
+    ID2D1GeometrySink_Release(sink);
+    ID2D1PathGeometry_Release(geometry);
+
     /* Open() when closed. */
     hr = ID2D1Factory_CreatePathGeometry(factory, &geometry);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
@@ -4009,13 +4225,13 @@ static void test_path_geometry(BOOL d3d11)
 
     geometry_sink_init(&simplify_sink);
     hr = ID2D1PathGeometry_Simplify(geometry, D2D1_GEOMETRY_SIMPLIFICATION_OPTION_LINES,
-            NULL, 0.0f, &simplify_sink.ID2D1SimplifiedGeometrySink_iface);
+            NULL, 0.0f, (ID2D1SimplifiedGeometrySink *)&simplify_sink.ID2D1GeometrySink_iface);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
     geometry_sink_check(&simplify_sink, D2D1_FILL_MODE_ALTERNATE, 6, &expected_figures[0], 0);
     geometry_sink_cleanup(&simplify_sink);
     geometry_sink_init(&simplify_sink);
     hr = ID2D1PathGeometry_Simplify(geometry, D2D1_GEOMETRY_SIMPLIFICATION_OPTION_CUBICS_AND_LINES,
-            NULL, 0.0f, &simplify_sink.ID2D1SimplifiedGeometrySink_iface);
+            NULL, 0.0f, (ID2D1SimplifiedGeometrySink *)&simplify_sink.ID2D1GeometrySink_iface);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
     geometry_sink_check(&simplify_sink, D2D1_FILL_MODE_ALTERNATE, 6, &expected_figures[0], 0);
     geometry_sink_cleanup(&simplify_sink);
@@ -4028,7 +4244,7 @@ static void test_path_geometry(BOOL d3d11)
 
     geometry_sink_init(&simplify_sink);
     hr = ID2D1TransformedGeometry_Simplify(transformed_geometry, D2D1_GEOMETRY_SIMPLIFICATION_OPTION_LINES,
-            NULL, 0.0f, &simplify_sink.ID2D1SimplifiedGeometrySink_iface);
+            NULL, 0.0f, (ID2D1SimplifiedGeometrySink *)&simplify_sink.ID2D1GeometrySink_iface);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
     geometry_sink_check(&simplify_sink, D2D1_FILL_MODE_ALTERNATE, 6, &expected_figures[6], 0);
     geometry_sink_cleanup(&simplify_sink);
@@ -4043,7 +4259,7 @@ static void test_path_geometry(BOOL d3d11)
             tmp_matrix._22, tmp_matrix._31, tmp_matrix._32);
     geometry_sink_init(&simplify_sink);
     hr = ID2D1Geometry_Simplify(tmp_geometry, D2D1_GEOMETRY_SIMPLIFICATION_OPTION_LINES,
-            &tmp_matrix, 0.0f, &simplify_sink.ID2D1SimplifiedGeometrySink_iface);
+            &tmp_matrix, 0.0f, (ID2D1SimplifiedGeometrySink *)&simplify_sink.ID2D1GeometrySink_iface);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
     geometry_sink_check(&simplify_sink, D2D1_FILL_MODE_ALTERNATE, 6, &expected_figures[6], 0);
     geometry_sink_cleanup(&simplify_sink);
@@ -4120,7 +4336,7 @@ static void test_path_geometry(BOOL d3d11)
 
     geometry_sink_init(&simplify_sink);
     hr = ID2D1PathGeometry_Simplify(geometry, D2D1_GEOMETRY_SIMPLIFICATION_OPTION_LINES,
-            NULL, 0.0f, &simplify_sink.ID2D1SimplifiedGeometrySink_iface);
+            NULL, 0.0f, (ID2D1SimplifiedGeometrySink *)&simplify_sink.ID2D1GeometrySink_iface);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
     geometry_sink_check(&simplify_sink, D2D1_FILL_MODE_WINDING, 6, &expected_figures[0], 0);
     geometry_sink_cleanup(&simplify_sink);
@@ -4159,19 +4375,19 @@ static void test_path_geometry(BOOL d3d11)
 
     geometry_sink_init(&simplify_sink);
     hr = ID2D1PathGeometry_Simplify(geometry, D2D1_GEOMETRY_SIMPLIFICATION_OPTION_CUBICS_AND_LINES,
-            NULL, 0.0f, &simplify_sink.ID2D1SimplifiedGeometrySink_iface);
+            NULL, 0.0f, (ID2D1SimplifiedGeometrySink *)&simplify_sink.ID2D1GeometrySink_iface);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
     geometry_sink_check(&simplify_sink, D2D1_FILL_MODE_ALTERNATE, 4, &expected_figures[12], 1);
     geometry_sink_cleanup(&simplify_sink);
     geometry_sink_init(&simplify_sink);
     hr = ID2D1PathGeometry_Simplify(geometry, D2D1_GEOMETRY_SIMPLIFICATION_OPTION_LINES,
-            NULL, 100.0f, &simplify_sink.ID2D1SimplifiedGeometrySink_iface);
+            NULL, 100.0f, (ID2D1SimplifiedGeometrySink *)&simplify_sink.ID2D1GeometrySink_iface);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
     geometry_sink_check(&simplify_sink, D2D1_FILL_MODE_ALTERNATE, 4, &expected_figures[20], 1);
     geometry_sink_cleanup(&simplify_sink);
     geometry_sink_init(&simplify_sink);
     hr = ID2D1PathGeometry_Simplify(geometry, D2D1_GEOMETRY_SIMPLIFICATION_OPTION_LINES,
-            NULL, 10.0f, &simplify_sink.ID2D1SimplifiedGeometrySink_iface);
+            NULL, 10.0f, (ID2D1SimplifiedGeometrySink *)&simplify_sink.ID2D1GeometrySink_iface);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
     geometry_sink_check(&simplify_sink, D2D1_FILL_MODE_ALTERNATE, 4, &expected_figures[24], 1);
     geometry_sink_cleanup(&simplify_sink);
@@ -4186,7 +4402,7 @@ static void test_path_geometry(BOOL d3d11)
 
     geometry_sink_init(&simplify_sink);
     hr = ID2D1TransformedGeometry_Simplify(transformed_geometry, D2D1_GEOMETRY_SIMPLIFICATION_OPTION_CUBICS_AND_LINES,
-            NULL, 0.0f, &simplify_sink.ID2D1SimplifiedGeometrySink_iface);
+            NULL, 0.0f, (ID2D1SimplifiedGeometrySink *)&simplify_sink.ID2D1GeometrySink_iface);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
     geometry_sink_check(&simplify_sink, D2D1_FILL_MODE_ALTERNATE, 4, &expected_figures[16], 4);
     geometry_sink_cleanup(&simplify_sink);
@@ -4262,19 +4478,19 @@ static void test_path_geometry(BOOL d3d11)
 
     geometry_sink_init(&simplify_sink);
     hr = ID2D1PathGeometry_Simplify(geometry, D2D1_GEOMETRY_SIMPLIFICATION_OPTION_CUBICS_AND_LINES,
-            NULL, 0.0f, &simplify_sink.ID2D1SimplifiedGeometrySink_iface);
+            NULL, 0.0f, (ID2D1SimplifiedGeometrySink *)&simplify_sink.ID2D1GeometrySink_iface);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
     geometry_sink_check(&simplify_sink, D2D1_FILL_MODE_WINDING, 4, &expected_figures[12], 1);
     geometry_sink_cleanup(&simplify_sink);
     geometry_sink_init(&simplify_sink);
     hr = ID2D1PathGeometry_Simplify(geometry, D2D1_GEOMETRY_SIMPLIFICATION_OPTION_LINES,
-            NULL, 100.0f, &simplify_sink.ID2D1SimplifiedGeometrySink_iface);
+            NULL, 100.0f, (ID2D1SimplifiedGeometrySink *)&simplify_sink.ID2D1GeometrySink_iface);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
     geometry_sink_check(&simplify_sink, D2D1_FILL_MODE_WINDING, 4, &expected_figures[20], 1);
     geometry_sink_cleanup(&simplify_sink);
     geometry_sink_init(&simplify_sink);
     hr = ID2D1PathGeometry_Simplify(geometry, D2D1_GEOMETRY_SIMPLIFICATION_OPTION_LINES,
-            NULL, 10.0f, &simplify_sink.ID2D1SimplifiedGeometrySink_iface);
+            NULL, 10.0f, (ID2D1SimplifiedGeometrySink *)&simplify_sink.ID2D1GeometrySink_iface);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
     geometry_sink_check(&simplify_sink, D2D1_FILL_MODE_WINDING, 4, &expected_figures[24], 1);
     geometry_sink_cleanup(&simplify_sink);
@@ -4382,7 +4598,7 @@ static void test_path_geometry(BOOL d3d11)
 
     geometry_sink_init(&simplify_sink);
     hr = ID2D1PathGeometry_Simplify(geometry, D2D1_GEOMETRY_SIMPLIFICATION_OPTION_LINES,
-            NULL, 0.0f, &simplify_sink.ID2D1SimplifiedGeometrySink_iface);
+            NULL, 0.0f, (ID2D1SimplifiedGeometrySink *)&simplify_sink.ID2D1GeometrySink_iface);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
     geometry_sink_check(&simplify_sink, D2D1_FILL_MODE_ALTERNATE, 1, &expected_figures[28], 1);
     geometry_sink_cleanup(&simplify_sink);
@@ -4431,7 +4647,7 @@ static void test_path_geometry(BOOL d3d11)
 
     geometry_sink_init(&simplify_sink);
     hr = ID2D1PathGeometry_Simplify(geometry, D2D1_GEOMETRY_SIMPLIFICATION_OPTION_CUBICS_AND_LINES,
-            NULL, 0.0f, &simplify_sink.ID2D1SimplifiedGeometrySink_iface);
+            NULL, 0.0f, (ID2D1SimplifiedGeometrySink *)&simplify_sink.ID2D1GeometrySink_iface);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
     geometry_sink_check(&simplify_sink, D2D1_FILL_MODE_ALTERNATE, 4, &expected_figures[29], 1);
     geometry_sink_cleanup(&simplify_sink);
@@ -4439,6 +4655,38 @@ static void test_path_geometry(BOOL d3d11)
     ID2D1PathGeometry_Release(geometry);
 
     ID2D1SolidColorBrush_Release(brush);
+
+    /* ComputeArea */
+    hr = ID2D1Factory_CreatePathGeometry(factory, &geometry);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    hr = ID2D1PathGeometry_Open(geometry, &sink);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    set_point(&point, 0.0f, 0.0f);
+    ID2D1GeometrySink_BeginFigure(sink, point, D2D1_FIGURE_BEGIN_FILLED);
+    line_to(sink, 100.0f, 0.0f);
+    line_to(sink, 100.0f, 100.0f);
+    line_to(sink, 0.0f, 100.0f);
+    line_to(sink, 50.0f, 50.0f);
+    ID2D1GeometrySink_EndFigure(sink, D2D1_FIGURE_END_CLOSED);
+
+    set_point(&point, -100.0f, -100.0f);
+    ID2D1GeometrySink_BeginFigure(sink, point, D2D1_FIGURE_BEGIN_FILLED);
+    line_to(sink, 60.0f, 40.0f);
+    line_to(sink, -100.0f, 100.0f);
+    line_to(sink, -50.0f, 0.0f);
+    ID2D1GeometrySink_EndFigure(sink, D2D1_FIGURE_END_CLOSED);
+
+    hr = ID2D1GeometrySink_Close(sink);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    ID2D1GeometrySink_Release(sink);
+
+    hr = ID2D1PathGeometry_ComputeArea(geometry, NULL, 1.0f, &area);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    ok(compare_float(area, 1.701948e4, 1), "Unexpected area value %.8e.\n", area);
+
+    ID2D1PathGeometry_Release(geometry);
+
     release_test_context(&ctx);
 }
 
@@ -4593,13 +4841,13 @@ static void test_rectangle_geometry(BOOL d3d11)
             rect.left, rect.top, rect.right, rect.bottom);
     geometry_sink_init(&sink);
     hr = ID2D1RectangleGeometry_Simplify(geometry, D2D1_GEOMETRY_SIMPLIFICATION_OPTION_CUBICS_AND_LINES,
-            NULL, 0.0f, &sink.ID2D1SimplifiedGeometrySink_iface);
+            NULL, 0.0f, (ID2D1SimplifiedGeometrySink *)&sink.ID2D1GeometrySink_iface);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
     geometry_sink_check(&sink, D2D1_FILL_MODE_ALTERNATE, 1, &expected_figures[0], 0);
     geometry_sink_cleanup(&sink);
     geometry_sink_init(&sink);
     hr = ID2D1RectangleGeometry_Simplify(geometry, D2D1_GEOMETRY_SIMPLIFICATION_OPTION_LINES,
-            NULL, 0.0f, &sink.ID2D1SimplifiedGeometrySink_iface);
+            NULL, 0.0f, (ID2D1SimplifiedGeometrySink *)&sink.ID2D1GeometrySink_iface);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
     geometry_sink_check(&sink, D2D1_FILL_MODE_ALTERNATE, 1, &expected_figures[0], 0);
     geometry_sink_cleanup(&sink);
@@ -4615,7 +4863,7 @@ static void test_rectangle_geometry(BOOL d3d11)
             rect.left, rect.top, rect.right, rect.bottom);
     geometry_sink_init(&sink);
     hr = ID2D1RectangleGeometry_Simplify(geometry, D2D1_GEOMETRY_SIMPLIFICATION_OPTION_CUBICS_AND_LINES,
-            &matrix, 0.0f, &sink.ID2D1SimplifiedGeometrySink_iface);
+            &matrix, 0.0f, (ID2D1SimplifiedGeometrySink *)&sink.ID2D1GeometrySink_iface);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
     geometry_sink_check(&sink, D2D1_FILL_MODE_ALTERNATE, 1, &expected_figures[1], 1);
     geometry_sink_cleanup(&sink);
@@ -4630,7 +4878,7 @@ static void test_rectangle_geometry(BOOL d3d11)
             rect.left, rect.top, rect.right, rect.bottom);
     geometry_sink_init(&sink);
     hr = ID2D1RectangleGeometry_Simplify(geometry, D2D1_GEOMETRY_SIMPLIFICATION_OPTION_LINES,
-            &matrix, 0.0f, &sink.ID2D1SimplifiedGeometrySink_iface);
+            &matrix, 0.0f, (ID2D1SimplifiedGeometrySink *)&sink.ID2D1GeometrySink_iface);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
     geometry_sink_check(&sink, D2D1_FILL_MODE_ALTERNATE, 1, &expected_figures[2], 0);
     geometry_sink_cleanup(&sink);
@@ -4645,7 +4893,7 @@ static void test_rectangle_geometry(BOOL d3d11)
             rect.left, rect.top, rect.right, rect.bottom);
     geometry_sink_init(&sink);
     hr = ID2D1RectangleGeometry_Simplify(geometry, D2D1_GEOMETRY_SIMPLIFICATION_OPTION_LINES,
-            &matrix, 0.0f, &sink.ID2D1SimplifiedGeometrySink_iface);
+            &matrix, 0.0f, (ID2D1SimplifiedGeometrySink *)&sink.ID2D1GeometrySink_iface);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
     geometry_sink_check(&sink, D2D1_FILL_MODE_ALTERNATE, 1, &expected_figures[3], 0);
     geometry_sink_cleanup(&sink);
@@ -4664,13 +4912,13 @@ static void test_rectangle_geometry(BOOL d3d11)
             rect.left, rect.top, rect.right, rect.bottom);
     geometry_sink_init(&sink);
     hr = ID2D1TransformedGeometry_Simplify(transformed_geometry, D2D1_GEOMETRY_SIMPLIFICATION_OPTION_CUBICS_AND_LINES,
-            NULL, 0.0f, &sink.ID2D1SimplifiedGeometrySink_iface);
+            NULL, 0.0f, (ID2D1SimplifiedGeometrySink *)&sink.ID2D1GeometrySink_iface);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
     geometry_sink_check(&sink, D2D1_FILL_MODE_ALTERNATE, 1, &expected_figures[4], 1);
     geometry_sink_cleanup(&sink);
     geometry_sink_init(&sink);
     hr = ID2D1TransformedGeometry_Simplify(transformed_geometry, D2D1_GEOMETRY_SIMPLIFICATION_OPTION_LINES,
-            NULL, 0.0f, &sink.ID2D1SimplifiedGeometrySink_iface);
+            NULL, 0.0f, (ID2D1SimplifiedGeometrySink *)&sink.ID2D1GeometrySink_iface);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
     geometry_sink_check(&sink, D2D1_FILL_MODE_ALTERNATE, 1, &expected_figures[4], 1);
     geometry_sink_cleanup(&sink);
@@ -4685,7 +4933,7 @@ static void test_rectangle_geometry(BOOL d3d11)
             rect.left, rect.top, rect.right, rect.bottom);
     geometry_sink_init(&sink);
     hr = ID2D1TransformedGeometry_Simplify(transformed_geometry, D2D1_GEOMETRY_SIMPLIFICATION_OPTION_LINES,
-            &matrix, 0.0f, &sink.ID2D1SimplifiedGeometrySink_iface);
+            &matrix, 0.0f, (ID2D1SimplifiedGeometrySink *)&sink.ID2D1GeometrySink_iface);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
     geometry_sink_check(&sink, D2D1_FILL_MODE_ALTERNATE, 1, &expected_figures[5], 4);
     geometry_sink_cleanup(&sink);
@@ -4699,7 +4947,7 @@ static void test_rectangle_geometry(BOOL d3d11)
             rect.left, rect.top, rect.right, rect.bottom);
     geometry_sink_init(&sink);
     hr = ID2D1TransformedGeometry_Simplify(transformed_geometry, D2D1_GEOMETRY_SIMPLIFICATION_OPTION_CUBICS_AND_LINES,
-            &matrix, 0.0f, &sink.ID2D1SimplifiedGeometrySink_iface);
+            &matrix, 0.0f, (ID2D1SimplifiedGeometrySink *)&sink.ID2D1GeometrySink_iface);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
     geometry_sink_check(&sink, D2D1_FILL_MODE_ALTERNATE, 1, &expected_figures[6], 1);
     geometry_sink_cleanup(&sink);
@@ -4713,7 +4961,7 @@ static void test_rectangle_geometry(BOOL d3d11)
             rect.left, rect.top, rect.right, rect.bottom);
     geometry_sink_init(&sink);
     hr = ID2D1TransformedGeometry_Simplify(transformed_geometry, D2D1_GEOMETRY_SIMPLIFICATION_OPTION_CUBICS_AND_LINES,
-            &matrix, 0.0f, &sink.ID2D1SimplifiedGeometrySink_iface);
+            &matrix, 0.0f, (ID2D1SimplifiedGeometrySink *)&sink.ID2D1GeometrySink_iface);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
     geometry_sink_check(&sink, D2D1_FILL_MODE_ALTERNATE, 1, &expected_figures[7], 1);
     geometry_sink_cleanup(&sink);
@@ -13080,6 +13328,198 @@ static void test_effect_grayscale(BOOL d3d11)
     release_test_context(&ctx);
 }
 
+struct effect_property
+{
+    const WCHAR *name;
+    UINT32 index;
+    D2D1_PROPERTY_TYPE type;
+};
+
+static void test_effect_gaussian_blur(BOOL d3d11)
+{
+    static const struct effect_property properties[] =
+    {
+        { L"StandardDeviation", D2D1_GAUSSIANBLUR_PROP_STANDARD_DEVIATION, D2D1_PROPERTY_TYPE_FLOAT },
+        { L"Optimization", D2D1_GAUSSIANBLUR_PROP_OPTIMIZATION, D2D1_PROPERTY_TYPE_ENUM },
+        { L"BorderMode", D2D1_GAUSSIANBLUR_PROP_BORDER_MODE, D2D1_PROPERTY_TYPE_ENUM },
+    };
+    struct d2d1_test_context ctx;
+    ID2D1DeviceContext *context;
+    unsigned int count, i;
+    ID2D1Effect *effect;
+    WCHAR name[64];
+    HRESULT hr;
+    UINT32 v;
+    float f;
+
+    if (!init_test_context(&ctx, d3d11))
+        return;
+
+    context = ctx.context;
+
+    hr = ID2D1DeviceContext_CreateEffect(context, &CLSID_D2D1GaussianBlur, &effect);
+    todo_wine
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    if (hr != S_OK)
+    {
+        release_test_context(&ctx);
+        return;
+    }
+
+    check_system_properties(effect);
+
+    count = ID2D1Effect_GetPropertyCount(effect);
+    ok(count == 3, "Got unexpected property count %u.\n", count);
+
+    for (i = 0; i < ARRAY_SIZE(properties); ++i)
+    {
+        hr = ID2D1Effect_GetPropertyName(effect, properties[i].index, name, 64);
+        ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+        ok(!wcscmp(name, properties[i].name), "Unexpected name %s.\n", wine_dbgstr_w(name));
+    }
+
+    f = effect_get_float_prop(effect, D2D1_GAUSSIANBLUR_PROP_STANDARD_DEVIATION);
+    ok(f == 3.0f, "Unexpected value %.8e.\n", f);
+
+    v = effect_get_enum_prop(effect, D2D1_GAUSSIANBLUR_PROP_OPTIMIZATION);
+    ok(v == D2D1_GAUSSIANBLUR_OPTIMIZATION_BALANCED, "Unexpected value %u.\n", v);
+
+    v = effect_get_enum_prop(effect, D2D1_GAUSSIANBLUR_PROP_BORDER_MODE);
+    ok(v == D2D1_BORDER_MODE_SOFT, "Unexpected border mode %u.\n", v);
+
+    ID2D1Effect_Release(effect);
+    release_test_context(&ctx);
+}
+
+static void test_effect_point_specular(BOOL d3d11)
+{
+    static const struct effect_property properties[] =
+    {
+        { L"LightPosition", D2D1_POINTSPECULAR_PROP_LIGHT_POSITION, D2D1_PROPERTY_TYPE_VECTOR3 },
+        { L"SpecularExponent", D2D1_POINTSPECULAR_PROP_SPECULAR_EXPONENT, D2D1_PROPERTY_TYPE_FLOAT },
+        { L"SpecularConstant", D2D1_POINTSPECULAR_PROP_SPECULAR_CONSTANT, D2D1_PROPERTY_TYPE_FLOAT },
+        { L"SurfaceScale", D2D1_POINTSPECULAR_PROP_SURFACE_SCALE, D2D1_PROPERTY_TYPE_FLOAT },
+        { L"Color", D2D1_POINTSPECULAR_PROP_COLOR, D2D1_PROPERTY_TYPE_VECTOR3 },
+        { L"KernelUnitLength", D2D1_POINTSPECULAR_PROP_KERNEL_UNIT_LENGTH, D2D1_PROPERTY_TYPE_VECTOR2 },
+        { L"ScaleMode", D2D1_POINTSPECULAR_PROP_SCALE_MODE, D2D1_PROPERTY_TYPE_ENUM },
+    };
+    struct d2d1_test_context ctx;
+    ID2D1DeviceContext *context;
+    unsigned int count, i;
+    ID2D1Effect *effect;
+    D2D_VECTOR_3F vec3;
+    D2D_VECTOR_2F vec2;
+    WCHAR name[64];
+    HRESULT hr;
+    UINT32 v;
+    float f;
+
+    if (!init_test_context(&ctx, d3d11))
+        return;
+
+    context = ctx.context;
+
+    hr = ID2D1DeviceContext_CreateEffect(context, &CLSID_D2D1PointSpecular, &effect);
+    todo_wine
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    if (hr != S_OK)
+    {
+        release_test_context(&ctx);
+        return;
+    }
+
+    check_system_properties(effect);
+
+    count = ID2D1Effect_GetPropertyCount(effect);
+    ok(count == 7, "Got unexpected property count %u.\n", count);
+
+    for (i = 0; i < ARRAY_SIZE(properties); ++i)
+    {
+        hr = ID2D1Effect_GetPropertyName(effect, properties[i].index, name, 64);
+        ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+        ok(!wcscmp(name, properties[i].name), "Unexpected name %s.\n", wine_dbgstr_w(name));
+    }
+
+    vec3 = effect_get_vec3_prop(effect, D2D1_POINTSPECULAR_PROP_LIGHT_POSITION);
+    ok(vec3.x == 0.0f && vec3.y == 0.0f && vec3.z == 0.0f, "Unexpected value {%.8e,%.8e,%.8e}.\n",
+            vec3.x, vec3.y, vec3.z);
+
+    f = effect_get_float_prop(effect, D2D1_POINTSPECULAR_PROP_SPECULAR_EXPONENT);
+    ok(f == 1.0f, "Unexpected value %.8e.\n", f);
+
+    f = effect_get_float_prop(effect, D2D1_POINTSPECULAR_PROP_SPECULAR_CONSTANT);
+    ok(f == 1.0f, "Unexpected value %.8e.\n", f);
+
+    f = effect_get_float_prop(effect, D2D1_POINTSPECULAR_PROP_SURFACE_SCALE);
+    ok(f == 1.0f, "Unexpected value %.8e.\n", f);
+
+    vec3 = effect_get_vec3_prop(effect, D2D1_POINTSPECULAR_PROP_COLOR);
+    ok(vec3.x == 1.0f && vec3.y == 1.0f && vec3.z == 1.0f, "Unexpected value {%.8e,%.8e,%.8e}.\n",
+            vec3.x, vec3.y, vec3.z);
+
+    vec2 = effect_get_vec2_prop(effect, D2D1_POINTSPECULAR_PROP_KERNEL_UNIT_LENGTH);
+    ok(vec2.x == 1.0f && vec2.y == 1.0f, "Unexpected value {%.8e,%.8e}.\n", vec2.x, vec2.y);
+
+    v = effect_get_enum_prop(effect, D2D1_POINTSPECULAR_PROP_SCALE_MODE);
+    ok(v == D2D1_POINTSPECULAR_SCALE_MODE_LINEAR, "Unexpected value %u.\n", v);
+
+    ID2D1Effect_Release(effect);
+    release_test_context(&ctx);
+}
+
+static void test_effect_arithmetic_composite(BOOL d3d11)
+{
+    static const struct effect_property properties[] =
+    {
+        { L"Coefficients", D2D1_ARITHMETICCOMPOSITE_PROP_COEFFICIENTS, D2D1_PROPERTY_TYPE_VECTOR4 },
+        { L"ClampOutput", D2D1_ARITHMETICCOMPOSITE_PROP_CLAMP_OUTPUT, D2D1_PROPERTY_TYPE_BOOL },
+    };
+    struct d2d1_test_context ctx;
+    ID2D1DeviceContext *context;
+    unsigned int count, i;
+    ID2D1Effect *effect;
+    D2D_VECTOR_4F vec4;
+    WCHAR name[64];
+    HRESULT hr;
+    UINT32 v;
+
+    if (!init_test_context(&ctx, d3d11))
+        return;
+
+    context = ctx.context;
+
+    hr = ID2D1DeviceContext_CreateEffect(context, &CLSID_D2D1ArithmeticComposite, &effect);
+    todo_wine
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    if (hr != S_OK)
+    {
+        release_test_context(&ctx);
+        return;
+    }
+
+    check_system_properties(effect);
+
+    count = ID2D1Effect_GetPropertyCount(effect);
+    ok(count == 2, "Got unexpected property count %u.\n", count);
+
+    for (i = 0; i < ARRAY_SIZE(properties); ++i)
+    {
+        hr = ID2D1Effect_GetPropertyName(effect, properties[i].index, name, 64);
+        ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+        ok(!wcscmp(name, properties[i].name), "Unexpected name %s.\n", wine_dbgstr_w(name));
+    }
+
+    vec4 = effect_get_vec4_prop(effect, D2D1_ARITHMETICCOMPOSITE_PROP_COEFFICIENTS);
+    ok(vec4.x == 1.0f && vec4.y == 0.0f && vec4.z == 0.0f && vec4.w == 0.0f,
+            "Unexpected value {%.8e,%.8e,%.8e,%.8e}.\n", vec4.x, vec4.y, vec4.z, vec4.w);
+
+    v = effect_get_bool_prop(effect, D2D1_ARITHMETICCOMPOSITE_PROP_CLAMP_OUTPUT);
+    ok(!v, "Unexpected value %#x.\n", v);
+
+    ID2D1Effect_Release(effect);
+    release_test_context(&ctx);
+}
+
 static void test_registered_effects(BOOL d3d11)
 {
     UINT32 ret, count, count2, count3;
@@ -15495,30 +15935,24 @@ static void test_compute_geometry_area(BOOL d3d11)
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
 
     hr = ID2D1EllipseGeometry_ComputeArea(ellipse_geometry, NULL, 0.01f, &area);
-    todo_wine
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
-    if (hr == S_OK)
-        ok(compare_float(area, 156.9767f, 3), "Unexpected value %.8e.\n", area); /* Only win7 needs increased ulps. */
+    todo_wine
+    ok(compare_float(area, 156.9767f, 2), "Unexpected value %.8e.\n", area); /* Only win7 needs increased ulps. */
 
     hr = ID2D1EllipseGeometry_ComputeArea(ellipse_geometry, NULL, 200.0f, &area);
-    todo_wine
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
-    if (hr == S_OK)
-        ok(compare_float(area, 100.0f, 2), "Unexpected value %.8e.\n", area); /* Only win7 needs increased ulps. */
+    ok(compare_float(area, 100.0f, 2), "Unexpected value %.8e.\n", area); /* Only win7 needs increased ulps. */
 
     set_matrix_identity(&matrix);
     scale_matrix(&matrix, 1.0f, 2.0f);
     hr = ID2D1EllipseGeometry_ComputeArea(ellipse_geometry, &matrix, 0.01f, &area);
-    todo_wine
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
-    if (hr == S_OK)
-        ok(compare_float(area, 314.12088f, 2), "Unexpected value %.8e.\n", area); /* Only win7 needs increased ulps. */
+    todo_wine_if(sizeof(void *) == 8)
+    ok(compare_float(area, 314.12088f, 2), "Unexpected value %.8e.\n", area); /* Only win7 needs increased ulps. */
 
     hr = ID2D1EllipseGeometry_ComputeArea(ellipse_geometry, &matrix, 200.0f, &area);
-    todo_wine
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
-    if (hr == S_OK)
-        ok(compare_float(area, 200.0f, 1), "Unexpected value %.8e.\n", area); /* Only win7 needs increased ulps. */
+    ok(compare_float(area, 200.0f, 1), "Unexpected value %.8e.\n", area); /* Only win7 needs increased ulps. */
 
     ID2D1EllipseGeometry_Release(ellipse_geometry);
 
@@ -15599,6 +16033,50 @@ static void test_compute_geometry_area(BOOL d3d11)
     release_test_context(&ctx);
 }
 
+static D2D1_PIXEL_FORMAT get_wic_target_format(const D2D1_PIXEL_FORMAT *target_format,
+        const GUID *bitmap_format)
+{
+    D2D1_PIXEL_FORMAT format;
+
+    format = *target_format;
+    if (target_format->format == DXGI_FORMAT_UNKNOWN)
+    {
+        if (IsEqualGUID(bitmap_format, &GUID_WICPixelFormat32bppPBGRA)
+                || IsEqualGUID(bitmap_format, &GUID_WICPixelFormat32bppBGR))
+        {
+            format.format = DXGI_FORMAT_B8G8R8A8_UNORM;
+        }
+        else if (IsEqualGUID(bitmap_format, &GUID_WICPixelFormat32bppPRGBA)
+                || IsEqualGUID(bitmap_format, &GUID_WICPixelFormat32bppRGB))
+        {
+            format.format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        }
+        else
+        {
+            ok(0, "Unexpected format %s.\n", debugstr_guid(bitmap_format));
+        }
+    }
+    if (target_format->alphaMode == D2D1_ALPHA_MODE_UNKNOWN)
+    {
+        if (IsEqualGUID(bitmap_format, &GUID_WICPixelFormat32bppPBGRA)
+                || IsEqualGUID(bitmap_format, &GUID_WICPixelFormat32bppPRGBA))
+        {
+            format.alphaMode = D2D1_ALPHA_MODE_PREMULTIPLIED;
+        }
+        else if (IsEqualGUID(bitmap_format, &GUID_WICPixelFormat32bppBGR)
+                || IsEqualGUID(bitmap_format, &GUID_WICPixelFormat32bppRGB))
+        {
+            format.alphaMode = D2D1_ALPHA_MODE_IGNORE;
+        }
+        else
+        {
+            ok(0, "Unexpected format %s.\n", debugstr_guid(bitmap_format));
+        }
+    }
+
+    return format;
+}
+
 static void test_wic_target_format(BOOL d3d11)
 {
     static const struct
@@ -15659,11 +16137,16 @@ static void test_wic_target_format(BOOL d3d11)
         { { DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_IGNORE },
                 &GUID_WICPixelFormat32bppPBGRA, E_INVALIDARG },
     };
+    D2D1_PIXEL_FORMAT pixel_format, expected_pixel_format;
     D2D1_RENDER_TARGET_PROPERTIES rt_desc;
+    ID2D1DeviceContext *device_context;
     IWICImagingFactory *wic_factory;
     struct d2d1_test_context ctx;
     IWICBitmap *wic_bitmap;
     ID2D1RenderTarget *rt;
+    ID2D1Bitmap *bitmap;
+    ID2D1Image *image;
+    D2D1_SIZE_U size;
     unsigned int i;
     HRESULT hr;
 
@@ -15679,7 +16162,7 @@ static void test_wic_target_format(BOOL d3d11)
     {
         winetest_push_context("Test %u", i);
 
-        hr = IWICImagingFactory_CreateBitmap(wic_factory, 16, 16,
+        hr = IWICImagingFactory_CreateBitmap(wic_factory, 24, 16,
                 wic_target_formats[i].wic_format, WICBitmapCacheOnDemand, &wic_bitmap);
         ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
 
@@ -15692,6 +16175,34 @@ static void test_wic_target_format(BOOL d3d11)
         hr = ID2D1Factory_CreateWicBitmapRenderTarget(ctx.factory, wic_bitmap, &rt_desc, &rt);
         todo_wine_if(FAILED(wic_target_formats[i].hr))
         ok(hr == wic_target_formats[i].hr, "Got unexpected hr %#lx.\n", hr);
+
+        if (hr == S_OK && hr == wic_target_formats[i].hr && ctx.context)
+        {
+            hr = ID2D1RenderTarget_QueryInterface(rt, &IID_ID2D1DeviceContext, (void **)&device_context);
+            ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+            ID2D1DeviceContext_GetTarget(device_context, &image);
+            hr = ID2D1Image_QueryInterface(image, &IID_ID2D1Bitmap, (void **)&bitmap);
+            ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+            size = ID2D1Bitmap_GetPixelSize(bitmap);
+            ok(size.width == 24 && size.height == 16, "Unexpected target size %ux%u.\n",
+                    size.width, size.height);
+
+            expected_pixel_format = get_wic_target_format(&wic_target_formats[i].pixel_format,
+                    wic_target_formats[i].wic_format);
+
+            pixel_format = ID2D1Bitmap_GetPixelFormat(bitmap);
+            ok(pixel_format.format == expected_pixel_format.format, "Unexpected pixel format %#x.\n",
+                    pixel_format.format);
+            ok(pixel_format.alphaMode == expected_pixel_format.alphaMode, "Unexpected alpha mode %d.\n",
+                    pixel_format.alphaMode);
+
+            ID2D1Bitmap_Release(bitmap);
+            ID2D1Image_Release(image);
+
+            ID2D1DeviceContext_Release(device_context);
+        }
 
         IWICBitmap_Release(wic_bitmap);
 
@@ -16241,6 +16752,62 @@ static void test_geometry_realization(BOOL d3d11)
     release_test_context(&ctx);
 }
 
+static void test_path_geometry_stream(BOOL d3d11)
+{
+    static const struct geometry_segment expected_segments[] =
+    {
+        /* Figure 0. */
+        {SEGMENT_LINE,   {{{165.0f, 300.0f}}}},
+        {SEGMENT_LINE,   {{{235.0f, 300.0f}}}},
+        {SEGMENT_LINE,   {{{235.0f,  20.0f}}}},
+    };
+    static const struct expected_geometry_figure expected_figures[] =
+    {
+        /* 0 */
+        {D2D1_FIGURE_BEGIN_FILLED, D2D1_FIGURE_END_CLOSED, { 15.0f, 20.0f}, 3, &expected_segments[0]},
+    };
+    struct geometry_sink stream_sink;
+    struct d2d1_test_context ctx;
+    ID2D1PathGeometry *geometry;
+    ID2D1GeometrySink *sink;
+    D2D1_POINT_2F point;
+    HRESULT hr;
+
+    if (!init_test_context(&ctx, d3d11))
+        return;
+
+    geometry_sink_init(&stream_sink);
+
+    hr = ID2D1Factory_CreatePathGeometry(ctx.factory, &geometry);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    hr = ID2D1PathGeometry_Stream(geometry, &stream_sink.ID2D1GeometrySink_iface);
+    todo_wine
+    ok(hr == D2DERR_WRONG_STATE, "Got unexpected hr %#lx.\n", hr);
+
+    hr = ID2D1PathGeometry_Open(geometry, &sink);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    set_point(&point, 15.0f, 20.0f);
+    ID2D1GeometrySink_BeginFigure(sink, point, D2D1_FIGURE_BEGIN_FILLED);
+    line_to(sink, 165.0f, 300.0f);
+    line_to(sink, 235.0f, 300.0f);
+    line_to(sink, 235.0f, 20.0f);
+    ID2D1GeometrySink_EndFigure(sink, D2D1_FIGURE_END_CLOSED);
+    hr = ID2D1GeometrySink_Close(sink);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    ID2D1GeometrySink_Release(sink);
+
+    hr = ID2D1PathGeometry_Stream(geometry, &stream_sink.ID2D1GeometrySink_iface);
+    todo_wine
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    if (SUCCEEDED(hr))
+        geometry_sink_check(&stream_sink, D2D1_FILL_MODE_ALTERNATE, 1, &expected_figures[0], 1);
+    geometry_sink_cleanup(&stream_sink);
+    ID2D1PathGeometry_Release(geometry);
+
+    release_test_context(&ctx);
+}
+
 START_TEST(d2d1)
 {
     HMODULE d2d1_dll = GetModuleHandleA("d2d1.dll");
@@ -16326,6 +16893,9 @@ START_TEST(d2d1)
     queue_test(test_effect_crop);
     queue_test(test_effect_grayscale);
     queue_test(test_registered_effects);
+    queue_d3d10_test(test_effect_gaussian_blur);
+    queue_d3d10_test(test_effect_point_specular);
+    queue_d3d10_test(test_effect_arithmetic_composite);
     queue_test(test_transform_graph);
     queue_test(test_offset_transform);
     queue_test(test_blend_transform);
@@ -16336,15 +16906,16 @@ START_TEST(d2d1)
     queue_test(test_bitmap_map);
     queue_test(test_bitmap_create);
     queue_test(test_effect_custom_pixel_shader);
-    queue_test(test_get_effect_properties);
+    queue_d3d10_test(test_get_effect_properties);
     queue_test(test_effect_vertex_buffer);
-    queue_test(test_compute_geometry_area);
+    queue_d3d10_test(test_compute_geometry_area);
     queue_test(test_wic_target_format);
-    queue_test(test_effect_blob_property);
+    queue_d3d10_test(test_effect_blob_property);
     queue_test(test_get_dxgi_device);
     queue_test(test_no_target);
     queue_test(test_mesh);
     queue_test(test_geometry_realization);
+    queue_d3d10_test(test_path_geometry_stream);
 
     run_queued_tests();
 }

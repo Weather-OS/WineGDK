@@ -18,6 +18,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+#include <assert.h>
+
 #define COBJMACROS
 #include "objbase.h"
 #include "cor.h"
@@ -32,6 +34,8 @@ struct metadata_tables
 {
     IMetaDataTables IMetaDataTables_iface;
     LONG ref;
+
+    assembly_t *assembly;
 };
 
 static inline struct metadata_tables *impl_from_IMetaDataTables(IMetaDataTables *iface)
@@ -70,38 +74,53 @@ static ULONG WINAPI tables_Release(IMetaDataTables *iface)
 
     TRACE("(%p)\n", iface);
 
-    if (!ref) free(impl);
+    if (!ref)
+    {
+        assembly_free(impl->assembly);
+        free(impl);
+    }
     return ref;
+}
+
+static HRESULT get_heap_size(IMetaDataTables *iface, enum heap_type type, ULONG *size)
+{
+    struct metadata_tables *impl = impl_from_IMetaDataTables(iface);
+    *size = assembly_get_heap_size(impl->assembly, type);
+    return S_OK;
 }
 
 static HRESULT WINAPI tables_GetStringHeapSize(IMetaDataTables *iface, ULONG *size)
 {
-    FIXME("(%p, %p): stub!\n", iface, size);
-    return E_NOTIMPL;
+    TRACE("(%p, %p)\n", iface, size);
+    return get_heap_size(iface, HEAP_STRING, size);
 }
 
 static HRESULT WINAPI tables_GetBlobHeapSize(IMetaDataTables *iface, ULONG *size)
 {
-    FIXME("(%p, %p): stub!\n", iface, size);
-    return E_NOTIMPL;
+    TRACE("(%p, %p)\n", iface, size);
+    return get_heap_size(iface, HEAP_BLOB, size);
 }
 
 static HRESULT WINAPI tables_GetGuidHeapSize(IMetaDataTables *iface, ULONG *size)
 {
-    FIXME("(%p, %p): stub!\n", iface, size);
-    return E_NOTIMPL;
+    TRACE("(%p, %p)\n", iface, size);
+    return get_heap_size(iface, HEAP_GUID, size);
 }
 
 static HRESULT WINAPI tables_GetUserStringHeapSize(IMetaDataTables *iface, ULONG *size)
 {
-    FIXME("(%p, %p): stub!\n", iface, size);
-    return E_NOTIMPL;
+    TRACE("(%p, %p)\n", iface, size);
+    return get_heap_size(iface, HEAP_USER_STRING, size);
 }
 
 static HRESULT WINAPI tables_GetNumTables(IMetaDataTables *iface, ULONG *size)
 {
-    FIXME("(%p, %p): stub!\n", iface, size);
-    return E_NOTIMPL;
+    TRACE("(%p, %p)\n", iface, size);
+
+    /* This returns the number of tables known to the metadata parser, not the number of tables that exist in this
+     * assembly. */
+    *size = 45;
+    return S_OK;
 }
 
 static HRESULT WINAPI tables_GetTableIndex(IMetaDataTables *iface, ULONG token, ULONG *idx)
@@ -113,15 +132,38 @@ static HRESULT WINAPI tables_GetTableIndex(IMetaDataTables *iface, ULONG token, 
 static HRESULT WINAPI tables_GetTableInfo(IMetaDataTables *iface, ULONG idx_tbl, ULONG *row_size, ULONG *num_rows,
                                           ULONG *num_cols, ULONG *idx_key, const char **name)
 {
-    FIXME("(%p, %lu, %p, %p, %p, %p, %p): stub!\n", iface, idx_tbl, row_size, num_rows, num_cols, idx_key, name);
-    return E_NOTIMPL;
+    struct metadata_tables *impl = impl_from_IMetaDataTables(iface);
+    struct metadata_table_info table;
+    HRESULT hr;
+
+    TRACE("(%p, %lu, %p, %p, %p, %p, %p)\n", iface, idx_tbl, row_size, num_rows, num_cols, idx_key, name);
+
+    if (FAILED(hr = assembly_get_table(impl->assembly, idx_tbl, &table))) return hr;
+
+    *row_size = table.row_size;
+    *num_rows = table.num_rows;
+    *num_cols = table.num_columns;
+    *idx_key = table.key_idx;
+    *name = table.name;
+    return S_OK;
 }
 
 static HRESULT WINAPI tables_GetColumnInfo(IMetaDataTables *iface, ULONG idx_tbl, ULONG idx_col, ULONG *offset,
                                            ULONG *col_size, ULONG *type, const char **name)
 {
-    FIXME("(%p, %lu, %lu, %p, %p, %p, %p) stub!\n", iface, idx_tbl, idx_col, offset, col_size, type, name);
-    return E_NOTIMPL;
+    struct metadata_tables *impl = impl_from_IMetaDataTables(iface);
+    struct metadata_column_info column;
+    HRESULT hr;
+
+    TRACE("(%p, %lu, %lu, %p, %p, %p, %p)\n", iface, idx_tbl, idx_col, offset, col_size, type, name);
+
+    if (FAILED(hr = assembly_get_column(impl->assembly, idx_tbl, idx_col, &column))) return hr;
+
+    *offset = column.offset;
+    *col_size = column.size;
+    *type = column.type;
+    *name = column.name;
+    return S_OK;
 }
 
 static HRESULT WINAPI tables_GetCodedTokenInfo(IMetaDataTables *iface, ULONG type, ULONG *tokens_len,
@@ -133,32 +175,59 @@ static HRESULT WINAPI tables_GetCodedTokenInfo(IMetaDataTables *iface, ULONG typ
 
 static HRESULT WINAPI tables_GetRow(IMetaDataTables *iface, ULONG idx_tbl, ULONG idx_row, const BYTE *row)
 {
-    FIXME("(%p, %lu, %lu, %p): stub!\n", iface, idx_tbl, idx_row, row);
-    return E_NOTIMPL;
+    struct metadata_tables *impl = impl_from_IMetaDataTables(iface);
+    struct metadata_table_info table;
+    HRESULT hr;
+
+    TRACE("(%p, %lu, %lu, %p)\n", iface, idx_tbl, idx_row, row);
+
+    if (FAILED(hr = assembly_get_table(impl->assembly, idx_tbl, &table))) return hr;
+
+    assert(table.start);
+    idx_row--; /* Row indices are 1-based. */
+    if (idx_row >= table.num_rows) return E_INVALIDARG;
+    *(const BYTE **)row = table.start + (size_t)(table.row_size * idx_row);
+    return S_OK;
 }
 
 static HRESULT WINAPI tables_GetColumn(IMetaDataTables *iface, ULONG idx_tbl, ULONG idx_col, ULONG idx_row, ULONG *val)
 {
-    FIXME("(%p, %lu, %lu, %lu, %p): stub!\n", iface, idx_tbl, idx_col, idx_row, val);
-    return E_NOTIMPL;
+    ULONG raw_val = 0, offset, size, type;
+    const BYTE *row = NULL;
+    const char *name;
+    HRESULT hr;
+
+    TRACE("(%p, %lu, %lu, %lu, %p)\n", iface, idx_tbl, idx_col, idx_row, val);
+
+    if (FAILED(hr = IMetaDataTables_GetRow(iface, idx_tbl, idx_row, (BYTE *)&row))) return hr;
+    if (FAILED(hr = IMetaDataTables_GetColumnInfo(iface, idx_tbl, idx_col, &offset, &size, &type, &name))) return hr;
+
+    memcpy(&raw_val, row + offset, size);
+    if (type >= 64 && type <= 95) /* IsCodedTokenType */
+        raw_val = metadata_coded_value_as_token(idx_tbl, idx_col, raw_val);
+    *val = raw_val;
+    return S_OK;
 }
 
 static HRESULT WINAPI tables_GetString(IMetaDataTables *iface, ULONG idx, const char **str)
 {
-    FIXME("(%p, %lu, %p): stub!\n", iface, idx, str);
-    return E_NOTIMPL;
+    struct metadata_tables *impl = impl_from_IMetaDataTables(iface);
+    TRACE("(%p, %lu, %p)\n", iface, idx, str);
+    return (*str = assembly_get_string(impl->assembly, idx)) ? S_OK : E_INVALIDARG;
 }
 
 static HRESULT WINAPI tables_GetBlob(IMetaDataTables *iface, ULONG idx, ULONG *size, const BYTE **blob)
 {
-    FIXME("(%p, %lu, %p, %p): stub!\n", iface, idx, size, blob);
-    return E_NOTIMPL;
+    struct metadata_tables *impl = impl_from_IMetaDataTables(iface);
+    TRACE("(%p, %lu, %p, %p)\n", iface, idx, size, blob);
+    return assembly_get_blob(impl->assembly, idx, blob, size);
 }
 
 static HRESULT WINAPI tables_GetGuid(IMetaDataTables *iface, ULONG idx, const GUID **guid)
 {
-    FIXME("(%p, %lu, %p): stub!\n", iface, idx, guid);
-    return E_NOTIMPL;
+    struct metadata_tables *impl = impl_from_IMetaDataTables(iface);
+    TRACE("(%p, %lu, %p)!\n", iface, idx, guid);
+    return (*guid = assembly_get_guid(impl->assembly, idx)) ? S_OK : E_INVALIDARG;
 }
 
 static HRESULT WINAPI tables_GetUserString(IMetaDataTables *iface, ULONG idx, ULONG *size, const BYTE **string)
@@ -217,11 +286,18 @@ static const struct IMetaDataTablesVtbl tables_vtbl =
     tables_GetNextUserString,
 };
 
-HRESULT IMetaDataTables_create(IMetaDataTables **iface)
+HRESULT IMetaDataTables_create(const WCHAR *path, IMetaDataTables **iface)
 {
     struct metadata_tables *impl;
+    HRESULT hr;
 
     if (!(impl = calloc(1, sizeof(*impl)))) return E_OUTOFMEMORY;
+    if (FAILED(hr = assembly_open_from_file(path, &impl->assembly)))
+    {
+        free( impl );
+        return hr;
+    }
+
     impl->IMetaDataTables_iface.lpVtbl = &tables_vtbl;
     impl->ref = 1;
     *iface = &impl->IMetaDataTables_iface;

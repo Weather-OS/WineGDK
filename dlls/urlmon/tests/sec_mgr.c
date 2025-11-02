@@ -838,9 +838,7 @@ static void run_child_process(void)
     sprintf(cmdline, "\"%s\" %s domain_tests", argv[0], argv[1]);
     ret = CreateProcessA(argv[0], cmdline, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
     ok(ret, "Failed to spawn child process: %lu\n", GetLastError());
-    wait_child_process(pi.hProcess);
-    CloseHandle(pi.hThread);
-    CloseHandle(pi.hProcess);
+    wait_child_process(&pi);
 }
 
 typedef struct {
@@ -2105,6 +2103,7 @@ typedef struct _save_file_test {
     LPCWSTR name;
     BOOL remember;
     HRESULT hres;
+    HRESULT deny_hres;
 } save_file_test;
 
 typedef struct _persist_file_test {
@@ -2135,13 +2134,13 @@ static const persist_file_test persist_file_tests[] = {
     },
     {
         { URLZONE_TRUSTED, S_OK },
-        { NULL, FALSE, S_OK },
+        { NULL, FALSE, S_OK, 0x80070003 },
         { L"00000000-0000-0000-0000-000000000000", STGM_READWRITE | STGM_SHARE_DENY_NONE, S_OK },
         { URLZONE_TRUSTED, S_OK }
     },
     {
         { URLZONE_INTRANET, S_OK },
-        { NULL, TRUE, S_OK },
+        { NULL, TRUE, S_OK, 0x80070003 },
         { L"00000000-0000-0000-0000-000000000000", STGM_READWRITE | STGM_SHARE_DENY_NONE, S_OK },
         { URLZONE_INTRANET, S_OK }
     },
@@ -2240,6 +2239,13 @@ static void test_IPersistFile_iface(IPersistFile *persist_file_save, IZoneIdenti
         }
 
         hres = IPersistFile_Save(persist_file_save, file_path, test.save.remember);
+        if (hres == test.save.deny_hres)
+        {
+            skip("%lu) Save denied\n", i);
+            if (file_path)
+                DeleteFileW(file_path);
+            continue;
+        }
         ok(hres == test.save.hres,
             "%lu) Unexpected Save result: 0x%08lx, expected result: 0x%08lx\n",
             i, hres, test.save.hres);
@@ -2320,6 +2326,7 @@ static void test_PersistentZoneIdentifier(void)
     IUnknown *unk, *unk2;
     IPersistFile *persist_file, *persist_file2;
     IZoneIdentifier *zone_id, *zone_id2;
+    DWORD zone;
     HRESULT hres;
 
     trace("Testing uninitialized state of PersistentZoneIdetifier...\n");
@@ -2330,6 +2337,13 @@ static void test_PersistentZoneIdentifier(void)
 
     hres = IUnknown_QueryInterface(unk, &IID_IZoneIdentifier, (void**)&zone_id);
     ok(hres == S_OK, "Failed to obtain IZoneIdentifier iface: 0x%08lx\n", hres);
+
+    hres = IZoneIdentifier_GetId(zone_id, &zone);
+    if (hres == 0x80070002)
+    {
+        win_skip("Detected broken old Window version, skipping PersistentZoneIdetifier tests\n");
+        return;
+    }
 
     hres = IUnknown_QueryInterface(unk, &IID_IPersistFile, (void**)&persist_file);
     ok(hres == S_OK, "Failed to obtain IPersistFile iface: 0x%08lx\n", hres);

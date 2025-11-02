@@ -37,30 +37,10 @@
 #include "mmdeviceapi.h"
 #include "audioclient.h"
 
-#define PCM WAVE_FORMAT_PCM
-#define FLOAT WAVE_FORMAT_IEEE_FLOAT
-
-static const unsigned int win_formats[][4] = {
-    {PCM,    8000,  8,  1},   {PCM,    8000,  8,  2},   {PCM,  8000, 16, 1},   {PCM,  8000, 16, 2},
-    {PCM,   11025,  8,  1},   {PCM,   11025,  8,  2},   {PCM, 11025, 16, 1},   {PCM, 11025, 16, 2},
-    {PCM,   12000,  8,  1},   {PCM,   12000,  8,  2},   {PCM, 12000, 16, 1},   {PCM, 12000, 16, 2},
-    {PCM,   16000,  8,  1},   {PCM,   16000,  8,  2},   {PCM, 16000, 16, 1},   {PCM, 16000, 16, 2},
-    {PCM,   22050,  8,  1},   {PCM,   22050,  8,  2},   {PCM, 22050, 16, 1},   {PCM, 22050, 16, 2},
-    {PCM,   44100,  8,  1},   {PCM,   44100,  8,  2},   {PCM, 44100, 16, 1},   {PCM, 44100, 16, 2},
-    {PCM,   48000,  8,  1},   {PCM,   48000,  8,  2},   {PCM, 48000, 16, 1},   {PCM, 48000, 16, 2},
-    {PCM,   96000,  8,  1},   {PCM,   96000,  8,  2},   {PCM, 96000, 16, 1},   {PCM, 96000, 16, 2},
-    {FLOAT,  8000,  32, 1},   {FLOAT,  8000,  32, 2},
-    {FLOAT, 11025,  32, 1},   {FLOAT, 11025,  32, 2},
-    {FLOAT, 12000,  32, 1},   {FLOAT, 12000,  32, 2},
-    {FLOAT, 16000,  32, 1},   {FLOAT, 16000,  32, 2},
-    {FLOAT, 22050,  32, 1},   {FLOAT, 22050,  32, 2},
-    {FLOAT, 44100,  32, 1},   {FLOAT, 44100,  32, 2},
-    {FLOAT, 48000,  32, 1},   {FLOAT, 48000,  32, 2},
-    {FLOAT, 96000,  32, 1},   {FLOAT, 96000,  32, 2},
-};
-
-#undef PCM
-#undef FLOAT
+static const unsigned int sampling_rates[] = { 8000, 16000, 22050, 44100, 48000, 96000 };
+static const unsigned int channel_counts[] = { 1, 2, 8 };
+static const unsigned int sample_formats[][2] = { {WAVE_FORMAT_PCM, 8}, {WAVE_FORMAT_PCM, 16},
+                                                  {WAVE_FORMAT_PCM, 32}, {WAVE_FORMAT_IEEE_FLOAT, 32} };
 
 #define NULL_PTR_ERR MAKE_HRESULT(SEVERITY_ERROR, FACILITY_WIN32, RPC_X_NULL_REF_POINTER)
 
@@ -573,92 +553,171 @@ cleanup:
     CoTaskMemFree(pwfx);
 }
 
-static void test_formats(AUDCLNT_SHAREMODE mode)
+static void test_formats(AUDCLNT_SHAREMODE mode, BOOL extensible)
 {
     IAudioClient *ac;
-    HRESULT hr, hrs;
-    WAVEFORMATEX fmt, *pwfx, *pwfx2;
-    int i;
+    HRESULT hr, hrs, expected;
+    WAVEFORMATEX *pwfx, *pwfx2;
+    WAVEFORMATEXTENSIBLE fmt;
+    int i, j, k;
+    BOOL compatible;
 
-    fmt.cbSize = 0;
+    fmt.Format.cbSize = extensible ? sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX) : 0;
 
-    for(i = 0; i < ARRAY_SIZE(win_formats); i++) {
-        char format_chr;
+    for (i = 0; i < ARRAY_SIZE(sampling_rates); i++) {
+        for (j = 0; j < ARRAY_SIZE(channel_counts); j++) {
+            for (k = 0; k < ARRAY_SIZE(sample_formats); k++) {
+                char format_chr[3];
 
-        hr = IMMDevice_Activate(dev, &IID_IAudioClient, CLSCTX_INPROC_SERVER,
-                NULL, (void**)&ac);
-        ok(hr == S_OK, "Activation failed with %08lx\n", hr);
-        if(hr != S_OK)
-            continue;
+                hr = IMMDevice_Activate(dev, &IID_IAudioClient, CLSCTX_INPROC_SERVER,
+                        NULL, (void**)&ac);
+                ok(hr == S_OK, "Activation failed with %08lx\n", hr);
+                if(hr != S_OK)
+                    continue;
 
-        hr = IAudioClient_GetMixFormat(ac, &pwfx);
-        ok(hr == S_OK, "GetMixFormat failed: %08lx\n", hr);
+                hr = IAudioClient_GetMixFormat(ac, &pwfx);
+                ok(hr == S_OK, "GetMixFormat failed: %08lx\n", hr);
 
-        fmt.wFormatTag     = win_formats[i][0];
-        fmt.nSamplesPerSec = win_formats[i][1];
-        fmt.wBitsPerSample = win_formats[i][2];
-        fmt.nChannels      = win_formats[i][3];
-        fmt.nBlockAlign    = fmt.nChannels * fmt.wBitsPerSample / 8;
-        fmt.nAvgBytesPerSec= fmt.nBlockAlign * fmt.nSamplesPerSec;
+                fmt.Format.wFormatTag     = extensible ? WAVE_FORMAT_EXTENSIBLE : sample_formats[k][0];
+                fmt.Format.nSamplesPerSec = sampling_rates[i];
+                fmt.Format.wBitsPerSample = sample_formats[k][1];
+                fmt.Format.nChannels      = channel_counts[j];
+                fmt.Format.nBlockAlign    = fmt.Format.nChannels * fmt.Format.wBitsPerSample / 8;
+                fmt.Format.nAvgBytesPerSec= fmt.Format.nBlockAlign * fmt.Format.nSamplesPerSec;
 
-        format_chr = fmt.wFormatTag == WAVE_FORMAT_PCM ? 'P' : 'F';
+                if (extensible) {
+                    WAVEFORMATEXTENSIBLE *pxwfx = (WAVEFORMATEXTENSIBLE*)pwfx;
 
-        pwfx2 = (WAVEFORMATEX*)0xDEADF00D;
-        hr = IAudioClient_IsFormatSupported(ac, mode, &fmt, &pwfx2);
-        hrs = hr;
-        /* Only shared mode suggests something ... GetMixFormat! */
-        ok(hr == S_OK || (mode == AUDCLNT_SHAREMODE_SHARED
-           ? hr == S_FALSE : hr == AUDCLNT_E_UNSUPPORTED_FORMAT),
-           "IsFormatSupported(%d, %c%lux%2ux%u) returns %08lx\n", mode,
-           format_chr, fmt.nSamplesPerSec, fmt.wBitsPerSample, fmt.nChannels, hr);
-        if (hr == S_OK)
-            trace("IsSupported(%s, %c%lux%2ux%u)\n",
-                  mode == AUDCLNT_SHAREMODE_SHARED ? "shared " : "exclus.",
-                  format_chr, fmt.nSamplesPerSec, fmt.wBitsPerSample, fmt.nChannels);
+                    fmt.Samples.wValidBitsPerSample = fmt.Format.wBitsPerSample;
+                    switch (fmt.Format.nChannels) {
+                        case 1: fmt.dwChannelMask = KSAUDIO_SPEAKER_MONO; break;
+                        case 2: fmt.dwChannelMask = KSAUDIO_SPEAKER_STEREO; break;
+                        case 4: fmt.dwChannelMask = KSAUDIO_SPEAKER_SURROUND; break;
+                        case 6: fmt.dwChannelMask = KSAUDIO_SPEAKER_5POINT1; break;
+                        case 8: fmt.dwChannelMask = KSAUDIO_SPEAKER_7POINT1_SURROUND; break;
+                    }
+                    /* We don't want to fight with the driver over the speaker configuration,
+                     * so just take whatever they give us, if it's valid. */
+                    if (fmt.Format.nChannels == pwfx->nChannels && pwfx->wFormatTag == WAVE_FORMAT_EXTENSIBLE
+                            && pxwfx->dwChannelMask != 0)
+                        fmt.dwChannelMask = ((WAVEFORMATEXTENSIBLE*)pwfx)->dwChannelMask;
+                    fmt.SubFormat = sample_formats[k][0] == WAVE_FORMAT_PCM ?
+                            KSDATAFORMAT_SUBTYPE_PCM : KSDATAFORMAT_SUBTYPE_IEEE_FLOAT;
+                }
 
-        /* In shared mode you can only change bit width, not sampling rate or channel count. */
-        if (mode == AUDCLNT_SHAREMODE_SHARED)
-        {
-            BOOL compatible = fmt.nSamplesPerSec == pwfx->nSamplesPerSec && fmt.nChannels == pwfx->nChannels;
-            HRESULT expected = compatible ? S_OK : S_FALSE;
-            todo_wine_if(expected == S_FALSE)
-            ok(hr == expected, "Got %lx expected %lx\n", hr, expected);
+                format_chr[0] = sample_formats[k][0] == WAVE_FORMAT_PCM ? 'P' : 'F';
+                format_chr[1] = extensible ? 'X' : '\0';
+                format_chr[2] = '\0';
+
+                pwfx2 = (WAVEFORMATEX*)0xDEADF00D;
+                hr = IAudioClient_IsFormatSupported(ac, mode, (WAVEFORMATEX*)&fmt, &pwfx2);
+                hrs = hr;
+                if (hr == S_OK)
+                    trace("IsSupported(%s, %s%lux%2ux%u)\n",
+                          mode == AUDCLNT_SHAREMODE_SHARED ? "shared " : "exclus.",
+                          format_chr, fmt.Format.nSamplesPerSec, fmt.Format.wBitsPerSample, fmt.Format.nChannels);
+
+                /* In shared mode you can only change bit width, not sampling rate or channel count. */
+                if (mode == AUDCLNT_SHAREMODE_SHARED) {
+                    compatible = fmt.Format.nSamplesPerSec == pwfx->nSamplesPerSec && fmt.Format.nChannels == pwfx->nChannels;
+                    expected = compatible ? S_OK : S_FALSE;
+                    if (fmt.Format.nChannels > 2 && !extensible)
+                        expected = AUDCLNT_E_UNSUPPORTED_FORMAT;
+                    todo_wine_if(hr != expected)
+                    ok(hr == expected, "IsFormatSupported(shared, %s%lux%2ux%u) returns %08lx, expected %08lx\n",
+                            format_chr, fmt.Format.nSamplesPerSec, fmt.Format.wBitsPerSample, fmt.Format.nChannels, hr, expected);
+                } else {
+                    ok(hr == S_OK || hr == AUDCLNT_E_UNSUPPORTED_FORMAT || (hr == E_INVALIDARG && extensible),
+                            "IsFormatSupported(exclusive, %s%lux%2ux%u) returns %08lx\n",
+                            format_chr, fmt.Format.nSamplesPerSec, fmt.Format.wBitsPerSample, fmt.Format.nChannels, hr);
+                }
+
+                /* Only shared mode suggests something ... GetMixFormat! */
+                ok((hr == S_FALSE)^(pwfx2 == NULL), "hr %lx<->suggest %p\n", hr, pwfx2);
+                if (pwfx2) {
+                    ok(pwfx2->wFormatTag     == pwfx->wFormatTag &&
+                       pwfx2->nSamplesPerSec == pwfx->nSamplesPerSec &&
+                       pwfx2->nChannels      == pwfx->nChannels &&
+                       pwfx2->wBitsPerSample == pwfx->wBitsPerSample,
+                       "Suggestion %s%lux%2ux%u differs from GetMixFormat\n",
+                       format_chr, pwfx2->nSamplesPerSec, pwfx2->wBitsPerSample, pwfx2->nChannels);
+                }
+
+                hr = IAudioClient_Initialize(ac, mode, 0, 5000000, 0, (WAVEFORMATEX*)&fmt, NULL);
+                if ((hrs == S_OK) ^ (hr == S_OK))
+                    trace("Initialize (%s, %s%lux%2ux%u) returns %08lx unlike IsFormatSupported\n",
+                          mode == AUDCLNT_SHAREMODE_SHARED ? "shared " : "exclus.",
+                          format_chr, fmt.Format.nSamplesPerSec, fmt.Format.wBitsPerSample, fmt.Format.nChannels, hr);
+                if (mode == AUDCLNT_SHAREMODE_SHARED) {
+                    HRESULT expected = hrs == S_OK ? S_OK : AUDCLNT_E_UNSUPPORTED_FORMAT;
+                    if (fmt.Format.nChannels > 2 && !extensible)
+                        expected = E_INVALIDARG;
+                    todo_wine_if(fmt.Format.nChannels > 2 && !extensible)
+                    ok(hr == expected, "Initialize(shared,  %s%lux%2ux%u) returns %08lx, expected %08lx\n",
+                       format_chr, fmt.Format.nSamplesPerSec, fmt.Format.wBitsPerSample, fmt.Format.nChannels, hr, expected);
+                } else if (hrs == AUDCLNT_E_EXCLUSIVE_MODE_NOT_ALLOWED)
+                    /* Unsupported format implies "create failed" and shadows "not allowed" */
+                    ok(hr == AUDCLNT_E_ENDPOINT_CREATE_FAILED || hr == hrs,
+                       "Initialize(noexcl., %s%lux%2ux%u) returns %08lx(%08lx)\n",
+                       format_chr, fmt.Format.nSamplesPerSec, fmt.Format.wBitsPerSample, fmt.Format.nChannels, hr, hrs);
+                else
+                    todo_wine_if(hr == AUDCLNT_E_EXCLUSIVE_MODE_NOT_ALLOWED || (hr == S_OK && hrs != S_OK))
+                    ok(hrs == S_OK ? hr == S_OK
+                       : hr == AUDCLNT_E_ENDPOINT_CREATE_FAILED || hr == AUDCLNT_E_UNSUPPORTED_FORMAT || hr == E_INVALIDARG,
+                       "Initialize(exclus., %s%lux%2ux%u) returns %08lx\n",
+                       format_chr, fmt.Format.nSamplesPerSec, fmt.Format.wBitsPerSample, fmt.Format.nChannels, hr);
+
+                IAudioClient_Release(ac);
+
+                hr = IMMDevice_Activate(dev, &IID_IAudioClient, CLSCTX_INPROC_SERVER,
+                        NULL, (void**)&ac);
+                ok(hr == S_OK, "Activation failed with %08lx\n", hr);
+                if(hr != S_OK)
+                    continue;
+
+                /* With AUDCLNT_STREAMFLAGS_RATEADJUST channel count must match, but sampling rate doesn't. */
+                hr = IAudioClient_Initialize(ac, mode, AUDCLNT_STREAMFLAGS_RATEADJUST, 5000000, 0, (WAVEFORMATEX*)&fmt, NULL);
+                if (mode == AUDCLNT_SHAREMODE_SHARED) {
+                    compatible = fmt.Format.nChannels == pwfx->nChannels;
+                    expected = compatible ? S_OK : AUDCLNT_E_UNSUPPORTED_FORMAT;
+                    if (fmt.Format.nChannels > 2 && !extensible)
+                        expected = E_INVALIDARG;
+                    todo_wine_if(hr != expected)
+                    ok(hr == expected, "Initialize(shared,  %s%lux%2ux%u, RATEADJUST) returns %08lx, expected %08lx\n",
+                       format_chr, fmt.Format.nSamplesPerSec, fmt.Format.wBitsPerSample, fmt.Format.nChannels, hr, expected);
+                } else {
+                    ok(hr == S_OK || hr == AUDCLNT_E_ENDPOINT_CREATE_FAILED || hr == AUDCLNT_E_EXCLUSIVE_MODE_NOT_ALLOWED
+                            || hr == AUDCLNT_E_ENDPOINT_CREATE_FAILED || hr == AUDCLNT_E_UNSUPPORTED_FORMAT || hr == E_INVALIDARG,
+                            "Initialize(exclus., %s%lux%2ux%u, RATEADJUST) returns %08lx\n",
+                            format_chr, fmt.Format.nSamplesPerSec, fmt.Format.wBitsPerSample, fmt.Format.nChannels, hr);
+                }
+
+                IAudioClient_Release(ac);
+
+                hr = IMMDevice_Activate(dev, &IID_IAudioClient, CLSCTX_INPROC_SERVER,
+                        NULL, (void**)&ac);
+                ok(hr == S_OK, "Activation failed with %08lx\n", hr);
+                if(hr != S_OK)
+                    continue;
+
+                /* With AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM it always succeeds. */
+                hr = IAudioClient_Initialize(ac, mode, AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM, 5000000, 0, (WAVEFORMATEX*)&fmt, NULL);
+                if (mode == AUDCLNT_SHAREMODE_SHARED) {
+                    expected = fmt.Format.nChannels <= 2 || extensible? S_OK : E_INVALIDARG;
+                    todo_wine_if(hr != expected)
+                    ok(hr == expected, "Initialize(shared,  %s%lux%2ux%u, AUTOCONVERTPCM) returns %08lx\n",
+                            format_chr, fmt.Format.nSamplesPerSec, fmt.Format.wBitsPerSample, fmt.Format.nChannels, hr);
+                } else {
+                    todo_wine_if(hr != E_INVALIDARG)
+                    ok(hr == E_INVALIDARG, "Initialize(exclus.,  %s%lux%2ux%u, AUTOCONVERTPCM) returns %08lx\n",
+                            format_chr, fmt.Format.nSamplesPerSec, fmt.Format.wBitsPerSample, fmt.Format.nChannels, hr);
+                }
+
+                CoTaskMemFree(pwfx2);
+                CoTaskMemFree(pwfx);
+                IAudioClient_Release(ac);
+            }
         }
-
-        ok((hr == S_FALSE)^(pwfx2 == NULL), "hr %lx<->suggest %p\n", hr, pwfx2);
-        if (pwfx2) {
-            ok(pwfx2->wFormatTag     == pwfx->wFormatTag &&
-               pwfx2->nSamplesPerSec == pwfx->nSamplesPerSec &&
-               pwfx2->nChannels      == pwfx->nChannels &&
-               pwfx2->wBitsPerSample == pwfx->wBitsPerSample,
-               "Suggestion %c%lux%2ux%u differs from GetMixFormat\n",
-               format_chr, pwfx2->nSamplesPerSec, pwfx2->wBitsPerSample, pwfx2->nChannels);
-        }
-
-        hr = IAudioClient_Initialize(ac, mode, 0, 5000000, 0, &fmt, NULL);
-        if ((hrs == S_OK) ^ (hr == S_OK))
-            trace("Initialize (%s, %c%lux%2ux%u) returns %08lx unlike IsFormatSupported\n",
-                  mode == AUDCLNT_SHAREMODE_SHARED ? "shared " : "exclus.",
-                  format_chr, fmt.nSamplesPerSec, fmt.wBitsPerSample, fmt.nChannels, hr);
-        if (mode == AUDCLNT_SHAREMODE_SHARED)
-            ok(hrs == S_OK ? hr == S_OK : hr == AUDCLNT_E_UNSUPPORTED_FORMAT,
-               "Initialize(shared,  %c%lux%2ux%u) returns %08lx\n",
-               format_chr, fmt.nSamplesPerSec, fmt.wBitsPerSample, fmt.nChannels, hr);
-        else if (hrs == AUDCLNT_E_EXCLUSIVE_MODE_NOT_ALLOWED)
-            /* Unsupported format implies "create failed" and shadows "not allowed" */
-            ok(hr == AUDCLNT_E_ENDPOINT_CREATE_FAILED || hr == hrs,
-               "Initialize(noexcl., %c%lux%2ux%u) returns %08lx(%08lx)\n",
-               format_chr, fmt.nSamplesPerSec, fmt.wBitsPerSample, fmt.nChannels, hr, hrs);
-        else
-            todo_wine_if(hr == AUDCLNT_E_EXCLUSIVE_MODE_NOT_ALLOWED)
-            ok(hrs == S_OK ? hr == S_OK
-               : hr == AUDCLNT_E_ENDPOINT_CREATE_FAILED || hr == AUDCLNT_E_UNSUPPORTED_FORMAT,
-               "Initialize(exclus., %c%lux%2ux%u) returns %08lx\n",
-               format_chr, fmt.nSamplesPerSec, fmt.wBitsPerSample, fmt.nChannels, hr);
-
-        CoTaskMemFree(pwfx2);
-        CoTaskMemFree(pwfx);
-        IAudioClient_Release(ac);
     }
 }
 
@@ -1200,14 +1259,16 @@ START_TEST(capture)
     }
 
     test_audioclient();
-    test_formats(AUDCLNT_SHAREMODE_EXCLUSIVE);
-    test_formats(AUDCLNT_SHAREMODE_SHARED);
     test_streamvolume();
     test_channelvolume();
     test_simplevolume();
     test_volume_dependence();
     test_marshal();
     test_render_loopback();
+    test_formats(AUDCLNT_SHAREMODE_EXCLUSIVE, FALSE);
+    test_formats(AUDCLNT_SHAREMODE_SHARED, FALSE);
+    test_formats(AUDCLNT_SHAREMODE_EXCLUSIVE, TRUE);
+    test_formats(AUDCLNT_SHAREMODE_SHARED, TRUE);
 
     IMMDevice_Release(dev);
 

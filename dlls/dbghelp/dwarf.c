@@ -4382,7 +4382,7 @@ BOOL dwarf2_parse(struct module* module, ULONG_PTR load_offset,
         dwarf2_modfmt->module->module.SourceIndexed = TRUE;
         dwarf2_modfmt->module->module.Publics = TRUE;
     }
-
+    else ret = FALSE;
     dwarf2_unload_CU_module(&module_ctx);
 leave:
 
@@ -4397,7 +4397,7 @@ leave:
     image_unmap_section(&debug_str_sect);
     image_unmap_section(&debug_line_sect);
     image_unmap_section(&debug_ranges_sect);
-    if (!ret) image_unmap_section(&eh_frame_sect);
+    if (!module->format_info[DFI_DWARF]) image_unmap_section(&eh_frame_sect);
 
     return ret;
 }

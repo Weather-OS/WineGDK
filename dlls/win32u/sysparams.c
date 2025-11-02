@@ -1923,10 +1923,12 @@ static RECT map_monitor_rect( struct monitor *monitor, RECT rect, UINT dpi_from,
 
     if (monitor->source)
     {
-        DEVMODEW current_mode = {.dmSize = sizeof(DEVMODEW)}, *mode_from, *mode_to;
+        float points[4] = {rect.left, rect.top, rect.right, rect.bottom}, from[2], to[2];
+        DEVMODEW current_mode = {.dmSize = sizeof(DEVMODEW)}, physical_mode;
         UINT num, den, dpi;
 
         source_get_current_settings( monitor->source, &current_mode );
+        physical_mode = monitor->source->physical;
 
         dpi = monitor_get_dpi( monitor, MDT_DEFAULT, &x, &y );
         if (!dpi_from) dpi_from = dpi;
@@ -1935,23 +1937,31 @@ static RECT map_monitor_rect( struct monitor *monitor, RECT rect, UINT dpi_from,
         if (type_from == MDT_RAW_DPI)
         {
             monitor_virt_to_raw_ratio( monitor, &den, &num );
-            mode_from = &monitor->source->physical;
-            mode_to = &current_mode;
+            from[0] = physical_mode.dmPosition.x + physical_mode.dmPelsWidth / 2.0;
+            from[1] = physical_mode.dmPosition.y + physical_mode.dmPelsHeight / 2.0;
+            to[0] = current_mode.dmPosition.x + current_mode.dmPelsWidth / 2.0;
+            to[1] = current_mode.dmPosition.y + current_mode.dmPelsHeight / 2.0;
         }
         else
         {
             monitor_virt_to_raw_ratio( monitor, &num, &den );
-            mode_from = &current_mode;
-            mode_to = &monitor->source->physical;
+            from[0] = current_mode.dmPosition.x + current_mode.dmPelsWidth / 2.0;
+            from[1] = current_mode.dmPosition.y + current_mode.dmPelsHeight / 2.0;
+            to[0] = physical_mode.dmPosition.x + physical_mode.dmPelsWidth / 2.0;
+            to[1] = physical_mode.dmPosition.y + physical_mode.dmPelsHeight / 2.0;
         }
 
-        rect = map_dpi_rect( rect, dpi_from, dpi * 2 );
-        OffsetRect( &rect, -mode_from->dmPosition.x * 2 - mode_from->dmPelsWidth,
-                    -mode_from->dmPosition.y * 2 - mode_from->dmPelsHeight );
-        rect = map_dpi_rect( rect, den, num );
-        OffsetRect( &rect, mode_to->dmPosition.x * 2 + mode_to->dmPelsWidth,
-                    mode_to->dmPosition.y * 2 + mode_to->dmPelsHeight );
-        return map_dpi_rect( rect, dpi * 2, dpi_to );
+        for (int i = 0; i < ARRAY_SIZE(points); i++)
+        {
+            points[i] *= (float)dpi / dpi_from;
+            points[i] -= from[i & 1];
+            points[i] *= (float)num / den;
+            points[i] += to[i & 1];
+            points[i] *= (float)dpi_to / dpi;
+        }
+
+        SetRect( &rect, round( points[0] ), round( points[1] ), round( points[2] ), round( points[3] ) );
+        return rect;
     }
 
     if (!dpi_from) dpi_from = monitor_get_dpi( monitor, type_from, &x, &y );
@@ -2131,7 +2141,7 @@ static BOOL update_display_cache_from_registry( UINT64 serial )
     HKEY hkey;
     BOOL ret;
 
-    /* If user driver did initialize the registry, then exit */
+    /* If user driver didn't initialize the registry, then exit */
     if (!enum_key && !(enum_key = reg_open_ascii_key( NULL, enum_keyA )))
         return FALSE;
     if (!video_key && !(video_key = reg_open_ascii_key( NULL, devicemap_video_keyA )))
@@ -7055,6 +7065,7 @@ static void thread_detach(void)
 
     cleanup_imm_thread();
     NtClose( thread_info->server_queue );
+    if (thread_info->idle_event) NtClose( thread_info->idle_event );
     free( thread_info->session_data );
     free( thread_info->mouse_tracking_info );
 
@@ -7612,6 +7623,27 @@ BOOL get_vulkan_uuid_from_luid( const LUID *luid, GUID *uuid )
             *uuid = gpu->vulkan_uuid;
             break;
         }
+    }
+
+    unlock_display_devices();
+    return found;
+}
+
+/* Find the Vulkan LUID corresponding to a device UUID */
+BOOL get_luid_from_vulkan_uuid( const GUID *uuid, LUID *luid, UINT32 *node_mask )
+{
+    BOOL found = FALSE;
+    struct gpu *gpu;
+
+    if (!lock_display_devices( FALSE )) return FALSE;
+
+    LIST_FOR_EACH_ENTRY( gpu, &gpus, struct gpu, entry )
+    {
+        if (!IsEqualGUID( uuid, &gpu->vulkan_uuid )) continue;
+        *luid = gpu->luid;
+        *node_mask = 1;
+        found = TRUE;
+        break;
     }
 
     unlock_display_devices();

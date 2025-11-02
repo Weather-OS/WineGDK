@@ -598,7 +598,21 @@ static ULONG STDMETHODCALLTYPE property_value_Release(IPropertyValue *iface)
     if (!refcount)
     {
         if (impl->value)
+        {
+            if (impl->type == PropertyType_String)
+            {
+                WindowsDeleteString(*(HSTRING *)impl->value);
+            }
+            else if (impl->type == PropertyType_StringArray)
+            {
+                HSTRING *string_array = impl->value;
+                unsigned int i;
+
+                for (i = 0; i < impl->value_size; i++)
+                    WindowsDeleteString(string_array[i]);
+            }
             free(impl->value);
+        }
         free(impl);
     }
 
@@ -712,8 +726,14 @@ static HRESULT STDMETHODCALLTYPE property_value_GetBoolean(IPropertyValue *iface
 
 static HRESULT STDMETHODCALLTYPE property_value_GetString(IPropertyValue *iface, HSTRING *value)
 {
+    HRESULT hr;
+
     TRACE("iface %p, value %p.\n", iface, value);
-    return property_value_get_primitive(PropertyType_String);
+
+    hr = property_value_get_primitive(PropertyType_String);
+    if (SUCCEEDED(hr))
+        WindowsDuplicateString(*value, value);
+    return hr;
 }
 
 static HRESULT STDMETHODCALLTYPE property_value_GetGuid(IPropertyValue *iface, GUID *value)
@@ -821,8 +841,18 @@ static HRESULT STDMETHODCALLTYPE property_value_GetBooleanArray(IPropertyValue *
 
 static HRESULT STDMETHODCALLTYPE property_value_GetStringArray(IPropertyValue *iface, UINT32 *value_size, HSTRING **value)
 {
+    unsigned int i;
+    HRESULT hr;
+
     TRACE("iface %p, value_size %p, value %p.\n", iface, value_size, value);
-    return property_value_get_primitive_array(PropertyType_StringArray);
+
+    hr = property_value_get_primitive_array(PropertyType_StringArray);
+    if (SUCCEEDED(hr))
+    {
+        for (i = 0; i < *value_size; i++)
+            WindowsDuplicateString((*value)[i], &(*value)[i]);
+    }
+    return hr;
 }
 
 static HRESULT STDMETHODCALLTYPE property_value_GetInspectableArray(IPropertyValue *iface, UINT32 *value_size, IInspectable ***value)
@@ -1462,6 +1492,9 @@ static HRESULT STDMETHODCALLTYPE property_value_statics_CreateString(IPropertyVa
 
     TRACE("iface %p, value %s, property_value %p.\n", iface, debugstr_hstring(value_str), property_value);
 
+    if (!property_value)
+        return E_POINTER;
+
     if (FAILED(hr = WindowsDuplicateString(value_str, &value)))
     {
         *property_value = NULL;
@@ -1601,8 +1634,38 @@ static HRESULT STDMETHODCALLTYPE property_value_statics_CreateBooleanArray(IProp
 static HRESULT STDMETHODCALLTYPE property_value_statics_CreateStringArray(IPropertyValueStatics *iface,
         UINT32 value_size, HSTRING *value, IInspectable **property_value)
 {
+    struct property_value *impl;
+    HSTRING *new_value;
+    unsigned int i;
+
     TRACE("iface %p, value_size %u, value %p, property_value %p.\n", iface, value_size, value, property_value);
-    return create_primitive_property_value_array(PropertyType_StringArray);
+
+    if (!value || !property_value)
+        return E_POINTER;
+
+    impl = calloc(1, sizeof(*impl));
+    if (!impl)
+        return E_OUTOFMEMORY;
+
+    new_value = calloc(value_size, sizeof(HSTRING));
+    if (!new_value)
+    {
+        free(impl);
+        return E_OUTOFMEMORY;
+    }
+
+    for (i = 0; i < value_size; i++)
+        WindowsDuplicateString(value[i], &new_value[i]);
+
+    impl->IPropertyValue_iface.lpVtbl = &property_value_vtbl;
+    impl->type = PropertyType_StringArray;
+    impl->ref = 1;
+    impl->value = new_value;
+    impl->value_size = value_size;
+
+    *property_value = (IInspectable *)&impl->IPropertyValue_iface;
+    return S_OK;
+
 }
 
 static HRESULT STDMETHODCALLTYPE property_value_statics_CreateInspectableArray(IPropertyValueStatics *iface,

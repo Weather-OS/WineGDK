@@ -55,6 +55,8 @@ static WCHAR sz12_true[32];
 /* Has I8/UI8 data type? */
 static BOOL has_i8;
 
+static BOOL is_win;
+
 /* When comparing floating point values we cannot expect an exact match
  * because the rounding errors depend on the exact algorithm.
  */
@@ -432,6 +434,8 @@ static void init(void)
     BSTR bstr;
     HRESULT res;
 
+    is_win = !strcmp(winetest_platform, "windows");
+
     res = VarBstrFromBool(VARIANT_TRUE, LANG_USER_DEFAULT, VAR_LOCALBOOL, &bstr);
     ok(res == S_OK && bstr[0], "Expected localized string for 'True'\n");
     /* lstrcpyW / lstrcatW do not work on win95 */
@@ -546,6 +550,13 @@ static void test_var_call2( int line, HRESULT (WINAPI *func)(LPVARIANT,LPVARIANT
     ok_(__FILE__,line)( is_expected_variant( right, &old_right ), "Modified right argument %s / %s\n",
                         wine_dbgstr_variant(&old_right), wine_dbgstr_variant(right));
     VariantClear( &result );
+}
+
+static void test_var_call2_commutative( int line, HRESULT (WINAPI *func)(LPVARIANT,LPVARIANT,LPVARIANT),
+                            VARIANT *left, VARIANT *right, VARIANT *expected )
+{
+    test_var_call2( line, func, left, right, expected );
+    test_var_call2( line, func, right, left, expected );
 }
 
 #define test_bstr_var(a,b) _test_bstr_var(__LINE__,a,b)
@@ -4409,13 +4420,13 @@ static HRESULT (WINAPI *pVarXor)(LPVARIANT,LPVARIANT,LPVARIANT);
         V_VT(&left) = VT_##vt1; V_##vt1(&left) = val1;   \
         V_VT(&right) = VT_##vt2; V_##vt2(&right) = val2; \
         V_VT(&exp) = VT_##rvt; V_##rvt(&exp) = rval;     \
-        test_var_call2( __LINE__, pVarXor, &left, &right, &exp )
+        test_var_call2_commutative( __LINE__, pVarXor, &left, &right, &exp )
 
 #define VARXORCY(vt1,val1,val2,rvt,rval)                 \
         V_VT(&left) = VT_##vt1; V_##vt1(&left) = val1;   \
         V_VT(&right) = VT_CY; V_CY(&right).int64 = val2; \
         V_VT(&exp) = VT_##rvt; V_##rvt(&exp) = rval;     \
-        test_var_call2( __LINE__, pVarXor, &left, &right, &exp )
+        test_var_call2_commutative( __LINE__, pVarXor, &left, &right, &exp )
 
 static void test_VarXor(void)
 {
@@ -5143,13 +5154,13 @@ static HRESULT (WINAPI *pVarOr)(LPVARIANT,LPVARIANT,LPVARIANT);
         V_VT(&left) = VT_##vt1; V_##vt1(&left) = val1;   \
         V_VT(&right) = VT_##vt2; V_##vt2(&right) = val2; \
         V_VT(&exp) = VT_##rvt; V_##rvt(&exp) = rval;     \
-        test_var_call2( __LINE__, pVarOr, &left, &right, &exp )
+        test_var_call2_commutative( __LINE__, pVarOr, &left, &right, &exp )
 
 #define VARORCY(vt1,val1,val2,rvt,rval)                  \
         V_VT(&left) = VT_##vt1; V_##vt1(&left) = val1;   \
         V_VT(&right) = VT_CY; V_CY(&right).int64 = val2; \
         V_VT(&exp) = VT_##rvt; V_##rvt(&exp) = rval;     \
-        test_var_call2( __LINE__, pVarOr, &left, &right, &exp )
+        test_var_call2_commutative( __LINE__, pVarOr, &left, &right, &exp )
 
 static void test_VarOr(void)
 {
@@ -5884,7 +5895,7 @@ static HRESULT (WINAPI *pVarEqv)(LPVARIANT,LPVARIANT,LPVARIANT);
     V_VT(&left) = VT_##vt1; V_##vt1(&left) = val1;   \
     V_VT(&right) = VT_##vt2; V_##vt2(&right) = val2; \
     V_VT(&exp) = VT_##rvt; V_##rvt(&exp) = rval;     \
-    test_var_call2( __LINE__, pVarEqv, &left, &right, &exp )
+    test_var_call2_commutative( __LINE__, pVarEqv, &left, &right, &exp )
 
 static void test_VarEqv(void)
 {
@@ -6023,7 +6034,7 @@ static HRESULT (WINAPI *pVarMul)(LPVARIANT,LPVARIANT,LPVARIANT);
         V_VT(&left) = VT_##vt1; V_##vt1(&left) = val1;   \
         V_VT(&right) = VT_##vt2; V_##vt2(&right) = val2; \
         V_VT(&exp) = VT_##rvt; V_##rvt(&exp) = rval;     \
-        test_var_call2( __LINE__, pVarMul, &left, &right, &exp )
+        test_var_call2_commutative( __LINE__, pVarMul, &left, &right, &exp )
 
 static void test_VarMul(void)
 {
@@ -6194,7 +6205,7 @@ static HRESULT (WINAPI *pVarAdd)(LPVARIANT,LPVARIANT,LPVARIANT);
         V_VT(&left) = VT_##vt1; V_##vt1(&left) = val1;   \
         V_VT(&right) = VT_##vt2; V_##vt2(&right) = val2; \
         V_VT(&exp) = VT_##rvt; V_##rvt(&exp) = rval;     \
-        test_var_call2( __LINE__, pVarAdd, &left, &right, &exp )
+        test_var_call2_commutative( __LINE__, pVarAdd, &left, &right, &exp )
 
 static void test_VarAdd(void)
 {
@@ -6787,7 +6798,16 @@ static HRESULT (WINAPI *pVarAnd)(LPVARIANT,LPVARIANT,LPVARIANT);
         V_VT(&left) = VT_##vt1; V_##vt1(&left) = val1;   \
         V_VT(&right) = VT_##vt2; V_##vt2(&right) = val2; \
         V_VT(&exp) = VT_##rvt; V_##rvt(&exp) = rval;     \
-        test_var_call2( __LINE__, pVarAnd, &left, &right, &exp )
+        test_var_call2_commutative( __LINE__, pVarAnd, &left, &right, &exp )
+
+#define VARAND_TODOCOMM(vt1,val1,vt2,val2,rvt,rval)               \
+        V_VT(&left) = VT_##vt1; V_##vt1(&left) = val1;   \
+        V_VT(&right) = VT_##vt2; V_##vt2(&right) = val2; \
+        V_VT(&exp) = VT_##rvt; V_##rvt(&exp) = rval;     \
+        if (is_win) \
+        test_var_call2_commutative( __LINE__, pVarAnd, &left, &right, &exp ); \
+        else \
+        test_var_call2( __LINE__, pVarAnd, &left, &right, &exp ); \
 
 #define VARANDCY(vt1,val1,val2,rvt,rval)                 \
         V_VT(&left) = VT_##vt1; V_##vt1(&left) = val1;   \
@@ -6970,35 +6990,35 @@ static void test_VarAnd(void)
     VARAND(NULL,0,NULL,0,NULL,0);
     VARAND(NULL,1,NULL,0,NULL,0);
     VARAND(NULL,0,I1,0,I4,0);
-    VARAND(NULL,0,I1,1,NULL,0);
+    VARAND_TODOCOMM(NULL,0,I1,1,NULL,0);
     VARAND(NULL,0,UI1,0,UI1,0);
-    VARAND(NULL,0,UI1,1,NULL,0);
+    VARAND_TODOCOMM(NULL,0,UI1,1,NULL,0);
     VARAND(NULL,0,I2,0,I2,0);
-    VARAND(NULL,0,I2,1,NULL,0);
+    VARAND_TODOCOMM(NULL,0,I2,1,NULL,0);
     VARAND(NULL,0,UI2,0,I4,0);
-    VARAND(NULL,0,UI2,1,NULL,0);
+    VARAND_TODOCOMM(NULL,0,UI2,1,NULL,0);
     VARAND(NULL,0,I4,0,I4,0);
-    VARAND(NULL,0,I4,1,NULL,0);
+    VARAND_TODOCOMM(NULL,0,I4,1,NULL,0);
     VARAND(NULL,0,UI4,0,I4,0);
-    VARAND(NULL,0,UI4,1,NULL,0);
+    VARAND_TODOCOMM(NULL,0,UI4,1,NULL,0);
     if (has_i8)
     {
         VARAND(NULL,0,I8,0,I8,0);
-        VARAND(NULL,0,I8,1,NULL,0);
+        VARAND_TODOCOMM(NULL,0,I8,1,NULL,0);
         VARAND(NULL,0,UI8,0,I4,0);
-        VARAND(NULL,0,UI8,1,NULL,0);
+        VARAND_TODOCOMM(NULL,0,UI8,1,NULL,0);
     }
     VARAND(NULL,0,INT,0,I4,0);
-    VARAND(NULL,0,INT,1,NULL,0);
+    VARAND_TODOCOMM(NULL,0,INT,1,NULL,0);
     VARAND(NULL,0,UINT,0,I4,0);
-    VARAND(NULL,0,UINT,1,NULL,0);
-    VARAND(NULL,0,BOOL,0,BOOL,0);
-    VARAND(NULL,0,BOOL,1,NULL,0);
+    VARAND_TODOCOMM(NULL,0,UINT,1,NULL,0);
+    VARAND_TODOCOMM(NULL,0,BOOL,0,BOOL,0);
+    VARAND_TODOCOMM(NULL,0,BOOL,1,NULL,0);
     VARAND(NULL,0,R4,0,I4,0);
-    VARAND(NULL,0,R4,1,NULL,0);
+    VARAND_TODOCOMM(NULL,0,R4,1,NULL,0);
     VARAND(NULL,0,R8,0,I4,0);
-    VARAND(NULL,0,R8,1,NULL,0);
-    VARAND(NULL,0,BSTR,false_str,BOOL,0);
+    VARAND_TODOCOMM(NULL,0,R8,1,NULL,0);
+    VARAND_TODOCOMM(NULL,0,BSTR,false_str,BOOL,0);
     VARAND(NULL,0,BSTR,true_str,NULL,VARIANT_FALSE);
     VARANDCY(NULL,0,10000,NULL,0);
     VARANDCY(NULL,0,0,I4,0);
@@ -7465,7 +7485,19 @@ static void test_cmp( int line, LCID lcid, UINT flags, VARIANT *left, VARIANT *r
     hres = VarCmp(left,right,lcid,flags);
     ok_(__FILE__,line)(hres == result, "VarCmp(%s,%s): expected 0x%lx, got hres=0x%lx\n",
                        wine_dbgstr_variant(left), wine_dbgstr_variant(right), result, hres );
+
+    /* Invert and run once more. */
+    if (result == VARCMP_LT) result = VARCMP_GT;
+    else if (result == VARCMP_GT) result = VARCMP_LT;
+
+    /* Unfortunately VT_INT is special and is only accepted for the left operand. */
+    if ((V_VT(left) & VT_TYPEMASK) == VT_INT) return;
+
+    hres = VarCmp(right, left, lcid, flags);
+    ok_(__FILE__,line)(hres == result, "VarCmp(%s,%s): expected 0x%lx, got hres=0x%lx\n",
+                       wine_dbgstr_variant(right), wine_dbgstr_variant(left), result, hres );
 }
+
 static void test_cmpex( int line, LCID lcid, VARIANT *left, VARIANT *right,
                         HRESULT res1, HRESULT res2, HRESULT res3, HRESULT res4 )
 {

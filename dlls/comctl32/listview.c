@@ -138,8 +138,6 @@
 #include "winnls.h"
 #include "commctrl.h"
 #include "comctl32.h"
-#include "uxtheme.h"
-#include "vsstyle.h"
 #include "shlwapi.h"
 
 #include "wine/debug.h"
@@ -327,7 +325,7 @@ typedef struct tagLISTVIEW_INFO
   BOOL redraw;             /* WM_SETREDRAW switch */
 
   /* misc */
-  DWORD iVersion;          /* CCM_[G,S]ETVERSION */
+  INT iVersion;            /* CCM_[G,S]ETVERSION */
 } LISTVIEW_INFO;
 
 /*
@@ -419,8 +417,6 @@ typedef struct tagLISTVIEW_INFO
         iP->iconSpacing.cx, iP->iconSpacing.cy, iP->notifyFormat); \
   TRACE("hwndSelf=%p, rcList=%s\n", iP->hwndSelf, wine_dbgstr_rect(&iP->rcList)); \
 } while(0)
-
-static const WCHAR themeClass[] = L"ListView";
 
 enum key_state
 {
@@ -8559,6 +8555,7 @@ static BOOL LISTVIEW_SetColumnWidth(LISTVIEW_INFO *infoPtr, INT nColumn, INT cx)
  * Creates the checkbox imagelist.  Helper for LISTVIEW_SetExtendedListViewStyle
  *
  */
+#if __WINE_COMCTL32_VERSION == 6
 static HIMAGELIST LISTVIEW_CreateThemedCheckBoxImageList(const LISTVIEW_INFO *info)
 {
     HBITMAP bitmap, old_bitmap;
@@ -8600,6 +8597,7 @@ static HIMAGELIST LISTVIEW_CreateThemedCheckBoxImageList(const LISTVIEW_INFO *in
     CloseThemeData(theme);
     return image_list;
 }
+#endif /* __WINE_COMCTL32_VERSION == 6 */
 
 static HIMAGELIST LISTVIEW_CreateCheckBoxIL(const LISTVIEW_INFO *infoPtr)
 {
@@ -8609,9 +8607,11 @@ static HIMAGELIST LISTVIEW_CreateCheckBoxIL(const LISTVIEW_INFO *infoPtr)
     HBRUSH hbr_white, hbr_black;
     HIMAGELIST himl;
 
+#if __WINE_COMCTL32_VERSION == 6
     himl = LISTVIEW_CreateThemedCheckBoxImageList(infoPtr);
     if (himl)
         return himl;
+#endif
 
     hbr_white = GetStockObject(WHITE_BRUSH);
     hbr_black = GetStockObject(BLACK_BRUSH);
@@ -9470,26 +9470,6 @@ static BOOL LISTVIEW_SortItems(LISTVIEW_INFO *infoPtr, PFNLVCOMPARE pfnCompare,
 
 /***
  * DESCRIPTION:
- * Update theme handle after a theme change.
- *
- * PARAMETER(S):
- * [I] infoPtr : valid pointer to the listview structure
- *
- * RETURN:
- *   SUCCESS : 0
- *   FAILURE : something else
- */
-static LRESULT LISTVIEW_ThemeChanged(const LISTVIEW_INFO *infoPtr)
-{
-    HTHEME theme = GetWindowTheme(infoPtr->hwndSelf);
-    CloseThemeData(theme);
-    OpenThemeData(infoPtr->hwndSelf, themeClass);
-    InvalidateRect(infoPtr->hwndSelf, NULL, TRUE);
-    return 0;
-}
-
-/***
- * DESCRIPTION:
  * Updates an items or rearranges the listview control.
  *
  * PARAMETER(S):
@@ -9711,7 +9691,7 @@ static LRESULT LISTVIEW_Create(HWND hwnd, const CREATESTRUCTW *lpcs)
     if (infoPtr->dwStyle & LVS_OWNERDRAWFIXED) notify_measureitem(infoPtr);
   }
 
-  OpenThemeData(hwnd, themeClass);
+  COMCTL32_OpenThemeForWindow(hwnd, L"ListView");
 
   /* initialize the icon sizes */
   set_icon_size(&infoPtr->iconSize, infoPtr->himlNormal, infoPtr->uView != LV_VIEW_ICON);
@@ -9732,8 +9712,7 @@ static LRESULT LISTVIEW_Create(HWND hwnd, const CREATESTRUCTW *lpcs)
  */
 static LRESULT LISTVIEW_Destroy(LISTVIEW_INFO *infoPtr)
 {
-    HTHEME theme = GetWindowTheme(infoPtr->hwndSelf);
-    CloseThemeData(theme);
+    COMCTL32_CloseThemeForWindow(infoPtr->hwndSelf);
 
     /* delete all items */
     LISTVIEW_DeleteAllItems(infoPtr, TRUE);
@@ -10747,6 +10726,7 @@ static LRESULT LISTVIEW_Notify(LISTVIEW_INFO *infoPtr, NMHDR *lpnmhdr)
  */
 static LRESULT LISTVIEW_NCPaint(const LISTVIEW_INFO *infoPtr, HRGN region)
 {
+#if __WINE_COMCTL32_VERSION == 6
     LONG exstyle = GetWindowLongW (infoPtr->hwndSelf, GWL_EXSTYLE);
     HTHEME theme = GetWindowTheme (infoPtr->hwndSelf);
     RECT r, window_rect;
@@ -10784,6 +10764,9 @@ static LRESULT LISTVIEW_NCPaint(const LISTVIEW_INFO *infoPtr, HRGN region)
     DeleteObject(cliprgn);
 
     return 0;
+#else /* __WINE_COMCTL32_VERSION == 6 */
+    return DefWindowProcW(infoPtr->hwndSelf, WM_NCPAINT, (WPARAM)region, 0);
+#endif
 }
 
 /***
@@ -11441,22 +11424,9 @@ static inline LRESULT LISTVIEW_GetVersion(const LISTVIEW_INFO *infoPtr)
  * -1 when requested version is greater than DLL version;
  * previous version otherwise
  */
-static LRESULT LISTVIEW_SetVersion(LISTVIEW_INFO *infoPtr, DWORD iVersion)
+static LRESULT LISTVIEW_SetVersion(LISTVIEW_INFO *infoPtr, INT iVersion)
 {
-#if __WINE_COMCTL32_VERSION == 6
-  return infoPtr->iVersion;
-#else
-  INT iOldVersion = infoPtr->iVersion;
-
-  if (iVersion > 5)
-    return -1;
-
-  infoPtr->iVersion = iVersion;
-
-  TRACE("new version %ld\n", iVersion);
-
-  return iOldVersion;
-#endif
+    return COMCTL32_SetVersion(&infoPtr->iVersion, iVersion);
 }
 
 /***
@@ -11950,7 +11920,7 @@ LISTVIEW_WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 /*	case WM_TIMER: */
   case WM_THEMECHANGED:
-    return LISTVIEW_ThemeChanged(infoPtr);
+    return COMCTL32_ThemeChanged(infoPtr->hwndSelf, L"ListView", TRUE, TRUE);
 
   case WM_VSCROLL:
     return LISTVIEW_VScroll(infoPtr, (INT)LOWORD(wParam), 0);

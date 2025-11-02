@@ -3104,3 +3104,110 @@ LRESULT COMCTL32_forward_notify_to_ansi_window(HWND hwnd_notify, NMHDR *hdr, WCH
     /* Other notifications, no need to convert */
     return SendMessageW(hwnd_notify, WM_NOTIFY, hdr->idFrom, (LPARAM)hdr);
 }
+
+void COMCTL32_OpenThemeForWindow(HWND hwnd, const WCHAR *theme_class)
+{
+#if __WINE_COMCTL32_VERSION == 6
+    OpenThemeData(hwnd, theme_class);
+#endif
+}
+
+void COMCTL32_CloseThemeForWindow(HWND hwnd)
+{
+#if __WINE_COMCTL32_VERSION == 6
+    CloseThemeData(GetWindowTheme(hwnd));
+#endif
+}
+
+/* A helper to handle CCM_SETVERSION messages */
+LRESULT COMCTL32_SetVersion(INT *current_version, INT new_version)
+{
+#if __WINE_COMCTL32_VERSION == 6
+    return *current_version;
+#else
+    INT old_version;
+
+    if (new_version > 5)
+        return -1;
+
+    old_version = *current_version;
+    *current_version = new_version;
+    return old_version;
+#endif
+}
+
+/* A helper to handle WM_THEMECHANGED messages */
+LRESULT COMCTL32_ThemeChanged(HWND hwnd, const WCHAR *theme_class, BOOL invalidate, BOOL erase)
+{
+#if __WINE_COMCTL32_VERSION == 6
+    if (theme_class)
+    {
+        COMCTL32_CloseThemeForWindow(hwnd);
+        COMCTL32_OpenThemeForWindow(hwnd, theme_class);
+    }
+
+    if (invalidate)
+        InvalidateRect(hwnd, NULL, erase);
+    return 0;
+#else
+    return DefWindowProcW(hwnd, WM_THEMECHANGED, 0, 0);
+#endif
+}
+
+/* A helper to handle WM_NCPAINT messages
+ *
+ * If theme_class is specified, open the specified theme class. Otherwise, get the theme class from
+ * the window.
+ */
+LRESULT COMCTL32_NCPaint(HWND hwnd, WPARAM wp, LPARAM lp, const WCHAR *theme_class)
+{
+#if __WINE_COMCTL32_VERSION == 6
+    HRGN region = (HRGN)wp, clipRgn;
+    INT cxEdge, cyEdge;
+    HTHEME theme;
+    LONG exStyle;
+    HDC dc;
+    RECT r;
+
+    exStyle = GetWindowLongW(hwnd, GWL_EXSTYLE);
+    if (!(exStyle & WS_EX_CLIENTEDGE))
+        return DefWindowProcW(hwnd, WM_NCPAINT, wp, lp);
+
+    if (theme_class)
+        theme = OpenThemeDataForDpi(NULL, theme_class, GetDpiForWindow(hwnd));
+    else
+        theme = GetWindowTheme(hwnd);
+    if (!theme)
+        return DefWindowProcW(hwnd, WM_NCPAINT, wp, lp);
+
+    cxEdge = GetSystemMetrics(SM_CXEDGE);
+    cyEdge = GetSystemMetrics(SM_CYEDGE);
+    GetWindowRect(hwnd, &r);
+
+    /* New clipping region passed to default proc to exclude border */
+    clipRgn = CreateRectRgn(r.left + cxEdge, r.top + cyEdge, r.right - cxEdge, r.bottom - cyEdge);
+    if (region != (HRGN)1)
+        CombineRgn(clipRgn, clipRgn, region, RGN_AND);
+    OffsetRect(&r, -r.left, -r.top);
+
+    dc = GetDCEx(hwnd, region, DCX_WINDOW | DCX_INTERSECTRGN);
+    if (IsThemeBackgroundPartiallyTransparent(theme, 0, 0))
+        DrawThemeParentBackground(hwnd, dc, &r);
+    DrawThemeBackground(theme, dc, 0, 0, &r, 0);
+    ReleaseDC(hwnd, dc);
+    if (theme_class)
+        CloseThemeData(theme);
+
+    /* Call default proc to get the scrollbars etc. also painted */
+    DefWindowProcW(hwnd, WM_NCPAINT, (WPARAM)clipRgn, 0);
+    DeleteObject(clipRgn);
+    return 0;
+#else
+    return DefWindowProcW(hwnd, WM_NCPAINT, wp, lp);
+#endif
+}
+
+BOOL COMCTL32_IsThemed(HWND hwnd)
+{
+    return !!GetWindowTheme(hwnd);
+}
