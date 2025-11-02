@@ -1,0 +1,6 @@
+TESTDLL = xgameruntime.dll
+IMPORTS = user32 advapi32 combase
+
+SOURCES = \
+    provider.idl \
+	xgameruntime.c

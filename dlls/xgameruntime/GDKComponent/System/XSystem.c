@@ -77,7 +77,7 @@ static HRESULT WINAPI x_system_XSystemGetConsoleId( IXSystemImpl *iface, INT32 c
         return HRESULT_FROM_WIN32( ERROR_INSUFFICIENT_BUFFER );
 
     strcpy_s( consoleId, consoleIdSize, Id );
-    *consoleIdUsed = strlen( Id );
+    *consoleIdUsed = strlen( Id ) + 1;
     return S_OK;
 }
 
@@ -95,7 +95,7 @@ static HRESULT WINAPI x_system_XSystemGetXboxLiveSandboxId( IXSystemImpl *iface,
         return HRESULT_FROM_WIN32( ERROR_INSUFFICIENT_BUFFER );
 
     strcpy_s( sandboxId, sandboxIdSize, Id );
-    *sandboxIdUsed = strlen( Id );
+    *sandboxIdUsed = strlen( Id ) + 1;
     return S_OK;
 }
 

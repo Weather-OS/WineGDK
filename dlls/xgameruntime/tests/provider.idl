@@ -1,0 +1,192 @@
+/*
+ * xgameruntime.dll implementation
+ *
+ * Written by Weather
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
+ */
+
+#pragma makedep header
+
+import "propidl.idl";
+
+cpp_quote("#include <xasync.h>")
+
+// --- xgameruntime --- //
+typedef void* XSystemHandle;
+
+typedef enum XSystemHandleType XSystemHandleType;
+typedef enum XSystemHandleCallbackReason XSystemHandleCallbackReason;
+typedef enum XGameRuntimeFeature XGameRuntimeFeature;
+
+typedef struct XVersion XVersion;
+typedef struct XSystemAnalyticsInfo XSystemAnalyticsInfo;
+
+/* type-pruning version of XAsyncCompletionRoutine */
+
+interface IWineAsyncWorkImpl;
+interface IXSystemImpl;
+interface IXSystemAnalyticsImpl;
+interface IXGameRuntimeFeatureImpl;
+
+coclass XSystemImpl;
+coclass XSystemAnalyticsImpl;
+coclass XGameRuntimeFeatureImpl;
+
+enum XSystemHandleType
+{
+    AppCaptureScreenshotStream = 0x00,
+    DisplayTimeoutDeferral     = 0x01,
+    GameSaveContainer          = 0x02,
+    GameSaveProvider           = 0x03,
+    GameSaveUpdate             = 0x04,
+    PackageInstallationMonitor = 0x05,
+    PackageMount               = 0x06,
+    SpeechSynthesizer          = 0x07,
+    SpeechSynthesizerStream    = 0x08,
+    StoreContext               = 0x09,
+    StoreLicense               = 0x0a,
+    StoreProductQuery          = 0x0b,
+    TaskQueue                  = 0x0c,
+    User                       = 0x0d,
+    UserSignOutDeferral        = 0x0e,
+    GameUiTextEntry            = 0x0f
+};
+
+enum XGameRuntimeFeature
+{  
+    XAccessibility             = 0,  
+    XAppCapture                = 1,  
+    XAsync                     = 2,  
+    XAsyncProvider             = 3,  
+    XDisplay                   = 4,  
+    XGame                      = 5,  
+    XGameInvite                = 6,  
+    XGameSave                  = 7,  
+    XGameUI                    = 8,  
+    XLauncher                  = 9,  
+    XNetworking                = 10,  
+    XPackage                   = 11,  
+    XPersistentLocalStorage    = 12,  
+    XSpeechSynthesizer         = 13,  
+    XStore                     = 14,  
+    XSystem                    = 15,  
+    XTaskQueue                 = 16,  
+    XThread                    = 17,  
+    XUser                      = 18,  
+    XError                     = 19,  
+    XGameEvent                 = 20, 
+    XGameStreaming             = 21, 
+};
+
+enum XSystemHandleCallbackReason
+{
+    Created     = 0x00,
+    Destroyed   = 0x01
+};
+
+struct XVersion {  
+    union
+    {
+        struct
+        {
+            UINT16 major;  
+            UINT16 minor;  
+            UINT16 build;  
+            UINT16 revision;
+        };
+        UINT64 Value;
+    };
+};
+
+struct XSystemAnalyticsInfo
+{
+    XVersion osVersion;  
+    XVersion hostingOsVersion;  
+    CHAR family[64];  
+    CHAR form[64];
+};
+
+[
+    object,
+    uuid(7664288b-54e9-45f9-af0b-b4ad047fa194)
+]
+interface IWineAsyncWorkImpl : IUnknown
+{
+
+}
+
+[
+    object,
+    uuid(dadc2895-34b0-4ef5-a83e-45114d629b80)
+]
+interface IXSystemImpl : IUnknown
+{
+    HRESULT XSystemGetConsoleId( [in] INT32 consoleIdSize, [out, size_is(consoleIdSize)] LPSTR consoleId, [out] SIZE_T *consoleIdUsed );
+    HRESULT XSystemGetXboxLiveSandboxId( [in] INT32 sandboxIdSize, [out, size_is(sandboxIdSize)] LPSTR sandboxId, [out] SIZE_T *sandboxIdUsed );
+    HRESULT XSystemGetAppSpecificDeviceId( [in] INT32 appSpecificDeviceIdSize, [out, size_is(appSpecificDeviceIdSize)] LPSTR appSpecificDeviceId, [out] SIZE_T *appSpecificDeviceIdUsed );
+    /*
+     *  BUG: You cannot have function pointer parameters within COM declared interfaces,
+     * yet Microsoft, in their infinite wisdom, declared function pointers within the 2 
+     * functions below, within a COM interface. Unfortunately no workaround can be found 
+     * unless we transition to a WinRT codebase.
+     */
+    HRESULT XSystemHandleTrack( /* [in] XSystemHandleCallback callback, [in] void *context */ );
+    BOOLEAN XSystemIsHandleValid( /* [in] XSystemHandleCallback callback */ );
+    HRESULT XSystemAllowFullDownloadBandwidth( [in] boolean enable );
+}
+
+[
+    object,
+    uuid(b884675d-b738-4a9c-815d-9a9a1e0c6c9b)
+]
+interface IXSystemAnalyticsImpl : IUnknown
+{
+    XSystemAnalyticsInfo XSystemGetAnalyticsInfo();
+}
+
+[
+    object,
+    uuid(8836fe87-edb9-4fe3-8dad-05f0d2cd5b40)
+]
+interface IXGameRuntimeFeatureImpl : IUnknown
+{
+    BOOLEAN XGameRuntimeIsFeatureAvailable( [in] XGameRuntimeFeature feature );
+}
+
+[
+    uuid(e349bd1a-fc20-4e40-b99c-4178cc6b409f)
+]
+coclass XSystemImpl
+{
+    [default] interface IXSystemImpl;
+}
+
+[
+    uuid(b884675d-b738-4a9c-815d-9a9a1e0c6c9b)
+]
+coclass XSystemAnalyticsImpl
+{
+    [default] interface IXSystemAnalyticsImpl;
+}
+
+[
+    uuid(8836fe87-edb9-4fe3-8dad-05f0d2cd5b40)
+]
+coclass XGameRuntimeFeatureImpl
+{
+    [default] interface IXGameRuntimeFeatureImpl;
+}
+

@@ -62,7 +62,7 @@ struct x_async_work
 
 struct x_async_work *impl_from_XAsyncBlock( XAsyncBlock *block );
 
-HRESULT WINAPI XCheckBlockAndInitialize( XAsyncBlock* asyncBlock );
+HRESULT WINAPI XInitializeBlock( XAsyncBlock* asyncBlock );
 
 VOID CALLBACK XTPCallback( TP_CALLBACK_INSTANCE *instance, void *iface, TP_WORK *work );
 
