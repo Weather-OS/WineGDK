@@ -96,10 +96,10 @@ static ULONG WINAPI game_input_Release( v0_IGameInput *iface )
     return ref;
 }
 
-static UINT64 WINAPI game_input_GetCurrentTimestamp( v0_IGameInput *iface )
+static uint64_t WINAPI game_input_GetCurrentTimestamp( v0_IGameInput *iface )
 {
     FIXME( "iface %p, stub GetCurrentTimestamp.\n", iface );
-    return (UINT64)0;
+    return (uint64_t)0;
 }
 
 static HRESULT WINAPI game_input_GetCurrentReading( v0_IGameInput *iface, GameInputKind kind,
@@ -328,10 +328,10 @@ static ULONG WINAPI game_input1_Release( v1_IGameInput *iface )
     return ref;
 };
 
-static UINT64 WINAPI game_input1_GetCurrentTimestamp( v1_IGameInput *iface )
+static uint64_t WINAPI game_input1_GetCurrentTimestamp( v1_IGameInput *iface )
 {
     TRACE( "iface %p, stub GetCurrentTimestamp.\n", iface );
-    return (UINT64)0;
+    return (uint64_t)0;
 }
 
 static HRESULT WINAPI game_input1_GetCurrentReading( v1_IGameInput *iface, GameInputKind kind,
@@ -518,10 +518,10 @@ static ULONG WINAPI game_input2_Release( v2_IGameInput *iface )
     return ref;
 };
 
-static UINT64 WINAPI game_input2_GetCurrentTimestamp( v2_IGameInput *iface )
+static uint64_t WINAPI game_input2_GetCurrentTimestamp( v2_IGameInput *iface )
 {
     TRACE( "iface %p, stub GetCurrentTimestamp.\n", iface );
-    return (UINT64)0;
+    return (uint64_t)0;
 }
 
 static HRESULT WINAPI game_input2_GetCurrentReading( v2_IGameInput *iface, GameInputKind kind,
