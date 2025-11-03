@@ -21,6 +21,8 @@
 
 #include "XThreading.h"
 
+#include "wine/exception.h"
+
 WINE_DEFAULT_DEBUG_CHANNEL(gdkc);
 
 static inline struct x_async_work *impl_from_IWineAsyncWorkImpl( IWineAsyncWorkImpl *iface )
@@ -31,10 +33,20 @@ static inline struct x_async_work *impl_from_IWineAsyncWorkImpl( IWineAsyncWorkI
 /* static object inheritence */
 struct x_async_work *impl_from_XAsyncBlock( XAsyncBlock *block )
 {
+    PVOID p;
     struct x_async_work *w;
     if (!block) return NULL;
-    w = (struct x_async_work *)( (char *)block - offsetof( struct x_async_work, threadBlock ) );
-    if ( w->magic != X_ASYNC_WORK_MAGIC ) return NULL;
+    memcpy( &p, block->internal, sizeof(p) );
+    w = (struct x_async_work *)p;
+    __TRY
+    {
+        if ( w->magic != X_ASYNC_WORK_MAGIC ) return NULL;
+    }
+    __EXCEPT_ALL
+    {
+        return NULL;
+    }
+    __ENDTRY
     return w;
 }
 
