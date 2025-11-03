@@ -41,10 +41,10 @@ typedef enum XTaskQueuePort
     Completion
 } XTaskQueuePort;
 
-struct XTaskQueueRegistrationToken
+typedef struct XTaskQueueRegistrationToken
 {
     uint64_t token;
-};
+} XTaskQueueRegistrationToken;
 
 typedef void CALLBACK XTaskQueueCallback(_In_opt_ void* context, _In_ BOOL canceled);
 typedef void CALLBACK XTaskQueueMonitorCallback(_In_opt_ void* context, _In_ XTaskQueueHandle queue, _In_ XTaskQueuePort port);

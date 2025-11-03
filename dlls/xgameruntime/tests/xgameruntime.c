@@ -305,6 +305,7 @@ static void test_XThreading(void)
         XAsyncBlock currentBlock;
 
         currentBlock.callback = NULL;
+        currentBlock.queue = NULL;
 
         /**
          * xgameruntime.lib::XAsyncBegin

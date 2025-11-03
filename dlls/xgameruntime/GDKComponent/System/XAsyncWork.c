@@ -31,10 +31,11 @@ static inline struct x_async_work *impl_from_IWineAsyncWorkImpl( IWineAsyncWorkI
 /* static object inheritence */
 struct x_async_work *impl_from_XAsyncBlock( XAsyncBlock *block )
 {
-    PVOID p;
+    struct x_async_work *w;
     if (!block) return NULL;
-    memcpy( &p, block->internal, sizeof(p) );
-    return (struct x_async_work *)p;
+    w = (struct x_async_work *)( (char *)block - offsetof( struct x_async_work, threadBlock ) );
+    if ( w->magic != X_ASYNC_WORK_MAGIC ) return NULL;
+    return w;
 }
 
 static HRESULT WINAPI x_async_work_QueryInterface( IWineAsyncWorkImpl *iface, REFIID iid, void **out )
@@ -92,6 +93,7 @@ HRESULT WINAPI XInitializeBlock( XAsyncBlock* asyncBlock )
     newImpl->threadBlock = asyncBlock;
     newImpl->status = S_OK;
     newImpl->ref = 1;
+    newImpl->magic = X_ASYNC_WORK_MAGIC;
     newImpl->provider.data = NULL;
 
     p = (PVOID)newImpl;
