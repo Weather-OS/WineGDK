@@ -30,23 +30,32 @@ static inline struct x_async_work *impl_from_IWineAsyncWorkImpl( IWineAsyncWorkI
     return CONTAINING_RECORD( iface, struct x_async_work, IWineAsyncWorkImpl_iface );
 }
 
+static inline bool is_valid_read_ptr( const void *ptr, size_t size )
+{
+    MEMORY_BASIC_INFORMATION mbi;
+    if ( !ptr ) return false;
+    if ( !VirtualQuery( ptr, &mbi, sizeof(mbi ) ) ) return false;
+    return !( mbi.Protect & ( PAGE_NOACCESS | PAGE_GUARD ) );
+}
+
 /* static object inheritence */
 struct x_async_work *impl_from_XAsyncBlock( XAsyncBlock *block )
 {
     PVOID p;
     struct x_async_work *w;
-    if (!block) return NULL;
-    memcpy( &p, block->internal, sizeof(p) );
-    w = (struct x_async_work *)p;
-    __TRY
-    {
-        if ( w->magic != X_ASYNC_WORK_MAGIC ) return NULL;
-    }
-    __EXCEPT_ALL
-    {
+
+    if (!block)
         return NULL;
-    }
-    __ENDTRY
+
+    memcpy(&p, block->internal, sizeof(p));
+    w = (struct x_async_work *)p;
+
+    if (!is_valid_read_ptr(w, sizeof(*w)))
+        return NULL;
+
+    if (w->magic != X_ASYNC_WORK_MAGIC)
+        return NULL;
+
     return w;
 }
 
