@@ -26,38 +26,38 @@
 typedef struct IXThreadingImpl IXThreadingImpl;
 
 typedef struct IXThreadingImplVtbl {
-    HRESULT (*QueryInterface)(IXThreadingImpl* This, REFIID riid, void** ppvObject);
-    ULONG (*AddRef)(IXThreadingImpl* This);
-    ULONG (*Release)(IXThreadingImpl* This);
+    HRESULT (STDMETHODCALLTYPE *QueryInterface)(IXThreadingImpl* This, REFIID riid, void** ppvObject);
+    ULONG   (STDMETHODCALLTYPE *AddRef)(IXThreadingImpl* This);
+    ULONG   (STDMETHODCALLTYPE *Release)(IXThreadingImpl* This);
     
-    HRESULT (*XAsyncGetStatus)(IXThreadingImpl* This, XAsyncBlock* asyncBlock, boolean wait);
-    HRESULT (*XAsyncGetResultSize)(IXThreadingImpl* This, XAsyncBlock* asyncBlock, SIZE_T *bufferSize);
-    HRESULT (*XAsyncCancel)(IXThreadingImpl* This, XAsyncBlock* asyncBlock);
-    HRESULT (*XAsyncRun)(IXThreadingImpl* This, XAsyncBlock* asyncBlock, XAsyncWork* work);
-    HRESULT (*XAsyncBegin)(IXThreadingImpl* This, XAsyncBlock* asyncBlock, PVOID context, const PVOID identity, LPCSTR identityName, XAsyncProviderCallback* provider);
-    HRESULT (*__PADDING__)(IXThreadingImpl* This);
-    HRESULT (*XAsyncSchedule)(IXThreadingImpl* This, XAsyncBlock* asyncBlock, UINT32 delayInMs);
-    VOID    (*XAsyncComplete)(IXThreadingImpl* This, XAsyncBlock* asyncBlock, HRESULT result, SIZE_T requiredBufferSize);
-    HRESULT (*XAsyncGetResult)(IXThreadingImpl* This, XAsyncBlock* asyncBlock, const PVOID identity, SIZE_T bufferSize, PVOID buffer, SIZE_T* bufferUsed);
-    HRESULT (*XTaskQueueCreate)(IXThreadingImpl* This, XTaskQueueDispatchMode workDispatchMode, XTaskQueueDispatchMode completionDispatchMode, XTaskQueueHandle* queue);
-    HRESULT (*XTaskQueueCreateComposite)(IXThreadingImpl* This, XTaskQueuePortHandle workPort, XTaskQueuePortHandle completionPort, XTaskQueueHandle* queue);
-    HRESULT (*XTaskQueueGetPort)(IXThreadingImpl* This, XTaskQueueHandle queue, XTaskQueuePort port, XTaskQueuePortHandle* portHandle);
-    HRESULT (*XTaskQueueDuplicateHandle)(IXThreadingImpl* This, XTaskQueueHandle queueHandle, XTaskQueueHandle* duplicatedHandle);
-    BOOLEAN (*XTaskQueueDispatch)(IXThreadingImpl* This, XTaskQueueHandle queue, XTaskQueuePort port, uint32_t timeoutInMs);
-    VOID    (*XTaskQueueCloseHandle)(IXThreadingImpl* This, XTaskQueueHandle queue);
-    HRESULT (*XTaskQueueSubmitCallback)(IXThreadingImpl* This, XTaskQueueHandle queue, XTaskQueuePort port, PVOID callbackContext, XTaskQueueCallback* callback);
-    HRESULT (*XTaskQueueSubmitDelayedCallback)(IXThreadingImpl* This, XTaskQueueHandle queue, XTaskQueuePort port, uint32_t delayMs, PVOID callbackContext, XTaskQueueCallback* callback);
-    HRESULT (*XTaskQueueRegisterWaiter)(IXThreadingImpl* This, XTaskQueueHandle queue, XTaskQueuePort port, HANDLE waitHandle, PVOID callbackContext, XTaskQueueCallback* callback, XTaskQueueRegistrationToken* token);
-    VOID    (*XTaskQueueUnregisterWaiter)(IXThreadingImpl* This, XTaskQueueHandle queue, XTaskQueueRegistrationToken token);
-    HRESULT (*XTaskQueueTerminate)(IXThreadingImpl* This, XTaskQueueHandle queue, BOOLEAN wait, PVOID callbackContext, XTaskQueueTerminatedCallback* callback);
-    HRESULT (*XTaskQueueRegisterMonitor)(IXThreadingImpl* This, XTaskQueueHandle queue, PVOID callbackContext, XTaskQueueMonitorCallback* callback, XTaskQueueRegistrationToken* token);
-    VOID    (*XTaskQueueUnregisterMonitor)(IXThreadingImpl* This, XTaskQueueHandle queue, XTaskQueueRegistrationToken token);
-    BOOLEAN (*XTaskQueueGetCurrentProcessTaskQueue)(IXThreadingImpl* This, XTaskQueueHandle* queue);
-    VOID    (*XTaskQueueSetCurrentProcessTaskQueue)(IXThreadingImpl* This, XTaskQueueHandle queue);
-    HRESULT (*XThreadSetTimeSensitive)(IXThreadingImpl* This, BOOLEAN isTimeSensitiveThread);
-    HRESULT (*__PADDING_2__)(IXThreadingImpl* This);
-    VOID    (*XThreadAssertNotTimeSensitive)(IXThreadingImpl* This);
-    BOOLEAN (*XThreadIsTimeSensitive)(IXThreadingImpl* This);
+    HRESULT (STDMETHODCALLTYPE *XAsyncGetStatus)(IXThreadingImpl* This, XAsyncBlock* asyncBlock, boolean wait);
+    HRESULT (STDMETHODCALLTYPE *XAsyncGetResultSize)(IXThreadingImpl* This, XAsyncBlock* asyncBlock, SIZE_T *bufferSize);
+    HRESULT (STDMETHODCALLTYPE *XAsyncCancel)(IXThreadingImpl* This, XAsyncBlock* asyncBlock);
+    HRESULT (STDMETHODCALLTYPE *XAsyncRun)(IXThreadingImpl* This, XAsyncBlock* asyncBlock, XAsyncWork* work);
+    HRESULT (STDMETHODCALLTYPE *XAsyncBegin)(IXThreadingImpl* This, XAsyncBlock* asyncBlock, PVOID context, const PVOID identity, LPCSTR identityName, XAsyncProviderCallback* provider);
+    HRESULT (STDMETHODCALLTYPE *__PADDING__)(IXThreadingImpl* This);
+    HRESULT (STDMETHODCALLTYPE *XAsyncSchedule)(IXThreadingImpl* This, XAsyncBlock* asyncBlock, UINT32 delayInMs);
+    VOID    (STDMETHODCALLTYPE *XAsyncComplete)(IXThreadingImpl* This, XAsyncBlock* asyncBlock, HRESULT result, SIZE_T requiredBufferSize);
+    HRESULT (STDMETHODCALLTYPE *XAsyncGetResult)(IXThreadingImpl* This, XAsyncBlock* asyncBlock, const PVOID identity, SIZE_T bufferSize, PVOID buffer, SIZE_T* bufferUsed);
+    HRESULT (STDMETHODCALLTYPE *XTaskQueueCreate)(IXThreadingImpl* This, XTaskQueueDispatchMode workDispatchMode, XTaskQueueDispatchMode completionDispatchMode, XTaskQueueHandle* queue);
+    HRESULT (STDMETHODCALLTYPE *XTaskQueueCreateComposite)(IXThreadingImpl* This, XTaskQueuePortHandle workPort, XTaskQueuePortHandle completionPort, XTaskQueueHandle* queue);
+    HRESULT (STDMETHODCALLTYPE *XTaskQueueGetPort)(IXThreadingImpl* This, XTaskQueueHandle queue, XTaskQueuePort port, XTaskQueuePortHandle* portHandle);
+    HRESULT (STDMETHODCALLTYPE *XTaskQueueDuplicateHandle)(IXThreadingImpl* This, XTaskQueueHandle queueHandle, XTaskQueueHandle* duplicatedHandle);
+    BOOLEAN (STDMETHODCALLTYPE *XTaskQueueDispatch)(IXThreadingImpl* This, XTaskQueueHandle queue, XTaskQueuePort port, uint32_t timeoutInMs);
+    VOID    (STDMETHODCALLTYPE *XTaskQueueCloseHandle)(IXThreadingImpl* This, XTaskQueueHandle queue);
+    HRESULT (STDMETHODCALLTYPE *XTaskQueueSubmitCallback)(IXThreadingImpl* This, XTaskQueueHandle queue, XTaskQueuePort port, PVOID callbackContext, XTaskQueueCallback* callback);
+    HRESULT (STDMETHODCALLTYPE *XTaskQueueSubmitDelayedCallback)(IXThreadingImpl* This, XTaskQueueHandle queue, XTaskQueuePort port, uint32_t delayMs, PVOID callbackContext, XTaskQueueCallback* callback);
+    HRESULT (STDMETHODCALLTYPE *XTaskQueueRegisterWaiter)(IXThreadingImpl* This, XTaskQueueHandle queue, XTaskQueuePort port, HANDLE waitHandle, PVOID callbackContext, XTaskQueueCallback* callback, XTaskQueueRegistrationToken* token);
+    VOID    (STDMETHODCALLTYPE *XTaskQueueUnregisterWaiter)(IXThreadingImpl* This, XTaskQueueHandle queue, XTaskQueueRegistrationToken token);
+    HRESULT (STDMETHODCALLTYPE *XTaskQueueTerminate)(IXThreadingImpl* This, XTaskQueueHandle queue, BOOLEAN wait, PVOID callbackContext, XTaskQueueTerminatedCallback* callback);
+    HRESULT (STDMETHODCALLTYPE *XTaskQueueRegisterMonitor)(IXThreadingImpl* This, XTaskQueueHandle queue, PVOID callbackContext, XTaskQueueMonitorCallback* callback, XTaskQueueRegistrationToken* token);
+    VOID    (STDMETHODCALLTYPE *XTaskQueueUnregisterMonitor)(IXThreadingImpl* This, XTaskQueueHandle queue, XTaskQueueRegistrationToken token);
+    BOOLEAN (STDMETHODCALLTYPE *XTaskQueueGetCurrentProcessTaskQueue)(IXThreadingImpl* This, XTaskQueueHandle* queue);
+    VOID    (STDMETHODCALLTYPE *XTaskQueueSetCurrentProcessTaskQueue)(IXThreadingImpl* This, XTaskQueueHandle queue);
+    HRESULT (STDMETHODCALLTYPE *XThreadSetTimeSensitive)(IXThreadingImpl* This, BOOLEAN isTimeSensitiveThread);
+    HRESULT (STDMETHODCALLTYPE *__PADDING_2__)(IXThreadingImpl* This);
+    VOID    (STDMETHODCALLTYPE *XThreadAssertNotTimeSensitive)(IXThreadingImpl* This);
+    BOOLEAN (STDMETHODCALLTYPE *XThreadIsTimeSensitive)(IXThreadingImpl* This);
 } IXThreadingImplVtbl;
 
 struct IXThreadingImpl {
@@ -100,92 +100,92 @@ struct IXThreadingImpl {
 
 #else
 /*** IUnknown methods ***/
-static inline HRESULT IXThreadingImpl_QueryInterface(IXThreadingImpl* This,REFIID riid,void **ppvObject) {
+static inline HRESULT STDMETHODCALLTYPE IXThreadingImpl_QueryInterface(IXThreadingImpl* This,REFIID riid,void **ppvObject) {
     return This->lpVtbl->QueryInterface(This,riid,ppvObject);
 }
-static inline ULONG IXThreadingImpl_AddRef(IXThreadingImpl* This) {
+static inline ULONG STDMETHODCALLTYPE IXThreadingImpl_AddRef(IXThreadingImpl* This) {
     return This->lpVtbl->AddRef(This);
 }
-static inline ULONG IXThreadingImpl_Release(IXThreadingImpl* This) {
+static inline ULONG STDMETHODCALLTYPE IXThreadingImpl_Release(IXThreadingImpl* This) {
     return This->lpVtbl->Release(This);
 }
 /*** IXGameRuntimeFeatureImpl methods ***/
-static inline HRESULT IXThreadingImpl_XAsyncGetStatus(IXThreadingImpl* This,XAsyncBlock* asyncBlock,boolean wait) {
+static inline HRESULT STDMETHODCALLTYPE IXThreadingImpl_XAsyncGetStatus(IXThreadingImpl* This,XAsyncBlock* asyncBlock,boolean wait) {
     return This->lpVtbl->XAsyncGetStatus(This,asyncBlock,wait);
 }
-static inline HRESULT IXThreadingImpl_XAsyncGetResultSize(IXThreadingImpl* This,XAsyncBlock* asyncBlock,SIZE_T *bufferSize) {
+static inline HRESULT STDMETHODCALLTYPE IXThreadingImpl_XAsyncGetResultSize(IXThreadingImpl* This,XAsyncBlock* asyncBlock,SIZE_T *bufferSize) {
     return This->lpVtbl->XAsyncGetResultSize(This,asyncBlock,bufferSize);
 }
-static inline HRESULT IXThreadingImpl_XAsyncCancel(IXThreadingImpl* This,XAsyncBlock* asyncBlock) {
+static inline HRESULT STDMETHODCALLTYPE IXThreadingImpl_XAsyncCancel(IXThreadingImpl* This,XAsyncBlock* asyncBlock) {
     return This->lpVtbl->XAsyncCancel(This,asyncBlock);
 }
-static inline HRESULT IXThreadingImpl_XAsyncRun(IXThreadingImpl* This,XAsyncBlock* asyncBlock,XAsyncWork* work) {
+static inline HRESULT STDMETHODCALLTYPE IXThreadingImpl_XAsyncRun(IXThreadingImpl* This,XAsyncBlock* asyncBlock,XAsyncWork* work) {
     return This->lpVtbl->XAsyncRun(This,asyncBlock,work);
 }
-static inline HRESULT IXThreadingImpl_XAsyncBegin(IXThreadingImpl* This,XAsyncBlock* asyncBlock,PVOID context,const PVOID identity,LPCSTR identityName,XAsyncProviderCallback* provider) {
+static inline HRESULT STDMETHODCALLTYPE IXThreadingImpl_XAsyncBegin(IXThreadingImpl* This,XAsyncBlock* asyncBlock,PVOID context,const PVOID identity,LPCSTR identityName,XAsyncProviderCallback* provider) {
     return This->lpVtbl->XAsyncBegin(This,asyncBlock,context,identity,identityName,provider);
 }
-static inline HRESULT IXThreadingImpl_XAsyncSchedule(IXThreadingImpl* This,XAsyncBlock* asyncBlock,UINT32 delayInMs) {
+static inline HRESULT STDMETHODCALLTYPE IXThreadingImpl_XAsyncSchedule(IXThreadingImpl* This,XAsyncBlock* asyncBlock,UINT32 delayInMs) {
     return This->lpVtbl->XAsyncSchedule(This,asyncBlock,delayInMs);
 }
-static inline VOID IXThreadingImpl_XAsyncComplete(IXThreadingImpl* This,XAsyncBlock* asyncBlock,HRESULT result,SIZE_T requiredBufferSize) {
+static inline VOID STDMETHODCALLTYPE IXThreadingImpl_XAsyncComplete(IXThreadingImpl* This,XAsyncBlock* asyncBlock,HRESULT result,SIZE_T requiredBufferSize) {
     This->lpVtbl->XAsyncComplete(This,asyncBlock,result,requiredBufferSize);
 }
-static inline HRESULT IXThreadingImpl_XAsyncGetResult(IXThreadingImpl* This,XAsyncBlock* asyncBlock,const PVOID identity,SIZE_T bufferSize,PVOID buffer,SIZE_T* bufferUsed) {
+static inline HRESULT STDMETHODCALLTYPE IXThreadingImpl_XAsyncGetResult(IXThreadingImpl* This,XAsyncBlock* asyncBlock,const PVOID identity,SIZE_T bufferSize,PVOID buffer,SIZE_T* bufferUsed) {
     return This->lpVtbl->XAsyncGetResult(This,asyncBlock,identity,bufferSize,buffer,bufferUsed);
 }
-static inline HRESULT IXThreadingImpl_XTaskQueueCreate(IXThreadingImpl* This,XTaskQueueDispatchMode workDispatchMode,XTaskQueueDispatchMode completionDispatchMode,XTaskQueueHandle* queue) {
+static inline HRESULT STDMETHODCALLTYPE IXThreadingImpl_XTaskQueueCreate(IXThreadingImpl* This,XTaskQueueDispatchMode workDispatchMode,XTaskQueueDispatchMode completionDispatchMode,XTaskQueueHandle* queue) {
     return This->lpVtbl->XTaskQueueCreate(This,workDispatchMode,completionDispatchMode,queue);
 }
-static inline HRESULT IXThreadingImpl_XTaskQueueCreateComposite(IXThreadingImpl* This,XTaskQueuePortHandle workPort,XTaskQueuePortHandle completionPort,XTaskQueueHandle* queue) {
+static inline HRESULT STDMETHODCALLTYPE IXThreadingImpl_XTaskQueueCreateComposite(IXThreadingImpl* This,XTaskQueuePortHandle workPort,XTaskQueuePortHandle completionPort,XTaskQueueHandle* queue) {
     return This->lpVtbl->XTaskQueueCreateComposite(This,workPort,completionPort,queue);
 }
-static inline HRESULT IXThreadingImpl_XTaskQueueGetPort(IXThreadingImpl* This,XTaskQueueHandle queue,XTaskQueuePort port,XTaskQueuePortHandle* portHandle) {
+static inline HRESULT STDMETHODCALLTYPE IXThreadingImpl_XTaskQueueGetPort(IXThreadingImpl* This,XTaskQueueHandle queue,XTaskQueuePort port,XTaskQueuePortHandle* portHandle) {
     return This->lpVtbl->XTaskQueueGetPort(This,queue,port,portHandle);
 }
-static inline HRESULT IXThreadingImpl_XTaskQueueDuplicateHandle(IXThreadingImpl* This,XTaskQueueHandle queueHandle,XTaskQueueHandle* duplicatedHandle) {
+static inline HRESULT STDMETHODCALLTYPE IXThreadingImpl_XTaskQueueDuplicateHandle(IXThreadingImpl* This,XTaskQueueHandle queueHandle,XTaskQueueHandle* duplicatedHandle) {
     return This->lpVtbl->XTaskQueueDuplicateHandle(This,queueHandle,duplicatedHandle);
 }
-static inline BOOLEAN IXThreadingImpl_XTaskQueueDispatch(IXThreadingImpl* This,XTaskQueueHandle queue,XTaskQueuePort port,uint32_t timeoutInMs) {
+static inline BOOLEAN STDMETHODCALLTYPE IXThreadingImpl_XTaskQueueDispatch(IXThreadingImpl* This,XTaskQueueHandle queue,XTaskQueuePort port,uint32_t timeoutInMs) {
     return This->lpVtbl->XTaskQueueDispatch(This,queue,port,timeoutInMs);
 }
-static inline VOID IXThreadingImpl_XTaskQueueCloseHandle(IXThreadingImpl* This,XTaskQueueHandle queue) {
+static inline VOID STDMETHODCALLTYPE IXThreadingImpl_XTaskQueueCloseHandle(IXThreadingImpl* This,XTaskQueueHandle queue) {
     This->lpVtbl->XTaskQueueCloseHandle(This,queue);
 }
-static inline HRESULT IXThreadingImpl_XTaskQueueSubmitCallback(IXThreadingImpl* This,XTaskQueueHandle queue,XTaskQueuePort port,PVOID callbackContext,XTaskQueueCallback* callback) {
+static inline HRESULT STDMETHODCALLTYPE IXThreadingImpl_XTaskQueueSubmitCallback(IXThreadingImpl* This,XTaskQueueHandle queue,XTaskQueuePort port,PVOID callbackContext,XTaskQueueCallback* callback) {
     return This->lpVtbl->XTaskQueueSubmitCallback(This,queue,port,callbackContext,callback);
 }
-static inline HRESULT IXThreadingImpl_XTaskQueueSubmitDelayedCallback(IXThreadingImpl* This,XTaskQueueHandle queue,XTaskQueuePort port,uint32_t delayMs,PVOID callbackContext,XTaskQueueCallback* callback) {
+static inline HRESULT STDMETHODCALLTYPE IXThreadingImpl_XTaskQueueSubmitDelayedCallback(IXThreadingImpl* This,XTaskQueueHandle queue,XTaskQueuePort port,uint32_t delayMs,PVOID callbackContext,XTaskQueueCallback* callback) {
     return This->lpVtbl->XTaskQueueSubmitDelayedCallback(This,queue,port,delayMs,callbackContext,callback);
 }
-static inline HRESULT IXThreadingImpl_XTaskQueueRegisterWaiter(IXThreadingImpl* This,XTaskQueueHandle queue,XTaskQueuePort port,HANDLE waitHandle,PVOID callbackContext,XTaskQueueCallback* callback,XTaskQueueRegistrationToken* token) {
+static inline HRESULT STDMETHODCALLTYPE IXThreadingImpl_XTaskQueueRegisterWaiter(IXThreadingImpl* This,XTaskQueueHandle queue,XTaskQueuePort port,HANDLE waitHandle,PVOID callbackContext,XTaskQueueCallback* callback,XTaskQueueRegistrationToken* token) {
     return This->lpVtbl->XTaskQueueRegisterWaiter(This,queue,port,waitHandle,callbackContext,callback,token);
 }
-static inline VOID IXThreadingImpl_XTaskQueueUnregisterWaiter(IXThreadingImpl* This,XTaskQueueHandle queue,XTaskQueueRegistrationToken token) {
+static inline VOID STDMETHODCALLTYPE IXThreadingImpl_XTaskQueueUnregisterWaiter(IXThreadingImpl* This,XTaskQueueHandle queue,XTaskQueueRegistrationToken token) {
     This->lpVtbl->XTaskQueueUnregisterWaiter(This,queue,token);
 }
-static inline HRESULT IXThreadingImpl_XTaskQueueTerminate(IXThreadingImpl* This,XTaskQueueHandle queue,BOOLEAN wait,PVOID callbackContext,XTaskQueueTerminatedCallback* callback) {
+static inline HRESULT STDMETHODCALLTYPE IXThreadingImpl_XTaskQueueTerminate(IXThreadingImpl* This,XTaskQueueHandle queue,BOOLEAN wait,PVOID callbackContext,XTaskQueueTerminatedCallback* callback) {
     return This->lpVtbl->XTaskQueueTerminate(This,queue,wait,callbackContext,callback);
 }
-static inline HRESULT IXThreadingImpl_XTaskQueueRegisterMonitor(IXThreadingImpl* This,XTaskQueueHandle queue,PVOID callbackContext,XTaskQueueMonitorCallback* callback,XTaskQueueRegistrationToken* token) {
+static inline HRESULT STDMETHODCALLTYPE IXThreadingImpl_XTaskQueueRegisterMonitor(IXThreadingImpl* This,XTaskQueueHandle queue,PVOID callbackContext,XTaskQueueMonitorCallback* callback,XTaskQueueRegistrationToken* token) {
     return This->lpVtbl->XTaskQueueRegisterMonitor(This,queue,callbackContext,callback,token);
 }
-static inline VOID IXThreadingImpl_XTaskQueueUnregisterMonitor(IXThreadingImpl* This,XTaskQueueHandle queue,XTaskQueueRegistrationToken token) {
+static inline VOID STDMETHODCALLTYPE IXThreadingImpl_XTaskQueueUnregisterMonitor(IXThreadingImpl* This,XTaskQueueHandle queue,XTaskQueueRegistrationToken token) {
     This->lpVtbl->XTaskQueueUnregisterMonitor(This,queue,token);
 }
-static inline BOOLEAN IXThreadingImpl_XTaskQueueGetCurrentProcessTaskQueue(IXThreadingImpl* This,XTaskQueueHandle* queue) {
+static inline BOOLEAN STDMETHODCALLTYPE IXThreadingImpl_XTaskQueueGetCurrentProcessTaskQueue(IXThreadingImpl* This,XTaskQueueHandle* queue) {
     return This->lpVtbl->XTaskQueueGetCurrentProcessTaskQueue(This,queue);
 }
-static inline VOID IXThreadingImpl_XTaskQueueSetCurrentProcessTaskQueue(IXThreadingImpl* This,XTaskQueueHandle queue) {
+static inline VOID STDMETHODCALLTYPE IXThreadingImpl_XTaskQueueSetCurrentProcessTaskQueue(IXThreadingImpl* This,XTaskQueueHandle queue) {
     This->lpVtbl->XTaskQueueSetCurrentProcessTaskQueue(This,queue);
 }
-static inline HRESULT IXThreadingImpl_XThreadSetTimeSensitive(IXThreadingImpl* This,BOOLEAN isTimeSensitiveThread) {
+static inline HRESULT STDMETHODCALLTYPE IXThreadingImpl_XThreadSetTimeSensitive(IXThreadingImpl* This,BOOLEAN isTimeSensitiveThread) {
     return This->lpVtbl->XThreadSetTimeSensitive(This,isTimeSensitiveThread);
 }
-static inline VOID IXThreadingImpl_XThreadAssertNotTimeSensitive(IXThreadingImpl* This) {
+static inline VOID STDMETHODCALLTYPE IXThreadingImpl_XThreadAssertNotTimeSensitive(IXThreadingImpl* This) {
     This->lpVtbl->XThreadAssertNotTimeSensitive(This);
 }
-static inline BOOLEAN IXThreadingImpl_XThreadIsTimeSensitive(IXThreadingImpl* This) {
+static inline BOOLEAN STDMETHODCALLTYPE IXThreadingImpl_XThreadIsTimeSensitive(IXThreadingImpl* This) {
     return This->lpVtbl->XThreadIsTimeSensitive(This);
 }
 #endif
