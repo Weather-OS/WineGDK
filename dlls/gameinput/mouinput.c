@@ -216,63 +216,63 @@ static void WINAPI mouse_input2_reading_GetDevice( v2_IGameInputReading *iface, 
     return;
 }
 
-static uint32_t mouse_input2_reading_GetControllerAxisCount( v2_IGameInputReading *iface )
+static uint32_t WINAPI mouse_input2_reading_GetControllerAxisCount( v2_IGameInputReading *iface )
 {
     struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
     ERR( "Not for this device %p!\n", impl->device );
     return 0;
 }
 
-static uint32_t mouse_input2_reading_GetControllerAxisState( v2_IGameInputReading *iface, uint32_t count, float *state )
+static uint32_t WINAPI mouse_input2_reading_GetControllerAxisState( v2_IGameInputReading *iface, uint32_t count, float *state )
 {
     struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
     ERR( "Not for this device %p!\n", impl->device );
     return 0;
 }
 
-static uint32_t mouse_input2_reading_GetControllerButtonCount( v2_IGameInputReading *iface )
+static uint32_t WINAPI mouse_input2_reading_GetControllerButtonCount( v2_IGameInputReading *iface )
 {
     struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
     ERR( "Not for this device %p!\n", impl->device );
     return 0;
 }
 
-static uint32_t mouse_input2_reading_GetControllerButtonState( v2_IGameInputReading *iface, uint32_t count, bool *state )
+static uint32_t WINAPI mouse_input2_reading_GetControllerButtonState( v2_IGameInputReading *iface, uint32_t count, bool *state )
 {
     struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
     ERR( "Not for this device %p!\n", impl->device );
     return 0;
 }
 
-static uint32_t mouse_input2_reading_GetControllerSwitchCount( v2_IGameInputReading *iface )
+static uint32_t WINAPI mouse_input2_reading_GetControllerSwitchCount( v2_IGameInputReading *iface )
 {
     struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
     ERR( "Not for this device %p!\n", impl->device );
     return 0;
 }
 
-static uint32_t mouse_input2_reading_GetControllerSwitchState( v2_IGameInputReading *iface, uint32_t count, GameInputSwitchPosition *state )
+static uint32_t WINAPI mouse_input2_reading_GetControllerSwitchState( v2_IGameInputReading *iface, uint32_t count, GameInputSwitchPosition *state )
 {
     struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
     ERR( "Not for this device %p!\n", impl->device );
     return 0;
 }
 
-static uint32_t mouse_input2_reading_GetKeyCount( v2_IGameInputReading *iface )
+static uint32_t WINAPI mouse_input2_reading_GetKeyCount( v2_IGameInputReading *iface )
 {
     struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
     ERR( "Not for this device %p!\n", impl->device );
     return 0;
 }
 
-static uint32_t mouse_input2_reading_GetKeyState( v2_IGameInputReading *iface, uint32_t count, GameInputKeyState *state )
+static uint32_t WINAPI mouse_input2_reading_GetKeyState( v2_IGameInputReading *iface, uint32_t count, GameInputKeyState *state )
 {
     struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
     ERR( "Not for this device %p!\n", impl->device );
     return 0;
 }
 
-static bool mouse_input2_reading_GetMouseState( v2_IGameInputReading *iface, v2_GameInputMouseState *state )
+static bool WINAPI mouse_input2_reading_GetMouseState( v2_IGameInputReading *iface, v2_GameInputMouseState *state )
 {
     struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
     TRACE( "iface %p, state %p.\n", iface, state );
@@ -280,42 +280,42 @@ static bool mouse_input2_reading_GetMouseState( v2_IGameInputReading *iface, v2_
     return true;
 }
 
-static bool mouse_input2_reading_GetSensorsState( v2_IGameInputReading *iface, GameInputSensorsState *state )
+static bool WINAPI mouse_input2_reading_GetSensorsState( v2_IGameInputReading *iface, GameInputSensorsState *state )
 {
     struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
     ERR( "Not for this device %p!\n", impl->device );
     return false;
 }
 
-static bool mouse_input2_reading_GetArcadeStickState( v2_IGameInputReading *iface, GameInputArcadeStickState *state )
+static bool WINAPI mouse_input2_reading_GetArcadeStickState( v2_IGameInputReading *iface, GameInputArcadeStickState *state )
 {
     struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
     ERR( "Not for this device %p!\n", impl->device );
     return false;
 }
 
-static bool mouse_input2_reading_GetFlightStickState( v2_IGameInputReading *iface, GameInputFlightStickState *state )
+static bool WINAPI mouse_input2_reading_GetFlightStickState( v2_IGameInputReading *iface, GameInputFlightStickState *state )
 {
     struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
     ERR( "Not for this device %p!\n", impl->device );
     return false;
 }
 
-static bool mouse_input2_reading_GetGamepadState( v2_IGameInputReading *iface, GameInputGamepadState *state )
+static bool WINAPI mouse_input2_reading_GetGamepadState( v2_IGameInputReading *iface, GameInputGamepadState *state )
 {
     struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
     ERR( "Not for this device %p!\n", impl->device );
     return false;
 }
 
-static bool mouse_input2_reading_GetRacingWheelState( v2_IGameInputReading *iface, GameInputRacingWheelState *state )
+static bool WINAPI mouse_input2_reading_GetRacingWheelState( v2_IGameInputReading *iface, GameInputRacingWheelState *state )
 {
     struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
     ERR( "Not for this device %p!\n", impl->device );
     return false;
 }
 
-static bool mouse_input2_reading_GetUiNavigationState( v2_IGameInputReading *iface, GameInputUiNavigationState *state )
+static bool WINAPI mouse_input2_reading_GetUiNavigationState( v2_IGameInputReading *iface, GameInputUiNavigationState *state )
 {
     struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
     ERR( "Not for this device %p!\n", impl->device );
