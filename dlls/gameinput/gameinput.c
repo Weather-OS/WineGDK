@@ -16,27 +16,29 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#include <stddef.h>
-#include <stdarg.h>
-
-#define COBJMACROS
-#include "windef.h"
-#include "winbase.h"
-
 #include "initguid.h"
-#include "unknwn.h"
-#include "objidlbase.h"
-#include "gameinput.h"
+#include "private.h"
 
-#include "wine/debug.h"
+#include <time.h>
+#include "ddk/hidclass.h"
+#include "ntddkbd.h"
+#include "ntddmou.h"
+
+#include "mouinput.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(ginput);
+
+DEFINE_ASYNC_COMPLETED_HANDLER( device_information_collection_handler, IAsyncOperationCompletedHandler_DeviceInformationCollection, IAsyncOperation_DeviceInformationCollection )
+
+extern const struct v2_IGameInputDeviceVtbl mouse_input2_device_vtbl;
 
 struct game_input
 {
     v0_IGameInput v0_IGameInput_iface;
     v1_IGameInput v1_IGameInput_iface;
     v2_IGameInput v2_IGameInput_iface;
+
+    GInputDeviceEvents_v2 device_events;
     LONG ref;
 };
 
@@ -565,10 +567,70 @@ static HRESULT WINAPI game_input2_RegisterDeviceCallback( v2_IGameInput *iface, 
                                                          GameInputEnumerationKind enum_kind, void *context,
                                                          v2_GameInputDeviceCallback callback, GameInputCallbackToken *token )
 {
-    FIXME( "iface %p RegisterDeviceCallback device=%p kind=%d filter=%d enum_kind=%d callback=%p token_out=%p\n",
-           iface, device, (int)kind, (int)filter, (int)enum_kind, callback, token );
-    if (token) *token = (GameInputCallbackToken)0;
-    return E_NOTIMPL;
+    BOOLEAN exists;
+    HRESULT status;
+    HSTRING idStr;
+    OLECHAR guidString[39];
+    SIZE_T lowercaseIterator;
+    DWORD asyncRes;
+
+    struct game_input *impl = impl_from_v2_IGameInput( iface );
+    struct game_input_device *input_device;
+
+    IAsyncOperation_DeviceInformationCollection *device_information_collection_operation = NULL;
+    IVectorView_DeviceInformation *device_information_collection = NULL;
+    IIterable_DeviceInformation *device_information_iterable = NULL;
+    IIterator_DeviceInformation *device_information_iterator = NULL;
+    IDeviceInformation *device_information = NULL;
+
+    FIXME( "iface %p device %p kind %d filter %d enum_kind %d callback %p token_out %p semi-stub.\n",
+           iface, device, kind, filter, enum_kind, callback, token );
+
+    status = IDeviceInformationStatics_FindAllAsync( impl->device_events.device_information_statics, &device_information_collection_operation );
+    if ( FAILED( status ) ) return status;
+
+    asyncRes = await_IAsyncOperation_DeviceInformationCollection( device_information_collection_operation, INFINITE );
+    if ( asyncRes ) return E_FAIL;
+
+    status = IAsyncOperation_DeviceInformationCollection_GetResults( device_information_collection_operation, &device_information_collection );
+    if ( FAILED( status ) ) return status;
+
+    status = IVectorView_DeviceInformation_QueryInterface( device_information_collection, &IID_IIterable_DeviceInformation, (void **)&device_information_iterable );
+    if ( FAILED( status ) ) return status;
+
+    status = IIterable_DeviceInformation_First( device_information_iterable, &device_information_iterator );
+    if ( FAILED( status ) ) return status;
+
+    IIterator_DeviceInformation_get_HasCurrent( device_information_iterator, &exists );
+
+    while ( exists )
+    {
+        IIterator_DeviceInformation_get_Current( device_information_iterator, &device_information );
+        IDeviceInformation_get_Id( device_information, &idStr );
+        IIterator_DeviceInformation_MoveNext( device_information_iterator, &exists );
+
+        if ( kind & GameInputKindMouse )
+            StringFromGUID2( &GUID_DEVINTERFACE_MOUSE, guidString, ARRAYSIZE( guidString ) );
+
+        for ( lowercaseIterator = 0; lowercaseIterator < wcslen( guidString ); lowercaseIterator++ )
+            guidString[lowercaseIterator] = towlower( guidString[lowercaseIterator] );
+
+        if ( wcsstr( WindowsGetStringRawBuffer( idStr, NULL ), guidString ) )
+        {
+            // Device found routine
+            if (!(input_device = calloc( 1, sizeof(*input_device) ))) return E_OUTOFMEMORY;
+            
+            input_device->v2_IGameInputDevice_iface.lpVtbl = &mouse_input2_device_vtbl;
+            input_device->ref = 1;
+
+            mouse_input2_device_QueryDeviceInformation( &input_device->device_info_v2 );
+
+            callback( 1, context, &input_device->v2_IGameInputDevice_iface, time(NULL), GameInputDeviceConnected, GameInputDeviceConnected );
+        }
+    }
+
+    if (token) *token = (GameInputCallbackToken)1;
+    return S_OK;
 }
 
 static HRESULT WINAPI game_input2_RegisterSystemButtonCallback( v2_IGameInput *iface, v2_IGameInputDevice *device,
@@ -600,7 +662,7 @@ static void WINAPI game_input2_StopCallback( v2_IGameInput *iface, GameInputCall
 static bool WINAPI game_input2_UnregisterCallback( v2_IGameInput *iface, GameInputCallbackToken token )
 {
     FIXME( "iface %p UnregisterCallback token=%llu\n", iface, (unsigned long long)token );
-    return false;
+    return TRUE;
 }
 
 static HRESULT WINAPI game_input2_CreateDispatcher( v2_IGameInput *iface, IGameInputDispatcher **dispatcher )
@@ -655,7 +717,11 @@ static const struct v2_IGameInputVtbl game_input2_vtbl =
 
 HRESULT WINAPI GameInputCreate( v0_IGameInput **out )
 {
-    struct game_input *input;
+    LPCWSTR device_information_str = RuntimeClass_Windows_Devices_Enumeration_DeviceInformation;
+    HRESULT status;
+    HSTRING device_information_class;
+
+    struct game_input *input = NULL;
 
     TRACE( "out %p\n", out );
 
@@ -666,7 +732,25 @@ HRESULT WINAPI GameInputCreate( v0_IGameInput **out )
     input->v2_IGameInput_iface.lpVtbl = &game_input2_vtbl;
     input->ref = 1;
 
+    status = WindowsCreateString( device_information_str, wcslen( device_information_str ), &device_information_class );
+    if ( FAILED( status ) ) goto _CLEANUP;
+
+    status = RoGetActivationFactory( device_information_class, &IID_IDeviceInformationStatics, (void **)&input->device_events.device_information_statics );
+    if ( FAILED( status ) ) goto _CLEANUP;
+
+    status = IDeviceInformationStatics_CreateWatcher( input->device_events.device_information_statics, &input->device_events.watcher );
+    if ( FAILED( status ) ) goto _CLEANUP;
+
     *out = &input->v0_IGameInput_iface;
+
+_CLEANUP:
+    if ( input->device_events.device_information_statics ) 
+        IDeviceInformationStatics_Release( input->device_events.device_information_statics );
+    if ( FAILED( status ) )
+    {
+        if ( input ) free( input );
+    }
+    WindowsDeleteString( device_information_class );
 
     return S_OK;
 }

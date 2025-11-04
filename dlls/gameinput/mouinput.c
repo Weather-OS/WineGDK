@@ -1,0 +1,149 @@
+/*
+ * Game Input Library
+ *  -> Keyboard Input Events
+ * 
+ * Written by Weather
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
+ */
+
+#include "mouinput.h"
+
+WINE_DEFAULT_DEBUG_CHANNEL(ginput);
+
+HRESULT WINAPI mouse_input2_device_QueryDeviceInformation( v2_GameInputDeviceInfo *info )
+{
+    v2_GameInputMouseInfo mouse_info;
+    v2_GameInputDeviceInfo device_info;
+
+    mouse_info.supportedButtons = 0x7F;
+    mouse_info.sampleRate = 500;
+    mouse_info.hasWheelX = TRUE;
+    mouse_info.hasWheelY = TRUE;
+
+    device_info.supportedInput = GameInputKindMouse;
+    device_info.mouseInfo = (const v2_GameInputMouseInfo *)&device_info;
+    device_info.deviceFamily = GameInputFamilyHid;
+
+    *info = device_info;
+}
+
+static inline struct game_input_device *impl_from_v2_IGameInputDevice( v2_IGameInputDevice *iface )
+{
+    return CONTAINING_RECORD( iface, struct game_input_device, v2_IGameInputDevice_iface );
+}
+
+static HRESULT WINAPI mouse_input2_device_QueryInterface( v2_IGameInputDevice *iface, REFIID iid, void **out )
+{
+    struct game_input_device *impl = impl_from_v2_IGameInputDevice( iface );
+
+    TRACE( "iface %p, iid %s, out %p.\n", iface, debugstr_guid( iid ), out );
+
+    if (IsEqualGUID( iid, &IID_IUnknown ) ||
+        IsEqualGUID( iid, &IID_IAgileObject ) ||
+        IsEqualGUID( iid, &IID_v2_IGameInputDevice ))
+    {
+        *out = &impl->v2_IGameInputDevice_iface;
+        impl->ref++;
+        return S_OK;
+    }
+
+    FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( iid ) );
+    *out = NULL;
+    return E_NOINTERFACE;
+}
+
+static ULONG WINAPI mouse_input2_device_AddRef( v2_IGameInputDevice *iface )
+{
+    struct game_input_device *impl = impl_from_v2_IGameInputDevice( iface );
+    ULONG ref = InterlockedIncrement( &impl->ref );
+    TRACE( "iface %p increasing refcount to %lu.\n", iface, ref );
+    return ref;
+}
+
+static ULONG WINAPI mouse_input2_device_Release( v2_IGameInputDevice *iface )
+{
+    struct game_input_device *impl = impl_from_v2_IGameInputDevice( iface );
+    ULONG ref = InterlockedDecrement( &impl->ref );
+    TRACE( "iface %p decreasing refcount to %lu.\n", iface, ref );
+    return ref;
+};
+
+static HRESULT WINAPI mouse_input2_device_GetDeviceInfo( v2_IGameInputDevice *iface, const v2_GameInputDeviceInfo **info )
+{
+    struct game_input_device *impl = impl_from_v2_IGameInputDevice( iface );
+    TRACE( "iface %p, info %p.\n", iface, info );
+    *info = &impl->device_info_v2;
+    return S_OK;
+}
+
+static HRESULT WINAPI mouse_input2_device_GetHapticInfo( v2_IGameInputDevice *iface, GameInputHapticInfo *info )
+{
+    FIXME( "iface %p, info %p stub!\n", iface, info );
+    return E_NOTIMPL;
+}
+
+static GameInputDeviceStatus WINAPI mouse_input2_device_GetDeviceStatus( v2_IGameInputDevice *iface )
+{
+    FIXME( "iface %p, stub!\n", iface );
+    return 0;
+}
+
+static HRESULT WINAPI mouse_input2_device_CreateForceFeedbackEffect( v2_IGameInputDevice *iface, uint32_t motor, const GameInputForceFeedbackParams *params, v2_IGameInputForceFeedbackEffect **effect )
+{
+    FIXME( "iface %p, motor %d, params %p, effect %p stub!\n", iface, motor, params, effect );
+    return E_NOTIMPL;
+}
+
+static bool WINAPI mouse_input2_device_IsForceFeedbackMotorPoweredOn( v2_IGameInputDevice *iface, uint32_t motor )
+{
+    FIXME( "iface %p, motor %d stub!\n", iface, motor );
+    return FALSE;
+}
+
+static VOID WINAPI mouse_input2_device_SetForceFeedbackMotorGain( v2_IGameInputDevice *iface, uint32_t motor, float gain )
+{
+    FIXME( "iface %p, motor %d, gain %f stub!\n", iface, motor, gain );
+    return;
+}
+
+static VOID WINAPI mouse_input2_device_SetRumbleState( v2_IGameInputDevice *iface, const GameInputRumbleParams *params )
+{
+    FIXME( "iface %p, params %p stub!\n", iface, params );
+    return;
+}
+
+static HRESULT WINAPI mouse_input2_device_DirectInputEscape( v2_IGameInputDevice *iface, uint32_t command, const void *input, uint32_t in_size, void *output, uint32_t out_size, uint32_t *size )
+{
+    FIXME( "iface %p, stub!\n", iface );
+    return E_NOTIMPL;
+}
+
+const struct v2_IGameInputDeviceVtbl mouse_input2_device_vtbl =
+{
+    /* IUnknown methods */
+    mouse_input2_device_QueryInterface,
+    mouse_input2_device_AddRef,
+    mouse_input2_device_Release,
+    /* v2_IGameInputDevice methods */
+    mouse_input2_device_GetDeviceInfo,
+    mouse_input2_device_GetHapticInfo,
+    mouse_input2_device_GetDeviceStatus,
+    mouse_input2_device_CreateForceFeedbackEffect,
+    mouse_input2_device_IsForceFeedbackMotorPoweredOn,
+    mouse_input2_device_SetForceFeedbackMotorGain,
+    mouse_input2_device_SetRumbleState,
+    mouse_input2_device_DirectInputEscape
+};

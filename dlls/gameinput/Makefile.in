@@ -1,7 +1,9 @@
 MODULE     = gameinput.dll
 EXTRADEFS  = -D_GAMEINPUT_
+IMPORTS    = combase
 
 EXTRADLLFLAGS = -Wb,--prefer-native
 
 SOURCES = \
-	gameinput.c
+	gameinput.c \
+	mouinput.c 
