@@ -123,7 +123,101 @@ HRESULT WINAPI XInitializeBlock( XAsyncBlock* asyncBlock )
     return S_OK;
 }
 
-VOID CALLBACK XTPCallback( TP_CALLBACK_INSTANCE *instance, void *iface, TP_WORK *work )
+DWORD CALLBACK XTPTaskCallback( void *context )
+{
+    struct tp_work_arguments *args = (struct tp_work_arguments *)context;
+    struct XTaskQueueObject *impl = args->handle;
+    struct XTaskQueuePortObject *port = NULL;
+    
+    UINT32 currentCallback = args->current;
+    UINT32 tasksIterator;
+    XTask *task;
+    XTask *previousTask = NULL;
+
+    TRACE( "context %p.\n", context );
+
+    impl->isRunning = TRUE;
+
+    switch ( args->port )
+    {
+        case Work:
+            port = impl->workPortHandle;
+            break;
+
+        case Completion:
+            port = impl->completionPortHandle;
+            break;
+    }
+
+    EnterCriticalSection( &impl->cs );
+    // O(n) lookup of XTask.
+    // TODO: Upgrade to O(1) for slightly better performance.
+    if ( currentCallback >= port->tasksCount )
+    {
+        LeaveCriticalSection( &impl->cs );
+        return 1;
+    }
+    task = port->tasks_head;
+    for ( tasksIterator = 0; tasksIterator < currentCallback && task; tasksIterator++ )
+    {
+        if ( currentCallback != 0 )
+            previousTask = task;
+        task = task->next;
+    }
+    LeaveCriticalSection( &impl->cs );
+
+    if ( port->dispatchMode == SerializedThreadPool && currentCallback != 0 )
+        WaitForSingleObject( previousTask->taskHandle, INFINITE );
+
+    // Dispatch
+    task->taskHandle = CreateEventA( NULL, TRUE, FALSE, NULL );
+    task->callback( task->context, args->cancelled );
+    SetEvent( task->taskHandle );
+
+    impl->isRunning = FALSE;
+
+    return 0;
+}
+
+VOID CALLBACK XTPDispatchCallback( TP_CALLBACK_INSTANCE *instance, void *iface, TP_WORK *work )
+{
+    struct XTaskQueueObject *impl = (struct XTaskQueueObject *)iface;
+    
+    UINT32 tasksIterator;
+    XTask *task;
+
+    TRACE( "instance %p, iface %p, work %p.\n", instance, iface, work );
+
+    impl->isRunning = TRUE;
+
+    EnterCriticalSection( &impl->cs );
+    if ( impl->workPortHandle->dispatchMode == Manual )
+    {
+        task = impl->workPortHandle->tasks_head;
+        for ( tasksIterator = 0; tasksIterator < impl->workPortHandle->tasksCount && task; tasksIterator++ )
+        {
+            task->callback( task->context, FALSE );
+            task = task->next;
+        }
+    }
+    if ( impl->completionPortHandle->dispatchMode == Manual )
+    {
+        task = impl->completionPortHandle->tasks_head;
+        for ( tasksIterator = 0; tasksIterator < impl->workPortHandle->tasksCount && task; tasksIterator++ )
+        {
+            task->callback( task->context, FALSE );
+            task = task->next;
+        }
+    }
+    LeaveCriticalSection( &impl->cs );
+
+    SetEvent( impl->dispatchHandle );
+    impl->isRunning = FALSE;
+
+    return;
+}
+
+VOID CALLBACK XTPAsyncCallback( TP_CALLBACK_INSTANCE *instance, void *iface, TP_WORK *work )
 {
     struct x_async_work *impl = impl_from_IWineAsyncWorkImpl( (IWineAsyncWorkImpl *)iface );
 

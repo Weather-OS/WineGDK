@@ -31,6 +31,7 @@
 struct x_threading
 {
     IXThreadingImpl IXThreadingImpl_iface;
+    XTaskQueueHandle currentProcessTaskQueue;
     BOOLEAN isTimeSensitiveThread;
     LONG ref;
 };
@@ -65,17 +66,49 @@ struct x_async_work
     CRITICAL_SECTION cs;
 };
 
-struct x_task_queue
+typedef struct XTask
 {
-    XTaskQueueHandle handle_iface;
-    XTaskQueueDispatchMode workDispatchMode;
-    XTaskQueueDispatchMode completionDispatchMode;
+    XTaskQueueCallback *callback;
+    HANDLE taskHandle;
+    UINT32 delayInMs;
+    PVOID context;
+    struct XTask *next;
+} XTask;
+
+struct XTaskQueuePortObject //<-- Our own XTaskQueuePortObject implementation
+{    
+    XTask *tasks_head, *tasks_tail;
+    UINT32 tasksCount;
+    XTaskQueueDispatchMode dispatchMode;
+
+    BOOLEAN isRunning;
+};
+
+struct XTaskQueueObject //<-- Our own XTaskQueueObject implementation
+{
+    XTaskQueuePortHandle workPortHandle;
+    XTaskQueuePortHandle completionPortHandle;
+
+    HANDLE dispatchHandle;
+    BOOLEAN isRunning;
+    XTaskQueueTerminatedCallback *terminateCallback;
+    CRITICAL_SECTION cs;
+
+};
+
+struct tp_work_arguments
+{
+    XTaskQueueHandle handle;
+    XTaskQueuePort port;
+    BOOLEAN cancelled;
+    UINT32 current;
 };
 
 struct x_async_work *impl_from_XAsyncBlock( XAsyncBlock *block );
 
 HRESULT WINAPI XInitializeBlock( XAsyncBlock* asyncBlock );
-
-VOID CALLBACK XTPCallback( TP_CALLBACK_INSTANCE *instance, void *iface, TP_WORK *work );
+DWORD CALLBACK XTPTaskCallback( void *context );
+VOID CALLBACK XTPAsyncCallback( TP_CALLBACK_INSTANCE *instance, void *iface, TP_WORK *work );
+VOID CALLBACK XTPDispatchCallback( TP_CALLBACK_INSTANCE *instance, void *iface, TP_WORK *work );
 
 #endif
