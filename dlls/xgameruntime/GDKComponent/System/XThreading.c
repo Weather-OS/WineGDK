@@ -391,6 +391,8 @@ static HRESULT WINAPI x_threading_XTaskQueueSubmitDelayedCallback( IXThreadingIm
     struct XTaskQueuePortObject *currentPort = NULL;
 
     XTask *task = NULL;
+    XMonitor *monitor = NULL;
+    UINT32 monitorsIterator;
 
     TRACE( "iface %p, queue %p, port %d, delayMs %d, callbackContext %p, callback %p.\n", iface, queue, port, delayMs, callbackContext, callback );
 
@@ -399,6 +401,16 @@ static HRESULT WINAPI x_threading_XTaskQueueSubmitDelayedCallback( IXThreadingIm
         return E_INVALIDARG;
     if ( !callback )
         return E_POINTER;
+
+    if ( impl->monitorsCount )
+    {
+        monitor = impl->monitors_head;
+        for ( monitorsIterator = 0; monitorsIterator < impl->monitorsCount && monitor; monitorsIterator++ )
+        {
+            monitor->callback( monitor->context, queue, port );
+            monitor = monitor->next;
+        }
+    }
 
     if (!(task = calloc( 1, sizeof(*task) ))) return E_OUTOFMEMORY;
 
@@ -603,13 +615,67 @@ static HRESULT WINAPI x_threading_XTaskQueueTerminate( IXThreadingImpl* iface, X
 
 static HRESULT WINAPI x_threading_XTaskQueueRegisterMonitor( IXThreadingImpl* iface, XTaskQueueHandle queue, PVOID callbackContext, XTaskQueueMonitorCallback* callback, XTaskQueueRegistrationToken* token )
 {
-    FIXME( "iface %p, queue %p, callbackContext %p, callback %p, token %p stub!\n", iface, queue, callbackContext, callback, token );
-    return E_NOTIMPL;
+    struct XTaskQueueObject *impl = queue;
+
+    XMonitor *monitor = NULL;
+    XTaskQueueRegistrationToken currentToken;
+
+    TRACE( "iface %p, queue %p, callbackContext %p, callback %p, token %p.\n", iface, queue, callbackContext, callback, token );
+
+    // Arguments
+    if ( !queue )
+        return E_INVALIDARG;
+    if ( !callback || !token )
+        return E_POINTER;
+
+    if (!(monitor = calloc( 1, sizeof(*monitor) ))) return E_OUTOFMEMORY;
+
+    monitor->callback = callback;
+    monitor->context = callbackContext;
+    monitor->next = NULL;
+
+    currentToken.token = impl->monitorsCount;
+
+    EnterCriticalSection( &impl->cs );
+    if ( impl->monitors_tail )
+        impl->monitors_tail->next = monitor;
+    else
+        //empty queue
+        impl->monitors_head = monitor;
+
+    impl->monitors_tail = monitor;
+    impl->monitorsCount++; // <-- InterlockedIncrement( currentPort->tasksCount );
+    LeaveCriticalSection( &impl->cs );
+
+    *token = currentToken;
+
+    return S_OK;
 }
 
 static VOID WINAPI x_threading_XTaskQueueUnregisterMonitor( IXThreadingImpl* iface, XTaskQueueHandle queue, XTaskQueueRegistrationToken token )
 {
-    FIXME( "iface %p, queue %p, token %p stub!\n", iface, queue, &token );
+    struct XTaskQueueObject *impl = queue;
+
+    XMonitor *monitor = NULL;
+    UINT32 monitorsIterator;
+
+    TRACE( "iface %p, queue %p, token %lld.\n", iface, queue, token.token );
+
+    EnterCriticalSection( &impl->cs );
+    // O(n) lookup of XMonitor.
+    // TODO: Upgrade to O(1) for slightly better performance.
+    if ( token.token >= impl->monitorsCount )
+    {
+        LeaveCriticalSection( &impl->cs );
+        return;
+    }
+    monitor = impl->monitors_head;
+    for ( monitorsIterator = 0; monitorsIterator < token.token && monitor; monitorsIterator++ )
+        monitor = monitor->next;
+    
+    free( monitor ); // <-- We won't decrement monitorsCount because our token system relies on it.
+    LeaveCriticalSection( &impl->cs );
+
     /* no-op return */
 }
 
