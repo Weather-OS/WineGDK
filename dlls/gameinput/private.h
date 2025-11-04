@@ -70,6 +70,7 @@ struct game_input_device
     v2_GameInputDeviceInfo device_info_v2;
 
     POINT lastPos;
+    UINT64 lastWheel;
 
     LONG ref;
 };

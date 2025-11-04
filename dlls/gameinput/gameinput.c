@@ -576,9 +576,11 @@ static HRESULT WINAPI game_input2_GetCurrentReading( v2_IGameInput *iface, GameI
 
         input_device->lastPos.x += state.lX;
         input_device->lastPos.y += state.lY;
+        input_device->lastWheel += state.lZ;
 
         input_reading->mouseState.positionX = input_device->lastPos.x;
         input_reading->mouseState.positionY = input_device->lastPos.y;
+        input_reading->mouseState.wheelY = input_device->lastWheel;
 
         if ( GetAsyncKeyState( VK_LBUTTON ) & 0x8000 )
             input_reading->mouseState.buttons |= GameInputMouseLeftButton;
