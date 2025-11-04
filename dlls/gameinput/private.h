@@ -27,6 +27,7 @@
 #include "windef.h"
 #include "winbase.h"
 #include "winstring.h"
+#include "dinput.h"
 
 #include "unknwn.h"
 #include "objidlbase.h"
@@ -67,6 +68,20 @@ struct game_input_device
     v0_GameInputDeviceInfo device_info_v0;
     v1_GameInputDeviceInfo device_info_v1;
     v2_GameInputDeviceInfo device_info_v2;
+
+    POINT lastPos;
+
+    LONG ref;
+};
+
+struct game_input_reading
+{
+    v2_IGameInputReading v2_IGameInputReading_iface;
+    v2_IGameInputDevice *device;
+    v2_GameInputMouseState mouseState;
+
+    uint64_t timestamp;
+
     LONG ref;
 };
 

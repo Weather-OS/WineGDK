@@ -31,6 +31,10 @@ WINE_DEFAULT_DEBUG_CHANNEL(ginput);
 DEFINE_ASYNC_COMPLETED_HANDLER( device_information_collection_handler, IAsyncOperationCompletedHandler_DeviceInformationCollection, IAsyncOperation_DeviceInformationCollection )
 
 extern const struct v2_IGameInputDeviceVtbl mouse_input2_device_vtbl;
+extern const struct v2_IGameInputReadingVtbl mouse_input2_reading_vtbl;
+
+static LPDIRECTINPUT8W        g_pDI = NULL;
+static LPDIRECTINPUTDEVICE8W  g_pMouse = NULL;
 
 struct game_input
 {
@@ -42,9 +46,19 @@ struct game_input
     LONG ref;
 };
 
+static inline struct game_input_device *impl_from_v2_IGameInputDevice( v2_IGameInputDevice *iface )
+{
+    return CONTAINING_RECORD( iface, struct game_input_device, v2_IGameInputDevice_iface );
+}
+
 static inline struct game_input *impl_from_v0_IGameInput( v0_IGameInput *iface )
 {
     return CONTAINING_RECORD( iface, struct game_input, v0_IGameInput_iface );
+}
+
+static inline struct game_input_reading *impl_from_v2_IGameInputReading( v2_IGameInputReading *iface )
+{
+    return CONTAINING_RECORD( iface, struct game_input_reading, v2_IGameInputReading_iface );
 }
 
 static HRESULT WINAPI game_input_QueryInterface( v0_IGameInput *iface, REFIID iid, void **out )
@@ -529,9 +543,59 @@ static uint64_t WINAPI game_input2_GetCurrentTimestamp( v2_IGameInput *iface )
 static HRESULT WINAPI game_input2_GetCurrentReading( v2_IGameInput *iface, GameInputKind kind,
                                                    v2_IGameInputDevice *device, v2_IGameInputReading **reading )
 {
-    FIXME( "iface %p GetCurrentReading kind=%d device=%p reading_out=%p\n", iface, (int)kind, device, reading );
-    if (reading) *reading = NULL;
-    return E_NOTIMPL;
+    struct game_input_reading *input_reading;
+    struct game_input_device *input_device = impl_from_v2_IGameInputDevice( device );
+    POINT absoluteP;
+    HRESULT status;
+    DIMOUSESTATE2 state;
+
+    TRACE( "iface %p kind %d device %p reading %p\n", iface, kind, device, reading );
+
+    if (!(input_reading = calloc( 1, sizeof(*input_reading) ))) return E_OUTOFMEMORY;
+
+    if ( kind == GameInputKindMouse )
+    {
+        GetCursorPos( &absoluteP );
+
+        status = g_pMouse->lpVtbl->GetDeviceState( g_pMouse, sizeof(state), &state);
+        if ( FAILED( status ) ) {
+            if ( ( status == DIERR_INPUTLOST ) || ( status == DIERR_NOTACQUIRED ) ) {
+                // Try to reacquire
+                status = g_pMouse->lpVtbl->Acquire( g_pMouse );
+            }
+        }
+
+        input_reading->v2_IGameInputReading_iface.lpVtbl = &mouse_input2_reading_vtbl;
+        input_reading->device = device;
+        input_reading->ref = 1;
+
+        input_reading->mouseState.positions = GameInputMouseRelativePosition;
+
+        input_reading->mouseState.absolutePositionX = absoluteP.x;
+        input_reading->mouseState.absolutePositionY = absoluteP.y;
+
+        input_device->lastPos.x += state.lX;
+        input_device->lastPos.y += state.lY;
+
+        input_reading->mouseState.positionX = input_device->lastPos.x;
+        input_reading->mouseState.positionY = input_device->lastPos.y;
+
+        if ( GetAsyncKeyState( VK_LBUTTON ) & 0x8000 )
+            input_reading->mouseState.buttons |= GameInputMouseLeftButton;
+        if ( GetAsyncKeyState( VK_RBUTTON ) & 0x8000 )
+            input_reading->mouseState.buttons |= GameInputMouseRightButton;
+        if ( GetAsyncKeyState( VK_MBUTTON ) & 0x8000 )
+            input_reading->mouseState.buttons |= GameInputMouseMiddleButton;
+
+        input_reading->timestamp = GetTickCount64();
+    } else
+    {
+        return E_NOTIMPL;
+    }
+
+    if (reading) *reading = &input_reading->v2_IGameInputReading_iface;
+
+    return S_OK;
 }
 
 static HRESULT WINAPI game_input2_GetNextReading( v2_IGameInput *iface, v2_IGameInputReading *reference,
@@ -573,6 +637,7 @@ static HRESULT WINAPI game_input2_RegisterDeviceCallback( v2_IGameInput *iface, 
     OLECHAR guidString[39];
     SIZE_T lowercaseIterator;
     DWORD asyncRes;
+    HWND hwnd;
 
     struct game_input *impl = impl_from_v2_IGameInput( iface );
     struct game_input_device *input_device;
@@ -610,22 +675,47 @@ static HRESULT WINAPI game_input2_RegisterDeviceCallback( v2_IGameInput *iface, 
         IIterator_DeviceInformation_MoveNext( device_information_iterator, &exists );
 
         if ( kind & GameInputKindMouse )
+        {
+
             StringFromGUID2( &GUID_DEVINTERFACE_MOUSE, guidString, ARRAYSIZE( guidString ) );
 
-        for ( lowercaseIterator = 0; lowercaseIterator < wcslen( guidString ); lowercaseIterator++ )
-            guidString[lowercaseIterator] = towlower( guidString[lowercaseIterator] );
+            for ( lowercaseIterator = 0; lowercaseIterator < wcslen( guidString ); lowercaseIterator++ )
+                guidString[lowercaseIterator] = towlower( guidString[lowercaseIterator] );
 
-        if ( wcsstr( WindowsGetStringRawBuffer( idStr, NULL ), guidString ) )
-        {
-            // Device found routine
-            if (!(input_device = calloc( 1, sizeof(*input_device) ))) return E_OUTOFMEMORY;
-            
-            input_device->v2_IGameInputDevice_iface.lpVtbl = &mouse_input2_device_vtbl;
-            input_device->ref = 1;
+            if ( wcsstr( WindowsGetStringRawBuffer( idStr, NULL ), guidString ) )
+            {
+                hwnd = GetForegroundWindow();
+                if (!hwnd) return E_FAIL;
 
-            mouse_input2_device_QueryDeviceInformation( &input_device->device_info_v2 );
+                // TODO: I have no clue how to do this properly.
+                // pls rewrite kthxbye.
+                
+                status = DirectInput8Create( GetModuleHandleW(NULL), DIRECTINPUT_VERSION, &IID_IDirectInput8W, (void**)&g_pDI, NULL );
+                if (FAILED(status)) return status;
 
-            callback( 1, context, &input_device->v2_IGameInputDevice_iface, time(NULL), GameInputDeviceConnected, GameInputDeviceConnected );
+                status = g_pDI->lpVtbl->CreateDevice( g_pDI, &GUID_SysMouse, &g_pMouse, NULL );
+                if (FAILED(status)) return status;
+
+                status = g_pMouse->lpVtbl->SetDataFormat( g_pMouse, &c_dfDIMouse2 );
+                if (FAILED(status)) return status;
+
+                status = g_pMouse->lpVtbl->SetCooperativeLevel( g_pMouse, hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE );
+                if (FAILED(status)) return status;
+
+                // Acquire device
+                status = g_pMouse->lpVtbl->Acquire( g_pMouse );
+                if (FAILED(status)) return status;
+
+                // Device found routine
+                if (!(input_device = calloc( 1, sizeof(*input_device) ))) return E_OUTOFMEMORY;
+
+                input_device->v2_IGameInputDevice_iface.lpVtbl = &mouse_input2_device_vtbl;
+                input_device->ref = 1;
+
+                mouse_input2_device_QueryDeviceInformation( &input_device->device_info_v2 );
+
+                callback( 1, context, &input_device->v2_IGameInputDevice_iface, time(NULL), GameInputDeviceConnected, GameInputDeviceConnected );
+            }
         }
     }
 

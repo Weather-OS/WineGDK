@@ -21,23 +21,29 @@
 
 #include "mouinput.h"
 
+#include <time.h>
+
 WINE_DEFAULT_DEBUG_CHANNEL(ginput);
 
 HRESULT WINAPI mouse_input2_device_QueryDeviceInformation( v2_GameInputDeviceInfo *info )
 {
-    v2_GameInputMouseInfo mouse_info;
+    v2_GameInputMouseInfo *mouse_info;
     v2_GameInputDeviceInfo device_info;
 
-    mouse_info.supportedButtons = 0x7F;
-    mouse_info.sampleRate = 500;
-    mouse_info.hasWheelX = TRUE;
-    mouse_info.hasWheelY = TRUE;
+    if (!(mouse_info = calloc( 1, sizeof(*mouse_info) ))) return E_OUTOFMEMORY;
+
+    mouse_info->supportedButtons = 0x7F;
+    mouse_info->sampleRate = 500;
+    mouse_info->hasWheelX = TRUE;
+    mouse_info->hasWheelY = TRUE;
 
     device_info.supportedInput = GameInputKindMouse;
-    device_info.mouseInfo = (const v2_GameInputMouseInfo *)&device_info;
+    device_info.mouseInfo = mouse_info;
     device_info.deviceFamily = GameInputFamilyHid;
 
     *info = device_info;
+
+    return S_OK;
 }
 
 static inline struct game_input_device *impl_from_v2_IGameInputDevice( v2_IGameInputDevice *iface )
@@ -146,4 +152,199 @@ const struct v2_IGameInputDeviceVtbl mouse_input2_device_vtbl =
     mouse_input2_device_SetForceFeedbackMotorGain,
     mouse_input2_device_SetRumbleState,
     mouse_input2_device_DirectInputEscape
+};
+
+static inline struct game_input_reading *impl_from_v2_IGameInputReading( v2_IGameInputReading *iface )
+{
+    return CONTAINING_RECORD( iface, struct game_input_reading, v2_IGameInputReading_iface );
+}
+
+static HRESULT WINAPI mouse_input2_reading_QueryInterface( v2_IGameInputReading *iface, REFIID iid, void **out )
+{
+    struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
+
+    TRACE( "iface %p, iid %s, out %p.\n", iface, debugstr_guid( iid ), out );
+
+    if (IsEqualGUID( iid, &IID_IUnknown ) ||
+        IsEqualGUID( iid, &IID_IAgileObject ) ||
+        IsEqualGUID( iid, &IID_v2_IGameInputReading ))
+    {
+        *out = &impl->v2_IGameInputReading_iface;
+        impl->ref++;
+        return S_OK;
+    }
+
+    FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( iid ) );
+    *out = NULL;
+    return E_NOINTERFACE;
+}
+
+static ULONG WINAPI mouse_input2_reading_AddRef( v2_IGameInputReading *iface )
+{
+    struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
+    ULONG ref = InterlockedIncrement( &impl->ref );
+    TRACE( "iface %p increasing refcount to %lu.\n", iface, ref );
+    return ref;
+}
+
+static ULONG WINAPI mouse_input2_reading_Release( v2_IGameInputReading *iface )
+{
+    struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
+    ULONG ref = InterlockedDecrement( &impl->ref );
+    TRACE( "iface %p decreasing refcount to %lu.\n", iface, ref );
+    return ref;
+};
+
+static GameInputKind WINAPI mouse_input2_reading_GetInputKind( v2_IGameInputReading *iface )
+{
+    TRACE( "iface %p.\n", iface );
+    return GameInputKindMouse;
+}
+
+static uint64_t WINAPI mouse_input2_reading_GetTimestamp( v2_IGameInputReading *iface )
+{
+    struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
+    TRACE( "iface %p.\n", iface );
+    return impl->timestamp;
+}
+
+static void WINAPI mouse_input2_reading_GetDevice( v2_IGameInputReading *iface, v2_IGameInputDevice **device )
+{
+    struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
+    TRACE( "iface %p, device %p.\n", iface, device );
+    if (device) *device = impl->device;
+    return;
+}
+
+static uint32_t mouse_input2_reading_GetControllerAxisCount( v2_IGameInputReading *iface )
+{
+    struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
+    ERR( "Not for this device %p!\n", impl->device );
+    return 0;
+}
+
+static uint32_t mouse_input2_reading_GetControllerAxisState( v2_IGameInputReading *iface, uint32_t count, float *state )
+{
+    struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
+    ERR( "Not for this device %p!\n", impl->device );
+    return 0;
+}
+
+static uint32_t mouse_input2_reading_GetControllerButtonCount( v2_IGameInputReading *iface )
+{
+    struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
+    ERR( "Not for this device %p!\n", impl->device );
+    return 0;
+}
+
+static uint32_t mouse_input2_reading_GetControllerButtonState( v2_IGameInputReading *iface, uint32_t count, bool *state )
+{
+    struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
+    ERR( "Not for this device %p!\n", impl->device );
+    return 0;
+}
+
+static uint32_t mouse_input2_reading_GetControllerSwitchCount( v2_IGameInputReading *iface )
+{
+    struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
+    ERR( "Not for this device %p!\n", impl->device );
+    return 0;
+}
+
+static uint32_t mouse_input2_reading_GetControllerSwitchState( v2_IGameInputReading *iface, uint32_t count, GameInputSwitchPosition *state )
+{
+    struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
+    ERR( "Not for this device %p!\n", impl->device );
+    return 0;
+}
+
+static uint32_t mouse_input2_reading_GetKeyCount( v2_IGameInputReading *iface )
+{
+    struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
+    ERR( "Not for this device %p!\n", impl->device );
+    return 0;
+}
+
+static uint32_t mouse_input2_reading_GetKeyState( v2_IGameInputReading *iface, uint32_t count, GameInputKeyState *state )
+{
+    struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
+    ERR( "Not for this device %p!\n", impl->device );
+    return 0;
+}
+
+static bool mouse_input2_reading_GetMouseState( v2_IGameInputReading *iface, v2_GameInputMouseState *state )
+{
+    struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
+    TRACE( "iface %p, state %p.\n", iface, state );
+    *state = impl->mouseState;
+    return true;
+}
+
+static bool mouse_input2_reading_GetSensorsState( v2_IGameInputReading *iface, GameInputSensorsState *state )
+{
+    struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
+    ERR( "Not for this device %p!\n", impl->device );
+    return false;
+}
+
+static bool mouse_input2_reading_GetArcadeStickState( v2_IGameInputReading *iface, GameInputArcadeStickState *state )
+{
+    struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
+    ERR( "Not for this device %p!\n", impl->device );
+    return false;
+}
+
+static bool mouse_input2_reading_GetFlightStickState( v2_IGameInputReading *iface, GameInputFlightStickState *state )
+{
+    struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
+    ERR( "Not for this device %p!\n", impl->device );
+    return false;
+}
+
+static bool mouse_input2_reading_GetGamepadState( v2_IGameInputReading *iface, GameInputGamepadState *state )
+{
+    struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
+    ERR( "Not for this device %p!\n", impl->device );
+    return false;
+}
+
+static bool mouse_input2_reading_GetRacingWheelState( v2_IGameInputReading *iface, GameInputRacingWheelState *state )
+{
+    struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
+    ERR( "Not for this device %p!\n", impl->device );
+    return false;
+}
+
+static bool mouse_input2_reading_GetUiNavigationState( v2_IGameInputReading *iface, GameInputUiNavigationState *state )
+{
+    struct game_input_reading *impl = impl_from_v2_IGameInputReading( iface );
+    ERR( "Not for this device %p!\n", impl->device );
+    return false;
+}
+
+const struct v2_IGameInputReadingVtbl mouse_input2_reading_vtbl =
+{
+    /* IUnknown methods */
+    mouse_input2_reading_QueryInterface,
+    mouse_input2_reading_AddRef,
+    mouse_input2_reading_Release,
+    /* v2_IGameInputReading */
+    mouse_input2_reading_GetInputKind,
+    mouse_input2_reading_GetTimestamp,
+    mouse_input2_reading_GetDevice,
+    mouse_input2_reading_GetControllerAxisCount,
+    mouse_input2_reading_GetControllerAxisState,
+    mouse_input2_reading_GetControllerButtonCount,
+    mouse_input2_reading_GetControllerButtonState,
+    mouse_input2_reading_GetControllerSwitchCount,
+    mouse_input2_reading_GetControllerSwitchState,
+    mouse_input2_reading_GetKeyCount,
+    mouse_input2_reading_GetKeyState,
+    mouse_input2_reading_GetMouseState,
+    mouse_input2_reading_GetSensorsState,
+    mouse_input2_reading_GetArcadeStickState,
+    mouse_input2_reading_GetFlightStickState,
+    mouse_input2_reading_GetGamepadState,
+    mouse_input2_reading_GetRacingWheelState,
+    mouse_input2_reading_GetUiNavigationState
 };
