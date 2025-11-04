@@ -450,7 +450,7 @@ static HRESULT WINAPI x_threading_XTaskQueueSubmitDelayedCallback( IXThreadingIm
              * That way, we can dispatch with BOOLEAN canceled = TRUE;
              */
             // Dispatch
-            callback( callbackContext, false );
+            callback( callbackContext, FALSE );
             break;
 
         case SerializedThreadPool:
