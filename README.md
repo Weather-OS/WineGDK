@@ -1,7 +1,6 @@
 # NOTES FOR PEOPLE TRYING TO RUN MINECRAFT'S GDK BUILD
 
-Since IGameInput is still not implemented yet, the game does not support mouse inputs.
-You can either use a game pad or turn on "Full Keyboard Gameplay" within Mouse/Keyboard settings within the game.
+Online services have not been added yet. This is because `XUser` and `XNetworking` haven't been implemented in `xgameruntime.dll` yet.
 
 ## INTRODUCTION
 
