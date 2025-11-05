@@ -2,6 +2,16 @@
 
 Online services have not been added yet. This is because `XUser` and `XNetworking` haven't been implemented in `xgameruntime.dll` yet.
 
+### NOTES ABOUT THIS PROJECT
+
+Unfortunately, since I don't have the right conditions to be able to   
+push my changes upstream, I've decided to declare every part of my contributions that isn't    
+derived from other parts of the wine project, CC0 (A.K.A "Public Domain") (i.e xgameruntime).
+**What this means**:  
+You're allowed to derive, redistribute and reimplement my code at will,  
+without any attributions.
+**THIS ONLY APPLIES TO THE CODE I HAVE WRITTEN, NOT THE REST OF WINE'S PROJECT!**
+
 ## INTRODUCTION
 
 Wine is a program which allows running Microsoft Windows programs
