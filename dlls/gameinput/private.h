@@ -52,9 +52,6 @@ typedef struct GInputDev_v2
 
 typedef struct GInputDeviceEvents_v2
 {
-    IDeviceInformationStatics *device_information_statics;
-    IDeviceWatcher *watcher;
-
     GInputDev_v2 *dev_head, *dev_tail;
     UINT32 devCount;
 } GInputDeviceEvents_v2;
