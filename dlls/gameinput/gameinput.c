@@ -552,6 +552,10 @@ static HRESULT WINAPI game_input2_GetCurrentReading( v2_IGameInput *iface, GameI
     {
         GetCursorPos( &absoluteP );
 
+        input_reading->v2_IGameInputReading_iface.lpVtbl = &mouse_input2_reading_vtbl;
+        input_reading->device = device;
+        input_reading->ref = 1;
+
         status = g_pMouse->lpVtbl->GetDeviceState( g_pMouse, sizeof(state), &state);
         if ( FAILED( status ) ) {
             if ( ( status == DIERR_INPUTLOST ) || ( status == DIERR_NOTACQUIRED ) ) {
@@ -559,23 +563,18 @@ static HRESULT WINAPI game_input2_GetCurrentReading( v2_IGameInput *iface, GameI
                 status = g_pMouse->lpVtbl->Acquire( g_pMouse );
             }
         }
-
-        input_reading->v2_IGameInputReading_iface.lpVtbl = &mouse_input2_reading_vtbl;
-        input_reading->device = device;
-        input_reading->ref = 1;
-
-        input_reading->mouseState.positions = GameInputMouseRelativePosition;
-
-        input_reading->mouseState.absolutePositionX = absoluteP.x;
-        input_reading->mouseState.absolutePositionY = absoluteP.y;
-
-        input_device->lastPos.x += state.lX;
-        input_device->lastPos.y += state.lY;
-        input_device->lastWheel += state.lZ;
-
-        input_reading->mouseState.positionX = input_device->lastPos.x;
-        input_reading->mouseState.positionY = input_device->lastPos.y;
-        input_reading->mouseState.wheelY = input_device->lastWheel;
+        else
+        {
+            input_reading->mouseState.positions = GameInputMouseRelativePosition;
+            input_reading->mouseState.absolutePositionX = absoluteP.x;
+            input_reading->mouseState.absolutePositionY = absoluteP.y;
+            input_device->lastPos.x += state.lX;
+            input_device->lastPos.y += state.lY;
+            input_device->lastWheel += state.lZ;
+            input_reading->mouseState.positionX = input_device->lastPos.x;
+            input_reading->mouseState.positionY = input_device->lastPos.y;
+            input_reading->mouseState.wheelY = input_device->lastWheel;
+        }
 
         if ( GetAsyncKeyState( VK_LBUTTON ) & 0x8000 )
             input_reading->mouseState.buttons |= GameInputMouseLeftButton;
