@@ -137,8 +137,21 @@ static HRESULT WINAPI x_networking_XNetworkingVerifyServerCertificate( IXNetwork
 
 static HRESULT WINAPI x_networking_XNetworkingGetConnectivityHint( IXNetworkingImpl *iface, XNetworkingConnectivityHint *connectivityHint )
 {
-    FIXME( "iface %p, connectivityHint %p stub!\n", iface, connectivityHint );
-    return E_NOTIMPL;
+    XNetworkingConnectivityHint hint;
+
+    TRACE( "iface %p, connectivityHint %p\n", iface, connectivityHint );
+
+    hint.ianaInterfaceType = IF_TYPE_REGULAR_1822; // There's no direct way to get NDIS interface type in userspace.
+    hint.roaming = FALSE;
+    hint.overDataLimit = FALSE;
+    hint.networkInitialized = TRUE;
+    hint.approachingDataLimit = FALSE;
+    hint.connectivityLevel = ConnectivityLevelHintInternetAccess;
+    hint.connectivityCost = ConnectivityCostHintUnrestricted;
+
+    *connectivityHint = hint;
+
+    return S_OK;
 }
 
 static HRESULT WINAPI x_networking_XNetworkingRegisterConnectivityHintChanged( IXNetworkingImpl *iface, XTaskQueueHandle queue, PVOID context, XNetworkingConnectivityHintChangedCallback *callback, XTaskQueueRegistrationToken *token )
