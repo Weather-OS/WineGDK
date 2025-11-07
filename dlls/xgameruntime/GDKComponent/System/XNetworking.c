@@ -141,7 +141,7 @@ static HRESULT WINAPI x_networking_XNetworkingGetConnectivityHint( IXNetworkingI
 
     TRACE( "iface %p, connectivityHint %p\n", iface, connectivityHint );
 
-    hint.ianaInterfaceType = IF_TYPE_REGULAR_1822; // There's no direct way to get NDIS interface type in userspace.
+    hint.ianaInterfaceType = 0; // There's no direct way to get NDIS interface type in userspace.
     hint.roaming = FALSE;
     hint.overDataLimit = FALSE;
     hint.networkInitialized = TRUE;
