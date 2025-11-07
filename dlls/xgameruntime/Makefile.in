@@ -12,4 +12,5 @@ SOURCES = \
 	GDKComponent/System/XThreading.c \
 	GDKComponent/System/XSystemAnalytics.c \
 	GDKComponent/System/XGameRuntimeFeature.c \
+	GDKComponent/System/XNetworking.c
 
