@@ -22,11 +22,8 @@
 #ifndef XTHREADING_H
 #define XTHREADING_H
 
-#define X_ASYNC_WORK_MAGIC 0x58A55A01u
-
 #include "../../private.h"
-
-#include <string.h>
+#include "Threading/XTaskQueue.h"
 
 struct x_threading
 {
@@ -35,89 +32,5 @@ struct x_threading
     BOOLEAN isTimeSensitiveThread;
     LONG ref;
 };
-
-struct x_async_provider
-{
-    XAsyncProviderCallback *callback;
-    XAsyncProviderData *data;
-    OPTIONAL PVOID identity;
-    OPTIONAL LPCSTR identityName;
-    XAsyncOp operation;
-    UINT32 workDelay;
-};
-
-/**
- * The threadBlock in here is used as the root thread block, kind of like an iface.
- * The threadBlock in provider->data is used as the actual thread work.
- * IMPORTANT!: Only 1 continuous threadpool can run.
- */
-struct x_async_work
-{
-    UINT32 magic;
-    
-    IWineAsyncWorkImpl IWineAsyncWorkImpl_iface;
-    XAsyncBlock *threadBlock;
-    HRESULT status;
-    LONG ref;
-
-    struct x_async_provider provider;
-    HANDLE event;
-    TP_WORK *async_run_work;
-    CRITICAL_SECTION cs;
-};
-
-typedef struct XTask
-{
-    XTaskQueueCallback *callback;
-    HANDLE taskHandle;
-    UINT32 delayInMs;
-    PVOID context;
-    struct XTask *next;
-} XTask;
-
-typedef struct XMonitor
-{
-    XTaskQueueMonitorCallback *callback;
-    PVOID context;
-    struct XMonitor *next;
-} XMonitor;
-
-struct XTaskQueuePortObject //<-- Our own XTaskQueuePortObject implementation
-{    
-    XTask *tasks_head, *tasks_tail;
-    UINT32 tasksCount;
-    XTaskQueueDispatchMode dispatchMode;
-
-    BOOLEAN isRunning;
-};
-
-struct XTaskQueueObject //<-- Our own XTaskQueueObject implementation
-{
-    XTaskQueuePortHandle workPortHandle;
-    XTaskQueuePortHandle completionPortHandle;
-    XMonitor *monitors_head, *monitors_tail;
-    UINT32 monitorsCount;
-
-    HANDLE dispatchHandle;
-    BOOLEAN isRunning;
-    XTaskQueueTerminatedCallback *terminateCallback;
-    CRITICAL_SECTION cs;
-
-};
-
-struct tp_work_arguments
-{
-    XTaskQueueHandle handle;
-    XTaskQueuePort port;
-    BOOLEAN cancelled;
-    UINT32 current;
-};
-
-struct x_async_work *impl_from_XAsyncBlock( XAsyncBlock *block );
-
-HRESULT WINAPI XInitializeBlock( XAsyncBlock* asyncBlock );
-DWORD CALLBACK XTPTaskCallback( void *context );
-VOID CALLBACK XTPAsyncCallback( TP_CALLBACK_INSTANCE *instance, void *iface, TP_WORK *work );
-VOID CALLBACK XTPDispatchCallback( TP_CALLBACK_INSTANCE *instance, void *iface, TP_WORK *work );
 
 #endif

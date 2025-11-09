@@ -67,69 +67,20 @@ static ULONG WINAPI x_threading_Release( IXThreadingImpl *iface )
 
 static HRESULT WINAPI x_threading_XAsyncGetStatus( IXThreadingImpl *iface, XAsyncBlock *asyncBlock, boolean wait )
 {
-    struct x_async_work *impl;
-
-    TRACE( "iface %p, asyncBlock %p, wait %d\n", iface, asyncBlock, wait );
-
-    impl = impl_from_XAsyncBlock( asyncBlock );
-
-    if ( impl == NULL )
-    {
-        ERR( "called from an invalid block!\n" );
-        return E_INVALIDARG;
-    }
-
-    if ( wait )
-    {
-        WaitForThreadpoolWorkCallbacks( impl->async_run_work, FALSE );
-        /* impl->status will be set by the thread */
-    }
-    return impl->status;
+        FIXME( "iface %p stub!\n", iface );
+    return E_NOTIMPL;
 }
 
 static HRESULT WINAPI x_threading_XAsyncGetResultSize( IXThreadingImpl *iface, XAsyncBlock *asyncBlock, SIZE_T *bufferSize )
 {
-    struct x_async_work *impl;
-
-    TRACE( "iface %p, asyncBlock %p, bufferSize %p\n", iface, asyncBlock, bufferSize );
-
-    impl = impl_from_XAsyncBlock( asyncBlock );
-
-    if ( impl->status != S_OK ) return impl->status;
-    
-    *bufferSize = impl->provider.data->bufferSize;
-
-    return S_OK;
+    FIXME( "iface %p stub!\n", iface );
+    return E_NOTIMPL;
 }
 
 static HRESULT WINAPI x_threading_XAsyncCancel( IXThreadingImpl *iface, XAsyncBlock *asyncBlock )
 {
-    struct x_async_work *impl;
-
-    TRACE( "iface %p, asyncBlock %p\n", iface, asyncBlock );
-
-    impl = impl_from_XAsyncBlock( asyncBlock );
-
-    if ( impl == NULL )
-    {
-        ERR( "called from an invalid block!\n" );
-        return E_INVALIDARG;
-    }
-
-    if ( impl->status == S_OK ) return S_OK;
-    impl->provider.operation = Cancel;
-
-    if (!( impl->async_run_work = CreateThreadpoolWork( XTPAsyncCallback, &impl->IWineAsyncWorkImpl_iface, NULL ) ))
-        return HRESULT_FROM_WIN32( GetLastError() );
-
-    InitializeCriticalSectionEx( &impl->cs, 0, RTL_CRITICAL_SECTION_FLAG_FORCE_DEBUG_INFO );
-    impl->cs.DebugInfo->Spare[0] = (DWORD_PTR)( __FILE__ ": xasync.cs" );
-
-    impl->status = E_PENDING;
-
-    SubmitThreadpoolWork( impl->async_run_work );
-
-    return S_OK;
+    FIXME( "iface %p stub!\n", iface );
+    return E_NOTIMPL;
 }
 
 static HRESULT WINAPI x_threading_XAsyncRun( IXThreadingImpl *iface, XAsyncBlock *asyncBlock, XAsyncWork *work )
@@ -142,37 +93,8 @@ static HRESULT WINAPI x_threading_XAsyncRun( IXThreadingImpl *iface, XAsyncBlock
 
 static HRESULT WINAPI x_threading_XAsyncBegin(IXThreadingImpl* iface, XAsyncBlock* asyncBlock, PVOID context, const PVOID identity, LPCSTR identityName, XAsyncProviderCallback* provider)
 {
-    struct x_async_work *impl;
-    struct x_async_provider newProvider;
-
-    TRACE( "iface %p, context %p, identity %p, identityName %s, provider %p\n", iface, context, identity, identityName, provider );
-
-    XInitializeBlock( asyncBlock );
-    impl = impl_from_XAsyncBlock( asyncBlock );
-
-    if (!(newProvider.data = calloc( 1, sizeof(*newProvider.data) ))) return E_OUTOFMEMORY;
-
-    newProvider.callback = provider;
-    newProvider.data->async = asyncBlock;
-    newProvider.data->context = context;
-    newProvider.identity = identity;
-    newProvider.identityName = identityName;
-    newProvider.operation = Begin;
-
-    impl->provider = newProvider;
-
-    if (!( impl->async_run_work = CreateThreadpoolWork( XTPAsyncCallback, &impl->IWineAsyncWorkImpl_iface, NULL ) ))
-    {
-        free( newProvider.data );
-        return HRESULT_FROM_WIN32( GetLastError() );
-    }
-
-    InitializeCriticalSectionEx( &impl->cs, 0, RTL_CRITICAL_SECTION_FLAG_FORCE_DEBUG_INFO );
-    impl->cs.DebugInfo->Spare[0] = (DWORD_PTR)( __FILE__ ": xasync.cs" );
-
-    SubmitThreadpoolWork( impl->async_run_work );
-
-    return S_OK;
+    FIXME( "iface %p stub!\n", iface );
+    return E_NOTIMPL;
 }
 
 static HRESULT WINAPI __PADDING__( IXThreadingImpl* iface )
@@ -183,324 +105,72 @@ static HRESULT WINAPI __PADDING__( IXThreadingImpl* iface )
 
 static HRESULT WINAPI x_threading_XAsyncSchedule( IXThreadingImpl* iface, XAsyncBlock* asyncBlock, UINT32 delayInMs )
 {
-    struct x_async_work *impl;
-
-    TRACE( "iface %p, asyncBlock %p, delayInMs %d\n", iface, asyncBlock, delayInMs );
-
-    impl = impl_from_XAsyncBlock( asyncBlock );
-
-    if ( impl == NULL )
-    {
-        ERR( "called from an invalid block!\n" );
-        return E_INVALIDARG;
-    }
-
-    if ( FAILED( impl->status ) ) return impl->status;
-    impl->provider.operation = DoWork;
-    impl->provider.workDelay = delayInMs;
-
-    if (!( impl->async_run_work = CreateThreadpoolWork( XTPAsyncCallback, &impl->IWineAsyncWorkImpl_iface, NULL ) ))
-        return HRESULT_FROM_WIN32( GetLastError() );
-
-    InitializeCriticalSectionEx( &impl->cs, 0, RTL_CRITICAL_SECTION_FLAG_FORCE_DEBUG_INFO );
-    impl->cs.DebugInfo->Spare[0] = (DWORD_PTR)( __FILE__ ": xasync.cs" );
-
-    SubmitThreadpoolWork( impl->async_run_work );
-
-    return S_OK;
+    FIXME( "iface %p stub!\n", iface );
+    return E_NOTIMPL;
 }
 
 static VOID WINAPI x_threading_XAsyncComplete( IXThreadingImpl* iface, XAsyncBlock* asyncBlock, HRESULT result, SIZE_T requiredBufferSize )
 {
-    struct x_async_work *impl;
-
-    TRACE( "iface %p, asyncBlock %p, result %#lx, requiredBufferSize %llu\n", iface, asyncBlock, result, requiredBufferSize );
-
-    impl = impl_from_XAsyncBlock( asyncBlock );
-
-    if ( impl == NULL )
-    {
-        ERR( "called from an invalid block!\n" );
-        return;
-    }
-
-    impl->status = result;
-    impl->provider.data->bufferSize = requiredBufferSize;
-
-    if ( SUCCEEDED( result ) )
-        impl->provider.data->buffer = malloc( requiredBufferSize );
-
-    // invoke the completion routine
-    if ( impl->threadBlock->callback )
-        impl->threadBlock->callback( asyncBlock );
-
+    FIXME( "iface %p stub!\n", iface );
     return;
 }
 
 static HRESULT WINAPI x_threading_XAsyncGetResult( IXThreadingImpl* iface, XAsyncBlock* asyncBlock, const PVOID identity, SIZE_T bufferSize, PVOID buffer, SIZE_T* bufferUsed )
 {
-    struct x_async_work *impl;
-
-    HRESULT hr;
-
-    TRACE( "iface %p, asyncBlock %p, identity %p, bufferSize %llu, buffer %p, bufferUsed %p\n", iface, asyncBlock, identity, bufferSize, buffer, bufferUsed );
-
-    impl = impl_from_XAsyncBlock( asyncBlock );
-
-    if ( impl == NULL )
-    {
-        ERR( "called from an invalid block!\n" );
-        return E_INVALIDARG;
-    }
-
-    if ( FAILED( impl->status ) ) return impl->status;
-
-    if ( !impl->provider.data->buffer ) return HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED );
-    if ( impl->provider.data->bufferSize > bufferSize ) return E_BOUNDS;
-    if ( identity != impl->provider.identity ) return HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED );
-
-    if ( bufferUsed )
-        *bufferUsed = impl->provider.data->bufferSize;
-    
-    impl->provider.operation = GetResult;
-
-    // GetResult is not asynchronous
-    hr = impl->provider.callback( GetResult, impl->provider.data );
-    if ( FAILED( hr ) ) return hr;
-
-    if( buffer )
-        memcpy( buffer, impl->provider.data->buffer, impl->provider.data->bufferSize );
-
-    // Microsoft is very vague about when Cleanup is invoked. 
-    // We'll invoke it here just to be safe.
-
-    hr = impl->provider.callback( Cleanup, impl->provider.data );
-
-    return hr;
+    FIXME( "iface %p stub!\n", iface );
+    return E_NOTIMPL;
 }
+
 
 /* --- XTaskQueue --- */
 
 static HRESULT WINAPI x_threading_XTaskQueueCreate( IXThreadingImpl* iface, XTaskQueueDispatchMode workDispatchMode, XTaskQueueDispatchMode completionDispatchMode, XTaskQueueHandle* queue )
 {
-    struct XTaskQueueObject *impl;
-    struct XTaskQueuePortObject *workObject;
-    struct XTaskQueuePortObject *completionObject;
-
     TRACE( "iface %p, workDispatchMode %d, completionDispatchMode %d, queue %p.\n", iface, workDispatchMode, completionDispatchMode, queue );
-    
-    if (!(impl = calloc( 1, sizeof(*impl) ))) return E_OUTOFMEMORY;
-
-    // work port
-    if (!(workObject = calloc( 1, sizeof(*workObject) ))) return E_OUTOFMEMORY;
-    workObject->dispatchMode = workDispatchMode;
-    impl->workPortHandle = workObject;
-
-    // completion port
-    if (!(completionObject = calloc( 1, sizeof(*completionObject) ))) return E_OUTOFMEMORY;
-    completionObject->dispatchMode = completionDispatchMode;
-    impl->completionPortHandle = completionObject;
-
-    InitializeCriticalSectionEx( &impl->cs, 0, RTL_CRITICAL_SECTION_FLAG_FORCE_DEBUG_INFO );
-    impl->cs.DebugInfo->Spare[0] = (DWORD_PTR)( __FILE__ ": xtask.cs" );
-
-    *queue = impl;
-    
-    return S_OK;
+    return XTaskQueueCreate( workDispatchMode, completionDispatchMode, queue );
 }
 
 static HRESULT WINAPI x_threading_XTaskQueueCreateComposite( IXThreadingImpl* iface, XTaskQueuePortHandle workPort, XTaskQueuePortHandle completionPort, XTaskQueueHandle* queue )
 {
-    struct XTaskQueueObject *impl;
-
     TRACE( "iface %p, workPort %p, completionPort %p, queue %p.\n", iface, workPort, completionPort, queue );
-
-    if (!(impl = calloc( 1, sizeof(*impl) ))) return E_OUTOFMEMORY;
-
-    impl->workPortHandle = workPort;
-    impl->completionPortHandle = completionPort;
-
-    InitializeCriticalSectionEx( &impl->cs, 0, RTL_CRITICAL_SECTION_FLAG_FORCE_DEBUG_INFO );
-    impl->cs.DebugInfo->Spare[0] = (DWORD_PTR)( __FILE__ ": xtask.cs" );
-
-    *queue = impl;
-
-    return S_OK;
+    return XTaskQueueCreateComposite( workPort, completionPort, queue );
 }
 
 static HRESULT WINAPI x_threading_XTaskQueueGetPort( IXThreadingImpl* iface, XTaskQueueHandle queue, XTaskQueuePort port, XTaskQueuePortHandle* portHandle )
 {
-    struct XTaskQueueObject *impl = queue;
-
     TRACE( "iface %p, queue %p, port %d, portHandle %p.\n", iface, queue, port, portHandle );
-
-    switch ( port )
-    {
-        case Work:
-            *portHandle = impl->workPortHandle;
-            break;
-
-        case Completion:
-            *portHandle = impl->completionPortHandle;
-            break;
-    }
-
-    return S_OK;
+    return XTaskQueueGetPort( queue, port, portHandle );
 }
 
 static HRESULT WINAPI x_threading_XTaskQueueDuplicateHandle( IXThreadingImpl* iface, XTaskQueueHandle queueHandle, XTaskQueueHandle* duplicatedHandle )
 {
-    FIXME( "iface %p, queueHandle %p, duplicatedHandle %p stub!\n", iface, queueHandle, duplicatedHandle );
-    return E_NOTIMPL;;
+    TRACE( "iface %p, queueHandle %p, duplicatedHandle %p.\n", iface, queueHandle, duplicatedHandle );
+    return XTaskQueueDuplicateHandle( queueHandle, duplicatedHandle );
 }
 
 static BOOLEAN WINAPI x_threading_XTaskQueueDispatch( IXThreadingImpl* iface, XTaskQueueHandle queue, XTaskQueuePort port, uint32_t timeoutInMs )
 {
-    struct XTaskQueueObject *impl = queue;
-    
-    DWORD status;
-    PTP_WORK work;
-
-    if (!( work = CreateThreadpoolWork( XTPDispatchCallback, (PVOID)queue, NULL ) ))
-        return FALSE;
-    SubmitThreadpoolWork( work );
-    status = WaitForSingleObject( impl->dispatchHandle, timeoutInMs );
-
-    if ( status == WAIT_OBJECT_0 )
-        return TRUE;
-
-    return FALSE;
+    TRACE( "iface %p, queue %p, port %d, timeoutInMs %d.\n", iface, queue, port, timeoutInMs );
+    return XTaskQueueDispatch( queue, port, timeoutInMs );
 }
 
 static VOID WINAPI x_threading_XTaskQueueCloseHandle( IXThreadingImpl* iface, XTaskQueueHandle queue )
 {
-    FIXME( "iface %p, queue %p stub!\n", iface, queue );
+    TRACE( "iface %p, queue %p.\n", iface, queue );
+    XTaskQueueCloseHandle( queue );
     /* no-op return */
 }
 
 static HRESULT WINAPI x_threading_XTaskQueueSubmitCallback( IXThreadingImpl* iface, XTaskQueueHandle queue, XTaskQueuePort port, PVOID callbackContext, XTaskQueueCallback* callback )
 {
     TRACE( "iface %p, queue %p, port %d, callbackContext %p, callback %p.\n", iface, queue, port, callbackContext, callback );
-    return IXThreadingImpl_XTaskQueueSubmitDelayedCallback( iface, queue, port, 0, callbackContext, callback );
+    return XTaskQueueSubmitDelayedCallback( queue, port, 0, callback, callbackContext );
 }
 
 static HRESULT WINAPI x_threading_XTaskQueueSubmitDelayedCallback( IXThreadingImpl* iface, XTaskQueueHandle queue, XTaskQueuePort port, uint32_t delayMs, PVOID callbackContext, XTaskQueueCallback* callback )
 {
-    struct tp_work_arguments *args;
-    struct XTaskQueueObject *impl = queue;
-    struct XTaskQueuePortObject *currentPort = NULL;
-
-    XTask *task = NULL;
-    XMonitor *monitor = NULL;
-    UINT32 monitorsIterator;
-
     TRACE( "iface %p, queue %p, port %d, delayMs %d, callbackContext %p, callback %p.\n", iface, queue, port, delayMs, callbackContext, callback );
-
-    //Arguments
-    if ( !queue )
-        return E_INVALIDARG;
-    if ( !callback )
-        return E_POINTER;
-
-    if ( impl->monitorsCount )
-    {
-        monitor = impl->monitors_head;
-        for ( monitorsIterator = 0; monitorsIterator < impl->monitorsCount && monitor; monitorsIterator++ )
-        {
-            monitor->callback( monitor->context, queue, port );
-            monitor = monitor->next;
-        }
-    }
-
-    if (!(task = calloc( 1, sizeof(*task) ))) return E_OUTOFMEMORY;
-
-    task->callback = callback;
-    task->context = callbackContext;
-    task->delayInMs = delayMs;
-    task->next = NULL;
-
-    switch ( port )
-    {
-        case Work:
-            currentPort = impl->workPortHandle;
-            break;
-
-        case Completion:
-            currentPort = impl->completionPortHandle;
-            break;
-    }
-
-    EnterCriticalSection( &impl->cs );
-    if ( currentPort->tasks_tail )
-        currentPort->tasks_tail->next = task;
-    else
-        //empty queue
-        currentPort->tasks_head = task;
-
-    currentPort->tasks_tail = task;
-    currentPort->tasksCount++; // <-- InterlockedIncrement( currentPort->tasksCount );
-    LeaveCriticalSection( &impl->cs );
-
-    switch ( currentPort->dispatchMode )
-    {
-        case Immediate:
-            // Immediate routine:
-            /*  Callbacks are immediately dispatched on the same thread,
-             * but we still maintain and add them to a callback list for `XTaskQueueTerminate`.
-             * That way, we can dispatch with BOOLEAN canceled = TRUE;
-             */
-            // Dispatch
-            callback( callbackContext, FALSE );
-            break;
-
-        case SerializedThreadPool:
-            // Serialized Threadpool routine:
-            /*  Callbacks are assigned to the system thread using `QueueUserWorkItem`,
-             * but they are executed in sequence instead of parallel.'
-             * We'll handle this in XTPTaskCallback with the following routine:
-             * 
-             *  XTPTaskCallback #1 -> Assign a handle to current task->Handle.
-             *  Execute first XTaskQueueCallback.
-             *  XTPTaskCallback #2 -> Assign a handle to task->Handle.
-             *  Wait for previous task to signal with `SetEvent`.
-             *  Execute second XTaskQueueCallback.
-             *  ....
-             */
-        case ThreadPool:
-            // Threadpool routine:
-            /*  Callbacks are assigned to the system thread using `QueueUserWorkItem`,
-             * and executed in parallel.
-             * The main disadvantage to doing this is that we can't reliably track work threads
-             * and when they finish execution. So we have to rely on `SetEvent`
-             */
-            if (!(args = calloc( 1, sizeof(*args) )))
-            {
-                free( task );
-                return E_OUTOFMEMORY;
-            }
-            args->current = currentPort->tasksCount - 1;
-            args->handle = queue;
-            args->port = port;
-            args->cancelled = FALSE;
-            if ( !QueueUserWorkItem( XTPTaskCallback, (PVOID)args, WT_EXECUTEDEFAULT ) )
-            {
-                free( task );
-                free( args );
-                return HRESULT_FROM_WIN32( GetLastError() );
-            }
-            break;
-
-        case Manual:
-            // Manual routine:
-            /*  Callbacks are appended to the queue but are not dispatched
-             * until `XTaskQueueDispatch` is called.
-             * When that happens, all callbacks are synchronously executed on the same thread.
-             */
-            /* do nothing here */
-            break;
-    }
-
-    return S_OK;
+    return XTaskQueueSubmitDelayedCallback( queue, port, delayMs, callback, callbackContext );
 }
 
 static HRESULT WINAPI x_threading_XTaskQueueRegisterWaiter( IXThreadingImpl* iface, XTaskQueueHandle queue, XTaskQueuePort port, HANDLE waitHandle, PVOID callbackContext, XTaskQueueCallback* callback, XTaskQueueRegistrationToken* token )
@@ -517,165 +187,19 @@ static VOID WINAPI x_threading_XTaskQueueUnregisterWaiter( IXThreadingImpl* ifac
 
 static HRESULT WINAPI x_threading_XTaskQueueTerminate( IXThreadingImpl* iface, XTaskQueueHandle queue, BOOLEAN wait, PVOID callbackContext, XTaskQueueTerminatedCallback* callback )
 {
-    struct tp_work_arguments *args;
-    struct XTaskQueueObject *impl = queue;
-
-    UINT32 tasksIterator;
-    XTask *task = NULL;
-
     TRACE( "iface %p, queue %p, wait %d, callbackContext %p, callback %p.\n", iface, queue, wait, callbackContext, callback );
-
-    if ( wait )
-    {
-        if( impl->isRunning )
-        {
-            if ( impl->workPortHandle == Manual || impl->completionPortHandle == Manual )
-                WaitForSingleObject( impl->dispatchHandle, INFINITE );
-            else
-            {
-                // Wait for the final tasks to finish execution
-                WaitForSingleObject( impl->workPortHandle->tasks_tail->taskHandle, INFINITE );
-                WaitForSingleObject( impl->completionPortHandle->tasks_tail->taskHandle, INFINITE );
-            }
-        }
-    } else
-        SetEvent( impl->dispatchHandle ); // <-- Teminates XTaskQueueDispatch
-
-    switch ( impl->workPortHandle->dispatchMode )
-    {
-        case Manual:
-        case Immediate:
-            task = impl->workPortHandle->tasks_head;
-            for ( tasksIterator = 0; tasksIterator < impl->workPortHandle->tasksCount && task; tasksIterator++ )
-            {
-                task->callback( task->context, TRUE );
-                task = task->next;
-            }
-            break;
-
-        case SerializedThreadPool:
-        case ThreadPool:
-            for ( tasksIterator = 0; tasksIterator < impl->workPortHandle->tasksCount; tasksIterator++ )
-            {
-                if (!(args = calloc( 1, sizeof(*args) ))) return E_OUTOFMEMORY;
-                args->current = tasksIterator;
-                args->handle = queue;
-                args->port = Work;
-                args->cancelled = TRUE;
-                if ( !QueueUserWorkItem( XTPTaskCallback, (PVOID)args, WT_EXECUTEDEFAULT ) )
-                {
-                    free( args );
-                    return HRESULT_FROM_WIN32( GetLastError() );
-                }
-                free( args );
-            }
-            break;
-    }
-
-    switch ( impl->completionPortHandle->dispatchMode )
-    {
-        case Manual:
-        case Immediate:
-            task = impl->completionPortHandle->tasks_head;
-            for ( tasksIterator = 0; tasksIterator < impl->completionPortHandle->tasksCount && task; tasksIterator++ )
-            {
-                task->callback( task->context, TRUE );
-                task = task->next;
-            }
-            break;
-
-        case SerializedThreadPool:
-        case ThreadPool:
-            for ( tasksIterator = 0; tasksIterator < impl->completionPortHandle->tasksCount; tasksIterator++ )
-            {
-                if (!(args = calloc( 1, sizeof(*args) )))
-                {
-                    free( task );
-                    return E_OUTOFMEMORY;
-                }
-                args->current = tasksIterator;
-                args->handle = queue;
-                args->port = Completion;
-                args->cancelled = TRUE;
-                if ( !QueueUserWorkItem( XTPTaskCallback, (PVOID)args, WT_EXECUTEDEFAULT ) )
-                {
-                    free( task );
-                    free( args );
-                    return HRESULT_FROM_WIN32( GetLastError() );
-                }
-            }
-            break;
-    }
-
-    if ( callback )
-        callback( callbackContext );
-
-    return S_OK;
+    return XTaskQueueTerminate( queue, wait, callbackContext, callback );
 }
 
 static HRESULT WINAPI x_threading_XTaskQueueRegisterMonitor( IXThreadingImpl* iface, XTaskQueueHandle queue, PVOID callbackContext, XTaskQueueMonitorCallback* callback, XTaskQueueRegistrationToken* token )
 {
-    struct XTaskQueueObject *impl = queue;
-
-    XMonitor *monitor = NULL;
-    XTaskQueueRegistrationToken currentToken;
-
     TRACE( "iface %p, queue %p, callbackContext %p, callback %p, token %p.\n", iface, queue, callbackContext, callback, token );
-
-    // Arguments
-    if ( !queue )
-        return E_INVALIDARG;
-    if ( !callback || !token )
-        return E_POINTER;
-
-    if (!(monitor = calloc( 1, sizeof(*monitor) ))) return E_OUTOFMEMORY;
-
-    monitor->callback = callback;
-    monitor->context = callbackContext;
-    monitor->next = NULL;
-
-    currentToken.token = impl->monitorsCount;
-
-    EnterCriticalSection( &impl->cs );
-    if ( impl->monitors_tail )
-        impl->monitors_tail->next = monitor;
-    else
-        //empty queue
-        impl->monitors_head = monitor;
-
-    impl->monitors_tail = monitor;
-    impl->monitorsCount++; // <-- InterlockedIncrement( currentPort->tasksCount );
-    LeaveCriticalSection( &impl->cs );
-
-    *token = currentToken;
-
-    return S_OK;
+    return XTaskQueueRegisterMonitor( queue, callbackContext, callback, token );
 }
 
 static VOID WINAPI x_threading_XTaskQueueUnregisterMonitor( IXThreadingImpl* iface, XTaskQueueHandle queue, XTaskQueueRegistrationToken token )
 {
-    struct XTaskQueueObject *impl = queue;
-
-    XMonitor *monitor = NULL;
-    UINT32 monitorsIterator;
-
-    TRACE( "iface %p, queue %p, token %lld.\n", iface, queue, token.token );
-
-    EnterCriticalSection( &impl->cs );
-    // O(n) lookup of XMonitor.
-    // TODO: Upgrade to O(1) for slightly better performance.
-    if ( token.token >= impl->monitorsCount )
-    {
-        LeaveCriticalSection( &impl->cs );
-        return;
-    }
-    monitor = impl->monitors_head;
-    for ( monitorsIterator = 0; monitorsIterator < token.token && monitor; monitorsIterator++ )
-        monitor = monitor->next;
-    
-    free( monitor ); // <-- We won't decrement monitorsCount because our token system relies on it.
-    LeaveCriticalSection( &impl->cs );
-
+    FIXME( "iface %p, queue %p, token %p stub!\n", iface, queue, &token );
     /* no-op return */
 }
 

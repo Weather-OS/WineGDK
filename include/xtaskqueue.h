@@ -41,6 +41,14 @@ typedef enum XTaskQueuePort
     Completion
 } XTaskQueuePort;
 
+typedef enum XTaskQueuePortStatus
+{
+    PortStatus_Active,
+    PortStatus_Canceled,
+    PortStatus_Terminating,
+    PortStatus_Terminated
+} XTaskQueuePortStatus;
+
 typedef struct XTaskQueueRegistrationToken
 {
     uint64_t token;
