@@ -1306,7 +1306,7 @@ static VOID x_task_queue_port_SignalTerminations( IXTaskQueuePort *iface )
         } else {
             previous = current;
         }
-        
+
         current = next;
     }
     
@@ -1708,12 +1708,12 @@ static VOID x_task_queue_RundownObject( IXTaskQueue* iface )
 
     queuePort = impl->workPort->lpVtbl->get_Port( impl->workPort );
 
-    if (queuePort != nullptr)
+    if (queuePort != NULL)
         queuePort->lpVtbl->Detach( queuePort, impl->workPort );
 
     queuePort = impl->workPort->lpVtbl->get_Port( impl->workPort );
 
-    if (queuePort != nullptr)
+    if (queuePort != NULL)
        queuePort->lpVtbl->Detach( queuePort, impl->completionPort );
 
     return;
