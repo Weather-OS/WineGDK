@@ -546,8 +546,6 @@ static HRESULT WINAPI x_task_queue_port_PrepareTerminate( IXTaskQueuePort* iface
 {
     XTerminateForPort *terminate;
 
-    struct x_task_queue_port *impl = impl_from_IXTaskQueuePort( iface );
-
     TRACE( "iface %p, portContext %p, callbackContext %p, callback %p, outPrepareToken %p.\n", iface, portContext, callbackContext, callback, outPrepareToken );
 
     // Arguments
@@ -557,16 +555,6 @@ static HRESULT WINAPI x_task_queue_port_PrepareTerminate( IXTaskQueuePort* iface
         return E_INVALIDARG;
 
     if (!(terminate = calloc( 1, sizeof(*terminate) ))) return E_OUTOFMEMORY;
-
-    if ( !impl->terminateList_tail )
-    {
-        //queue list is empty
-        impl->terminateList_tail = impl->terminateList_head = terminate;
-    } else 
-    {
-        impl->terminateList_tail->next = terminate;
-        impl->terminateList_tail = terminate;
-    }
 
     terminate->callbackContext = callbackContext;
     terminate->callback = callback;
@@ -1311,7 +1299,6 @@ static VOID x_task_queue_port_SignalTerminations( IXTaskQueuePort *iface )
                 impl->terminateList_tail = previous;
             }
 
-            iface->lpVtbl->ScheduleTermination( iface, current );
             current->portContext->lpVtbl->SetStatus( current->portContext, PortStatus_Terminated );
             current->callback( current->callbackContext );
 
@@ -1496,6 +1483,9 @@ static HRESULT WINAPI x_task_queue_InitializeOverloadPorts( IXTaskQueue *iface, 
 
     impl->terminationData.allowed = allowTermination;
     impl->allowClose = allowClose;
+
+    InitializeCriticalSection( &impl->terminationData.cs );
+    InitializeConditionVariable( &impl->terminationData.cv );
 
 _CLEANUP:
     if ( FAILED( hr ) ) 
