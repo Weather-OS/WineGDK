@@ -49,6 +49,7 @@ typedef struct XMonitor
     PVOID context;
     UINT64 token;
     XTaskQueueMonitorCallback *callback;
+    struct XMonitor *next;
 } XMonitor;
 
 typedef struct XQueue
@@ -216,7 +217,7 @@ typedef struct IXTaskQueuePortVtbl {
     BOOLEAN (*ScheduleNextPendingCallback)(
         IXTaskQueuePort* This,
         UINT64 dueTime,
-        XQueue *dueEntry);
+        XQueue **dueEntry);
 
     VOID    (*SubmitPendingCallback)(
         IXTaskQueuePort* This);
@@ -351,7 +352,7 @@ typedef struct IXTaskQueueVtbl {
     VOID    (*RundownObject)(
         IXTaskQueue* This);
 
-    VOID    (*OnTerminationCallback)(
+    VOID    (CALLBACK *OnTerminationCallback)(
         PVOID context);
 } IXTaskQueueVtbl;
 
@@ -454,11 +455,9 @@ typedef struct XTaskQueuePortObject
 struct x_task_queue_monitor_callback
 {
     IXTaskQueueMonitorCallback IXTaskQueueMonitorCallback_iface;
-    INT64 nextToken;
+    UINT32 monitors_size;
     CRITICAL_SECTION cs;
-    XMonitor monitors_buffer1[32];
-    XMonitor monitors_buffer2[32];
-    XMonitor *monitors_buffers[2];
+    XMonitor *monitors_tail, *monitors_head;
     XTaskQueueHandle queue;
     LONG ref;
 };
@@ -532,5 +531,6 @@ HRESULT XTaskQueueTerminate( XTaskQueueHandle queue, BOOLEAN wait, PVOID callbac
 HRESULT XTaskQueueSubmitDelayedCallback( XTaskQueueHandle queue, XTaskQueuePort port, UINT32 delayMs, PVOID callbackContext, XTaskQueueCallback* callback );
 HRESULT XTaskQueueDuplicateHandle( XTaskQueueHandle queue, XTaskQueueHandle* duplicatedHandle );
 HRESULT XTaskQueueRegisterMonitor( XTaskQueueHandle queue, PVOID callbackContext, XTaskQueueMonitorCallback* callback, XTaskQueueRegistrationToken* token );
+VOID XTaskQueueResumeTermination( XTaskQueueHandle queue );
 
 #endif

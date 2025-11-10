@@ -24,6 +24,7 @@
 
 #include "../../private.h"
 #include "Threading/XTaskQueue.h"
+#include "Threading/XAsync.h"
 
 struct x_threading
 {

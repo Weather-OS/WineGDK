@@ -10,6 +10,7 @@ SOURCES = \
 	GDKComponent/System/XSystem.c \
 	GDKComponent/System/XThreading.c \
 	GDKComponent/System/Threading/XTaskQueue.c \
+	GDKComponent/System/Threading/XAsync.c \
 	GDKComponent/System/Threading/AtomicVector.c \
 	GDKComponent/System/Threading/XOSThreading.c \
 	GDKComponent/System/Threading/ThreadPool.c \
