@@ -1,6 +1,8 @@
 # NOTES FOR PEOPLE TRYING TO RUN MINECRAFT'S GDK BUILD
 
-Online services have not been added yet. This is because `XUser` and `XNetworking` haven't been implemented in `xgameruntime.dll` yet.
+Microsoft Services have not been added yet. This is because `XUser` hasn't been implemented in `xgameruntime.dll` yet.
+
+As of [3414250](https://github.com/Weather-OS/WineGDK/commit/341425050f4f9b968b807dbd61942dabca8f6af1), Online functionality has been implemented. To get it working, resort to [GDK-Proton](https://github.com/Weather-OS/GDK-Proton)
 
 ### NOTES ABOUT THIS PROJECT
 
