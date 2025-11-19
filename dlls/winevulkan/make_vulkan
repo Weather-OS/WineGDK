@@ -64,7 +64,7 @@ from enum import Enum
 LOGGER = logging.Logger("vulkan")
 LOGGER.addHandler(logging.StreamHandler())
 
-VK_XML_VERSION = "1.4.329"
+VK_XML_VERSION = "1.4.333"
 WINE_VK_VERSION = (1, 4)
 
 # Filenames to create.
@@ -156,12 +156,6 @@ CORE_EXTENSIONS = [
     "VK_KHR_win32_surface",
 ]
 
-# List of surface extensions that can be exposed directly to the PE side
-WIN_SURFACE_EXTENSIONS = [
-    "VK_KHR_win32_surface",
-    "VK_EXT_headless_surface",
-]
-
 # Some experimental extensions are used by shipping applications so their API is extremely unlikely
 # to change in a backwards-incompatible way. Allow translation of those extensions with WineVulkan.
 ALLOWED_X_EXTENSIONS = [
@@ -182,12 +176,6 @@ PERF_CRITICAL_FUNCTIONS = [
 # part of the driver interface.
 # - dispatch (default: True):  set whether we need a function pointer in the device / instance dispatch table.
 FUNCTION_OVERRIDES = {
-    # Global functions
-    "vkCreateInstance" : {"extra_param" : "client_ptr"},
-
-    # Instance functions
-    "vkCreateDevice" : {"extra_param" : "client_ptr"},
-
     # Device functions
     "vkCreateCommandPool" : {"extra_param" : "client_ptr"},
     "vkGetDeviceProcAddr" : {"dispatch" : False},
@@ -199,12 +187,16 @@ USER_DRIVER_FUNCS = {
     "vkAcquireNextImageKHR",
     "vkAllocateMemory",
     "vkCreateBuffer",
+    "vkCreateDevice",
     "vkCreateFence",
     "vkCreateImage",
+    "vkCreateInstance",
     "vkCreateSemaphore",
     "vkCreateSwapchainKHR",
     "vkCreateWin32SurfaceKHR",
+    "vkDestroyDevice",
     "vkDestroyFence",
+    "vkDestroyInstance",
     "vkDestroySemaphore",
     "vkDestroySurfaceKHR",
     "vkDestroySwapchainKHR",
@@ -213,6 +205,8 @@ USER_DRIVER_FUNCS = {
     "vkGetDeviceBufferMemoryRequirementsKHR",
     "vkGetDeviceImageMemoryRequirements",
     "vkGetDeviceProcAddr",
+    "vkGetDeviceQueue",
+    "vkGetDeviceQueue2",
     "vkGetFenceWin32HandleKHR",
     "vkGetInstanceProcAddr",
     "vkGetMemoryWin32HandleKHR",
@@ -253,15 +247,11 @@ MANUAL_UNIX_THUNKS = {
     "vkCreateDebugReportCallbackEXT",
     "vkCreateDebugUtilsMessengerEXT",
     "vkCreateDeferredOperationKHR",
-    "vkCreateDevice",
     "vkCreateInstance",
     "vkDestroyCommandPool",
     "vkDestroyDebugReportCallbackEXT",
     "vkDestroyDebugUtilsMessengerEXT",
     "vkDestroyDeferredOperationKHR",
-    "vkDestroyDevice",
-    "vkDestroyInstance",
-    "vkEnumerateDeviceExtensionProperties",
     "vkEnumerateDeviceLayerProperties",
     "vkEnumerateInstanceExtensionProperties",
     "vkEnumerateInstanceLayerProperties",
@@ -273,8 +263,6 @@ MANUAL_UNIX_THUNKS = {
     "vkGetCalibratedTimestampsEXT",
     "vkGetCalibratedTimestampsKHR",
     "vkGetDeviceProcAddr",
-    "vkGetDeviceQueue",
-    "vkGetDeviceQueue2",
     "vkGetInstanceProcAddr",
     "vkGetPhysicalDeviceCalibrateableTimeDomainsEXT",
     "vkGetPhysicalDeviceCalibrateableTimeDomainsKHR",
@@ -298,6 +286,7 @@ MANUAL_LOADER_THUNKS = {
     "vkDestroyCommandPool",
     "vkDestroyDevice",
     "vkDestroyInstance",
+    "vkEnumerateDeviceExtensionProperties",
     "vkEnumerateInstanceExtensionProperties",
     "vkEnumerateInstanceVersion",
     "vkFreeCommandBuffers",
@@ -309,6 +298,8 @@ STRUCT_CHAIN_CONVERSIONS = {
     "VkBufferCreateInfo": {},
     "VkImageCreateInfo": {},
     "VkPhysicalDeviceExternalBufferInfo": {},
+    "VkPhysicalDeviceExternalFenceInfo": {},
+    "VkPhysicalDeviceExternalSemaphoreInfo": {},
     "VkPhysicalDeviceImageFormatInfo2": {},
     "VkCommandBufferSubmitInfo": {},
     "VkSemaphoreCreateInfo": {},
@@ -1105,9 +1096,9 @@ class VkHandle(object):
         if self.name == "VkCommandPool":
             return "wine_cmd_pool_from_handle({0})->host.command_pool".format(name)
         if self.name == "VkDebugUtilsMessengerEXT":
-            return "wine_debug_utils_messenger_from_handle({0})->host.debug_messenger".format(name)
+            return "vulkan_debug_utils_messenger_from_handle({0})->host.debug_messenger".format(name)
         if self.name == "VkDebugReportCallbackEXT":
-            return "wine_debug_report_callback_from_handle({0})->host.debug_callback".format(name)
+            return "vulkan_debug_report_callback_from_handle({0})->host.debug_callback".format(name)
         if self.name == "VkDeferredOperationKHR":
             return "wine_deferred_operation_from_handle({0})->host.deferred_operation".format(name)
         if self.name == "VkDevice":
@@ -2648,68 +2639,6 @@ class VkGenerator(object):
         f.write(conv_helpers)
         f.write(thunks)
 
-        # Create array of device extensions.
-        f.write("static const char * const vk_device_extensions[] =\n{\n")
-        for ext in self.registry.extensions:
-            if ext["type"] != "device":
-                continue
-            if ext["name"] in UNEXPOSED_EXTENSIONS:
-                continue
-
-            f.write("    \"{0}\",\n".format(ext["name"]))
-        f.write("};\n\n")
-
-        # Create array of instance extensions.
-        f.write("static const char * const vk_instance_extensions[] =\n{\n")
-        for ext in self.registry.extensions:
-            if ext["type"] != "instance":
-                continue
-            if ext["name"] in UNEXPOSED_EXTENSIONS:
-                continue
-
-            f.write("    \"{0}\",\n".format(ext["name"]))
-        f.write("};\n\n")
-
-        # Create array of surface extensions.
-        f.write("static const char * const vk_host_surface_extensions[] =\n{\n")
-        for ext in self.registry.surface_extensions:
-            if ext["name"] not in WIN_SURFACE_EXTENSIONS:
-                f.write("    \"{0}\",\n".format(ext["name"]))
-        f.write("};\n\n")
-
-        f.write("BOOL wine_vk_device_extension_supported(const char *name)\n")
-        f.write("{\n")
-        f.write("    unsigned int i;\n")
-        f.write("    for (i = 0; i < ARRAY_SIZE(vk_device_extensions); i++)\n")
-        f.write("    {\n")
-        f.write("        if (strcmp(vk_device_extensions[i], name) == 0)\n")
-        f.write("            return TRUE;\n")
-        f.write("    }\n")
-        f.write("    return FALSE;\n")
-        f.write("}\n\n")
-
-        f.write("BOOL wine_vk_instance_extension_supported(const char *name)\n")
-        f.write("{\n")
-        f.write("    unsigned int i;\n")
-        f.write("    for (i = 0; i < ARRAY_SIZE(vk_instance_extensions); i++)\n")
-        f.write("    {\n")
-        f.write("        if (strcmp(vk_instance_extensions[i], name) == 0)\n")
-        f.write("            return TRUE;\n")
-        f.write("    }\n")
-        f.write("    return FALSE;\n")
-        f.write("}\n\n")
-
-        f.write("BOOL wine_vk_is_host_surface_extension(const char *name)\n")
-        f.write("{\n")
-        f.write("    unsigned int i;\n")
-        f.write("    for (i = 0; i < ARRAY_SIZE(vk_host_surface_extensions); i++)\n")
-        f.write("    {\n")
-        f.write("        if (strcmp(vk_host_surface_extensions[i], name) == 0)\n")
-        f.write("            return TRUE;\n")
-        f.write("    }\n")
-        f.write("    return FALSE;\n")
-        f.write("}\n\n")
-
         f.write("BOOL wine_vk_is_type_wrapped(VkObjectType type)\n")
         f.write("{\n")
         f.write("    return FALSE")
@@ -2749,7 +2678,7 @@ class VkGenerator(object):
         f.write("const unixlib_entry_t __wine_unix_call_funcs[] =\n")
         f.write("#endif\n")
         f.write("{\n")
-        f.write("    init_vulkan,\n")
+        f.write("    wow64_init_vulkan,\n")
         f.write("    vk_is_available_instance_function32,\n")
         f.write("    vk_is_available_device_function32,\n")
         for vk_func in self.registry.funcs.values():
@@ -3012,38 +2941,50 @@ class VkGenerator(object):
             f.write("{0};\n".format(func.prototype(call_conv="VKAPI_CALL")))
         f.write("#endif /* VK_NO_PROTOTYPES */\n\n")
 
-        f.write("#define ALL_VK_DEVICE_FUNCS \\\n")
-        first = True
+        f.write("#define ALL_VK_DEVICE_FUNCS")
         for vk_func in self.registry.device_funcs:
             if not vk_func.is_required():
                 continue
-
             if not vk_func.needs_dispatch():
-                LOGGER.debug("skipping {0} in ALL_VK_DEVICE_FUNCS".format(vk_func.name))
                 continue
-
-            if first:
-                f.write("    USE_VK_FUNC({0})".format(vk_func.name))
-                first = False
-            else:
-                f.write(" \\\n    USE_VK_FUNC({0})".format(vk_func.name))
+            f.write(" \\\n    USE_VK_FUNC({0})".format(vk_func.name))
         f.write("\n\n")
 
-        f.write("#define ALL_VK_INSTANCE_FUNCS \\\n")
-        first = True
+        f.write("#define ALL_VK_CLIENT_DEVICE_EXTS")
+        for ext in self.registry.extensions:
+            type, name = ext["type"], ext["name"]
+            if type == "device" and name not in UNEXPOSED_EXTENSIONS:
+                f.write(f" \\\n    USE_VK_EXT({name})")
+        f.write("\n\n")
+
+        f.write("#define ALL_VK_DEVICE_EXTS ALL_VK_CLIENT_DEVICE_EXTS")
+        for ext in self.registry.extensions:
+            type, name = ext["type"], ext["name"]
+            if type == "device" and name in UNEXPOSED_EXTENSIONS:
+                f.write(f" \\\n    USE_VK_EXT({name})")
+        f.write("\n\n")
+
+        f.write("#define ALL_VK_INSTANCE_FUNCS")
         for vk_func in self.registry.instance_funcs + self.registry.phys_dev_funcs:
             if not vk_func.is_required():
                 continue
-
             if not vk_func.needs_dispatch():
-                LOGGER.debug("skipping {0} in ALL_VK_INSTANCE_FUNCS".format(vk_func.name))
                 continue
+            f.write(" \\\n    USE_VK_FUNC({0})".format(vk_func.name))
+        f.write("\n\n")
 
-            if first:
-                f.write("    USE_VK_FUNC({0})".format(vk_func.name))
-                first = False
-            else:
-                f.write(" \\\n    USE_VK_FUNC({0})".format(vk_func.name))
+        f.write("#define ALL_VK_CLIENT_INSTANCE_EXTS")
+        for ext in self.registry.extensions:
+            type, name = ext["type"], ext["name"]
+            if type == "instance" and name not in UNEXPOSED_EXTENSIONS:
+                f.write(f" \\\n    USE_VK_EXT({name})")
+        f.write("\n\n")
+
+        f.write("#define ALL_VK_INSTANCE_EXTS ALL_VK_CLIENT_INSTANCE_EXTS")
+        for ext in self.registry.extensions:
+            type, name = ext["type"], ext["name"]
+            if type == "instance" and name in UNEXPOSED_EXTENSIONS:
+                f.write(f" \\\n    USE_VK_EXT({name})")
         f.write("\n\n")
 
         f.write("#endif /* __WINE_VULKAN_H */\n")
@@ -3100,7 +3041,6 @@ class VkRegistry(object):
         # We aggregate all types in here for cross-referencing.
         self.funcs = {}
         self.types = {}
-        self.surface_extensions = []
 
         self.version_regex = re.compile(
             r'^'
@@ -3376,9 +3316,6 @@ class VkRegistry(object):
 
         def process_ext(ext, deferred=False):
             ext_name = ext.attrib["name"]
-
-            if ext_name.endswith('_surface') and ext.attrib.get('depends', None) == 'VK_KHR_surface':
-                self.surface_extensions.append({"name" : ext_name})
 
             # Set extension name on any functions calls part of this extension as we
             # were not aware of the name during initial parsing.

@@ -890,7 +890,7 @@ static void nulldrv_MoveWindowBits( HWND hwnd, const struct window_rects *old_re
 {
 }
 
-static void nulldrv_WindowPosChanged( HWND hwnd, HWND insert_after, HWND owner_hint, UINT swp_flags, BOOL fullscreen,
+static void nulldrv_WindowPosChanged( HWND hwnd, HWND insert_after, HWND owner_hint, UINT swp_flags,
                                       const struct window_rects *new_rects, struct window_surface *surface )
 {
 }
@@ -898,6 +898,11 @@ static void nulldrv_WindowPosChanged( HWND hwnd, HWND insert_after, HWND owner_h
 static BOOL nulldrv_SystemParametersInfo( UINT action, UINT int_param, void *ptr_param, UINT flags )
 {
     return FALSE;
+}
+
+static LRESULT nulldrv_WintabProc( HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, void *buffer )
+{
+    return 0;
 }
 
 static UINT nulldrv_VulkanInit( UINT version, void *vulkan_handle, const struct vulkan_driver_funcs **driver_funcs )
@@ -1220,6 +1225,11 @@ static void loaderdrv_UpdateLayeredWindow( HWND hwnd, BYTE alpha, UINT flags )
     load_driver()->pUpdateLayeredWindow( hwnd, alpha, flags );
 }
 
+static LRESULT loaderdrv_WintabProc( HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, void *buffer )
+{
+    return load_driver()->pWintabProc( hwnd, msg, wparam, lparam, buffer );
+}
+
 static UINT loaderdrv_VulkanInit( UINT version, void *vulkan_handle, const struct vulkan_driver_funcs **driver_funcs )
 {
     return load_driver()->pVulkanInit( version, vulkan_handle, driver_funcs );
@@ -1293,6 +1303,8 @@ static const struct user_driver_funcs lazy_load_driver =
     nulldrv_WindowPosChanged,
     /* system parameters */
     nulldrv_SystemParametersInfo,
+    /* wintab support */
+    loaderdrv_WintabProc,
     /* vulkan support */
     loaderdrv_VulkanInit,
     /* opengl support */
@@ -1389,6 +1401,7 @@ void __wine_set_user_driver( const struct user_driver_funcs *funcs, UINT version
     SET_USER_FUNC(MoveWindowBits);
     SET_USER_FUNC(WindowPosChanged);
     SET_USER_FUNC(SystemParametersInfo);
+    SET_USER_FUNC(WintabProc);
     SET_USER_FUNC(VulkanInit);
     SET_USER_FUNC(OpenGLInit);
     SET_USER_FUNC(ThreadDetach);

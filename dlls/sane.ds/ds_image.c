@@ -26,6 +26,76 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(twain);
 
+
+/* transition from state 6 to state 7.
+ *
+ * Called by either SANE_ImageMemXferGet, SANE_ImageInfoGet or
+ * SANE_ImageNativeXferGet, whatever the application calls first.
+ *
+ * - start the scan with a call to sane start_devince
+ * - open the progress dialog window
+ * - call get_sane_params to retrieve parameters of current scan frame
+ *
+ * @return TWAIN result code, TWRC_SUCCESS on success
+ */
+TW_UINT16 SANE_Start(void)
+{
+  TW_UINT16 twRC = TWRC_SUCCESS;
+  TRACE("SANE_Start currentState:%d\n", activeDS.currentState);
+  if (activeDS.currentState != 6)
+  {
+      twRC = TWRC_FAILURE;
+      activeDS.twCC = TWCC_SEQERROR;
+  }
+  else
+  {
+      /* Open progress dialog */
+      activeDS.progressWnd = ScanningDialogBox(activeDS.progressWnd,0);
+
+      /* Start the scan process in sane */
+      if (SANE_CALL( start_device, NULL ))
+      {
+          activeDS.progressWnd = ScanningDialogBox(activeDS.progressWnd, -1);
+          activeDS.twCC = TWCC_OPERATIONERROR;
+          return TWRC_FAILURE;
+      }
+
+      if (get_sane_params( &activeDS.frame_params ))
+      {
+          WARN("sane_get_parameters failed\n");
+          SANE_CALL( cancel_device, NULL );
+          activeDS.progressWnd = ScanningDialogBox(activeDS.progressWnd, -1);
+          activeDS.twCC = TWCC_OPERATIONERROR;
+          return TWRC_FAILURE;
+      }
+
+      TRACE("Acquiring image %dx%dx%d bits (format=%d last=%d) from sane...\n"
+            , activeDS.frame_params.pixels_per_line, activeDS.frame_params.lines,
+            activeDS.frame_params.depth, activeDS.frame_params.format,
+            activeDS.frame_params.last_frame);
+
+      activeDS.currentState = 7;
+      activeDS.YOffset = 0;
+  }
+  return twRC;
+}
+
+/** transition from state 7 or 6 to state 5.
+ *
+ * Called when an error occurs or when the last frame
+ * has been transfered successfully.
+ * - call sane cancel_device to finish any open transfer
+ * - close the progress dialog box.
+ */
+void SANE_Cancel(void)
+{
+  SANE_CALL( cancel_device, NULL );
+  activeDS.progressWnd = ScanningDialogBox(activeDS.progressWnd, -1);
+  activeDS.currentState = 5;
+}
+
+
+
 /* DG_IMAGE/DAT_IMAGEINFO/MSG_GET */
 TW_UINT16 SANE_ImageInfoGet (pTW_IDENTITY pOrigin, 
                               TW_MEMREF pData)
@@ -45,14 +115,11 @@ TW_UINT16 SANE_ImageInfoGet (pTW_IDENTITY pOrigin,
     {
         if (activeDS.currentState == 6)
         {
-            /* return general image description information about the image about to be transferred */
-            TRACE("Getting parameters\n");
-            if (SANE_CALL( get_params, &activeDS.frame_params ))
+            /* Transition from state 6 to state 7 by starting the scan */
+            twRC = SANE_Start();
+            if (twRC != TWRC_SUCCESS)
             {
-                WARN("sane_get_parameters failed\n");
-                SANE_CALL( cancel_device, NULL );
-                activeDS.twCC = TWCC_OPERATIONERROR;
-                return TWRC_FAILURE;
+                return twRC;
             }
         }
 
@@ -201,47 +268,24 @@ TW_UINT16 SANE_ImageMemXferGet (pTW_IDENTITY pOrigin,
         /* Transfer an image from the source to the application */
         if (activeDS.currentState == 6)
         {
-
-            /* trigger scanning dialog */
-            activeDS.progressWnd = ScanningDialogBox(NULL,0);
-
-            ScanningDialogBox(activeDS.progressWnd,0);
-
-            if (SANE_CALL( start_device, NULL ))
+            /* Transition from state 6 to state 7 by starting the scan */
+            twRC = SANE_Start();
+            if (twRC != TWRC_SUCCESS)
             {
-                activeDS.twCC = TWCC_OPERATIONERROR;
-                return TWRC_FAILURE;
+                return twRC;
             }
-
-            if (get_sane_params( &activeDS.frame_params ))
-            {
-                WARN("sane_get_parameters failed\n");
-                SANE_CALL( cancel_device, NULL );
-                activeDS.twCC = TWCC_OPERATIONERROR;
-                return TWRC_FAILURE;
-            }
-
-            TRACE("Acquiring image %dx%dx%d bits (format=%d last=%d) from sane...\n"
-              , activeDS.frame_params.pixels_per_line, activeDS.frame_params.lines,
-              activeDS.frame_params.depth, activeDS.frame_params.format,
-              activeDS.frame_params.last_frame);
-
-            activeDS.currentState = 7;
         }
 
         /* access memory buffer */
         if (pImageMemXfer->Memory.Length < activeDS.frame_params.bytes_per_line)
         {
-            SANE_CALL( cancel_device, NULL );
+            SANE_Cancel();
             activeDS.twCC = TWCC_BADVALUE;
             return TWRC_FAILURE;
         }
 
         if (pImageMemXfer->Memory.Flags & TWMF_HANDLE)
-        {
-            FIXME("Memory Handle, may not be locked correctly\n");
-            buffer = LocalLock(pImageMemXfer->Memory.TheMem);
-        }
+            buffer = GlobalLock(pImageMemXfer->Memory.TheMem);
         else
             buffer = pImageMemXfer->Memory.TheMem;
        
@@ -261,32 +305,30 @@ TW_UINT16 SANE_ImageMemXferGet (pTW_IDENTITY pOrigin,
             pImageMemXfer->Columns = activeDS.frame_params.pixels_per_line;
             pImageMemXfer->Rows = rows;
             pImageMemXfer->XOffset = 0;
-            pImageMemXfer->YOffset = 0;
+            pImageMemXfer->YOffset = activeDS.YOffset;
             pImageMemXfer->BytesWritten = retlen;
+            activeDS.YOffset += rows;
 
             ScanningDialogBox(activeDS.progressWnd, retlen);
 
             if (retlen < activeDS.frame_params.bytes_per_line * rows)
             {
-                ScanningDialogBox(activeDS.progressWnd, -1);
                 TRACE("sane_read: %u / %u\n", retlen, activeDS.frame_params.bytes_per_line * rows);
-                SANE_CALL( cancel_device, NULL );
                 twRC = TWRC_XFERDONE;
             }
             activeDS.twCC = TWRC_SUCCESS;
         }
         else
         {
-            ScanningDialogBox(activeDS.progressWnd, -1);
             WARN("sane_read: %u\n", twRC);
-            SANE_CALL( cancel_device, NULL );
+            SANE_Cancel();
             activeDS.twCC = TWCC_OPERATIONERROR;
             twRC = TWRC_FAILURE;
         }
     }
 
     if (pImageMemXfer->Memory.Flags & TWMF_HANDLE)
-        LocalUnlock(pImageMemXfer->Memory.TheMem);
+        GlobalUnlock(pImageMemXfer->Memory.TheMem);
     
     return twRC;
 }
@@ -306,32 +348,29 @@ TW_UINT16 SANE_ImageNativeXferGet (pTW_IDENTITY pOrigin,
     RGBTRIPLE *pixels;
     int color_size = 0;
     int i, j;
+    int y, eof = 0;
     BYTE *p;
+    DWORD tmp, *ptop, *pbot;
 
     TRACE("DG_IMAGE/DAT_IMAGENATIVEXFER/MSG_GET\n");
 
-    if (activeDS.currentState != 6)
+    if (activeDS.currentState == 6)
+    {
+        /* Transition from state 6 to state 7 by starting the scan */
+        twRC = SANE_Start();
+        if (twRC != TWRC_SUCCESS)
+        {
+            return twRC;
+        }
+    }
+
+    if (activeDS.currentState != 7)
     {
         twRC = TWRC_FAILURE;
         activeDS.twCC = TWCC_SEQERROR;
     }
     else
     {
-        /* Transfer an image from the source to the application */
-        if (SANE_CALL( start_device, NULL ))
-        {
-            activeDS.twCC = TWCC_OPERATIONERROR;
-            return TWRC_FAILURE;
-        }
-
-        if (SANE_CALL( get_params, &activeDS.frame_params ))
-        {
-            WARN("sane_get_parameters failed\n");
-            SANE_CALL( cancel_device, NULL );
-            activeDS.twCC = TWCC_OPERATIONERROR;
-            return TWRC_FAILURE;
-        }
-
         switch (activeDS.frame_params.format)
         {
         case FMT_GRAY:
@@ -340,8 +379,9 @@ TW_UINT16 SANE_ImageNativeXferGet (pTW_IDENTITY pOrigin,
             else
             {
                 FIXME("For NATIVE, we support only 1 bit monochrome and 8 bit Grayscale, not %d\n", activeDS.frame_params.depth);
-                SANE_CALL( cancel_device, NULL );
+                SANE_Cancel();
                 activeDS.twCC = TWCC_OPERATIONERROR;
+                activeDS.currentState = 6;
                 return TWRC_FAILURE;
             }
             break;
@@ -349,35 +389,34 @@ TW_UINT16 SANE_ImageNativeXferGet (pTW_IDENTITY pOrigin,
             break;
         case FMT_OTHER:
             FIXME("For NATIVE, we support only GRAY and RGB\n");
-            SANE_CALL( cancel_device, NULL );
+            SANE_Cancel();
             activeDS.twCC = TWCC_OPERATIONERROR;
+            activeDS.currentState = 6;
             return TWRC_FAILURE;
         }
 
-        TRACE("Acquiring image %dx%dx%d bits (format=%d last=%d bpl=%d) from sane...\n"
-              , activeDS.frame_params.pixels_per_line, activeDS.frame_params.lines,
-              activeDS.frame_params.depth, activeDS.frame_params.format,
-              activeDS.frame_params.last_frame, activeDS.frame_params.bytes_per_line);
-
         dib_bytes_per_line = ((activeDS.frame_params.bytes_per_line + 3) / 4) * 4;
-        dib_bytes = activeDS.frame_params.lines * dib_bytes_per_line;
+        y = activeDS.feederEnabled ? activeDS.frame_params.lines * 3/2 : activeDS.frame_params.lines+1;
+        dib_bytes = y * dib_bytes_per_line;
 
-        hDIB = GlobalAlloc(GMEM_ZEROINIT, dib_bytes + sizeof(*header) + color_size);
+        hDIB = GlobalAlloc(GMEM_MOVEABLE, dib_bytes + sizeof(*header) + color_size);
         if (hDIB)
            header = GlobalLock(hDIB);
 
         if (!header)
         {
-            SANE_CALL( cancel_device, NULL );
+            SANE_Cancel();
             activeDS.twCC = TWCC_LOWMEMORY;
+            activeDS.currentState = 6;
             if (hDIB)
                 GlobalFree(hDIB);
             return TWRC_FAILURE;
         }
 
+        memset(header, 0, sizeof(BITMAPINFOHEADER)+color_size);
         header->biSize = sizeof (*header);
         header->biWidth = activeDS.frame_params.pixels_per_line;
-        header->biHeight = activeDS.frame_params.lines;
+        header->biHeight = -y;
         header->biPlanes = 1;
         header->biCompression = BI_RGB;
         switch (activeDS.frame_params.format)
@@ -391,7 +430,6 @@ TW_UINT16 SANE_ImageNativeXferGet (pTW_IDENTITY pOrigin,
         case FMT_OTHER:
             break;
         }
-        header->biSizeImage = dib_bytes;
         header->biXPelsPerMeter = 0;
         header->biYPelsPerMeter = 0;
         header->biClrUsed = 0;
@@ -414,54 +452,119 @@ TW_UINT16 SANE_ImageNativeXferGet (pTW_IDENTITY pOrigin,
                     colors[i].rgbBlue = colors[i].rgbRed = colors[i].rgbGreen = i;
         }
 
-
-        /* Sane returns data in top down order.  Acrobat does best with
-           a bottom up DIB being returned.  */
-        line = p + (activeDS.frame_params.lines - 1) * dib_bytes_per_line;
-        for (i = activeDS.frame_params.lines - 1; i >= 0; i--)
+        y=0;
+        do
         {
             int retlen;
-            struct read_data_params params = { line, activeDS.frame_params.bytes_per_line, &retlen };
+            struct read_data_params params = { NULL, activeDS.frame_params.bytes_per_line, &retlen };
+
+            if (y >= -header->biHeight)
+            {
+                TRACE("Data source transfers more lines than expected. Extend DIB to %ld lines\n", (-header->biHeight)+1000);
+                GlobalUnlock(hDIB);
+
+                dib_bytes += 1000 * dib_bytes_per_line;
+
+                if (!GlobalReAlloc(hDIB, dib_bytes + sizeof(*header) + color_size, GMEM_MOVEABLE))
+                {
+                    SANE_Cancel();
+                    activeDS.twCC = TWCC_LOWMEMORY;
+                    activeDS.currentState = 6;
+                    GlobalFree(hDIB);
+                    return TWRC_FAILURE;
+                }
+
+                header = (BITMAPINFOHEADER *) GlobalLock(hDIB);
+                header->biHeight -= 1000;
+
+                p = ((BYTE *) header) + header->biSize + color_size;
+            }
 
             activeDS.progressWnd = ScanningDialogBox(activeDS.progressWnd,
-                    ((activeDS.frame_params.lines - 1 - i) * 100)
-                            /
-                    (activeDS.frame_params.lines - 1));
+                                                     MulDiv(y, 100, activeDS.frame_params.lines));
+
+            params.buffer =
+              line = p + y * dib_bytes_per_line;
+
+            if (activeDS.frame_params.bytes_per_line & 3)
+            {
+                /* Set padding-bytes at the end of the line buffer to 0 */
+                memset(line+dib_bytes_per_line-4, 0, 4);
+            }
 
             twRC = SANE_CALL( read_data, &params );
             if (twRC != TWCC_SUCCESS) break;
-            if (retlen < activeDS.frame_params.bytes_per_line) break;
-            /* TWAIN: for 24 bit color DIBs, the pixels are stored in BGR order */
-            if (activeDS.frame_params.format == FMT_RGB && activeDS.frame_params.depth == 8)
+            if (retlen < activeDS.frame_params.bytes_per_line)
+            {   /* EOF reached */
+                eof = 1;
+            }
+            else
             {
-                pixels = (RGBTRIPLE *) line;
-                for (j = 0; j < activeDS.frame_params.pixels_per_line; ++j)
+                y++;
+                /* TWAIN: for 24 bit color DIBs, the pixels are stored in BGR order */
+                if (activeDS.frame_params.format == FMT_RGB && activeDS.frame_params.depth == 8)
                 {
-                    color_buffer = pixels[j].rgbtRed;
-                    pixels[j].rgbtRed = pixels[j].rgbtBlue;
-                    pixels[j].rgbtBlue = color_buffer;
+                    pixels = (RGBTRIPLE *) line;
+                    for (j = 0; j < activeDS.frame_params.pixels_per_line; ++j)
+                    {
+                        color_buffer = pixels[j].rgbtRed;
+                        pixels[j].rgbtRed = pixels[j].rgbtBlue;
+                        pixels[j].rgbtBlue = color_buffer;
+                    }
                 }
             }
-            line -= dib_bytes_per_line;
         }
-        activeDS.progressWnd = ScanningDialogBox(activeDS.progressWnd, -1);
+        while (!eof);
 
-        GlobalUnlock(hDIB);
-
-        if (twRC != TWCC_SUCCESS)
+        if (twRC != TWCC_SUCCESS || y==0)
         {
-            WARN("sane_read: %u, reading line %d\n", twRC, i);
-            SANE_CALL( cancel_device, NULL );
+            WARN("sane_read: %u, reading line %d\n", twRC, y);
+            SANE_Cancel();
             activeDS.twCC = TWCC_OPERATIONERROR;
             GlobalFree(hDIB);
             return TWRC_FAILURE;
         }
 
-        SANE_CALL( cancel_device, NULL );
+        /* Sane returns data in top down order.  Acrobat does best with
+           a bottom up DIB being returned. Flip image */
+        header->biHeight = y;
+        for (y = 0; y<header->biHeight / 2; y++)
+        {
+            ptop = (DWORD *) (p + dib_bytes_per_line *                   y    );
+            pbot = (DWORD *) (p + dib_bytes_per_line * (header->biHeight-y-1) );
+
+            for (i=0; i<dib_bytes_per_line/4; i++)
+            {
+                tmp = *ptop;
+                *ptop = *pbot;
+                *pbot = tmp;
+                ptop++;
+                pbot++;
+            }
+        }
+
+        /* Shrink the memory block to the size actually transfered by
+         * the sane data source. */
+        header->biSizeImage =
+          dib_bytes = header->biHeight * dib_bytes_per_line;
+
+        GlobalUnlock(hDIB);
+
+        if (!GlobalReAlloc(hDIB, dib_bytes + sizeof(*header) + color_size, GMEM_MOVEABLE))
+        {
+            SANE_Cancel();
+            activeDS.twCC = TWCC_LOWMEMORY;
+            activeDS.currentState = 6;
+            GlobalUnlock(hDIB);
+            GlobalFree(hDIB);
+            return TWRC_FAILURE;
+        }
+
+        activeDS.progressWnd = ScanningDialogBox(activeDS.progressWnd, -1);
+
         *pHandle = (TW_HANDLE)hDIB;
         twRC = TWRC_XFERDONE;
         activeDS.twCC = TWCC_SUCCESS;
-        activeDS.currentState = 7;
     }
     return twRC;
 }

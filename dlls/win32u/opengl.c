@@ -1044,6 +1044,17 @@ static UINT read_drm_device_prop( const char *name, const char *prop )
     return value;
 }
 
+static const char *opengl_vendor_to_name( UINT16 vendor, const char *default_name )
+{
+    switch (vendor)
+    {
+    case 0x8086: return "Intel";
+    case 0x1002: return "ATI Technologies Inc.";
+    case 0x10de: return "NVIDIA Corporation";
+    default:     return default_name;
+    }
+}
+
 static void init_device_info( struct egl_platform *egl, const struct opengl_funcs *funcs )
 {
     static const UINT versions[] = {46, 45, 44, 43, 42, 41, 40, 33, 32, 31, 30, 21, 20, 15, 14, 13, 12, 11, 10, 0};
@@ -1104,12 +1115,20 @@ static void init_device_info( struct egl_platform *egl, const struct opengl_func
 
     if (context)
     {
+        char *renderer, *vendor;
+
         funcs->p_eglMakeCurrent( egl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, context );
 
-        egl->device_name = (const char *)funcs->p_glGetString( GL_RENDERER );
-        egl->vendor_name = (const char *)funcs->p_glGetString( GL_VENDOR );
-        TRACE( "  - device_name: %s\n", egl->device_name );
-        TRACE( "  - vendor_name: %s\n", egl->vendor_name );
+        renderer = strdup( (const char *)funcs->p_glGetString( GL_RENDERER ) );
+        egl->device_name = gpu_device_name( egl->vendor_id, egl->device_id, renderer );
+        if (egl->device_name != renderer) free( renderer );
+
+        vendor = strdup( (const char *)funcs->p_glGetString( GL_VENDOR ) );
+        egl->vendor_name = opengl_vendor_to_name( egl->vendor_id, vendor );
+        if (egl->vendor_name != vendor) free( vendor );
+
+        TRACE( "  - device_name: %s\n", debugstr_a( egl->device_name ) );
+        TRACE( "  - vendor_name: %s\n", debugstr_a( egl->vendor_name ) );
 
         if ((str = (const char *)funcs->p_glGetString( GL_VERSION )) && (str = strrchr( str, ' ' )) &&
             (count = sscanf( str, "%u.%u.%u", &values[0], &values[1], &values[2] )) >= 2)
@@ -1269,39 +1288,27 @@ static const char *win32u_wglGetExtensionsStringEXT(void)
     return wgl_extensions;
 }
 
-static int get_dc_pixel_format( HDC hdc, BOOL internal )
+static int win32u_wglGetPixelFormat( HDC hdc )
 {
-    int ret = 0;
+    BOOL is_display = is_dc_display( hdc );
+    int format;
     HWND hwnd;
-    DC *dc;
 
     if ((hwnd = NtUserWindowFromDC( hdc )))
-        ret = get_window_pixel_format( hwnd, internal );
-    else if ((dc = get_dc_ptr( hdc )))
-    {
-        BOOL is_display = dc->is_display;
-        ret = dc->pixel_format;
-        release_dc_ptr( dc );
-
-        /* Offscreen formats can't be used with traditional WGL calls. As has been
-         * verified on Windows GetPixelFormat doesn't fail but returns 1.
-         */
-        if (is_display && ret >= 0 && ret > onscreen_count) ret = 1;
-    }
-    else
+        format = get_window_pixel_format( hwnd );
+    else if ((format = get_dc_pixel_format( hdc )) < 0)
     {
         WARN( "Invalid DC handle %p\n", hdc );
         RtlSetLastWin32Error( ERROR_INVALID_HANDLE );
         return -1;
     }
 
-    TRACE( "%p/%p -> %d\n", hdc, hwnd, ret );
-    return ret;
-}
+    /* Offscreen formats can't be used with traditional WGL calls. As has been
+     * verified on Windows GetPixelFormat doesn't fail but returns 1.
+     */
+    if (is_display && format > onscreen_count) format = 1;
 
-static int win32u_wglGetPixelFormat( HDC hdc )
-{
-    int format = get_dc_pixel_format( hdc, FALSE );
+    TRACE( "%p/%p -> %d\n", hdc, hwnd, format );
     return format > 0 ? format : 0;
 }
 
@@ -1466,7 +1473,7 @@ static BOOL flush_memory_dc( struct wgl_context *context, HDC hdc, BOOL write, v
     return ret;
 }
 
-static BOOL set_dc_pixel_format( HDC hdc, int new_format, BOOL internal )
+static BOOL win32u_wglSetPixelFormat( HDC hdc, int new_format, const PIXELFORMATDESCRIPTOR *pfd )
 {
     const struct opengl_funcs *funcs = &display_funcs;
     UINT total, onscreen;
@@ -1486,9 +1493,9 @@ static BOOL set_dc_pixel_format( HDC hdc, int new_format, BOOL internal )
             return FALSE;
         }
 
-        TRACE( "%p/%p format %d, internal %u\n", hdc, hwnd, new_format, internal );
+        TRACE( "%p/%p format %d\n", hdc, hwnd, new_format );
 
-        if ((old_format = get_window_pixel_format( hwnd, FALSE )) && !internal) return old_format == new_format;
+        if ((old_format = get_window_pixel_format( hwnd ))) return old_format == new_format;
 
         if ((drawable = get_window_unused_drawable( hwnd, new_format )))
         {
@@ -1497,21 +1504,57 @@ static BOOL set_dc_pixel_format( HDC hdc, int new_format, BOOL internal )
             opengl_drawable_release( drawable );
         }
 
-        return set_window_pixel_format( hwnd, new_format, internal );
+        return set_window_pixel_format( hwnd, new_format );
     }
 
-    TRACE( "%p/%p format %d, internal %u\n", hdc, hwnd, new_format, internal );
+    TRACE( "%p/%p format %d\n", hdc, hwnd, new_format );
     return NtGdiSetPixelFormat( hdc, new_format );
 }
 
-static BOOL win32u_wglSetPixelFormat( HDC hdc, int format, const PIXELFORMATDESCRIPTOR *pfd )
+BOOL set_dc_pixel_format_internal( HDC hdc, int format, struct opengl_drawable **drawable )
 {
-    return set_dc_pixel_format( hdc, format, FALSE );
+    DC *dc;
+
+    if (!(dc = get_dc_ptr( hdc ))) return FALSE;
+    dc->pixel_format = format;
+    *drawable = dc->opengl_drawable;
+    dc->opengl_drawable = NULL;
+    release_dc_ptr( dc );
+
+    return TRUE;
 }
 
 static BOOL win32u_wglSetPixelFormatWINE( HDC hdc, int format )
 {
-    return set_dc_pixel_format( hdc, format, TRUE );
+    const struct opengl_funcs *funcs = &display_funcs;
+    struct opengl_drawable *drawable;
+    UINT total, onscreen;
+    HWND hwnd;
+
+    if (!(hwnd = NtUserWindowFromDC( hdc )) || !is_cache_dc( hdc )) return FALSE;
+    if (format && get_window_pixel_format( hwnd ) == format) return TRUE;
+
+    TRACE( "%p/%p format %d\n", hdc, hwnd, format );
+
+    funcs->p_get_pixel_formats( NULL, 0, &total, &onscreen );
+    if (format < 0 || format > total) return FALSE;
+    if (format > onscreen) return FALSE;
+
+    if (!set_dc_pixel_format_internal( hdc, format, &drawable )) return FALSE;
+
+    if (drawable && drawable->format != format)
+    {
+        opengl_drawable_release( drawable );
+        drawable = NULL;
+    }
+    if (format && (drawable || (drawable = get_window_unused_drawable( hwnd, format ))))
+    {
+        set_window_opengl_drawable( hwnd, drawable, TRUE );
+        set_dc_opengl_drawable( hdc, drawable );
+        opengl_drawable_release( drawable );
+    }
+
+    return TRUE;
 }
 
 static PROC win32u_wglGetProcAddress( const char *name )
@@ -1580,6 +1623,10 @@ static BOOL context_sync_drawables( struct wgl_context *context, HDC draw_hdc, H
     struct opengl_drawable *new_draw, *new_read, *old_draw = NULL, *old_read = NULL;
     struct wgl_context *previous = NtCurrentTeb()->glContext;
     BOOL ret = FALSE;
+
+    /* retrieve the D3D internal drawables from the DCs if they have any */
+    if (draw_hdc && !context->draw) context->draw = get_dc_opengl_drawable( draw_hdc );
+    if (read_hdc && !context->read) context->read = get_dc_opengl_drawable( read_hdc );
 
     new_draw = get_updated_drawable( draw_hdc, context->format, context->draw );
     if (!draw_hdc && context->draw == context->read) opengl_drawable_add_ref( (new_read = new_draw) );
@@ -1684,10 +1731,12 @@ static BOOL win32u_wglMakeContextCurrentARB( HDC draw_hdc, HDC read_hdc, struct 
         return TRUE;
     }
 
-    if ((format = get_dc_pixel_format( draw_hdc, TRUE )) <= 0)
+    if ((format = get_dc_pixel_format( draw_hdc )) <= 0 &&
+        (format = get_window_pixel_format( NtUserWindowFromDC( draw_hdc ) )) <= 0)
     {
         WARN( "Invalid draw_hdc %p format %u\n", draw_hdc, format );
         if (!format) RtlSetLastWin32Error( ERROR_INVALID_PIXEL_FORMAT );
+        else RtlSetLastWin32Error( ERROR_INVALID_HANDLE );
         return FALSE;
     }
     if (context->format != format)
@@ -2144,9 +2193,11 @@ static BOOL win32u_wgl_context_reset( struct wgl_context *context, HDC hdc, stru
     context->driver_private = NULL;
     if (!hdc) return TRUE;
 
-    if ((format = get_dc_pixel_format( hdc, TRUE )) <= 0)
+    if ((format = get_dc_pixel_format( hdc )) <= 0 &&
+        (format = get_window_pixel_format( NtUserWindowFromDC( hdc ) )) <= 0)
     {
         if (!format) RtlSetLastWin32Error( ERROR_INVALID_PIXEL_FORMAT );
+        else RtlSetLastWin32Error( ERROR_INVALID_HANDLE );
         return FALSE;
     }
     if (!driver_funcs->p_context_create( format, share_private, attribs, &context->driver_private ))
@@ -2183,6 +2234,7 @@ static BOOL win32u_wgl_context_flush( struct wgl_context *context, void (*flush)
 
     if (!draw->client) return flush_memory_pbuffer( flush );
     interval = get_window_swap_interval( draw->client->hwnd );
+    if (force_swap) interval = 0;
 
     TRACE( "context %p, hwnd %p, interval %d, flush %p\n", context, draw->client->hwnd, interval, flush );
 

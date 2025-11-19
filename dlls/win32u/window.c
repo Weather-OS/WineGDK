@@ -643,6 +643,27 @@ HWND get_window_relative( HWND hwnd, UINT rel )
 {
     HWND retval = 0;
 
+    if (rel == GW_ENABLEDPOPUP)
+    {
+        HWND *list;
+        int i;
+
+        if (NtUserGetAncestor( hwnd, GA_ROOT ) != hwnd) return NULL;
+        if (!(list = list_window_children( 0 ))) return NULL;
+
+        for (i = 0; !retval && list[i]; i++)
+        {
+            if (get_window_relative( list[i], GW_OWNER ) != hwnd) continue;
+            if (!is_window_visible( list[i] )) continue;
+            if (!is_window_enabled( list[i] )) continue;
+            retval = list[i];
+        }
+
+        free(list);
+
+        return retval;
+    }
+
     if (rel == GW_OWNER)  /* this one may be available locally */
     {
         WND *win = get_win_ptr( hwnd );
@@ -1538,7 +1559,7 @@ LONG_PTR WINAPI NtUserSetWindowLongPtr( HWND hwnd, INT offset, LONG_PTR newval, 
     return set_window_long( hwnd, offset, sizeof(LONG_PTR), newval, ansi );
 }
 
-BOOL set_window_pixel_format( HWND hwnd, int format, BOOL internal )
+BOOL set_window_pixel_format( HWND hwnd, int format )
 {
     WND *win = get_win_ptr( hwnd );
 
@@ -1547,20 +1568,14 @@ BOOL set_window_pixel_format( HWND hwnd, int format, BOOL internal )
         WARN( "setting format %d on win %p not supported\n", format, hwnd );
         return FALSE;
     }
-    if (internal)
-        win->internal_pixel_format = format;
-    else
-    {
-        win->internal_pixel_format = 0;
-        win->pixel_format = format;
-    }
+    win->pixel_format = format;
     release_win_ptr( win );
 
     update_window_state( hwnd );
     return TRUE;
 }
 
-int get_window_pixel_format( HWND hwnd, BOOL internal )
+int get_window_pixel_format( HWND hwnd )
 {
     WND *win = get_win_ptr( hwnd );
     int ret;
@@ -1568,10 +1583,10 @@ int get_window_pixel_format( HWND hwnd, BOOL internal )
     if (!win || win == WND_DESKTOP || win == WND_OTHER_PROCESS)
     {
         WARN( "getting format on win %p not supported\n", hwnd );
-        return 0;
+        return -1;
     }
 
-    ret = internal && win->internal_pixel_format ? win->internal_pixel_format : win->pixel_format;
+    ret = win->pixel_format;
     release_win_ptr( win );
 
     return ret;
@@ -1584,7 +1599,7 @@ static int window_has_client_surface( HWND hwnd )
     BOOL ret;
 
     if (!win || win == WND_DESKTOP || win == WND_OTHER_PROCESS) return FALSE;
-    ret = win->pixel_format || win->internal_pixel_format;
+    ret = win->pixel_format || win->current_drawable;
     release_win_ptr( win );
     if (ret) return TRUE;
 
@@ -2145,6 +2160,12 @@ HICON get_window_icon_info( HWND hwnd, UINT type, HICON icon, ICONINFO *ret )
     return NULL;
 }
 
+static BOOL is_fullscreen( const MONITORINFO *info, const RECT *rect )
+{
+    return rect->left <= info->rcMonitor.left && rect->right >= info->rcMonitor.right &&
+           rect->top <= info->rcMonitor.top && rect->bottom >= info->rcMonitor.bottom;
+}
+
 /***********************************************************************
  *           apply_window_pos
  *
@@ -2156,22 +2177,21 @@ static BOOL apply_window_pos( HWND hwnd, HWND insert_after, UINT swp_flags, stru
     struct window_rects monitor_rects;
     WND *win;
     HWND owner_hint, surface_win = 0, parent = NtUserGetAncestor( hwnd, GA_PARENT );
-    BOOL ret, is_fullscreen, is_layered, is_child, need_icons = FALSE;
+    UINT raw_dpi, monitor_dpi, dpi = get_thread_dpi();
+    BOOL ret, is_layered, is_child, need_icons = FALSE;
     struct window_rects old_rects;
     RECT extra_rects[3];
     struct window_surface *old_surface;
-    UINT raw_dpi, monitor_dpi;
     HICON icon, icon_small;
     ICONINFO ii, ii_small;
 
     is_layered = new_surface && new_surface->alpha_mask;
-    is_fullscreen = is_window_rect_full_screen( &new_rects->visible, get_thread_dpi() );
     is_child = parent && parent != NtUserGetDesktopWindow();
 
     if (is_child) monitor_dpi = get_win_monitor_dpi( parent, &raw_dpi );
-    else monitor_dpi = monitor_dpi_from_rect( new_rects->window, get_thread_dpi(), &raw_dpi );
+    else monitor_dpi = monitor_dpi_from_rect( new_rects->window, dpi, &raw_dpi );
 
-    get_window_rects( hwnd, COORDS_PARENT, &old_rects, get_thread_dpi() );
+    get_window_rects( hwnd, COORDS_PARENT, &old_rects, dpi );
     if (IsRectEmpty( &valid_rects[0] ) || is_layered) valid_rects = NULL;
 
     if (!(win = get_win_ptr( hwnd )) || win == WND_DESKTOP || win == WND_OTHER_PROCESS) return FALSE;
@@ -2184,9 +2204,6 @@ static BOOL apply_window_pos( HWND hwnd, HWND insert_after, UINT swp_flags, stru
         swp_flags |= SWP_NOCOPYBITS;
         valid_rects = NULL;
     }
-
-    if (is_child) monitor_rects = map_dpi_window_rects( *new_rects, get_thread_dpi(), raw_dpi );
-    else monitor_rects = map_window_rects_virt_to_raw( *new_rects, get_thread_dpi() );
 
     SERVER_START_REQ( set_window_pos )
     {
@@ -2210,7 +2227,7 @@ static BOOL apply_window_pos( HWND hwnd, HWND insert_after, UINT swp_flags, stru
         }
         if (new_surface) req->paint_flags |= SET_WINPOS_PAINT_SURFACE;
         if (is_layered) req->paint_flags |= SET_WINPOS_LAYERED_WINDOW;
-        if (win->pixel_format || win->internal_pixel_format)
+        if (win->pixel_format || win->current_drawable)
             req->paint_flags |= SET_WINPOS_PIXEL_FORMAT;
 
         if ((ret = !wine_server_call( req )))
@@ -2223,7 +2240,7 @@ static BOOL apply_window_pos( HWND hwnd, HWND insert_after, UINT swp_flags, stru
             if (get_window_long( win->parent, GWL_EXSTYLE ) & WS_EX_LAYOUTRTL)
             {
                 RECT client = {0};
-                get_client_rect_rel( win->parent, COORDS_CLIENT, &client, get_thread_dpi() );
+                get_client_rect_rel( win->parent, COORDS_CLIENT, &client, dpi );
                 mirror_rect( &client, &win->rects.window );
                 mirror_rect( &client, &win->rects.client );
                 mirror_rect( &client, &win->rects.visible );
@@ -2248,6 +2265,16 @@ static BOOL apply_window_pos( HWND hwnd, HWND insert_after, UINT swp_flags, stru
             icon = win->hIcon;
             icon_small = win->hIconSmall2 ? win->hIconSmall2 : win->hIconSmall;
             win->has_icons = need_icons = TRUE;
+        }
+
+        if (win->dwStyle & WS_THICKFRAME) swp_flags |= WINE_SWP_RESIZABLE;
+        if (is_child) monitor_rects = map_dpi_window_rects( *new_rects, dpi, raw_dpi );
+        else
+        {
+            MONITORINFO monitor_info = monitor_info_from_rect( new_rects->window, dpi );
+            if (is_fullscreen( &monitor_info, &new_rects->visible )) swp_flags |= WINE_SWP_FULLSCREEN;
+            if (is_fullscreen( &monitor_info, &new_rects->window )) swp_flags &= ~WINE_SWP_RESIZABLE;
+            monitor_rects = map_window_rects_virt_to_raw( *new_rects, dpi );
         }
     }
 
@@ -2316,7 +2343,7 @@ static BOOL apply_window_pos( HWND hwnd, HWND insert_after, UINT swp_flags, stru
         if (!owner_hint) owner_hint = NtUserWindowFromPoint(new_rects->window.left - 1, new_rects->window.top - 1);
         if (owner_hint) owner_hint = NtUserGetAncestor(owner_hint, GA_ROOT);
 
-        user_driver->pWindowPosChanged( hwnd, insert_after, owner_hint, swp_flags, is_fullscreen, &monitor_rects,
+        user_driver->pWindowPosChanged( hwnd, insert_after, owner_hint, swp_flags, &monitor_rects,
                                         get_driver_window_surface( new_surface, raw_dpi ) );
         update_client_surfaces( hwnd );
 

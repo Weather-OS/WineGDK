@@ -72,7 +72,6 @@ typedef struct tagWND
     struct tagDIALOGINFO *dlgInfo;    /* Dialog additional info (dialogs only) */
     int                swap_interval; /* OpenGL surface swap interval */
     int                pixel_format;  /* Pixel format set by the graphics driver */
-    int                internal_pixel_format; /* Internal pixel format set via WGL_WINE_pixel_format_passthrough */
     int                cbWndExtra;    /* class cbWndExtra at window creation */
     DWORD_PTR          userdata;      /* User private data */
     DWORD              wExtra[1];     /* Window extra bytes */
@@ -211,6 +210,7 @@ HICON alloc_cursoricon_handle( BOOL is_icon );
 /* dce.c */
 extern void free_dce( struct dce *dce, HWND hwnd );
 extern void invalidate_dce( WND *win, const RECT *old_rect );
+extern BOOL is_cache_dc( HDC hdc );
 
 /* message.c */
 extern void check_for_events( UINT flags );
@@ -218,11 +218,11 @@ extern void check_for_events( UINT flags );
 /* systray.c */
 extern LRESULT system_tray_call( HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam, void *data );
 
-/* vulkan.c */
-extern PFN_vkGetDeviceProcAddr p_vkGetDeviceProcAddr;
-extern PFN_vkGetInstanceProcAddr p_vkGetInstanceProcAddr;
+/* opengl.c */
+extern BOOL set_dc_pixel_format_internal( HDC hdc, int format, struct opengl_drawable **drawable );
 
-extern BOOL vulkan_init(void);
+/* vulkan.c */
+extern struct vulkan_instance *vulkan_instance_create( const struct vulkan_instance_extensions *extensions );
 
 /* window.c */
 HANDLE alloc_user_handle( void *ptr, unsigned short type );

@@ -65,8 +65,6 @@ typedef struct
 #define DEFAULT_ADDBOT       0 /* amount to extend below the buddy window */
 #define DEFAULT_BUDDYBORDER  2 /* Width/height of the buddy border */
 #define DEFAULT_BUDDYSPACER  2 /* Spacer between the buddy and the ctrl */
-#define DEFAULT_BUDDYBORDER_THEMED  1 /* buddy border when theming is enabled */
-#define DEFAULT_BUDDYSPACER_THEMED  0 /* buddy spacer when theming is enabled */
 
 /* Work constants */
 
@@ -161,6 +159,20 @@ static BOOL UPDOWN_HasBuddyBorder(const UPDOWN_INFO *infoPtr)
 	      UPDOWN_IsBuddyEdit(infoPtr) );
 }
 
+static int UPDOWN_GetBuddyBorderSize(HWND hwnd)
+{
+    if (GetWindowTheme(hwnd)) return 1;
+
+    return DEFAULT_BUDDYBORDER;
+}
+
+static int UPDOWN_GetBuddySpacerSize(HWND hwnd)
+{
+    if (GetWindowTheme(hwnd)) return 0;
+
+    return DEFAULT_BUDDYSPACER;
+}
+
 /***********************************************************************
  *           UPDOWN_GetArrowRect
  * wndPtr   - pointer to the up-down wnd
@@ -170,9 +182,8 @@ static BOOL UPDOWN_HasBuddyBorder(const UPDOWN_INFO *infoPtr)
  */
 static void UPDOWN_GetArrowRect (const UPDOWN_INFO* infoPtr, RECT *rect, unsigned int arrow)
 {
-    HTHEME theme = GetWindowTheme (infoPtr->Self);
-    const int border = theme ? DEFAULT_BUDDYBORDER_THEMED : DEFAULT_BUDDYBORDER;
-    const int spacer = theme ? DEFAULT_BUDDYSPACER_THEMED : DEFAULT_BUDDYSPACER;
+    const int border = UPDOWN_GetBuddyBorderSize(infoPtr->Self);
+    const int spacer = UPDOWN_GetBuddySpacerSize(infoPtr->Self);
     int size;
 
     assert(arrow && (arrow & (FLAG_INCR | FLAG_DECR)) != (FLAG_INCR | FLAG_DECR));
@@ -370,6 +381,66 @@ static BOOL UPDOWN_DrawBuddyBackground (const UPDOWN_INFO *infoPtr, HDC hdc)
     return TRUE;
 }
 
+static BOOL UPDOWN_IsUpArrowPressed(const UPDOWN_INFO *infoPtr)
+{
+    return infoPtr->Flags & FLAG_PRESSED && infoPtr->Flags & FLAG_INCR;
+}
+
+static BOOL UPDOWN_IsUpArrowHot(const UPDOWN_INFO *infoPtr)
+{
+    return infoPtr->Flags & FLAG_INCR && infoPtr->Flags & FLAG_MOUSEIN;
+}
+
+static BOOL UPDOWN_IsDownArrowPressed(const UPDOWN_INFO *infoPtr)
+{
+    return infoPtr->Flags & FLAG_PRESSED && infoPtr->Flags & FLAG_DECR;
+}
+
+static BOOL UPDOWN_IsDownArrowHot(const UPDOWN_INFO *infoPtr)
+{
+    return infoPtr->Flags & FLAG_DECR && infoPtr->Flags & FLAG_MOUSEIN;
+}
+
+static void UPDOWN_GetUpArrowThemePartAndState(const UPDOWN_INFO *infoPtr, int *part, int *state)
+{
+    BOOL pressed, hot;
+
+    pressed = UPDOWN_IsUpArrowPressed(infoPtr);
+    hot = UPDOWN_IsUpArrowHot(infoPtr);
+    *part = (infoPtr->dwStyle & UDS_HORZ) ? SPNP_UPHORZ : SPNP_UP;
+    *state = (infoPtr->dwStyle & WS_DISABLED) ? DNS_DISABLED : (pressed ? DNS_PRESSED : (hot ? DNS_HOT : DNS_NORMAL));
+}
+
+static void UPDOWN_GetDownArrowThemePartAndState(const UPDOWN_INFO *infoPtr, int *part, int *state)
+{
+    BOOL pressed, hot;
+
+    pressed = UPDOWN_IsDownArrowPressed(infoPtr);
+    hot = UPDOWN_IsDownArrowHot(infoPtr);
+    *part = (infoPtr->dwStyle & UDS_HORZ) ? SPNP_DOWNHORZ : SPNP_DOWN;
+    *state = (infoPtr->dwStyle & WS_DISABLED) ? DNS_DISABLED : (pressed ? DNS_PRESSED : (hot ? DNS_HOT : DNS_NORMAL));
+}
+
+static BOOL UPDOWN_NeedBuddyBackground(const UPDOWN_INFO *infoPtr)
+{
+    HTHEME theme = GetWindowTheme(infoPtr->Self);
+
+    if (theme)
+    {
+        int up_part = 0, up_state = 0, down_part = 0, down_state = 0;
+        BOOL up_transparent, down_transparent, need_buddy_bg;
+
+        UPDOWN_GetUpArrowThemePartAndState(infoPtr, &up_part, &up_state);
+        UPDOWN_GetDownArrowThemePartAndState(infoPtr, &down_part, &down_state);
+        up_transparent = IsThemeBackgroundPartiallyTransparent(theme, up_part, up_state);
+        down_transparent = IsThemeBackgroundPartiallyTransparent(theme, down_part, down_state);
+        need_buddy_bg = IsWindow(infoPtr->Buddy) && (up_transparent || down_transparent);
+        return UPDOWN_HasBuddyBorder(infoPtr) || need_buddy_bg;
+    }
+
+    return UPDOWN_HasBuddyBorder(infoPtr);
+}
+
 /***********************************************************************
  * UPDOWN_Draw
  *
@@ -381,26 +452,18 @@ static LRESULT UPDOWN_Draw (const UPDOWN_INFO *infoPtr, HDC hdc)
     RECT rect;
     HTHEME theme = GetWindowTheme (infoPtr->Self);
     int uPart = 0, uState = 0, dPart = 0, dState = 0;
-    BOOL needBuddyBg = FALSE;
 
-    uPressed = (infoPtr->Flags & FLAG_PRESSED) && (infoPtr->Flags & FLAG_INCR);
-    uHot = (infoPtr->Flags & FLAG_INCR) && (infoPtr->Flags & FLAG_MOUSEIN);
-    dPressed = (infoPtr->Flags & FLAG_PRESSED) && (infoPtr->Flags & FLAG_DECR);
-    dHot = (infoPtr->Flags & FLAG_DECR) && (infoPtr->Flags & FLAG_MOUSEIN);
+    uPressed = UPDOWN_IsUpArrowPressed(infoPtr);
+    uHot = UPDOWN_IsUpArrowHot(infoPtr);
+    dPressed = UPDOWN_IsDownArrowPressed(infoPtr);
+    dHot = UPDOWN_IsDownArrowHot(infoPtr);
     if (theme) {
-        uPart = (infoPtr->dwStyle & UDS_HORZ) ? SPNP_UPHORZ : SPNP_UP;
-        uState = (infoPtr->dwStyle & WS_DISABLED) ? DNS_DISABLED 
-            : (uPressed ? DNS_PRESSED : (uHot ? DNS_HOT : DNS_NORMAL));
-        dPart = (infoPtr->dwStyle & UDS_HORZ) ? SPNP_DOWNHORZ : SPNP_DOWN;
-        dState = (infoPtr->dwStyle & WS_DISABLED) ? DNS_DISABLED 
-            : (dPressed ? DNS_PRESSED : (dHot ? DNS_HOT : DNS_NORMAL));
-        needBuddyBg = IsWindow (infoPtr->Buddy)
-            && (IsThemeBackgroundPartiallyTransparent (theme, uPart, uState)
-              || IsThemeBackgroundPartiallyTransparent (theme, dPart, dState));
+        UPDOWN_GetUpArrowThemePartAndState(infoPtr, &uPart, &uState);
+        UPDOWN_GetDownArrowThemePartAndState(infoPtr, &dPart, &dState);
     }
 
     /* Draw the common border between ourselves and our buddy */
-    if (UPDOWN_HasBuddyBorder(infoPtr) || needBuddyBg) {
+    if (UPDOWN_NeedBuddyBackground(infoPtr)) {
         if (!theme || !UPDOWN_DrawBuddyBackground (infoPtr, hdc)) {
             GetClientRect(infoPtr->Self, &rect);
 	    DrawEdge(hdc, &rect, EDGE_SUNKEN,

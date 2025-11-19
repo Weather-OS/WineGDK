@@ -37,80 +37,13 @@ static uint64_t integrated_gpu_id;
  * Converts an NSRect in Cocoa's y-goes-up-from-bottom coordinate system
  * to a CGRect in y-goes-down-from-top coordinates.
  */
-static inline void convert_display_rect(CGRect* out_rect, NSRect in_rect,
-                                        NSRect primary_frame)
+static inline CGRect convert_display_rect(NSRect in_rect, NSRect primary_frame)
 {
-    *out_rect = NSRectToCGRect(in_rect);
-    out_rect->origin.y = NSMaxY(primary_frame) - NSMaxY(in_rect);
+    CGRect out_rect = NSRectToCGRect(in_rect);
+    out_rect.origin.y = NSMaxY(primary_frame) - NSMaxY(in_rect);
+    return out_rect;
 }
 
-
-/***********************************************************************
- *              macdrv_get_displays
- *
- * Returns information about the displays.
- *
- * Returns 0 on success and *displays contains a newly-allocated array
- * of macdrv_display structures and *count contains the number of
- * elements in that array.  The first element of the array is the
- * primary display.  When the caller is done with the array, it should
- * use macdrv_free_displays() to deallocate it.
- *
- * Returns non-zero on failure and *displays and *count are unchanged.
- */
-int macdrv_get_displays(struct macdrv_display** displays, int* count)
-{
-@autoreleasepool
-{
-    NSArray* screens = [NSScreen screens];
-    if (screens)
-    {
-        NSUInteger num_screens = [screens count];
-        struct macdrv_display* disps = malloc(num_screens * sizeof(disps[0]));
-
-        if (disps)
-        {
-            NSRect primary_frame;
-
-            NSUInteger i;
-            for (i = 0; i < num_screens; i++)
-            {
-                NSScreen* screen = screens[i];
-                NSRect frame = [screen frame];
-                NSRect visible_frame = [screen visibleFrame];
-
-                if (i == 0)
-                    primary_frame = frame;
-
-                disps[i].displayID = [[screen deviceDescription][@"NSScreenNumber"] unsignedIntValue];
-                convert_display_rect(&disps[i].frame, frame, primary_frame);
-                convert_display_rect(&disps[i].work_frame, visible_frame,
-                                     primary_frame);
-                disps[i].frame = cgrect_win_from_mac(disps[i].frame);
-                disps[i].work_frame = cgrect_win_from_mac(disps[i].work_frame);
-            }
-
-            *displays = disps;
-            *count = num_screens;
-            return 0;
-        }
-    }
-
-    return -1;
-}
-}
-
-
-/***********************************************************************
- *              macdrv_free_displays
- *
- * Deallocates an array of macdrv_display structures previously returned
- * from macdrv_get_displays().
- */
-void macdrv_free_displays(struct macdrv_display* displays)
-{
-    free(displays);
-}
 
 /***********************************************************************
  *              get_entry_property_uint32
@@ -653,19 +586,22 @@ void macdrv_free_adapters(struct macdrv_adapter* adapters)
  *
  * Get a list of monitors under adapter_id. The first monitor is primary if adapter is primary.
  * Call macdrv_free_monitors() when you are done using the data.
+ * An adapter_id of kCGNullDirectDisplay will return monitors for all adapters.
  *
  * Returns non-zero value on failure with parameters unchanged and zero on success.
  */
-int macdrv_get_monitors(uint32_t adapter_id, struct macdrv_monitor** new_monitors, int* count)
+int macdrv_get_monitors(CGDirectDisplayID adapter_id, struct macdrv_monitor** new_monitors, int* count)
+{
+@autoreleasepool
 {
     struct macdrv_monitor* monitors = NULL;
     struct macdrv_monitor* realloc_monitors;
-    struct macdrv_display* displays = NULL;
     CGDirectDisplayID display_ids[16];
     uint32_t display_id_count;
+    NSArray<NSScreen *> *screens = [NSScreen screens];
+    NSRect primary_frame;
     int primary_index = 0;
     int monitor_count = 0;
-    int display_count;
     int capacity;
     int ret = -1;
     int i, j;
@@ -680,19 +616,27 @@ int macdrv_get_monitors(uint32_t adapter_id, struct macdrv_monitor** new_monitor
         != kCGErrorSuccess)
         goto done;
 
-    if (macdrv_get_displays(&displays, &display_count))
+    screens = [NSScreen screens];
+    if (!screens || screens.count < 1)
         goto done;
+
+    primary_frame = screens[0].frame;
 
     for (i = 0; i < display_id_count; i++)
     {
-        if (display_ids[i] != adapter_id && CGDisplayMirrorsDisplay(display_ids[i]) != adapter_id)
+        if (adapter_id     != kCGNullDirectDisplay &&
+            display_ids[i] != adapter_id           &&
+            CGDisplayMirrorsDisplay(display_ids[i]) != adapter_id)
             continue;
 
         /* Find and fill in monitor info */
-        for (j = 0; j < display_count; j++)
+        for (j = 0; j < screens.count; j++)
         {
-            if (displays[j].displayID == display_ids[i]
-                || CGDisplayMirrorsDisplay(display_ids[i]) == displays[j].displayID)
+            NSScreen* screen = screens[j];
+            CGDirectDisplayID screen_displayID = [[screen deviceDescription][@"NSScreenNumber"] unsignedIntValue];
+
+            if (screen_displayID == display_ids[i]
+                || CGDisplayMirrorsDisplay(display_ids[i]) == screen_displayID)
             {
                 /* Allocate more space if needed */
                 if (monitor_count >= capacity)
@@ -707,8 +651,9 @@ int macdrv_get_monitors(uint32_t adapter_id, struct macdrv_monitor** new_monitor
                 if (j == 0)
                     primary_index = monitor_count;
 
-                monitors[monitor_count].rc_monitor = displays[j].frame;
-                monitors[monitor_count].rc_work = displays[j].work_frame;
+                monitors[monitor_count].id = display_ids[i];
+                monitors[monitor_count].rc_monitor = convert_display_rect(screen.frame, primary_frame);
+                monitors[monitor_count].rc_work = convert_display_rect(screen.visibleFrame, primary_frame);
                 monitor_count++;
                 break;
             }
@@ -728,11 +673,10 @@ int macdrv_get_monitors(uint32_t adapter_id, struct macdrv_monitor** new_monitor
     *count = monitor_count;
     ret = 0;
 done:
-    if (displays)
-        macdrv_free_displays(displays);
     if (ret)
         macdrv_free_monitors(monitors);
     return ret;
+}
 }
 
 /***********************************************************************

@@ -216,6 +216,7 @@ enum glx_swap_control_method
 static struct glx_pixel_format *pixel_formats;
 static int nb_pixel_formats, nb_onscreen_formats;
 static const struct egl_platform *egl;
+static BOOL (*p_egl_describe_pixel_format)( int format, struct wgl_pixel_format *pf );
 
 /* Selects the preferred GLX swap control method for use by wglSwapIntervalEXT */
 static enum glx_swap_control_method swap_control_method = GLX_SWAP_CONTROL_NONE;
@@ -228,7 +229,7 @@ static const BOOL is_win64 = sizeof(void *) > sizeof(int);
 static BOOL glxRequireVersion(int requiredVersion);
 
 static void dump_PIXELFORMATDESCRIPTOR(const PIXELFORMATDESCRIPTOR *ppfd) {
-  TRACE( "size %u version %u flags %u type %u color %u %u,%u,%u,%u "
+  TRACE( "size %u version %u flags %#x type %u color %u %u,%u,%u,%u "
          "accum %u depth %u stencil %u aux %u ",
          ppfd->nSize, ppfd->nVersion, ppfd->dwFlags, ppfd->iPixelType,
          ppfd->cColorBits, ppfd->cRedBits, ppfd->cGreenBits, ppfd->cBlueBits, ppfd->cAlphaBits,
@@ -506,6 +507,22 @@ BOOL visual_from_pixel_format( int format, XVisualInfo *visual )
     }
 }
 
+static BOOL x11drv_egl_describe_pixel_format( int format, struct wgl_pixel_format *pf )
+{
+    XVisualInfo visual;
+
+    if (!p_egl_describe_pixel_format( format, pf )) return FALSE;
+    if (!visual_from_pixel_format( format, &visual ) || visual.depth != default_visual.depth)
+    {
+        /* Forbid drawing to windows with formats whose depth does not match the screen depth
+         * so that we can copy child windows on-screen using XCopyArea().
+         * See x11drv_init_pixel_formats() for the same logic with GLX. */
+        pf->pfd.dwFlags &= ~PFD_DRAW_TO_WINDOW;
+    }
+
+    return TRUE;
+}
+
 static BOOL x11drv_egl_surface_create( HWND hwnd, int format, struct opengl_drawable **drawable )
 {
     struct opengl_drawable *previous;
@@ -561,9 +578,13 @@ UINT X11DRV_OpenGLInit( UINT version, const struct opengl_funcs *opengl_funcs, c
         x11drv_driver_funcs = **driver_funcs;
         x11drv_driver_funcs.p_init_egl_platform = x11drv_init_egl_platform;
         x11drv_driver_funcs.p_surface_create = x11drv_egl_surface_create;
+        x11drv_driver_funcs.p_describe_pixel_format = x11drv_egl_describe_pixel_format;
+        p_egl_describe_pixel_format = (*driver_funcs)->p_describe_pixel_format;
         *driver_funcs = &x11drv_driver_funcs;
         return STATUS_SUCCESS;
     }
+
+    use_egl = FALSE;
 
     /* No need to load any other libraries as according to the ABI, libGL should be self-sufficient
        and include all dependencies */
@@ -1453,7 +1474,7 @@ static BOOL x11drv_surface_swap( struct opengl_drawable *base )
 
     TRACE( "drawable %s\n", debugstr_opengl_drawable( base ) );
 
-    if ((offscreen = InterlockedCompareExchange( &base->client->offscreen, 0, 0 )) ||
+    if (!(offscreen = InterlockedCompareExchange( &base->client->offscreen, 0, 0 )) ||
         !ctx || !pglXSwapBuffersMscOML) pglXSwapBuffers( gdi_display, gl->drawable );
     else
     {

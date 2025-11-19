@@ -1843,6 +1843,32 @@ static int get_opcode_size( struct opcode op )
     }
 }
 
+static void *get_main_function_start( const RUNTIME_FUNCTION *f, ULONG_PTR base )
+{
+    const struct UNWIND_INFO *info;
+    const union handler_data *data;
+
+    while (f->UnwindData)
+    {
+        info = (const struct UNWIND_INFO *)((char *)base + f->UnwindData);
+        if (!(info->flags & UNW_FLAG_CHAININFO)) break;
+
+        data = (union handler_data *)&info->opcodes[(info->count + 1) & ~1];
+        f = &data->chain;
+    }
+    return (char *)base + f->BeginAddress;
+}
+
+static BOOL is_address_in_function( BYTE *pc, ULONG64 base, const RUNTIME_FUNCTION *function )
+{
+    RUNTIME_FUNCTION *f;
+    ULONG_PTR pc_base;
+
+    if (pc - (BYTE *)base >= function->BeginAddress && pc - (BYTE *)base < function->EndAddress) return TRUE;
+    if (!(f = RtlLookupFunctionEntry( (ULONG_PTR)pc, &pc_base, NULL ))) return FALSE;
+    return get_main_function_start( f, pc_base ) == get_main_function_start( function, base );
+}
+
 static BOOL is_inside_epilog( BYTE *pc, ULONG64 base, const RUNTIME_FUNCTION *function )
 {
     /* add or lea must be the first instruction, and it must have a rex.W prefix */
@@ -1886,7 +1912,9 @@ static BOOL is_inside_epilog( BYTE *pc, ULONG64 base, const RUNTIME_FUNCTION *fu
 
     for (;;)
     {
-        if ((*pc & 0xf0) == 0x40) pc++;  /* rex prefix */
+        BYTE rex = 0;
+
+        if ((*pc & 0xf0) == 0x40) rex = *pc++ & 0x0f;  /* rex prefix */
 
         switch (*pc)
         {
@@ -1905,16 +1933,16 @@ static BOOL is_inside_epilog( BYTE *pc, ULONG64 base, const RUNTIME_FUNCTION *fu
             return TRUE;
         case 0xe9: /* jmp nnnn */
             pc += 5 + *(LONG *)(pc + 1);
-            if (pc - (BYTE *)base >= function->BeginAddress && pc - (BYTE *)base < function->EndAddress)
-                continue;
-            break;
+            return !is_address_in_function( pc, base, function );
         case 0xeb: /* jmp n */
             pc += 2 + (signed char)pc[1];
-            if (pc - (BYTE *)base >= function->BeginAddress && pc - (BYTE *)base < function->EndAddress)
-                continue;
-            break;
+            return !is_address_in_function( pc, base, function );
         case 0xf3: /* rep; ret (for amd64 prediction bug) */
             return pc[1] == 0xc3;
+        case 0xff: /* jmp */
+            if (rex && rex != 8) return FALSE;
+            if (pc[1] == 0x25) return TRUE;
+            return rex && ((pc[1] >> 3) & 7) == 4;
         }
         return FALSE;
     }
@@ -1967,17 +1995,14 @@ static void interpret_epilog( BYTE *pc, CONTEXT *context, KNONVOLATILE_CONTEXT_P
             context->Rip = *(ULONG64 *)context->Rsp;
             context->Rsp += sizeof(ULONG64) + *(WORD *)(pc + 1);
             return;
+        case 0xe9: /* jmp nnnn */
+        case 0xeb: /* jmp n */
         case 0xc3: /* ret */
         case 0xf3: /* rep; ret */
+        case 0xff: /* jmp */
             context->Rip = *(ULONG64 *)context->Rsp;
             context->Rsp += sizeof(ULONG64);
             return;
-        case 0xe9: /* jmp nnnn */
-            pc += 5 + *(LONG *)(pc + 1);
-            continue;
-        case 0xeb: /* jmp n */
-            pc += 2 + (signed char)pc[1];
-            continue;
         }
         return;
     }
@@ -2020,7 +2045,7 @@ NTSTATUS WINAPI RtlVirtualUnwind2( ULONG type, ULONG_PTR base, ULONG_PTR pc,
     ULONG64 frame, off;
     struct UNWIND_INFO *info;
     unsigned int i, prolog_offset;
-    BOOL mach_frame = FALSE;
+    BOOL mach_frame = FALSE, chained = FALSE;
 
 #ifdef __arm64ec__
     if (RtlIsEcCode( pc ))
@@ -2079,11 +2104,11 @@ NTSTATUS WINAPI RtlVirtualUnwind2( ULONG type, ULONG_PTR base, ULONG_PTR pc,
         {
             prolog_offset = ~0;
             /* Since Win10 1809 epilogue does not have a special treatment in case of zero opcode count. */
-            if (info->count && is_inside_epilog( (BYTE *)pc, base, function ))
+            if (!chained && info->count && is_inside_epilog( (BYTE *)pc, base, function ))
             {
                 TRACE("inside epilog.\n");
                 interpret_epilog( (BYTE *)pc, context, ctx_ptr );
-                *frame_ret = frame;
+                *frame_ret = info->frame_reg ? context->Rsp - 8 : frame;
                 *handler_ret = NULL;
                 return STATUS_SUCCESS;
             }
@@ -2155,6 +2180,7 @@ NTSTATUS WINAPI RtlVirtualUnwind2( ULONG type, ULONG_PTR base, ULONG_PTR pc,
 
         if (!(info->flags & UNW_FLAG_CHAININFO)) break;
         function = &handler_data->chain;  /* restart with the chained info */
+        chained = TRUE;
     }
 
     if (!mach_frame)
