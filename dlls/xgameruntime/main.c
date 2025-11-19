@@ -170,6 +170,7 @@ HRESULT WINAPI QueryApiImpl( GUID *runtimeClassId, REFIID interfaceId, void **ou
     //  IXSystemImpl_XSystemAllowFullDownloadBandwidth  (offset 64)
     //
 
+    HRESULT hr;
     HMODULE hMod = LoadLibraryA("xgameruntime.dll.threading");
     QueryApiImpl_ext func = (QueryApiImpl_ext)GetProcAddress( hMod, "QueryApiImpl" );
     DWORD asked;
@@ -202,7 +203,9 @@ HRESULT WINAPI QueryApiImpl( GUID *runtimeClassId, REFIID interfaceId, void **ou
             }
             return IXThreadingImpl_QueryInterface( x_threading_impl, interfaceId, out );
         }
-        return func( runtimeClassId, interfaceId, out );
+        hr = func( runtimeClassId, interfaceId, out );
+        FreeModule( hMod );
+        return hr;
     }
     else if ( IsEqualGUID( runtimeClassId, &CLSID_XNetworkingImpl ) )
     {
