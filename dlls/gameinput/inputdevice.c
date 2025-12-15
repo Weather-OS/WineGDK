@@ -397,13 +397,16 @@ HRESULT game_input_device_AddGameHID( IN v2_IGameInputDevice *iface, IN LPWSTR d
                     switch ( caps.Usage )
                     {
                         case HID_USAGE_GENERIC_MOUSE:
-                        case HID_USAGE_GENERIC_KEYBOARD:
                         {
-                            // BUG: Some mouse devices are composite devices, and report being Keyboard devices.
-                            impl->deviceInfo.supportedInput = GameInputKindKeyboard | GameInputKindMouse;
+                            impl->deviceInfo.supportedInput = GameInputKindMouse;
                             status = mouse_input_device_InitDevice( iface );
                             TRACE("mouse_input_device_InitDevice returned %#lx\n", status);
                             if ( FAILED( status ) ) goto _CLEANUP;
+                            break;
+                        }
+                        case HID_USAGE_GENERIC_KEYBOARD:
+                        {
+                            impl->deviceInfo.supportedInput = GameInputKindKeyboard;
                             break;
                         }
 
@@ -772,10 +775,11 @@ static HRESULT device_provider_create( LPWSTR device_path )
     v2_IGameInputDevice *addedDevice;
     IDirectInput8W *dinput;
     BOOLEAN found;
-    BOOLEAN isMouse;
     GUID guid = device_path_guid;
 
     struct game_input_device *impl, *entry;
+
+    TRACE("device_path is %s\n", debugstr_w(device_path));
 
     *(LPCWSTR *)&guid = device_path;
     status = DirectInput8Create( game_input, DIRECTINPUT_VERSION, &IID_IDirectInput8W, (void **)&dinput, NULL );
@@ -787,7 +791,7 @@ static HRESULT device_provider_create( LPWSTR device_path )
     status = IDirectInput8_CreateDevice( dinput, &guid, &dinput_device, NULL );
     IDirectInput8_Release( dinput );
     // HACK: Mouse device is manually set at mouinput.c
-    if ( SUCCEEDED( status ) ) 
+    if ( SUCCEEDED( status ) )
     {
         if ( FAILED(status = IDirectInputDevice8_SetCooperativeLevel( dinput_device, 0, DISCL_BACKGROUND | DISCL_NONEXCLUSIVE ) ) ) goto _CLEANUP;
         if ( FAILED(status = IDirectInputDevice8_SetDataFormat( dinput_device, &data_format ) ) ) goto _CLEANUP;
@@ -805,7 +809,15 @@ static HRESULT device_provider_create( LPWSTR device_path )
 
     EnterCriticalSection( &provider_cs );
     LIST_FOR_EACH_ENTRY( entry, &device_list, struct game_input_device, entry )
+    {
+        // avoid registering 2 mouse devices at once.
+        if ( (entry->deviceInfo.supportedInput == GameInputKindMouse) && (impl->deviceInfo.supportedInput == GameInputKindMouse) )
+        {
+            found = TRUE;
+            break;
+        }
         if ( (found = !wcscmp( entry->pnpPath, device_path ) ) ) break;
+    }
     if ( !found ) list_add_tail( &device_list, &impl->entry );
     LeaveCriticalSection( &provider_cs );
 
@@ -959,9 +971,6 @@ HRESULT WINAPI RegisterDeviceCallback( v2_IGameInputDevice *device, GameInputKin
 
         LIST_FOR_EACH_ENTRY( input_device, &device_list, struct game_input_device, entry )
         {
-            TRACE("The following device %s is available!\n", debugstr_w(input_device->pnpPath));
-            TRACE("supported input kind is %#x\n", input_device->deviceInfo.supportedInput);
-            TRACE("kind is %#x\n", kind);
             if ( input_device->deviceInfo.supportedInput & kind )
                 if ( input_device->deviceStatus & filter )
                 {
