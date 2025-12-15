@@ -27,61 +27,24 @@
 #include "windef.h"
 #include "winbase.h"
 #include "winstring.h"
-#include "dinput.h"
 
 #include "unknwn.h"
 #include "objidlbase.h"
 #include "gameinput.h"
+#include "setupapi.h"
+#include "dbt.h"
+#include "ddk/hidclass.h"
+#include "ddk/hidsdi.h"
+#include "devpkey.h"
+#include "dinput.h"
+#include "objbase.h"
 
-#define WIDL_using_Windows_Foundation
-#define WIDL_using_Windows_Foundation_Collections
-#include "windows.foundation.h"
-#define WIDL_using_Windows_Globalization
-#include "windows.globalization.h"
-#define WIDL_using_Windows_Devices_Enumeration
-#include "windows.devices.enumeration.h"
+#ifdef HAVE_SDL_H
+# include <SDL.h>
+#endif
 
 #include "wine/debug.h"
-
-typedef struct GInputDev_v2
-{
-    v2_GameInputDeviceCallback *callback;
-    PVOID context;
-    struct GInputDev_v2 *next;
-} GInputDev_v2;
-
-typedef struct GInputDeviceEvents_v2
-{
-    GInputDev_v2 *dev_head, *dev_tail;
-    UINT32 devCount;
-} GInputDeviceEvents_v2;
-
-struct game_input_device
-{
-    v0_IGameInputDevice v0_IGameInputDevice_iface;
-    v1_IGameInputDevice v1_IGameInputDevice_iface;
-    v2_IGameInputDevice v2_IGameInputDevice_iface;
-
-    v0_GameInputDeviceInfo device_info_v0;
-    v1_GameInputDeviceInfo device_info_v1;
-    v2_GameInputDeviceInfo device_info_v2;
-
-    POINT lastPos;
-    UINT64 lastWheel;
-
-    LONG ref;
-};
-
-struct game_input_reading
-{
-    v2_IGameInputReading v2_IGameInputReading_iface;
-    v2_IGameInputDevice *device;
-    v2_GameInputMouseState mouseState;
-
-    uint64_t timestamp;
-
-    LONG ref;
-};
+#include "wine/list.h"
 
 #define DEFINE_ASYNC_COMPLETED_HANDLER( name, iface_type, async_type )                              \
     struct name                                                                                     \

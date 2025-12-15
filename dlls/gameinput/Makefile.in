@@ -1,9 +1,12 @@
 MODULE     = gameinput.dll
 EXTRADEFS  = -D_GAMEINPUT_
-IMPORTS    = combase user32 dinput8
+IMPORTS    = combase user32 hid setupapi dinput8
+UNIX_CFLAGS  = $(SDL2_CFLAGS)
 
 EXTRADLLFLAGS = -Wb,--prefer-native
 
 SOURCES = \
 	gameinput.c \
+	inputdevice.c \
+	inputreading.c \
 	mouinput.c 

@@ -21,15 +21,12 @@
 
 #include <time.h>
 
+#include "inputdevice.h"
 #include "mouinput.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(ginput);
 
-extern const struct v2_IGameInputDeviceVtbl mouse_input2_device_vtbl;
-extern const struct v2_IGameInputReadingVtbl mouse_input2_reading_vtbl;
-
-static LPDIRECTINPUT8W        g_pDI = NULL;
-static LPDIRECTINPUTDEVICE8W  g_pMouse = NULL;
+HINSTANCE game_input;
 
 struct game_input
 {
@@ -37,23 +34,12 @@ struct game_input
     v1_IGameInput v1_IGameInput_iface;
     v2_IGameInput v2_IGameInput_iface;
 
-    GInputDeviceEvents_v2 device_events;
     LONG ref;
 };
-
-static inline struct game_input_device *impl_from_v2_IGameInputDevice( v2_IGameInputDevice *iface )
-{
-    return CONTAINING_RECORD( iface, struct game_input_device, v2_IGameInputDevice_iface );
-}
 
 static inline struct game_input *impl_from_v0_IGameInput( v0_IGameInput *iface )
 {
     return CONTAINING_RECORD( iface, struct game_input, v0_IGameInput_iface );
-}
-
-static inline struct game_input_reading *impl_from_v2_IGameInputReading( v2_IGameInputReading *iface )
-{
-    return CONTAINING_RECORD( iface, struct game_input_reading, v2_IGameInputReading_iface );
 }
 
 static HRESULT WINAPI game_input_QueryInterface( v0_IGameInput *iface, REFIID iid, void **out )
@@ -538,60 +524,22 @@ static uint64_t WINAPI game_input2_GetCurrentTimestamp( v2_IGameInput *iface )
 static HRESULT WINAPI game_input2_GetCurrentReading( v2_IGameInput *iface, GameInputKind kind,
                                                    v2_IGameInputDevice *device, v2_IGameInputReading **reading )
 {
-    struct game_input_reading *input_reading;
-    struct game_input_device *input_device = impl_from_v2_IGameInputDevice( device );
-    POINT absoluteP;
-    HRESULT status;
-    DIMOUSESTATE2 state;
+    HRESULT status = S_OK;
 
     TRACE( "iface %p kind %d device %p reading %p\n", iface, kind, device, reading );
 
-    if (!(input_reading = calloc( 1, sizeof(*input_reading) ))) return E_OUTOFMEMORY;
-
     if ( kind == GameInputKindMouse )
     {
-        GetCursorPos( &absoluteP );
-
-        input_reading->v2_IGameInputReading_iface.lpVtbl = &mouse_input2_reading_vtbl;
-        input_reading->device = device;
-        input_reading->ref = 1;
-
-        status = g_pMouse->lpVtbl->GetDeviceState( g_pMouse, sizeof(state), &state);
-        if ( FAILED( status ) ) {
-            if ( ( status == DIERR_INPUTLOST ) || ( status == DIERR_NOTACQUIRED ) ) {
-                // Try to reacquire
-                status = g_pMouse->lpVtbl->Acquire( g_pMouse );
-            }
-        }
-        else
-        {
-            input_reading->mouseState.positions = GameInputMouseRelativePosition;
-            input_reading->mouseState.absolutePositionX = absoluteP.x;
-            input_reading->mouseState.absolutePositionY = absoluteP.y;
-            input_device->lastPos.x += state.lX;
-            input_device->lastPos.y += state.lY;
-            input_device->lastWheel += state.lZ;
-            input_reading->mouseState.positionX = input_device->lastPos.x;
-            input_reading->mouseState.positionY = input_device->lastPos.y;
-            input_reading->mouseState.wheelY = input_device->lastWheel;
-        }
-
-        if ( GetAsyncKeyState( VK_LBUTTON ) & 0x8000 )
-            input_reading->mouseState.buttons |= GameInputMouseLeftButton;
-        if ( GetAsyncKeyState( VK_RBUTTON ) & 0x8000 )
-            input_reading->mouseState.buttons |= GameInputMouseRightButton;
-        if ( GetAsyncKeyState( VK_MBUTTON ) & 0x8000 )
-            input_reading->mouseState.buttons |= GameInputMouseMiddleButton;
-
-        input_reading->timestamp = GetTickCount64();
+        // TODO: Using HID to read mouse values is finicky 
+        //status = mouse_input_device_ReadCurrentStateFromHID( device, GetTickCount64(), reading );
+        status = mouse_input_device_ReadCurrentStateFromDInput8( device, GetTickCount64(), reading );
     } else
     {
+        FIXME("requested controller device!\n");
         return E_NOTIMPL;
     }
 
-    if (reading) *reading = &input_reading->v2_IGameInputReading_iface;
-
-    return S_OK;
+    return status;
 }
 
 static HRESULT WINAPI game_input2_GetNextReading( v2_IGameInput *iface, v2_IGameInputReading *reference,
@@ -627,44 +575,13 @@ static HRESULT WINAPI game_input2_RegisterDeviceCallback( v2_IGameInput *iface, 
                                                          GameInputEnumerationKind enum_kind, void *context,
                                                          v2_GameInputDeviceCallback callback, GameInputCallbackToken *token )
 {
-    HRESULT status;
-    HWND hwnd;
+    HRESULT status = S_OK;
 
-    struct game_input_device *input_device;
+    FIXME( "iface %p, device %p, kind %#x, filter %#x, enum_kind %d, context %p, callback %p, token %p semi-stub!\n", iface, device, kind, filter, enum_kind, context, callback, token );
+    
+    status = RegisterDeviceCallback( device, kind, enum_kind, context, callback, token );
 
-    hwnd = GetForegroundWindow();
-    if (!hwnd) return E_FAIL;
-
-    // TODO: I have no clue how to do this properly.
-    // pls rewrite kthxbye.
-                
-    status = DirectInput8Create( GetModuleHandleW(NULL), DIRECTINPUT_VERSION, &IID_IDirectInput8W, (void**)&g_pDI, NULL );
-    if (FAILED(status)) return status;
-
-    status = g_pDI->lpVtbl->CreateDevice( g_pDI, &GUID_SysMouse, &g_pMouse, NULL );
-    if (FAILED(status)) return status;
-
-    status = g_pMouse->lpVtbl->SetDataFormat( g_pMouse, &c_dfDIMouse2 );
-    if (FAILED(status)) return status;
-
-    status = g_pMouse->lpVtbl->SetCooperativeLevel( g_pMouse, hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE );
-    if (FAILED(status)) return status;
-
-    // Acquire device
-    status = g_pMouse->lpVtbl->Acquire( g_pMouse );
-    if (FAILED(status)) return status;
-
-    if (!(input_device = calloc( 1, sizeof(*input_device) ))) return E_OUTOFMEMORY;
-
-    input_device->v2_IGameInputDevice_iface.lpVtbl = &mouse_input2_device_vtbl;
-    input_device->ref = 1;
-
-    mouse_input2_device_QueryDeviceInformation( &input_device->device_info_v2 );
-
-    callback( 1, context, &input_device->v2_IGameInputDevice_iface, time(NULL), GameInputDeviceConnected, GameInputDeviceConnected );
-
-    if (token) *token = (GameInputCallbackToken)1;
-    return S_OK;
+    return status;
 }
 
 static HRESULT WINAPI game_input2_RegisterSystemButtonCallback( v2_IGameInput *iface, v2_IGameInputDevice *device,
@@ -749,11 +666,36 @@ static const struct v2_IGameInputVtbl game_input2_vtbl =
     game_input2_SetFocusPolicy
 };
 
+static BOOL WINAPI start_monitor_thread( INIT_ONCE *once, void *param, void **context )
+{
+    HANDLE thread, start_event;
+
+    TRACE( "once %p, param %p, context %p.\n", once, param, context );
+
+    start_event = CreateEventA( NULL, FALSE, FALSE, NULL );
+    if (!start_event) ERR( "Failed to create start event, error %lu\n", GetLastError() );
+
+    thread = CreateThread( NULL, 0, DeviceMonitorThread, start_event, 0, NULL );
+    if (!thread) ERR( "Failed to create monitor thread, error %lu\n", GetLastError() );
+    else
+    {
+        WaitForSingleObject( start_event, INFINITE );
+        CloseHandle( thread );
+    }
+
+    CloseHandle( start_event );
+    return !!thread;
+}
+
 HRESULT WINAPI GameInputCreate( v0_IGameInput **out )
 {
     struct game_input *input = NULL;
 
+    static INIT_ONCE init_once = INIT_ONCE_STATIC_INIT;
+
     TRACE( "out %p\n", out );
+
+    InitOnceExecuteOnce( &init_once, start_monitor_thread, NULL, NULL );
 
     if (!(input = calloc( 1, sizeof(*input) ))) return E_OUTOFMEMORY;
 
@@ -771,4 +713,18 @@ HRESULT WINAPI DllGetClassObject( REFCLSID clsid, REFIID riid, void **out )
 {
     FIXME( "clsid %s, riid %s, out %p stub!\n", debugstr_guid(clsid), debugstr_guid(riid), out );
     return CLASS_E_CLASSNOTAVAILABLE;
+}
+
+BOOL WINAPI DllMain( HINSTANCE instance, DWORD reason, void *reserved )
+{
+    TRACE( "instance %p, reason %lu, reserved %p.\n", instance, reason, reserved );
+
+    switch (reason)
+    {
+        case DLL_PROCESS_ATTACH:
+            DisableThreadLibraryCalls( instance );
+            game_input = instance;
+            break;
+    }
+    return TRUE;
 }

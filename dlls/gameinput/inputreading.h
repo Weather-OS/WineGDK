@@ -1,6 +1,6 @@
 /*
  * Game Input Library
- *  -> Keyboard Input Events
+ *  -> Game Input Reading
  * 
  * Written by Weather
  *
@@ -19,14 +19,23 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef _MOUINPUT_H
-#define _MOUINPUT_H
+#ifndef INPUT_READING_H
+#define INPUT_READING_H
 
 #include "private.h"
 
-HRESULT mouse_input_device_InitDevice( IN v2_IGameInputDevice *device );
-HRESULT mouse_input_device_InitDInput8Device( IN v2_IGameInputDevice *device );
-HRESULT mouse_input_device_ReadCurrentStateFromHID( IN v2_IGameInputDevice *device, IN uint64_t timestamp, OUT v2_IGameInputReading **reading );
-HRESULT mouse_input_device_ReadCurrentStateFromDInput8( IN v2_IGameInputDevice *device, IN uint64_t timestamp, OUT v2_IGameInputReading **reading );
+struct game_input_reading
+{
+    v2_IGameInputReading v2_IGameInputReading_iface;
+    v2_IGameInputDevice *device;
+
+    v2_GameInputMouseState mouseState;
+
+    uint64_t timestamp;
+
+    LONG ref;
+};
+
+HRESULT game_input_reading_CreateForMouseDevice( v2_IGameInputDevice *device, v2_GameInputMouseState state, uint64_t timestamp, v2_IGameInputReading **out );
 
 #endif
