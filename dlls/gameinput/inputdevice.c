@@ -397,16 +397,12 @@ HRESULT game_input_device_AddGameHID( IN v2_IGameInputDevice *iface, IN LPWSTR d
                     switch ( caps.Usage )
                     {
                         case HID_USAGE_GENERIC_MOUSE:
+                        case HID_USAGE_GENERIC_KEYBOARD:
                         {
-                            impl->deviceInfo.supportedInput = GameInputKindMouse;
+                            impl->deviceInfo.supportedInput = GameInputKindKeyboard | GameInputKindMouse;
                             status = mouse_input_device_InitDevice( iface );
                             TRACE("mouse_input_device_InitDevice returned %#lx\n", status);
                             if ( FAILED( status ) ) goto _CLEANUP;
-                            break;
-                        }
-                        case HID_USAGE_GENERIC_KEYBOARD:
-                        {
-                            impl->deviceInfo.supportedInput = GameInputKindKeyboard;
                             break;
                         }
 
@@ -811,7 +807,7 @@ static HRESULT device_provider_create( LPWSTR device_path )
     LIST_FOR_EACH_ENTRY( entry, &device_list, struct game_input_device, entry )
     {
         // avoid registering 2 mouse devices at once.
-        if ( (entry->deviceInfo.supportedInput == GameInputKindMouse) && (impl->deviceInfo.supportedInput == GameInputKindMouse) )
+        if ( (entry->deviceInfo.supportedInput & GameInputKindMouse) && (impl->deviceInfo.supportedInput & GameInputKindMouse) )
         {
             found = TRUE;
             break;
