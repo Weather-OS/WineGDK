@@ -1285,8 +1285,8 @@ static NTSTATUS fdo_pnp_dispatch(DEVICE_OBJECT *device, IRP *irp)
     case IRP_MN_START_DEVICE:
         bus_options_init();
 
-        //mouse_device_create();
-        //keyboard_device_create();
+        mouse_device_create();
+        keyboard_device_create();
 
         if (!sdl_driver_init()) options.disable_input = TRUE;
         udev_driver_init();
