@@ -531,9 +531,9 @@ static BOOL is_hidraw_enabled(WORD vid, WORD pid, const USAGE_AND_PAGE *usages, 
         return FALSE;
     }
     if (usages->UsagePage != HID_USAGE_PAGE_GENERIC) return TRUE;
-    if (usages->Usage == HID_USAGE_GENERIC_MOUSE || usages->Usage == HID_USAGE_GENERIC_KEYBOARD)
+    if (usages->Usage == HID_USAGE_GENERIC_KEYBOARD)
     {
-        WARN("Ignoring unsupported %04X:%04X hidraw mouse/keyboard\n", vid, pid);
+        WARN("Ignoring unsupported %04X:%04X hidraw keyboard\n", vid, pid);
         return FALSE;
     }
     if (usages->Usage != HID_USAGE_GENERIC_GAMEPAD && usages->Usage != HID_USAGE_GENERIC_JOYSTICK) return TRUE;
@@ -1285,8 +1285,8 @@ static NTSTATUS fdo_pnp_dispatch(DEVICE_OBJECT *device, IRP *irp)
     case IRP_MN_START_DEVICE:
         bus_options_init();
 
-        mouse_device_create();
-        keyboard_device_create();
+        //mouse_device_create();
+        //keyboard_device_create();
 
         if (!sdl_driver_init()) options.disable_input = TRUE;
         udev_driver_init();
