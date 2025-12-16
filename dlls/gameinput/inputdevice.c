@@ -340,11 +340,12 @@ HRESULT game_input_device_AddGameHID( IN v2_IGameInputDevice *iface, IN LPWSTR d
 {
     struct game_input_device *impl = impl_from_IGameInputDevice( iface );
     
+    HRESULT status = S_OK;
+
     CHAR nameBuf[512];
     DWORD request;
     DWORD interfaceDetailSizeNeeded = 0;
     HANDLE deviceFileHandle = NULL;
-    HRESULT status;
     HIDP_CAPS caps;
     DEVPROPTYPE propType;
     SP_DEVINFO_DATA deviceData = { .cbSize = sizeof(SP_DEVINFO_DATA) };
@@ -774,6 +775,7 @@ static HRESULT device_provider_create( LPWSTR device_path )
     GUID guid = device_path_guid;
 
     struct game_input_device *impl, *entry;
+    struct device_callback *callback;
 
     TRACE("device_path is %s\n", debugstr_w(device_path));
 
@@ -815,9 +817,16 @@ static HRESULT device_provider_create( LPWSTR device_path )
         if ( (found = !wcscmp( entry->pnpPath, device_path ) ) ) break;
     }
     if ( !found ) list_add_tail( &device_list, &impl->entry );
-    LeaveCriticalSection( &provider_cs );
 
-    // NotifyDeviceAddedForCallbacks;
+    LIST_FOR_EACH_ENTRY( callback, &callback_list, struct device_callback, entry )
+    {
+        if ( impl->deviceInfo.supportedInput & callback->kind )
+            if ( impl->deviceStatus & callback->filter )
+            {
+                callback->callback( callback->token, callback->context, addedDevice, time(NULL), impl->deviceStatus, impl->previousDeviceStatus );
+            }
+    }
+    LeaveCriticalSection( &provider_cs );
 
 _CLEANUP:
     if ( FAILED( status ) )
