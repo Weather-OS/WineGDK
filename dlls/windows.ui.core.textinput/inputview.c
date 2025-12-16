@@ -251,7 +251,7 @@ DEFINE_IINSPECTABLE(core_input_view3, ICoreInputView3, struct core_input_view, I
 static HRESULT WINAPI core_input_view3_TryShow(ICoreInputView3 *iface, boolean *result)
 {
     FIXME("iface %p, result %p stub!\n", iface, result);
-    return E_NOTIMPL;
+    return S_OK;
 }
 
 static HRESULT WINAPI core_input_view3_TryShowWithKind(ICoreInputView3 *iface,
@@ -259,13 +259,15 @@ static HRESULT WINAPI core_input_view3_TryShowWithKind(ICoreInputView3 *iface,
                                                        boolean *result)
 {
     FIXME("iface %p, type %d, result %p stub!\n", iface, type, result);
-    return E_NOTIMPL;
+    if ( result ) *result = TRUE;
+    return S_OK;
 }
 
 static HRESULT WINAPI core_input_view3_TryHide(ICoreInputView3 *iface, boolean *result)
 {
     FIXME("iface %p, result %p stub!\n", iface, result);
-    return E_NOTIMPL;
+    if ( result ) *result = TRUE;
+    return S_OK;
 }
 
 static const struct ICoreInputView3Vtbl core_input_view3_vtbl =
