@@ -30,6 +30,16 @@ struct game_input_reading
     v2_IGameInputDevice *device;
 
     v2_GameInputMouseState mouseState;
+    GameInputSensorsState sensorsState;
+    GameInputArcadeStickState arcadeStickState;
+    GameInputFlightStickState flightStickState;
+    GameInputGamepadState gamepadState;
+    GameInputRacingWheelState racingWheelState;
+    GameInputUiNavigationState uiNavigationState;
+    GameInputSwitchPosition *switchState;
+    GameInputKeyState *keyState;
+    FLOAT *controllerAxisState;
+    BOOL *controllerButtonState;
 
     uint64_t timestamp;
 
@@ -37,5 +47,6 @@ struct game_input_reading
 };
 
 HRESULT game_input_reading_CreateForMouseDevice( v2_IGameInputDevice *device, v2_GameInputMouseState state, uint64_t timestamp, v2_IGameInputReading **out );
+HRESULT game_input_reading_CreateForGamepadDevice( v2_IGameInputDevice *device, GameInputGamepadState state, uint64_t timestamp, v2_IGameInputReading **out );
 
 #endif

@@ -66,8 +66,17 @@ static ULONG WINAPI game_input_reading_Release( v2_IGameInputReading *iface )
 
 static GameInputKind WINAPI game_input_reading_GetInputKind( v2_IGameInputReading *iface )
 {
+    struct game_input_reading *impl = impl_from_IGameInputReading( iface );
+
+    HRESULT status;
+    const v2_GameInputDeviceInfo *device_info;
+
     TRACE( "iface %p.\n", iface );
-    return GameInputKindMouse;
+
+    status = v2_IGameInputDevice_GetDeviceInfo( impl->device, &device_info );
+    if ( FAILED( status ) ) return 0;
+
+    return device_info->supportedInput;
 }
 
 static uint64_t WINAPI game_input_reading_GetTimestamp( v2_IGameInputReading *iface )
@@ -81,63 +90,115 @@ static void WINAPI game_input_reading_GetDevice( v2_IGameInputReading *iface, v2
 {
     struct game_input_reading *impl = impl_from_IGameInputReading( iface );
     TRACE( "iface %p, device %p.\n", iface, device );
-    if (device) *device = impl->device;
+    if ( device )
+        v2_IGameInputDevice_QueryInterface( impl->device, &IID_v2_IGameInputDevice, (void **)device );
     return;
 }
 
 static uint32_t WINAPI game_input_reading_GetControllerAxisCount( v2_IGameInputReading *iface )
 {
     struct game_input_reading *impl = impl_from_IGameInputReading( iface );
-    ERR( "Not for this device %p!\n", impl->device );
-    return 0;
+
+    HRESULT status;
+    const v2_GameInputDeviceInfo *device_info;
+
+    TRACE( "iface %p.\n", iface );
+
+    status = v2_IGameInputDevice_GetDeviceInfo( impl->device, &device_info );
+    if ( FAILED( status ) ) return 0;
+
+    return device_info->controllerAxisCount;
 }
 
 static uint32_t WINAPI game_input_reading_GetControllerAxisState( v2_IGameInputReading *iface, uint32_t count, float *state )
 {
+    uint32_t copy;
+    uint32_t numAxes;
     struct game_input_reading *impl = impl_from_IGameInputReading( iface );
-    ERR( "Not for this device %p!\n", impl->device );
-    return 0;
+    
+    TRACE( "iface %p, count %d, state %p!\n", iface, count, state );
+
+    numAxes = v2_IGameInputReading_GetControllerAxisCount( iface );
+    copy = ( count < numAxes ) ? count : numAxes;
+
+    memcpy( state, impl->controllerAxisState, copy * sizeof( float ) );
+
+    return copy;
 }
 
 static uint32_t WINAPI game_input_reading_GetControllerButtonCount( v2_IGameInputReading *iface )
 {
     struct game_input_reading *impl = impl_from_IGameInputReading( iface );
-    ERR( "Not for this device %p!\n", impl->device );
-    return 0;
+
+    HRESULT status;
+    const v2_GameInputDeviceInfo *device_info;
+
+    TRACE( "iface %p.\n", iface );
+
+    status = v2_IGameInputDevice_GetDeviceInfo( impl->device, &device_info );
+    if ( FAILED( status ) ) return 0;
+
+    return device_info->controllerButtonCount;
 }
 
 static uint32_t WINAPI game_input_reading_GetControllerButtonState( v2_IGameInputReading *iface, uint32_t count, bool *state )
 {
+    uint32_t copy;
+    uint32_t numButtons;
     struct game_input_reading *impl = impl_from_IGameInputReading( iface );
-    ERR( "Not for this device %p!\n", impl->device );
-    return 0;
+    
+    TRACE( "iface %p, count %d, state %p!\n", iface, count, state );
+
+    numButtons = v2_IGameInputReading_GetControllerButtonCount( iface );
+    copy = ( count < numButtons ) ? count : numButtons;
+
+    memcpy( state, impl->controllerButtonState, copy * sizeof( bool ) );
+
+    return copy;
 }
 
 static uint32_t WINAPI game_input_reading_GetControllerSwitchCount( v2_IGameInputReading *iface )
 {
     struct game_input_reading *impl = impl_from_IGameInputReading( iface );
-    ERR( "Not for this device %p!\n", impl->device );
-    return 0;
+
+    HRESULT status;
+    const v2_GameInputDeviceInfo *device_info;
+
+    TRACE( "iface %p.\n", iface );
+
+    status = v2_IGameInputDevice_GetDeviceInfo( impl->device, &device_info );
+    if ( FAILED( status ) ) return 0;
+
+    return device_info->controllerSwitchCount;
 }
 
 static uint32_t WINAPI game_input_reading_GetControllerSwitchState( v2_IGameInputReading *iface, uint32_t count, GameInputSwitchPosition *state )
 {
+    uint32_t copy;
+    uint32_t numSwitches;
     struct game_input_reading *impl = impl_from_IGameInputReading( iface );
-    ERR( "Not for this device %p!\n", impl->device );
-    return 0;
+    
+    TRACE( "iface %p, count %d, state %p!\n", iface, count, state );
+
+    numSwitches = v2_IGameInputReading_GetControllerSwitchCount( iface );
+    copy = ( count < numSwitches ) ? count : numSwitches;
+
+    memcpy( state, impl->switchState, copy * sizeof( GameInputSwitchPosition ) );
+
+    return copy;
 }
 
+// MSDN Error: GetKeyCount API is for Keyboards, not Game Controllers!
+// Reference: https://learn.microsoft.com/en-us/gaming/gdk/docs/reference/input/gameinput-v2/interfaces/igameinputreading/methods/igameinputreading_getkeycount-v2
 static uint32_t WINAPI game_input_reading_GetKeyCount( v2_IGameInputReading *iface )
 {
-    struct game_input_reading *impl = impl_from_IGameInputReading( iface );
-    ERR( "Not for this device %p!\n", impl->device );
+    FIXME( "iface %p stub!\n", iface );
     return 0;
 }
 
 static uint32_t WINAPI game_input_reading_GetKeyState( v2_IGameInputReading *iface, uint32_t count, GameInputKeyState *state )
 {
-    struct game_input_reading *impl = impl_from_IGameInputReading( iface );
-    ERR( "Not for this device %p!\n", impl->device );
+    FIXME( "iface %p, count %d, state %p stub!\n", iface, count, state );
     return 0;
 }
 
@@ -145,50 +206,56 @@ static bool WINAPI game_input_reading_GetMouseState( v2_IGameInputReading *iface
 {
     struct game_input_reading *impl = impl_from_IGameInputReading( iface );
     TRACE( "iface %p, state %p.\n", iface, state );
-    *state = impl->mouseState;
-    return true;
+    if( state ) *state = impl->mouseState;
+    return !!state;
 }
 
 static bool WINAPI game_input_reading_GetSensorsState( v2_IGameInputReading *iface, GameInputSensorsState *state )
 {
     struct game_input_reading *impl = impl_from_IGameInputReading( iface );
-    ERR( "Not for this device %p!\n", impl->device );
-    return false;
+    TRACE( "iface %p, state %p.\n", iface, state );
+    if( state ) *state = impl->sensorsState;
+    return !!state;
 }
 
 static bool WINAPI game_input_reading_GetArcadeStickState( v2_IGameInputReading *iface, GameInputArcadeStickState *state )
 {
     struct game_input_reading *impl = impl_from_IGameInputReading( iface );
-    ERR( "Not for this device %p!\n", impl->device );
-    return false;
+    TRACE( "iface %p, state %p.\n", iface, state );
+    if( state ) *state = impl->arcadeStickState;
+    return !!state;
 }
 
 static bool WINAPI game_input_reading_GetFlightStickState( v2_IGameInputReading *iface, GameInputFlightStickState *state )
 {
     struct game_input_reading *impl = impl_from_IGameInputReading( iface );
-    ERR( "Not for this device %p!\n", impl->device );
-    return false;
+    TRACE( "iface %p, state %p.\n", iface, state );
+    if( state ) *state = impl->flightStickState;
+    return !!state;
 }
 
 static bool WINAPI game_input_reading_GetGamepadState( v2_IGameInputReading *iface, GameInputGamepadState *state )
 {
     struct game_input_reading *impl = impl_from_IGameInputReading( iface );
-    FIXME( "Not for this device %p!\n", impl->device );
-    return false;
+    TRACE( "iface %p, state %p.\n", iface, state );
+    if( state ) *state = impl->gamepadState;
+    return !!state;
 }
 
 static bool WINAPI game_input_reading_GetRacingWheelState( v2_IGameInputReading *iface, GameInputRacingWheelState *state )
 {
     struct game_input_reading *impl = impl_from_IGameInputReading( iface );
-    ERR( "Not for this device %p!\n", impl->device );
-    return false;
+    TRACE( "iface %p, state %p.\n", iface, state );
+    if( state ) *state = impl->racingWheelState;
+    return !!state;
 }
 
 static bool WINAPI game_input_reading_GetUiNavigationState( v2_IGameInputReading *iface, GameInputUiNavigationState *state )
 {
     struct game_input_reading *impl = impl_from_IGameInputReading( iface );
-    ERR( "Not for this device %p!\n", impl->device );
-    return false;
+    TRACE( "iface %p, state %p.\n", iface, state );
+    if( state ) *state = impl->uiNavigationState;
+    return !!state;
 }
 
 const struct v2_IGameInputReadingVtbl game_input_reading_vtbl =
@@ -228,6 +295,24 @@ HRESULT game_input_reading_CreateForMouseDevice( v2_IGameInputDevice *device, v2
 
     impl->v2_IGameInputReading_iface.lpVtbl = &game_input_reading_vtbl;
     impl->mouseState = state;
+    impl->ref = 1;
+
+    *out = &impl->v2_IGameInputReading_iface;
+    TRACE( "created v2_IGameInputReading %p\n", &impl->v2_IGameInputReading_iface );
+
+    return S_OK;
+}
+
+HRESULT game_input_reading_CreateForGamepadDevice( v2_IGameInputDevice *device, GameInputGamepadState state, uint64_t timestamp, v2_IGameInputReading **out )
+{
+    struct game_input_reading *impl;
+
+    TRACE( "device %p\n", device );
+
+    if (!(impl = calloc( 1, sizeof(*impl) ))) return E_OUTOFMEMORY;
+
+    impl->v2_IGameInputReading_iface.lpVtbl = &game_input_reading_vtbl;
+    impl->gamepadState = state;
     impl->ref = 1;
 
     *out = &impl->v2_IGameInputReading_iface;
