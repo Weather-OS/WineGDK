@@ -22,15 +22,37 @@
 
 import "propidl.idl";
 
+cpp_quote("#include <xtaskqueue.h>")
+
 // --- xgameruntime --- //
 typedef void* XSystemHandle;
+typedef void* XUserChangeEventCallback;
+typedef void* XUserHandle;
+typedef void* XUserSignOutDeferralHandle;
 
 typedef enum XSystemHandleType XSystemHandleType;
 typedef enum XSystemHandleCallbackReason XSystemHandleCallbackReason;
 typedef enum XGameRuntimeFeature XGameRuntimeFeature;
+typedef enum XUserAddOptions XUserAddOptions;
+typedef enum XUserAgeGroup XUserAgeGroup;
+typedef enum XUserGamerPictureSize XUserGamerPictureSize;
+typedef enum XUserGetTokenAndSignatureOptions XUserGetTokenAndSignatureOptions;
+typedef enum XUserPrivilege XUserPrivilege;
+typedef enum XUserPrivilegeDenyReason XUserPrivilegeDenyReason;
+typedef enum XUserPrivilegeOptions XUserPrivilegeOptions;
+typedef enum XUserState XUserState;
 
 typedef struct XVersion XVersion;
 typedef struct XSystemAnalyticsInfo XSystemAnalyticsInfo;
+typedef struct XAsyncBlock XAsyncBlock;
+typedef struct XTaskQueueObject* XTaskQueueHandle;
+typedef struct XTaskQueueRegistrationToken XTaskQueueRegistrationToken;
+typedef struct XUserGetTokenAndSignatureData XUserGetTokenAndSignatureData;
+typedef struct XUserGetTokenAndSignatureUtf16Data XUserGetTokenAndSignatureUtf16Data;
+typedef struct XUserGetTokenAndSignatureHttpHeader XUserGetTokenAndSignatureHttpHeader;
+typedef struct XUserLocalId XUserLocalId;
+
+typedef void XAsyncCompletionRoutine(struct XAsyncBlock* asyncBlock);
 
 interface IWineAsyncWorkImpl;
 interface IXSystemImpl;
@@ -93,6 +115,78 @@ enum XSystemHandleCallbackReason
     Destroyed   = 0x01
 };
 
+enum XUserAddOptions
+{
+    XUserAddOptions_None                        = 0,
+    XUserAddOptions_AddDefaultUserSilently      = 1,
+    XUserAddOptions_AllowGuests                 = 2,
+    XUserAddOptions_AddDefaultUserAllowingUI    = 4
+};
+
+enum XUserAgeGroup
+{
+    XUserAgeGroup_Unknown   = 0,
+    XUserAgeGroup_Child     = 1,
+    XUserAgeGroup_Teen      = 2,
+    XUserAgeGroup_Adult     = 3
+};
+
+enum XUserGamerPictureSize
+{
+    XUserGamerPictureSize_Small         = 0,
+    XUserGamerPictureSize_Medium        = 1,
+    XUserGamerPictureSize_Large         = 2,
+    XUserGamerPictureSize_ExtraLarge    = 3
+};
+
+enum XUserGetTokenAndSignatureOptions
+{
+    XUserGetTokenAndSignatureOptions_None           = 0,
+    XUserGetTokenAndSignatureOptions_ForceRefresh   = 1,
+    XUserGetTokenAndSignatureOptions_AllUsers       = 2
+};
+
+enum XUserPrivilege
+{
+    XUserPrivilege_CrossPlay            = 185,
+    XUserPrivilege_Clubs                = 188,
+    XUserPrivilege_Sessions             = 189,
+    XUserPrivilege_Broadcast            = 190,
+    XUserPrivilege_ManageProfilePrivacy = 196,
+    XUserPrivilege_GameDvr              = 198,
+    XUserPrivilege_MultiplayerParties   = 203,
+    XUserPrivilege_CloudManageSession   = 207,
+    XUserPrivilege_CloudJoinSession     = 208,
+    XUserPrivilege_CloudSavedGames      = 209,
+    XUserPrivilege_SocialNetworkSharing = 220,
+    XUserPrivilege_UserGeneratedContent = 247,
+    XUserPrivilege_Communications       = 252,
+    XUserPrivilege_Multiplayer          = 254,
+    XUserPrivilege_AddFriends           = 255
+};
+
+enum XUserPrivilegeDenyReason
+{
+    XUserPrivilegeDenyReason_None               = 0,
+    XUserPrivilegeDenyReason_PurchaseRequired   = 1,
+    XUserPrivilegeDenyReason_Restricted         = 2,
+    XUserPrivilegeDenyReason_Banned             = 3,
+    XUserPrivilegeDenyReason_Unknown            = -1
+};
+
+enum XUserPrivilegeOptions
+{
+    XUserPrivilegeOptions_None      = 0,
+    XUserPrivilegeOptions_AllUsers  = 1
+};
+
+enum XUserState
+{
+    XUserState_SignedIn     = 0,
+    XUserState_SigningOut   = 1,
+    XUserState_SignedOut    = 2
+};
+
 struct XVersion {  
     union
     {
@@ -113,6 +207,33 @@ struct XSystemAnalyticsInfo
     XVersion hostingOsVersion;  
     CHAR family[64];  
     CHAR form[64];
+};
+
+struct XUserGetTokenAndSignatureData
+{
+    SIZE_T tokenSize;
+    SIZE_T signatureSize;
+    LPCSTR token;
+    LPCSTR signature;
+};
+
+struct XUserGetTokenAndSignatureUtf16Data
+{
+    SIZE_T tokenSize;
+    SIZE_T signatureSize;
+    LPCWSTR token;
+    LPCWSTR signature;
+};
+
+struct XUserGetTokenAndSignatureHttpHeader
+{
+    LPCSTR name;
+    LPCSTR value;
+};
+
+struct XUserLocalId
+{
+    UINT64 value;
 };
 
 [
@@ -163,6 +284,49 @@ interface IXGameRuntimeFeatureImpl : IUnknown
 }
 
 [
+    local,
+    object,
+    uuid(079415e3-6727-437f-8e9d-8f8f9b2439f7)
+]
+interface IXUserImpl : IUnknown
+{
+    HRESULT XUserDuplicateHandle( [in] XUserHandle user, [out] XUserHandle* duplicated);
+    void XUserCloseHandle( [in] XUserHandle user );
+    INT32 XUserCompare( [in] XUserHandle user1, [in] XUserHandle user2 );
+    HRESULT XUserGetMaxUsers( [out] UINT32* maxUsers );
+    HRESULT XUserAddAsync( [in] XUserAddOptions options, [in,out] XAsyncBlock* asyncBlock );
+    HRESULT XUserAddResult( [in,out] XAsyncBlock* asyncBlock, [out] XUserHandle* user );
+    HRESULT XUserGetLocalId( [in] XUserHandle user, [out] XUserLocalId* localId );
+    HRESULT XUserFindUserByLocalId( [in] XUserLocalId localId, [out] XUserHandle* user );
+    HRESULT XUserGetId( [in] XUserHandle user, [out] UINT64* userId );
+    HRESULT XUserFindUserById( [in] UINT64 userId, [out] XUserHandle* user );
+    HRESULT XUserGetIsGuest( [in] XUserHandle user, [out] BOOLEAN* isGuest );
+    HRESULT XUserGetState( [in] XUserHandle user, [out] XUserState* state );
+    HRESULT __PADDING__();
+    HRESULT XUserGetGamerPictureAsync( [in] XUserHandle user, [in] XUserGamerPictureSize size, [in,out] XAsyncBlock* asyncBlock );
+    HRESULT XUserGetGamerPictureResultSize( [in,out] XAsyncBlock* asyncBlock, [out] SIZE_T* size );
+    HRESULT XUserGetGamerPictureResult( [in,out] XAsyncBlock* asyncBlock, [in] SIZE_T size, [out] void* buffer, [out] SIZE_T* used );
+    HRESULT XUserGetAgeGroup( [in] XUserHandle user, [out] XUserAgeGroup* group );
+    HRESULT XUserCheckPrivilege( [in] XUserHandle user, [in] XUserPrivilegeOptions options, [in] XUserPrivilege privilege, [out] BOOLEAN* hasPrivilege, [out] XUserPrivilegeDenyReason* reason );
+    HRESULT XUserResolvePrivilegeWithUiAsync( [in] XUserHandle user, [in] XUserPrivilegeOptions options, [in] XUserPrivilege privilege, [in,out] XAsyncBlock* asyncBlock );
+    HRESULT XUserResolvePrivilegeWithUiResult( [in,out] XAsyncBlock* asyncBlock );
+    HRESULT XUserGetTokenAndSignatureAsync( [in] XUserHandle user, [in] XUserGetTokenAndSignatureOptions options, [in] LPCSTR method, [in] LPCSTR url, [in] SIZE_T count, [in] const XUserGetTokenAndSignatureHttpHeader* headers, [in] SIZE_T size, [in] const void* buffer, [in,out] XAsyncBlock* asyncBlock );
+    HRESULT XUserGetTokenAndSignatureResultSize( [in,out] XAsyncBlock* asyncBlock, [out] SIZE_T* size );
+    HRESULT XUserGetTokenAndSignatureResult( [in,out] XAsyncBlock* asyncBlock, [in] SIZE_T size, [out] void* buffer, [out] XUserGetTokenAndSignatureData** ptr, [out] SIZE_T* used );
+    HRESULT XUserGetTokenAndSignatureUtf16Async( [in] XUserHandle user, [in] XUserGetTokenAndSignatureOptions options, [in] LPCWSTR method, [in] LPCWSTR url, [in] SIZE_T count, [in] const XUserGetTokenAndSignatureHttpHeader* headers, [in] SIZE_T size, [in] const void* buffer, [in,out] XAsyncBlock* asyncBlock );
+    HRESULT XUserGetTokenAndSignatureUtf16ResultSize( [in,out] XAsyncBlock* asyncBlock, [out] SIZE_T* size );
+    HRESULT XUserGetTokenAndSignatureUtf16Result( [in,out] XAsyncBlock* asyncBlock, [in] SIZE_T size, [out] void* buffer, [out] XUserGetTokenAndSignatureUtf16Data** ptr, [out] SIZE_T* used );
+    HRESULT XUserResolveIssueWithUiAsync( [in] XUserHandle user, [in] LPCSTR url, [in,out] XAsyncBlock* asyncBlock );
+    HRESULT XUserResolveIssueWithUiResult( [in,out] XAsyncBlock* asyncBlock );
+    HRESULT XUserResolveIssueWithUiUtf16Async( [in] XUserHandle user, [in] LPCWSTR url, [in,out] XAsyncBlock* asyncBlock );
+    HRESULT XUserResolveIssueWithUiUtf16Result( [in,out] XAsyncBlock* asyncBlock );
+    HRESULT XUserRegisterForChangeEvent( [in] XTaskQueueHandle queue, [in] void* context, [in] XUserChangeEventCallback* callback, [in] XTaskQueueRegistrationToken* token );
+    BOOLEAN XUserUnregisterForChangeEvent( [in] XTaskQueueRegistrationToken token, [in] BOOLEAN wait );
+    HRESULT XUserGetSignOutDeferral( [out] XUserSignOutDeferralHandle* deferral );
+    void XUserCloseSignOutDeferralHandle( [in] XUserSignOutDeferralHandle deferral );
+}
+
+[
     uuid(e349bd1a-fc20-4e40-b99c-4178cc6b409f)
 ]
 coclass XSystemImpl
@@ -186,3 +350,10 @@ coclass XGameRuntimeFeatureImpl
     [default] interface IXGameRuntimeFeatureImpl;
 }
 
+[
+    uuid(01acd177-91f9-4763-a38e-ccbb55ce32e0)
+]
+coclass XUserImpl
+{
+    [default] interface IXUserImpl;
+}
