@@ -209,6 +209,10 @@ HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, voi
         return IXAppCaptureImpl_QueryInterface( x_app_capture_impl, interfaceId, out );
     if (IsEqualGUID( runtimeClassId, &CLSID_XAppCaptureImpl2 ))
         return IXAppCaptureImpl5_QueryInterface( x_app_capture2_impl, interfaceId, out );
+    if (IsEqualGUID( runtimeClassId, &CLSID_XDisplayImpl ))
+        return IXDisplayImpl_QueryInterface( x_display_impl, interfaceId, out );
+    if (IsEqualGUID( runtimeClassId, &CLSID_XLauncherImpl ))
+        return IXLauncherImpl_QueryInterface( x_launcher_impl, interfaceId, out );
 
     FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( runtimeClassId ) );
     return E_NOTIMPL;

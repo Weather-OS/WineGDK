@@ -1,4 +1,4 @@
-IMPORTS   = user32 advapi32 crypt32 combase winhttp
+IMPORTS   = user32 advapi32 crypt32 combase shell32 winhttp
 MODULE    = xgameruntime.dll
 
 SOURCES = \
@@ -13,6 +13,7 @@ SOURCES = \
 	GDKComponent/System/XAccessibility.c \
 	GDKComponent/System/XAppCapture.c \
 	GDKComponent/System/XGameRuntimeFeature.c \
+	GDKComponent/System/XLauncher.c \
 	GDKComponent/System/XSystem.c \
 	GDKComponent/System/XSystemAnalytics.c \
 	GDKComponent/System/XThreading.c \

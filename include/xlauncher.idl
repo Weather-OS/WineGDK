@@ -16,27 +16,30 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef __WINE_XGAMERUNTIME_H
-#define __WINE_XGAMERUNTIME_H
+import "unknwn.idl";
+import "xdisplay.idl";
+import "xuser.idl";
 
-/* April 2026 Release of GDK */
-#define GDKC_VERSION 10002L
-#define GAMING_SERVICES_VERSION 7822L
+cpp_quote("#ifdef __WINESRC__")
 
-#include <xaccessibility.h>
-#include <xappcapture.h>
-#include <xasync.h>
-#include <xasyncprovider.h>
-#include <xdisplay.h>
-#include <xgameerr.h>
-#include <xgameruntimefeature.h>
-#include <xgameruntimeinit.h>
-#include <xgameruntimetypes.h>
-#include <xlauncher.h>
-#include <xnetworking.h>
-#include <xspeechsynthesizer.h>
-#include <xsystem.h>
-#include <xtaskqueue.h>
-#include <xuser.h>
+[
+    local,
+    object,
+    uuid(1b339674-328d-4283-a200-3171f18d3639)
+]
+interface IXLauncherImpl : IUnknown
+{
+    HRESULT XLaunchUri( [in, optional] XUserHandle user, [in, string] const char *uri );
+    HRESULT XDisplayAcquireTimeoutDeferral( [out] XDisplayTimeoutDeferralHandle *handle );
+    void    XDisplayCloseTimeoutDeferralHandle( [in] XDisplayTimeoutDeferralHandle handle );
+}
 
-#endif
+[
+    uuid(1b339674-328d-4283-a200-3171f18d3639)
+]
+coclass XLauncherImpl
+{
+    [default] interface IXLauncherImpl;
+}
+
+cpp_quote("#endif")
