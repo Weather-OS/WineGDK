@@ -1242,6 +1242,7 @@ SOURCES = \
 	xgameruntimefeature.idl \
 	xcmc.h \
 	xinput.h \
+	xlauncher.idl \
 	xmldom.h \
 	xmldom.idl \
 	xmldomdid.h \
