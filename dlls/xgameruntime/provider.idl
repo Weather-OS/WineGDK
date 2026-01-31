@@ -327,6 +327,16 @@ interface IXUserImpl : IUnknown
 }
 
 [
+    local,
+    object,
+    uuid(1b339674-328d-4283-a200-3171f18d3639)
+]
+interface IXLauncherImpl : IUnknown
+{
+    HRESULT XLaunchUri( [in] XUserHandle user, [in] LPCSTR uri );
+}
+
+[
     uuid(e349bd1a-fc20-4e40-b99c-4178cc6b409f)
 ]
 coclass XSystemImpl
@@ -356,4 +366,12 @@ coclass XGameRuntimeFeatureImpl
 coclass XUserImpl
 {
     [default] interface IXUserImpl;
+}
+
+[
+    uuid(1b339674-328d-4283-a200-3171f18d3639)
+]
+coclass XLauncherImpl
+{
+    [default] interface IXLauncherImpl;
 }

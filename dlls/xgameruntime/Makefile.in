@@ -1,4 +1,4 @@
-IMPORTS   = user32 advapi32 combase
+IMPORTS   = user32 advapi32 combase shell32
 MODULE    = xgameruntime.dll
 
 SOURCES = \
@@ -17,5 +17,6 @@ SOURCES = \
 	GDKComponent/System/XSystemAnalytics.c \
 	GDKComponent/System/XGameRuntimeFeature.c \
 	GDKComponent/System/XNetworking.c \
-	GDKComponent/System/XUser.c
+	GDKComponent/System/XUser.c \
+	GDKComponent/System/XLauncher.c
 
