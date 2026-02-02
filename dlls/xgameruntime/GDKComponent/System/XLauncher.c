@@ -68,7 +68,7 @@ static ULONG WINAPI x_launcher_Release(IXLauncherImpl *iface)
 static HRESULT WINAPI x_launcher_XLaunchUri(IXLauncherImpl *iface, XUserHandle user, LPCSTR uri)
 {
     TRACE("iface %p, user %p launching uri %s\n", iface, user, uri);
-    return ShellExecuteA(NULL, "open", uri, NULL, NULL, SW_SHOW) > 32 ? S_OK : E_GAMEPACKAGE_NO_PACKAGE_IDENTIFIER;
+    return (SIZE_T)ShellExecuteA(NULL, "open", uri, NULL, NULL, SW_SHOW) > 32 ? S_OK : E_GAMEPACKAGE_NO_PACKAGE_IDENTIFIER;
 }
 
 static const struct IXLauncherImplVtbl x_launcher_vtbl = {
