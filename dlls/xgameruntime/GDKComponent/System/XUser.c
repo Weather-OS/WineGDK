@@ -89,16 +89,68 @@ static HRESULT WINAPI x_user_XUserGetMaxUsers(IXUserImpl* iface, UINT32* maxUser
     return E_NOTIMPL;
 }
 
+struct XUserAddContext {
+    XUserAddOptions options;
+    XUserHandle user;
+};
+
+HRESULT XUserAddProvider(XAsyncOp operation, const XAsyncProviderData* providerData)
+{
+    struct XUserAddContext* context;
+    IXThreadingImpl* impl;
+
+    TRACE("operation %d, providerData %p\n", operation, providerData);
+
+    if (FAILED(QueryApiImpl(&CLSID_XThreadingImpl, &IID_IXThreadingImpl, (void**)&impl))) return E_FAIL;
+    context = providerData->context;
+
+    switch (operation)
+    {
+        case Begin:
+            return impl->lpVtbl->XAsyncSchedule(impl, providerData->async, 0);
+
+        case GetResult:
+            memcpy(providerData->buffer, &context->user, sizeof(XUserHandle));
+            break;
+
+        case DoWork:
+            // TODO
+            impl->lpVtbl->XAsyncComplete(impl, providerData->async, S_OK, sizeof(XUserHandle));
+            break;
+
+        case Cleanup:
+            free(context);
+            break;
+
+        case Cancel:
+            break;
+    }
+
+    return S_OK;
+}
+
 static HRESULT WINAPI x_user_XUserAddAsync(IXUserImpl* iface, XUserAddOptions options, XAsyncBlock* asyncBlock)
 {
-    FIXME("iface %p, options %d, asyncBlock %p stub!\n", iface, options, asyncBlock);
-    return E_NOTIMPL;
+    struct XUserAddContext* context;
+    IXThreadingImpl* impl;
+
+    TRACE("iface %p, options %d, asyncBlock %p\n", iface, options, asyncBlock);
+
+    if (FAILED(QueryApiImpl(&CLSID_XThreadingImpl, &IID_IXThreadingImpl, (void**)&impl))) return E_NOTIMPL;
+    if (!(context = calloc(1, sizeof(struct XUserAddContext)))) return E_OUTOFMEMORY;
+    context->options = options;
+
+    return impl->lpVtbl->XAsyncBegin(impl, asyncBlock, context, x_user_XUserAddAsync, "XUserAddAsync", XUserAddProvider);
 }
 
 static HRESULT WINAPI x_user_XUserAddResult(IXUserImpl* iface, XAsyncBlock* asyncBlock, XUserHandle* user)
 {
-    FIXME("iface %p, asyncBlock %p, user %p stub!\n", iface, asyncBlock, *user);
-    return E_NOTIMPL;
+    IXThreadingImpl* impl;
+
+    TRACE("iface %p, asyncBlock %p, user %p\n", iface, asyncBlock, *user);
+
+    if (FAILED(QueryApiImpl(&CLSID_XThreadingImpl, &IID_IXThreadingImpl, (void**)&impl))) return E_NOTIMPL;
+    return impl->lpVtbl->XAsyncGetResult(impl, asyncBlock, x_user_XUserAddAsync, sizeof(XUserHandle), user, NULL);
 }
 
 static HRESULT WINAPI x_user_XUserGetLocalId(IXUserImpl* iface, XUserHandle user, XUserLocalId* localId)
@@ -273,40 +325,40 @@ static const struct IXUserImplVtbl x_user_vtbl =
     x_user_AddRef,
     x_user_Release,
     /* IXUserImpl methods */
-    &x_user_XUserDuplicateHandle,
-    &x_user_XUserCloseHandle,
-    &x_user_XUserCompare,
-    &x_user_XUserGetMaxUsers,
-    &x_user_XUserAddAsync,
-    &x_user_XUserAddResult,
-    &x_user_XUserGetLocalId,
-    &x_user_XUserFindUserByLocalId,
-    &x_user_XUserGetId,
-    &x_user_XUserFindUserById,
-    &x_user_XUserGetIsGuest,
-    &x_user_XUserGetState,
-    &__PADDING__,
-    &x_user_XUserGetGamerPictureAsync,
-    &x_user_XUserGetGamerPictureResultSize,
-    &x_user_XUserGetGamerPictureResult,
-    &x_user_XUserGetAgeGroup,
-    &x_user_XUserCheckPrivilege,
-    &x_user_XUserResolvePrivilegeWithUiAsync,
-    &x_user_XUserResolvePrivilegeWithUiResult,
-    &x_user_XUserGetTokenAndSignatureAsync,
-    &x_user_XUserGetTokenAndSignatureResultSize,
-    &x_user_XUserGetTokenAndSignatureResult,
-    &x_user_XUserGetTokenAndSignatureUtf16Async,
-    &x_user_XUserGetTokenAndSignatureUtf16ResultSize,
-    &x_user_XUserGetTokenAndSignatureUtf16Result,
-    &x_user_XUserResolveIssueWithUiAsync,
-    &x_user_XUserResolveIssueWithUiResult,
-    &x_user_XUserResolveIssueWithUiUtf16Async,
-    &x_user_XUserResolveIssueWithUiUtf16Result,
-    &x_user_XUserRegisterForChangeEvent,
-    &x_user_XUserUnregisterForChangeEvent,
-    &x_user_XUserGetSignOutDeferral,
-    &x_user_XUserCloseSignOutDeferralHandle
+    x_user_XUserDuplicateHandle,
+    x_user_XUserCloseHandle,
+    x_user_XUserCompare,
+    x_user_XUserGetMaxUsers,
+    x_user_XUserAddAsync,
+    x_user_XUserAddResult,
+    x_user_XUserGetLocalId,
+    x_user_XUserFindUserByLocalId,
+    x_user_XUserGetId,
+    x_user_XUserFindUserById,
+    x_user_XUserGetIsGuest,
+    x_user_XUserGetState,
+    __PADDING__,
+    x_user_XUserGetGamerPictureAsync,
+    x_user_XUserGetGamerPictureResultSize,
+    x_user_XUserGetGamerPictureResult,
+    x_user_XUserGetAgeGroup,
+    x_user_XUserCheckPrivilege,
+    x_user_XUserResolvePrivilegeWithUiAsync,
+    x_user_XUserResolvePrivilegeWithUiResult,
+    x_user_XUserGetTokenAndSignatureAsync,
+    x_user_XUserGetTokenAndSignatureResultSize,
+    x_user_XUserGetTokenAndSignatureResult,
+    x_user_XUserGetTokenAndSignatureUtf16Async,
+    x_user_XUserGetTokenAndSignatureUtf16ResultSize,
+    x_user_XUserGetTokenAndSignatureUtf16Result,
+    x_user_XUserResolveIssueWithUiAsync,
+    x_user_XUserResolveIssueWithUiResult,
+    x_user_XUserResolveIssueWithUiUtf16Async,
+    x_user_XUserResolveIssueWithUiUtf16Result,
+    x_user_XUserRegisterForChangeEvent,
+    x_user_XUserUnregisterForChangeEvent,
+    x_user_XUserGetSignOutDeferral,
+    x_user_XUserCloseSignOutDeferralHandle
 };
 
 static struct x_user x_user = {

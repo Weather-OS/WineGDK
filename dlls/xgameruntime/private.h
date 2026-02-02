@@ -61,6 +61,8 @@ typedef struct _INITIALIZE_OPTIONS
     int unused;
 } INITIALIZE_OPTIONS;
 
+HRESULT WINAPI QueryApiImpl( const GUID* runtimeClassId, REFIID interfaceId, void** out );
+
 // a85c3901-18ae-48c9-b066-d368f4523420
 DEFINE_GUID(IID_IXTaskQueue, 0xa85c3901, 0x18ae, 0x48c9, 0xb0, 0x66, 0xd3, 0x68, 0xf4, 0x52, 0x34, 0x20);
 

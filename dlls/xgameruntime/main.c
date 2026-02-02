@@ -143,9 +143,9 @@ HRESULT WINAPI InitializeApiImpl( ULONG gdkVer, ULONG gsVer )
     return InitializeApiImplEx2( gdkVer, gsVer, 0, NULL );
 }
 
-typedef HRESULT (WINAPI *QueryApiImpl_ext)( GUID *runtimeClassId, REFIID interfaceId, void **out );
+typedef HRESULT (WINAPI *QueryApiImpl_ext)( const GUID *runtimeClassId, REFIID interfaceId, void **out );
 
-HRESULT WINAPI QueryApiImpl( GUID *runtimeClassId, REFIID interfaceId, void **out )
+HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, void **out )
 {
     // Interfaces returned are COM interfaces and inherit IUnknown*
     // 
