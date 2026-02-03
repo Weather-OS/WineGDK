@@ -193,6 +193,24 @@ static void _check_object_name( unsigned line, HANDLE handle, const WCHAR *expec
                          debugstr_w(str->Buffer), debugstr_w(expected_name) );
 }
 
+static NTSTATUS open_shared_resource( const WCHAR *name, HANDLE *handle )
+{
+    D3DKMT_OPENNTHANDLEFROMNAME open_name = {0};
+    UNICODE_STRING name_str;
+    OBJECT_ATTRIBUTES attr;
+    NTSTATUS status;
+
+    RtlInitUnicodeString( &name_str, name );
+    InitializeObjectAttributes( &attr, &name_str, OBJ_OPENIF, NULL, NULL );
+
+    open_name.dwDesiredAccess = GENERIC_ALL;
+    open_name.pObjAttrib = &attr;
+
+    status = D3DKMTOpenNtHandleFromName( &open_name );
+    *handle = open_name.hNtHandle;
+    return status;
+}
+
 struct dxgi_runtime_desc
 {
     UINT                        size;
@@ -2821,6 +2839,11 @@ static void test_D3DKMTShareObjects( void )
     NTSTATUS status;
     HANDLE handle;
 
+    HMODULE gdi32;
+    NTSTATUS (WINAPI *pD3DKMTOpenKeyedMutexFromNtHandle)( D3DKMT_OPENKEYEDMUTEXFROMNTHANDLE* );
+    gdi32 = LoadLibraryW( L"gdi32.dll" );
+    pD3DKMTOpenKeyedMutexFromNtHandle = (void *)GetProcAddress( gdi32, "D3DKMTOpenKeyedMutexFromNtHandle" );
+
     wcscpy( open_adapter.DeviceName, L"\\\\.\\DISPLAY1" );
     status = D3DKMTOpenAdapterFromGdiDisplayName( &open_adapter );
     ok_nt( STATUS_SUCCESS, status );
@@ -3334,10 +3357,15 @@ static void test_D3DKMTShareObjects( void )
     open_resource.hSyncObject = 0;
 
     /* D3DKMTOpenKeyedMutexFromNtHandle doesn't work with resource handle */
-    open_mutex_nt.hNtHandle = handle;
-    open_mutex_nt.hKeyedMutex = 0xdeadbeef;
-    status = D3DKMTOpenKeyedMutexFromNtHandle( &open_mutex_nt );
-    todo_wine ok_nt( STATUS_OBJECT_TYPE_MISMATCH, status );
+    if (pD3DKMTOpenKeyedMutexFromNtHandle)
+    {
+        open_mutex_nt.hNtHandle = handle;
+        open_mutex_nt.hKeyedMutex = 0xdeadbeef;
+        status = pD3DKMTOpenKeyedMutexFromNtHandle( &open_mutex_nt );
+        todo_wine ok_nt( STATUS_OBJECT_TYPE_MISMATCH, status );
+    }
+    else /* not available up to win10-1709 */
+        win_skip("Function D3DKMTOpenKeyedMutexFromNtHandle not present in gdi32.dll\n");
 
     memset( &open_resource, 0, sizeof(open_resource) );
     CloseHandle( handle );
@@ -4198,6 +4226,8 @@ static struct opengl_device *create_opengl_device( HWND hwnd, LUID *luid )
 
     const char *extensions, *ptr;
     struct opengl_device *dev;
+    unsigned int nodes = 0;
+    LUID device_luid = {0};
     int format, count;
     GUID guid;
     BOOL ret;
@@ -4232,9 +4262,9 @@ static struct opengl_device *create_opengl_device( HWND hwnd, LUID *luid )
     ok_ptr( extensions, !=, NULL );
 
     ptr = find_opengl_extension( extensions, "GL_EXT_memory_object_win32" );
-    todo_wine ok_ptr( ptr, !=, NULL );
+    ok_ptr( ptr, !=, NULL );
     ptr = find_opengl_extension( extensions, "GL_EXT_semaphore_win32" );
-    todo_wine ok_ptr( ptr, !=, NULL );
+    ok_ptr( ptr, !=, NULL );
     ptr = find_opengl_extension( extensions, "GL_EXT_win32_keyed_mutex" );
     dev->broken = !winetest_platform_is_wine && ptr == NULL; /* missing on AMD, as is support for importing D3D handles */
 
@@ -4256,31 +4286,26 @@ static struct opengl_device *create_opengl_device( HWND hwnd, LUID *luid )
     ok_x4( glGetError(), ==, 0 );
     ok( !IsEqualGUID( &GUID_NULL, &guid ), "got GL_DRIVER_UUID_EXT %s\n", debugstr_guid( &guid ) );
 
-    if (!winetest_platform_is_wine) /* crashes in host drivers */
-    {
-        LUID device_luid = {0};
-        unsigned int nodes = 0;
+    p_glGetUnsignedBytevEXT( GL_DEVICE_LUID_EXT, (GLubyte *)&device_luid );
+    if (!dev->broken) ok_x4( glGetError(), ==, 0 );
+    else ok_x4( glGetError(), ==, GL_INVALID_ENUM );
 
-        p_glGetUnsignedBytevEXT( GL_DEVICE_LUID_EXT, (GLubyte *)&device_luid );
-        if (!dev->broken) ok_x4( glGetError(), ==, 0 );
-        else ok_x4( glGetError(), ==, GL_INVALID_ENUM );
+    glGetIntegerv( GL_DEVICE_NODE_MASK_EXT, (GLint *)&nodes );
+    if (!dev->broken) ok_x4( glGetError(), ==, 0 );
+    else ok_x4( glGetError(), ==, GL_INVALID_ENUM );
+    if (!dev->broken) ok_u4( nodes, !=, 0 );
 
-        glGetIntegerv( GL_DEVICE_NODE_MASK_EXT, (GLint *)&nodes );
-        if (!dev->broken) ok_x4( glGetError(), ==, 0 );
-        else ok_x4( glGetError(), ==, GL_INVALID_ENUM );
-        if (!dev->broken) ok_u4( nodes, !=, 0 );
-
-        if (luid_equals( luid, &luid_zero )) *luid = device_luid;
-    }
+    if (luid_equals( luid, &luid_zero )) *luid = device_luid;
 
     return dev;
 }
 
-static void import_opengl_image( struct opengl_device *dev, UINT width, UINT height, UINT depth, UINT bpp,
-                                 const WCHAR *name, HANDLE handle, UINT handle_type )
+static GLuint import_opengl_image( struct opengl_device *dev, UINT width, UINT height, UINT depth,
+                                   UINT bpp, const WCHAR *name, HANDLE handle, UINT handle_type )
 {
+    PFN_glMemoryObjectParameterivEXT p_glMemoryObjectParameterivEXT;
     PFN_glCreateMemoryObjectsEXT p_glCreateMemoryObjectsEXT;
-    PFN_glDeleteMemoryObjectsEXT p_glDeleteMemoryObjectsEXT;
+    const GLint dedicated = GL_TRUE;
     GLuint memory;
 
     UINT ret;
@@ -4288,7 +4313,14 @@ static void import_opengl_image( struct opengl_device *dev, UINT width, UINT hei
     if (dev->broken && handle_type != GL_HANDLE_TYPE_OPAQUE_WIN32_KMT_EXT && handle_type != GL_HANDLE_TYPE_OPAQUE_WIN32_EXT)
     {
         win_skip( "Skipping unsupported handle types\n" );
-        return;
+        return 0;
+    }
+
+    if (dev->broken && name)
+    {
+        win_skip( "Skipping glImportMemoryWin32NameEXT: AMD driver leaks handle\n" );
+        if (handle) name = NULL;
+        else return 0;
     }
 
     ret = wglMakeCurrent( dev->hdc, dev->rc );
@@ -4296,29 +4328,53 @@ static void import_opengl_image( struct opengl_device *dev, UINT width, UINT hei
 
     p_glCreateMemoryObjectsEXT = (void *)wglGetProcAddress( "glCreateMemoryObjectsEXT" );
     ok_ptr( p_glCreateMemoryObjectsEXT, !=, NULL );
-    p_glDeleteMemoryObjectsEXT = (void *)wglGetProcAddress( "glDeleteMemoryObjectsEXT" );
-    ok_ptr( p_glDeleteMemoryObjectsEXT, !=, NULL );
+    p_glMemoryObjectParameterivEXT = (void *)wglGetProcAddress( "glMemoryObjectParameterivEXT" );
+    ok_ptr( p_glMemoryObjectParameterivEXT, !=, NULL );
 
     if (name)
     {
         PFN_glImportMemoryWin32NameEXT p_glImportMemoryWin32NameEXT = (void *)wglGetProcAddress( "glImportMemoryWin32NameEXT" );
-        todo_wine ok_ptr( p_glImportMemoryWin32NameEXT, !=, NULL );
-        if (!p_glImportMemoryWin32NameEXT) return;
+        ok_ptr( p_glImportMemoryWin32NameEXT, !=, NULL );
+        if (!p_glImportMemoryWin32NameEXT) return 0;
 
         p_glCreateMemoryObjectsEXT( 1, &memory );
+        p_glMemoryObjectParameterivEXT( memory, GL_DEDICATED_MEMORY_OBJECT_EXT, &dedicated );
         p_glImportMemoryWin32NameEXT( memory, width * height * depth * bpp, handle_type, name );
-        p_glDeleteMemoryObjectsEXT( 1, &memory );
+        return memory;
     }
     else
     {
         PFN_glImportMemoryWin32HandleEXT p_glImportMemoryWin32HandleEXT = (void *)wglGetProcAddress( "glImportMemoryWin32HandleEXT" );
-        todo_wine ok_ptr( p_glImportMemoryWin32HandleEXT, !=, NULL );
-        if (!p_glImportMemoryWin32HandleEXT) return;
+        ok_ptr( p_glImportMemoryWin32HandleEXT, !=, NULL );
+        if (!p_glImportMemoryWin32HandleEXT) return 0;
 
         p_glCreateMemoryObjectsEXT( 1, &memory );
+        p_glMemoryObjectParameterivEXT( memory, GL_DEDICATED_MEMORY_OBJECT_EXT, &dedicated );
         p_glImportMemoryWin32HandleEXT( memory, width * height * depth * bpp, handle_type, handle );
-        p_glDeleteMemoryObjectsEXT( 1, &memory );
+        return memory;
     }
+}
+
+static void destroy_opengl_image( struct opengl_device *dev, GLuint memory )
+{
+    PFN_glDeleteMemoryObjectsEXT p_glDeleteMemoryObjectsEXT;
+    UINT ret;
+
+    p_glDeleteMemoryObjectsEXT = (void *)wglGetProcAddress( "glDeleteMemoryObjectsEXT" );
+    ok_ptr( p_glDeleteMemoryObjectsEXT, !=, NULL );
+
+    ret = wglMakeCurrent( dev->hdc, dev->rc );
+    todo_wine_if( ret == 0 ) ok_u4( ret, !=, 0 );
+
+    if (memory) p_glDeleteMemoryObjectsEXT( 1, &memory );
+
+    glFinish();
+}
+
+static void test_import_opengl_image( struct opengl_device *dev, UINT width, UINT height, UINT depth,
+                                      UINT bpp, const WCHAR *name, HANDLE handle, UINT handle_type )
+{
+    destroy_opengl_image( dev, import_opengl_image( dev, width, height, depth, bpp, name, handle, handle_type ) );
 }
 
 static HRESULT get_dxgi_global_handle( IUnknown *obj, HANDLE *handle )
@@ -4574,9 +4630,10 @@ static void test_shared_resources(void)
     ID3D11Device1 *d3d11_exp = NULL, *d3d11_imp = NULL;
     ID3D10Device *d3d10_exp = NULL, *d3d10_imp = NULL;
     ID3D12Device *d3d12_exp = NULL, *d3d12_imp = NULL;
-    BOOL stencil_broken, is_wow64 = FALSE;
+    BOOL stencil_broken, is_wow64 = FALSE, is_win64 = sizeof(void*) > sizeof(int);
     IDXGIFactory3 *dxgi = NULL;
     IDXGIAdapter *adapter;
+    WCHAR path[MAX_PATH];
     LUID luid = {0};
     VkResult vr;
     HRESULT hr;
@@ -4596,7 +4653,8 @@ static void test_shared_resources(void)
 
     vr = create_vulkan_device( &luid, device_extensions, ARRAY_SIZE(device_extensions), &vulkan_exp );
     /* currently fails on llvmpipe on WOW64 without placed memory */
-    todo_wine_if(IsWow64Process(GetCurrentProcess(), &is_wow64) && is_wow64 && vr == VK_ERROR_EXTENSION_NOT_PRESENT)
+    if (!is_win64) IsWow64Process(GetCurrentProcess(), &is_wow64);
+    todo_wine_if((is_win64 || is_wow64) && vr == VK_ERROR_EXTENSION_NOT_PRESENT)
     ok_vk( VK_SUCCESS, vr );
 
     vr = create_vulkan_device( &luid, device_extensions, ARRAY_SIZE(device_extensions), &vulkan_imp );
@@ -5355,6 +5413,14 @@ static void test_shared_resources(void)
             get_d3dkmt_resource_desc( luid, handle, TRUE, 0, runtime_desc );
             break;
         }
+        case MAKETEST(4, 2, 2):
+        {
+            if (!vulkan_exp) break;
+            name = L"__winetest_vulkan_image";
+            img = export_vulkan_image( vulkan_exp, width_2d, height_2d, 1, name, VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT, &handle );
+            get_d3dkmt_resource_desc( luid, handle, FALSE, 0, runtime_desc );
+            break;
+        }
         case MAKETEST(4, 3, 0):
         {
             if (!vulkan_exp) break;
@@ -5367,9 +5433,8 @@ static void test_shared_resources(void)
 
         if (name)
         {
-            WCHAR path[MAX_PATH];
             swprintf( path, ARRAY_SIZE(path), L"\\Sessions\\1\\BaseNamedObjects\\%s", name );
-            todo_wine check_object_name( handle, path );
+            check_object_name( handle, path );
         }
 
         if (d3d9_imp && GET_API(test) <= 3)
@@ -5640,28 +5705,28 @@ static void test_shared_resources(void)
                 switch (GET_DIM(test))
                 {
                 case 0:
-                    import_opengl_image( opengl_imp, resource_size, 1, 1, 1, name, handle, GL_HANDLE_TYPE_OPAQUE_WIN32_KMT_EXT );
+                    test_import_opengl_image( opengl_imp, resource_size, 1, 1, 1, name, handle, GL_HANDLE_TYPE_OPAQUE_WIN32_KMT_EXT );
                     ok_x4( glGetError(), ==, 0 );
-                    import_opengl_image( opengl_imp, resource_size, 1, 1, 1, name, handle, GL_HANDLE_TYPE_D3D11_IMAGE_KMT_EXT );
-                    ok_x4( glGetError(), ==, 0 );
+                    test_import_opengl_image( opengl_imp, resource_size, 1, 1, 1, name, handle, GL_HANDLE_TYPE_D3D11_IMAGE_KMT_EXT );
+                    todo_wine ok_x4( glGetError(), ==, 0 );
                     break;
                 case 1:
-                    import_opengl_image( opengl_imp, width_1d, 1, array_1d, 4, name, handle, GL_HANDLE_TYPE_OPAQUE_WIN32_KMT_EXT );
+                    test_import_opengl_image( opengl_imp, width_1d, 1, array_1d, 4, name, handle, GL_HANDLE_TYPE_OPAQUE_WIN32_KMT_EXT );
                     ok_x4( glGetError(), ==, 0 );
-                    import_opengl_image( opengl_imp, width_1d, 1, array_1d, 4, name, handle, GL_HANDLE_TYPE_D3D11_IMAGE_KMT_EXT );
-                    ok_x4( glGetError(), ==, 0 );
+                    test_import_opengl_image( opengl_imp, width_1d, 1, array_1d, 4, name, handle, GL_HANDLE_TYPE_D3D11_IMAGE_KMT_EXT );
+                    todo_wine ok_x4( glGetError(), ==, 0 );
                     break;
                 case 2:
-                    import_opengl_image( opengl_imp, width_2d, height_2d, 1, 4, name, handle, GL_HANDLE_TYPE_OPAQUE_WIN32_KMT_EXT );
+                    test_import_opengl_image( opengl_imp, width_2d, height_2d, 1, 4, name, handle, GL_HANDLE_TYPE_OPAQUE_WIN32_KMT_EXT );
                     ok_x4( glGetError(), ==, 0 );
-                    import_opengl_image( opengl_imp, width_2d, height_2d, 1, 4, name, handle, GL_HANDLE_TYPE_D3D11_IMAGE_KMT_EXT );
-                    ok_x4( glGetError(), ==, 0 );
+                    test_import_opengl_image( opengl_imp, width_2d, height_2d, 1, 4, name, handle, GL_HANDLE_TYPE_D3D11_IMAGE_KMT_EXT );
+                    todo_wine ok_x4( glGetError(), ==, 0 );
                     break;
                 case 3:
-                    import_opengl_image( opengl_imp, width_3d, height_3d, depth_3d, 4, name, handle, GL_HANDLE_TYPE_OPAQUE_WIN32_KMT_EXT );
+                    test_import_opengl_image( opengl_imp, width_3d, height_3d, depth_3d, 4, name, handle, GL_HANDLE_TYPE_OPAQUE_WIN32_KMT_EXT );
                     ok_x4( glGetError(), ==, 0 );
-                    import_opengl_image( opengl_imp, width_3d, height_3d, depth_3d, 4, name, handle, GL_HANDLE_TYPE_D3D11_IMAGE_KMT_EXT );
-                    ok_x4( glGetError(), ==, 0 );
+                    test_import_opengl_image( opengl_imp, width_3d, height_3d, depth_3d, 4, name, handle, GL_HANDLE_TYPE_D3D11_IMAGE_KMT_EXT );
+                    todo_wine ok_x4( glGetError(), ==, 0 );
                     break;
                 }
             }
@@ -5670,47 +5735,112 @@ static void test_shared_resources(void)
                 switch (GET_DIM(test))
                 {
                 case 0:
-                    import_opengl_image( opengl_imp, resource_size, 1, 1, 1, name, handle, GL_HANDLE_TYPE_OPAQUE_WIN32_EXT );
+                    test_import_opengl_image( opengl_imp, resource_size, 1, 1, 1, name, handle, GL_HANDLE_TYPE_OPAQUE_WIN32_EXT );
                     ok_x4( glGetError(), ==, 0 );
-                    import_opengl_image( opengl_imp, resource_size, 1, 1, 1, name, handle, GL_HANDLE_TYPE_D3D11_IMAGE_EXT );
-                    ok_x4( glGetError(), ==, 0 );
-                    import_opengl_image( opengl_imp, resource_size, 1, 1, 1, name, handle, GL_HANDLE_TYPE_D3D12_TILEPOOL_EXT );
-                    ok_x4( glGetError(), ==, 0 );
-                    import_opengl_image( opengl_imp, resource_size, 1, 1, 1, name, handle, GL_HANDLE_TYPE_D3D12_RESOURCE_EXT );
-                    ok_x4( glGetError(), ==, 0 );
+                    test_import_opengl_image( opengl_imp, resource_size, 1, 1, 1, name, handle, GL_HANDLE_TYPE_D3D11_IMAGE_EXT );
+                    todo_wine ok_x4( glGetError(), ==, 0 );
+                    test_import_opengl_image( opengl_imp, resource_size, 1, 1, 1, name, handle, GL_HANDLE_TYPE_D3D12_TILEPOOL_EXT );
+                    todo_wine ok_x4( glGetError(), ==, 0 );
+                    test_import_opengl_image( opengl_imp, resource_size, 1, 1, 1, name, handle, GL_HANDLE_TYPE_D3D12_RESOURCE_EXT );
+                    todo_wine ok_x4( glGetError(), ==, 0 );
                     break;
                 case 1:
-                    import_opengl_image( opengl_imp, width_1d, 1, array_1d, 4, name, handle, GL_HANDLE_TYPE_OPAQUE_WIN32_EXT );
+                    test_import_opengl_image( opengl_imp, width_1d, 1, array_1d, 4, name, handle, GL_HANDLE_TYPE_OPAQUE_WIN32_EXT );
                     ok_x4( glGetError(), ==, 0 );
-                    import_opengl_image( opengl_imp, width_1d, 1, array_1d, 4, name, handle, GL_HANDLE_TYPE_D3D11_IMAGE_EXT );
-                    ok_x4( glGetError(), ==, 0 );
-                    import_opengl_image( opengl_imp, width_1d, 1, array_1d, 4, name, handle, GL_HANDLE_TYPE_D3D12_TILEPOOL_EXT );
-                    ok_x4( glGetError(), ==, 0 );
-                    import_opengl_image( opengl_imp, width_1d, 1, array_1d, 4, name, handle, GL_HANDLE_TYPE_D3D12_RESOURCE_EXT );
-                    ok_x4( glGetError(), ==, 0 );
+                    test_import_opengl_image( opengl_imp, width_1d, 1, array_1d, 4, name, handle, GL_HANDLE_TYPE_D3D11_IMAGE_EXT );
+                    todo_wine ok_x4( glGetError(), ==, 0 );
+                    test_import_opengl_image( opengl_imp, width_1d, 1, array_1d, 4, name, handle, GL_HANDLE_TYPE_D3D12_TILEPOOL_EXT );
+                    todo_wine ok_x4( glGetError(), ==, 0 );
+                    test_import_opengl_image( opengl_imp, width_1d, 1, array_1d, 4, name, handle, GL_HANDLE_TYPE_D3D12_RESOURCE_EXT );
+                    todo_wine ok_x4( glGetError(), ==, 0 );
                     break;
                 case 2:
-                    import_opengl_image( opengl_imp, width_2d, height_2d, 1, 4, name, handle, GL_HANDLE_TYPE_OPAQUE_WIN32_EXT );
+                    test_import_opengl_image( opengl_imp, width_2d, height_2d, 1, 4, name, handle, GL_HANDLE_TYPE_OPAQUE_WIN32_EXT );
                     ok_x4( glGetError(), ==, 0 );
-                    import_opengl_image( opengl_imp, width_2d, height_2d, 1, 4, name, handle, GL_HANDLE_TYPE_D3D11_IMAGE_EXT );
-                    ok_x4( glGetError(), ==, 0 );
-                    import_opengl_image( opengl_imp, width_2d, height_2d, 1, 4, name, handle, GL_HANDLE_TYPE_D3D12_TILEPOOL_EXT );
-                    ok_x4( glGetError(), ==, 0 );
-                    import_opengl_image( opengl_imp, width_2d, height_2d, 1, 4, name, handle, GL_HANDLE_TYPE_D3D12_RESOURCE_EXT );
-                    ok_x4( glGetError(), ==, 0 );
+                    test_import_opengl_image( opengl_imp, width_2d, height_2d, 1, 4, name, handle, GL_HANDLE_TYPE_D3D11_IMAGE_EXT );
+                    todo_wine ok_x4( glGetError(), ==, 0 );
+                    test_import_opengl_image( opengl_imp, width_2d, height_2d, 1, 4, name, handle, GL_HANDLE_TYPE_D3D12_TILEPOOL_EXT );
+                    todo_wine ok_x4( glGetError(), ==, 0 );
+                    test_import_opengl_image( opengl_imp, width_2d, height_2d, 1, 4, name, handle, GL_HANDLE_TYPE_D3D12_RESOURCE_EXT );
+                    todo_wine ok_x4( glGetError(), ==, 0 );
                     break;
                 case 3:
-                    import_opengl_image( opengl_imp, width_3d, height_3d, depth_3d, 4, name, handle, GL_HANDLE_TYPE_OPAQUE_WIN32_EXT );
+                    test_import_opengl_image( opengl_imp, width_3d, height_3d, depth_3d, 4, name, handle, GL_HANDLE_TYPE_OPAQUE_WIN32_EXT );
                     ok_x4( glGetError(), ==, 0 );
-                    import_opengl_image( opengl_imp, width_3d, height_3d, depth_3d, 4, name, handle, GL_HANDLE_TYPE_D3D11_IMAGE_EXT );
-                    ok_x4( glGetError(), ==, 0 );
-                    import_opengl_image( opengl_imp, width_3d, height_3d, depth_3d, 4, name, handle, GL_HANDLE_TYPE_D3D12_TILEPOOL_EXT );
-                    ok_x4( glGetError(), ==, 0 );
-                    import_opengl_image( opengl_imp, width_3d, height_3d, depth_3d, 4, name, handle, GL_HANDLE_TYPE_D3D12_RESOURCE_EXT );
-                    ok_x4( glGetError(), ==, 0 );
+                    test_import_opengl_image( opengl_imp, width_3d, height_3d, depth_3d, 4, name, handle, GL_HANDLE_TYPE_D3D11_IMAGE_EXT );
+                    todo_wine ok_x4( glGetError(), ==, 0 );
+                    test_import_opengl_image( opengl_imp, width_3d, height_3d, depth_3d, 4, name, handle, GL_HANDLE_TYPE_D3D12_TILEPOOL_EXT );
+                    todo_wine ok_x4( glGetError(), ==, 0 );
+                    test_import_opengl_image( opengl_imp, width_3d, height_3d, depth_3d, 4, name, handle, GL_HANDLE_TYPE_D3D12_RESOURCE_EXT );
+                    todo_wine ok_x4( glGetError(), ==, 0 );
                     break;
                 }
             }
+        }
+
+        /* test shared resource handle lifetime */
+        if (name)
+        {
+            IUnknown *import_d3d11 = NULL, *import_d3d12 = NULL;
+            struct vulkan_image *img_imp = NULL;
+            GLuint gl_img = 0;
+            NTSTATUS status;
+
+            /* On AMD, export-VkDeviceMemory holds a reference, make sure to only hold one with handle */
+            if (img) destroy_vulkan_image( vulkan_exp, img );
+            img = NULL;
+
+            if (vulkan_imp && GET_DIM(test) == 2)
+            {
+                VkResult vr = import_vulkan_image( vulkan_imp, width_2d, height_2d, 1, name, handle, VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT, &img_imp );
+                ok_vk( VK_SUCCESS, vr );
+
+                CloseHandle( handle );
+                status = open_shared_resource( path, &handle );
+                todo_wine ok_nt( STATUS_SUCCESS, status );
+
+                destroy_vulkan_image( vulkan_imp, img_imp );
+            }
+
+            /* On NVIDIA:
+             *    - Memory object holds shared resource handle
+             * On AMD:
+             *    - glImportMemoryWin32NameEXT: leaks a shared resource handle
+             *    - glImportMemoryWin32HandleEXT: doesn't hold a shared resource handle
+             */
+            if (opengl_imp && GET_DIM(test) == 2 && !opengl_imp->broken)
+            {
+                gl_img = import_opengl_image( opengl_imp, width_2d, height_2d, 1, 4, name, handle, GL_HANDLE_TYPE_OPAQUE_WIN32_EXT );
+                todo_wine ok_x4( glGetError(), ==, 0 );
+
+                CloseHandle( handle );
+                status = open_shared_resource( path, &handle );
+                todo_wine ok_nt( STATUS_SUCCESS, status );
+
+                destroy_opengl_image( opengl_imp, gl_img );
+                glFinish();
+            }
+
+            /* D3D objects don't hold shared resource handle */
+
+            if (d3d11_imp && GET_API(test) <= 3)
+            {
+                hr = ID3D11Device1_OpenSharedResourceByName( d3d11_imp, name, GENERIC_ALL, &IID_ID3D11Resource, (void **)&import_d3d11 );
+                ok_hr( S_OK, hr );
+            }
+
+            if (d3d12_imp && GET_API(test) <= 3)
+            {
+                hr = open_d3d12_named_shared_handle( d3d12_imp, name, &IID_ID3D12Resource, (void **)&import_d3d12 );
+                ok_hr( S_OK, hr );
+            }
+
+            CloseHandle( handle );
+            status = open_shared_resource( path, &handle );
+            ok_nt( STATUS_OBJECT_NAME_NOT_FOUND, status );
+
+            if (import_d3d11) IUnknown_Release( import_d3d11 );
+            if (import_d3d12) IUnknown_Release( import_d3d12 );
         }
 
 skip_tests:
@@ -6269,6 +6399,51 @@ static void test_d3d12_fence_from_vulkan_binary( ID3D12Device *device, struct vu
     ID3D12Fence_Release( fence );
 }
 
+static void test_import_opengl_semaphore( struct opengl_device *dev, const WCHAR *name,
+                                          HANDLE handle, UINT handle_type )
+{
+    PFN_glDeleteSemaphoresEXT p_glDeleteSemaphoresEXT;
+    PFN_glGenSemaphoresEXT p_glGenSemaphoresEXT;
+    GLuint semaphore;
+
+    UINT ret;
+
+    if (dev->broken && handle_type == GL_HANDLE_TYPE_D3D12_FENCE_EXT)
+    {
+        win_skip( "Skipping unsupported handle type\n" );
+        return;
+    }
+
+    ret = wglMakeCurrent( dev->hdc, dev->rc );
+    todo_wine_if( ret == 0 ) ok_u4( ret, !=, 0 );
+
+    p_glGenSemaphoresEXT = (void *)wglGetProcAddress( "glGenSemaphoresEXT" );
+    ok_ptr( p_glGenSemaphoresEXT, !=, NULL );
+    p_glDeleteSemaphoresEXT = (void *)wglGetProcAddress( "glDeleteSemaphoresEXT" );
+    ok_ptr( p_glDeleteSemaphoresEXT, !=, NULL );
+
+    if (name)
+    {
+        PFN_glImportSemaphoreWin32NameEXT p_glImportSemaphoreWin32NameEXT = (void *)wglGetProcAddress( "glImportSemaphoreWin32NameEXT" );
+        ok_ptr( p_glImportSemaphoreWin32NameEXT, !=, NULL );
+        if (!p_glImportSemaphoreWin32NameEXT) return;
+
+        p_glGenSemaphoresEXT( 1, &semaphore );
+        p_glImportSemaphoreWin32NameEXT( semaphore, handle_type, name );
+        p_glDeleteSemaphoresEXT( 1, &semaphore );
+    }
+    else
+    {
+        PFN_glImportSemaphoreWin32HandleEXT p_glImportSemaphoreWin32HandleEXT = (void *)wglGetProcAddress( "glImportSemaphoreWin32HandleEXT" );
+        ok_ptr( p_glImportSemaphoreWin32HandleEXT, !=, NULL );
+        if (!p_glImportSemaphoreWin32HandleEXT) return;
+
+        p_glGenSemaphoresEXT( 1, &semaphore );
+        p_glImportSemaphoreWin32HandleEXT( semaphore, handle_type, handle );
+        p_glDeleteSemaphoresEXT( 1, &semaphore );
+    }
+}
+
 static void test_shared_fences(void)
 {
     static const char *device_extensions[] =
@@ -6279,6 +6454,7 @@ static void test_shared_fences(void)
     };
 
     struct vulkan_device *vulkan_imp = NULL, *vulkan_exp = NULL;
+    struct opengl_device *opengl_imp = NULL;
     ID3D11Device5 *d3d11_exp = NULL, *d3d11_imp = NULL;
     ID3D12Device *d3d12_exp = NULL, *d3d12_imp = NULL;
     BOOL has_timeline = FALSE, vk_export_broken;
@@ -6287,8 +6463,18 @@ static void test_shared_fences(void)
     UINT64 max_timeline = -1;
     IDXGIAdapter *adapter;
     LUID luid = {0};
+    GLenum gl_err;
     VkResult vr;
     HRESULT hr;
+    HWND hwnd;
+    MSG msg;
+
+    hwnd = CreateWindowW( L"static", NULL, WS_POPUP | WS_VISIBLE, 100, 100, 200, 200, NULL, NULL, NULL, NULL );
+    ok_ptr( hwnd, !=, NULL );
+    while (PeekMessageA( &msg, 0, 0, 0, PM_REMOVE )) DispatchMessageA( &msg );
+
+    if (!(opengl_imp = create_opengl_device( hwnd, &luid )))
+        win_skip( "Skipping tests on software renderer\n" );
 
     vr = create_vulkan_device( &luid, device_extensions, ARRAY_SIZE(device_extensions), &vulkan_exp );
     todo_wine ok( vr == VK_SUCCESS || broken(vr == VK_ERROR_INITIALIZATION_FAILED || vr == VK_ERROR_INCOMPATIBLE_DRIVER) /* no GPU */, "got vr %d\n", vr );
@@ -6507,6 +6693,24 @@ static void test_shared_fences(void)
             }
         }
 
+        if (opengl_imp)
+        {
+            if (is_d3dkmt_handle( handle ))
+            {
+                test_import_opengl_semaphore( opengl_imp, name, handle, GL_HANDLE_TYPE_OPAQUE_WIN32_KMT_EXT );
+                ok_x4( glGetError(), ==, 0 );
+            }
+            else
+            {
+                test_import_opengl_semaphore( opengl_imp, name, handle, GL_HANDLE_TYPE_OPAQUE_WIN32_EXT );
+                if (test == MAKETEST(2, 4)) ok_x4( glGetError(), ==, 0 );
+                else ok( (gl_err = glGetError()) == 0 || broken(gl_err == GL_INVALID_VALUE) /* NVIDIA */, "glGetError returned %#x\n", gl_err);
+                test_import_opengl_semaphore( opengl_imp, name, handle, GL_HANDLE_TYPE_D3D12_FENCE_EXT );
+                if (test != MAKETEST(2, 4)) todo_wine ok_x4( glGetError(), ==, 0 );
+                else todo_wine ok( (gl_err = glGetError()) == 0 || broken(gl_err == GL_INVALID_VALUE) /* NVIDIA */, "glGetError returned %#x\n", gl_err);
+            }
+        }
+
 skip_tests:
         if (handle && !is_d3dkmt_handle( handle )) CloseHandle( handle );
         if (export) ok_ref( 0, IUnknown_Release( export ) );
@@ -6521,6 +6725,26 @@ skip_tests:
     if (d3d12_exp) ok_ref( 0, ID3D12Device_Release( d3d12_exp ) );
     if (vulkan_imp) destroy_vulkan_device( vulkan_imp );
     if (vulkan_exp) destroy_vulkan_device( vulkan_exp );
+    if (opengl_imp) destroy_opengl_device( opengl_imp);
+    DestroyWindow( hwnd );
+}
+
+static void test_escape(void)
+{
+    D3DKMT_ESCAPE escape = {0};
+    RECT rect = {0};
+
+    todo_wine ok_nt( STATUS_INVALID_PARAMETER, D3DKMTEscape( &escape ) );
+
+    escape.Type = D3DKMT_ESCAPE_UPDATE_RESOURCE_WINE;
+    escape.hContext = 0x1eadbeed;
+    ok_nt( STATUS_INVALID_PARAMETER, D3DKMTEscape( &escape ) );
+
+    escape.Type = D3DKMT_ESCAPE_SET_PRESENT_RECT_WINE;
+    escape.PrivateDriverDataSize = sizeof(rect);
+    escape.pPrivateDriverData = (void *)&rect;
+    escape.hContext = 0x1eadbeed;
+    ok_nt( STATUS_INVALID_PARAMETER, D3DKMTEscape( &escape ) );
 }
 
 START_TEST( d3dkmt )
@@ -6556,4 +6780,5 @@ START_TEST( d3dkmt )
     test_D3DKMTShareObjects();
     test_shared_resources();
     test_shared_fences();
+    test_escape();
 }

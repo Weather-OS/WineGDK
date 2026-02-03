@@ -727,7 +727,7 @@ static HRESULT WINAPI device_statics_CreateFromIdAsyncAdditionalProperties( IDev
     return E_NOTIMPL;
 }
 
-static HRESULT find_all_async( IUnknown *invoker, IUnknown *param, PROPVARIANT *result )
+static HRESULT find_all_async( IUnknown *invoker, IUnknown *param, PROPVARIANT *result, BOOL called_async )
 {
     static const struct vector_iids iids =
     {
@@ -744,7 +744,9 @@ static HRESULT find_all_async( IUnknown *invoker, IUnknown *param, PROPVARIANT *
     const DEV_OBJECT *objects;
     HRESULT hr;
 
-    TRACE( "invoker %p, param %p, result %p\n", invoker, param, result );
+    TRACE( "invoker %p, param %p, result %p, called_async %d\n", invoker, param, result, called_async );
+
+    if (!called_async) return STATUS_PENDING;
 
     params = impl_from_IUnknown( param );
     if (params->expr)

@@ -200,6 +200,7 @@ union file_directory_info
     FILE_BOTH_DIRECTORY_INFORMATION    both;
     FILE_FULL_DIRECTORY_INFORMATION    full;
     FILE_ID_BOTH_DIRECTORY_INFORMATION id_both;
+    FILE_ID_EXTD_BOTH_DIRECTORY_INFORMATION extd_both;
     FILE_ID_FULL_DIRECTORY_INFORMATION id_full;
     FILE_ID_GLOBAL_TX_DIR_INFORMATION  id_tx;
     FILE_NAMES_INFORMATION             names;
@@ -314,6 +315,8 @@ static inline unsigned int dir_info_size( FILE_INFORMATION_CLASS class, unsigned
         return offsetof( FILE_FULL_DIRECTORY_INFORMATION, FileName[len] );
     case FileIdBothDirectoryInformation:
         return offsetof( FILE_ID_BOTH_DIRECTORY_INFORMATION, FileName[len] );
+    case FileIdExtdBothDirectoryInformation:
+        return offsetof( FILE_ID_EXTD_BOTH_DIRECTORY_INFORMATION, FileName[len] );
     case FileIdFullDirectoryInformation:
         return offsetof( FILE_ID_FULL_DIRECTORY_INFORMATION, FileName[len] );
     case FileIdGlobalTxDirectoryInformation:
@@ -1767,8 +1770,9 @@ static NTSTATUS fd_set_file_info( int fd, UINT attr, BOOL force_set_xattr )
 
 
 /* get the stat info and file attributes for a file (by name) */
-static int get_file_info( const char *path, struct stat *st, ULONG *attr )
+static int get_file_info( const char *path, struct stat *st, ULONG *attr, ULONG *reparse_tag )
 {
+    char buffer[MAXIMUM_REPARSE_DATA_BUFFER_SIZE];
     size_t len = strlen( path );
     char *parent_path;
     char attr_data[65];
@@ -1782,7 +1786,11 @@ static int get_file_info( const char *path, struct stat *st, ULONG *attr )
         ret = stat( path, st );
         if (ret == -1) return ret;
         /* is a symbolic link and a directory, consider these "reparse points" */
-        if (S_ISDIR( st->st_mode )) *attr |= FILE_ATTRIBUTE_REPARSE_POINT;
+        if (S_ISDIR( st->st_mode ))
+        {
+            *attr |= FILE_ATTRIBUTE_REPARSE_POINT;
+            if (reparse_tag) *reparse_tag = IO_REPARSE_TAG_LX_SYMLINK;
+        }
     }
     else if (S_ISDIR( st->st_mode ) && (parent_path = malloc( len + 4 )))
     {
@@ -1793,14 +1801,21 @@ static int get_file_info( const char *path, struct stat *st, ULONG *attr )
         strcat( parent_path, "/.." );
         if (!stat( parent_path, &parent_st )
                 && (st->st_dev != parent_st.st_dev || st->st_ino == parent_st.st_ino))
+        {
             *attr |= FILE_ATTRIBUTE_REPARSE_POINT;
+            if (reparse_tag) *reparse_tag = IO_REPARSE_TAG_MOUNT_POINT;
+        }
 
         free( parent_path );
     }
     *attr |= get_file_attributes( st );
 
-    if (path[len - 1] == '?')
+    attr_len = xattr_get( path, XATTR_REPARSE, buffer, sizeof(buffer) );
+    if (attr_len >= 0 && attr_len >= sizeof(ULONG))
+    {
         *attr |= FILE_ATTRIBUTE_REPARSE_POINT;
+        if (reparse_tag) memcpy( reparse_tag, buffer, sizeof(ULONG) );
+    }
 
     attr_len = xattr_get( path, SAMBA_XATTR_DOS_ATTRIB, attr_data, sizeof(attr_data)-1 );
     if (attr_len != -1)
@@ -2068,6 +2083,13 @@ static NTSTATUS fill_file_info( const struct stat *st, ULONG attr, void *ptr,
             fill_file_info( st, attr, info, FileDirectoryInformation );
         }
         break;
+    case FileIdExtdBothDirectoryInformation:
+        {
+            FILE_ID_EXTD_BOTH_DIRECTORY_INFORMATION *info = ptr;
+            *(ULONGLONG *)&info->FileId = st->st_ino;
+            fill_file_info( st, attr, info, FileDirectoryInformation );
+        }
+        break;
     case FileIdGlobalTxDirectoryInformation:
         {
             FILE_ID_GLOBAL_TX_DIR_INFORMATION *info = ptr;
@@ -2138,7 +2160,7 @@ static NTSTATUS server_get_name_info( HANDLE handle, FILE_NAME_INFORMATION *info
             if (*name_len < info->FileNameLength) status = STATUS_BUFFER_OVERFLOW;
             else if (!info->FileNameLength) status = STATUS_INVALID_INFO_CLASS;
             else *name_len = info->FileNameLength;
-            memcpy( info->FileName, ptr, *name_len );
+            if (info->FileNameLength) memcpy( info->FileName, ptr, *name_len );
             free( name );
         }
         else
@@ -2402,9 +2424,9 @@ static NTSTATUS get_dir_data_entry( struct dir_data *dir_data, void *info_ptr, I
     const struct dir_data_names *names = &dir_data->names[dir_data->pos];
     union file_directory_info *info;
     struct stat st;
-    ULONG name_len, start, dir_size, attributes;
+    ULONG name_len, start, dir_size, attributes, reparse_tag;
 
-    if (get_file_info( names->unix_name, &st, &attributes ) == -1)
+    if (get_file_info( names->unix_name, &st, &attributes, &reparse_tag ) == -1)
     {
         TRACE( "file no longer exists %s\n", debugstr_a(names->unix_name) );
         return STATUS_SUCCESS;
@@ -2462,6 +2484,14 @@ static NTSTATUS get_dir_data_entry( struct dir_data *dir_data, void *info_ptr, I
         info->id_both.ShortNameLength = wcslen( names->short_name ) * sizeof(WCHAR);
         memcpy( info->id_both.ShortName, names->short_name, info->id_both.ShortNameLength );
         info->id_both.FileNameLength = name_len;
+        break;
+
+    case FileIdExtdBothDirectoryInformation:
+        info->extd_both.EaSize = 0; /* FIXME */
+        info->extd_both.ReparsePointTag = reparse_tag;
+        info->extd_both.ShortNameLength = wcslen( names->short_name ) * sizeof(WCHAR);
+        memcpy( info->extd_both.ShortName, names->short_name, info->extd_both.ShortNameLength );
+        info->extd_both.FileNameLength = name_len;
         break;
 
     case FileIdGlobalTxDirectoryInformation:
@@ -2813,7 +2843,7 @@ static unsigned int get_cached_dir_data( HANDLE handle, struct dir_data **data_r
     }
 
     *data_ret = dir_data_cache[entry];
-    if (restart_scan) (*data_ret)->pos = 0;
+    if (restart_scan && *data_ret) (*data_ret)->pos = 0;
     return status;
 }
 
@@ -2847,6 +2877,7 @@ NTSTATUS WINAPI NtQueryDirectoryFile( HANDLE handle, HANDLE event, PIO_APC_ROUTI
     case FileBothDirectoryInformation:
     case FileFullDirectoryInformation:
     case FileIdBothDirectoryInformation:
+    case FileIdExtdBothDirectoryInformation:
     case FileIdFullDirectoryInformation:
     case FileIdGlobalTxDirectoryInformation:
     case FileNamesInformation:
@@ -3599,6 +3630,7 @@ static NTSTATUS lookup_unix_name( int root_fd, OBJECT_ATTRIBUTES *attr, UNICODE_
                     return status;
                 }
             }
+            free( reparse_name );
         }
 
         /* if this is the last element, not finding it is not necessarily fatal */
@@ -4793,7 +4825,7 @@ NTSTATUS WINAPI NtQueryFullAttributesFile( const OBJECT_ATTRIBUTES *attr,
         ULONG attributes;
         struct stat st;
 
-        if (get_file_info( unix_name, &st, &attributes ) == -1)
+        if (get_file_info( unix_name, &st, &attributes, NULL ) == -1)
             status = errno_to_status( errno );
         else if (!S_ISREG(st.st_mode) && !S_ISDIR(st.st_mode))
             status = STATUS_INVALID_INFO_CLASS;
@@ -4822,7 +4854,7 @@ NTSTATUS WINAPI NtQueryAttributesFile( const OBJECT_ATTRIBUTES *attr, FILE_BASIC
         ULONG attributes;
         struct stat st;
 
-        if (get_file_info( unix_name, &st, &attributes ) == -1)
+        if (get_file_info( unix_name, &st, &attributes, NULL ) == -1)
             status = errno_to_status( errno );
         else if (!S_ISREG(st.st_mode) && !S_ISDIR(st.st_mode))
             status = STATUS_INVALID_INFO_CLASS;
@@ -6789,28 +6821,47 @@ NTSTATUS WINAPI NtFlushBuffersFileEx( HANDLE handle, ULONG flags, void *params, 
 }
 
 
+static NTSTATUS cancel_io( HANDLE handle, IO_STATUS_BLOCK *io, IO_STATUS_BLOCK *io_status,
+                           BOOL only_thread )
+{
+    HANDLE cancel_handle;
+    unsigned int status;
+
+    SERVER_START_REQ( cancel_async )
+    {
+        req->handle      = wine_server_obj_handle( handle );
+        req->iosb        = wine_server_client_ptr( io );
+        req->only_thread = only_thread;
+        if (!(status = wine_server_call( req )))
+            cancel_handle = wine_server_ptr_handle( reply->cancel_handle );
+    }
+    SERVER_END_REQ;
+
+    if (!status && cancel_handle)
+    {
+        NtWaitForSingleObject( cancel_handle, TRUE, NULL );
+        NtClose( cancel_handle );
+    }
+    else if (status == STATUS_INVALID_HANDLE)
+    {
+        return status;
+    }
+
+    io_status->Status = status;
+    io_status->Information = 0;
+
+    return status;
+}
+
+
 /**************************************************************************
  *           NtCancelIoFile   (NTDLL.@)
  */
 NTSTATUS WINAPI NtCancelIoFile( HANDLE handle, IO_STATUS_BLOCK *io_status )
 {
-    unsigned int status;
-
     TRACE( "%p %p\n", handle, io_status );
 
-    SERVER_START_REQ( cancel_async )
-    {
-        req->handle      = wine_server_obj_handle( handle );
-        req->only_thread = TRUE;
-        if (!(status = wine_server_call( req )))
-        {
-            io_status->Status = status;
-            io_status->Information = 0;
-        }
-    }
-    SERVER_END_REQ;
-
-    return status;
+    return cancel_io( handle, NULL, io_status, TRUE );
 }
 
 
@@ -6819,23 +6870,9 @@ NTSTATUS WINAPI NtCancelIoFile( HANDLE handle, IO_STATUS_BLOCK *io_status )
  */
 NTSTATUS WINAPI NtCancelIoFileEx( HANDLE handle, IO_STATUS_BLOCK *io, IO_STATUS_BLOCK *io_status )
 {
-    unsigned int status;
-
     TRACE( "%p %p %p\n", handle, io, io_status );
 
-    SERVER_START_REQ( cancel_async )
-    {
-        req->handle = wine_server_obj_handle( handle );
-        req->iosb   = wine_server_client_ptr( io );
-        if (!(status = wine_server_call( req )))
-        {
-            io_status->Status = status;
-            io_status->Information = 0;
-        }
-    }
-    SERVER_END_REQ;
-
-    return status;
+    return cancel_io( handle, io, io_status, FALSE );
 }
 
 

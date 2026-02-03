@@ -560,6 +560,7 @@ static ULONG flags_gss_to_asc_ret( ULONG flags )
     if (flags & GSS_C_ANON_FLAG)     ret |= ASC_RET_NULL_SESSION;
     if (flags & GSS_C_DCE_STYLE)     ret |= ASC_RET_USED_DCE_STYLE;
     if (flags & GSS_C_IDENTIFY_FLAG) ret |= ASC_RET_IDENTIFY;
+    if (flags & GSS_C_EXTENDED_ERROR_FLAG) ret |= ASC_RET_EXTENDED_ERROR;
     return ret;
 }
 
@@ -722,6 +723,7 @@ static ULONG flags_isc_req_to_gss( ULONG flags )
     if (flags & ISC_REQ_NULL_SESSION)    ret |= GSS_C_ANON_FLAG;
     if (flags & ISC_REQ_USE_DCE_STYLE)   ret |= GSS_C_DCE_STYLE;
     if (flags & ISC_REQ_IDENTIFY)        ret |= GSS_C_IDENTIFY_FLAG;
+    if (flags & ISC_REQ_EXTENDED_ERROR)  ret |= GSS_C_EXTENDED_ERROR_FLAG;
     return ret;
 }
 
@@ -737,6 +739,7 @@ static ULONG flags_gss_to_isc_ret( ULONG flags )
     if (flags & GSS_C_ANON_FLAG)     ret |= ISC_RET_NULL_SESSION;
     if (flags & GSS_C_DCE_STYLE)     ret |= ISC_RET_USED_DCE_STYLE;
     if (flags & GSS_C_IDENTIFY_FLAG) ret |= ISC_RET_IDENTIFY;
+    if (flags & GSS_C_EXTENDED_ERROR_FLAG) ret |= ISC_RET_EXTENDED_ERROR;
     return ret;
 }
 
@@ -1273,6 +1276,12 @@ static NTSTATUS wow64_make_signature( void *args )
     return make_signature( &params );
 }
 
+struct SecPkgContext_SessionKey32
+{
+    ULONG SessionKeyLength;
+    PTR32 SessionKey;
+};
+
 static NTSTATUS wow64_query_context_attributes( void *args )
 {
     struct
@@ -1287,6 +1296,17 @@ static NTSTATUS wow64_query_context_attributes( void *args )
         params32->attr,
         ULongToPtr(params32->buf),
     };
+    SecPkgContext_SessionKey key;
+
+    if (params.attr == SECPKG_ATTR_SESSION_KEY)
+    {
+        struct SecPkgContext_SessionKey32 *key32 = (struct SecPkgContext_SessionKey32 *)params.buf;
+
+        key.SessionKeyLength = key32->SessionKeyLength;
+        key.SessionKey = ULongToPtr(key32->SessionKey);
+        params.buf = &key;
+    }
+
     return query_context_attributes( &params );
 }
 

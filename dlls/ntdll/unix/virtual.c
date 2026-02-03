@@ -1818,7 +1818,6 @@ static void register_view( struct file_view *view )
 static NTSTATUS create_view( struct file_view **view_ret, void *base, size_t size, unsigned int vprot )
 {
     struct file_view *view;
-    int unix_prot;
 
     assert( !((UINT_PTR)base & host_page_mask) );
     assert( !(size & page_mask) );
@@ -1852,17 +1851,9 @@ static NTSTATUS create_view( struct file_view **view_ret, void *base, size_t siz
     set_page_vprot( base, size, vprot );
 
     register_view( view );
+    kernel_writewatch_register_range( view, view->base, view->size );
 
     *view_ret = view;
-
-    unix_prot = get_unix_prot( vprot );
-    if (force_exec_prot && (unix_prot & PROT_READ) && !(unix_prot & PROT_EXEC))
-    {
-        TRACE( "forcing exec permission on %p-%p\n", base, (char *)base + size - 1 );
-        mprotect( base, size, unix_prot | PROT_EXEC );
-    }
-
-    kernel_writewatch_register_range( view, view->base, view->size );
     return STATUS_SUCCESS;
 }
 
@@ -2279,6 +2270,8 @@ static NTSTATUS map_view( struct file_view **view_ret, void *base, size_t size,
     if (use_kernel_writewatch && vprot & VPROT_WRITEWATCH)
         unix_prot = get_unix_prot( vprot & ~VPROT_WRITEWATCH );
 
+    unix_prot &= ~PROT_EXEC;
+
     if (base)
     {
         if (is_beyond_limit( base, size, address_space_limit )) return STATUS_WORKING_SET_LIMIT_RANGE;
@@ -2368,20 +2361,6 @@ static NTSTATUS map_file_into_view( struct file_view *view, int fd, size_t start
 #endif
     }
 
-    /* macOS since 10.15 fails to map files with PROT_EXEC
-     * (and will show the user an annoying warning if the file has a quarantine xattr set).
-     * But it works to map without PROT_EXEC and then use mprotect().
-     */
-#ifndef __APPLE__
-    if ((vprot & VPROT_EXEC) || force_exec_prot)
-    {
-        if (!(vprot & VPROT_EXEC))
-            TRACE( "forcing exec permission on mapping %p-%p\n",
-                   (char *)view->base + start, (char *)view->base + start + size - 1 );
-        prot |= PROT_EXEC;
-    }
-#endif
-
     map_size = ROUND_SIZE( start, size, page_mask );
     map_addr = ROUND_ADDR( (char *)view->base + start, page_mask );
     host_addr = ROUND_ADDR( (char *)view->base + start, host_page_mask );
@@ -2409,13 +2388,8 @@ static NTSTATUS map_file_into_view( struct file_view *view, int fd, size_t start
             }
             break;
         case EACCES:
-        case EPERM:  /* noexec filesystem, fall back to read() */
-            if (vprot & VPROT_WRITE)
-            {
-                if (prot & PROT_EXEC) ERR( "failed to set PROT_EXEC on file map, noexec filesystem?\n" );
-                return STATUS_ACCESS_DENIED;
-            }
-            if (prot & PROT_EXEC) WARN( "failed to set PROT_EXEC on file map, noexec filesystem?\n" );
+        case EPERM:  /* access error, fall back to read() */
+            if (vprot & VPROT_WRITE) return STATUS_ACCESS_DENIED;
             break;
         default:
             ERR( "mmap error %s, range %p-%p, unix_prot %#x\n",
@@ -2695,7 +2669,7 @@ static NTSTATUS allocate_dos_memory( struct file_view **view, unsigned int vprot
     void *addr = NULL;
     void * const low_64k = (void *)0x10000;
     const size_t dosmem_size = 0x110000;
-    int unix_prot = get_unix_prot( vprot );
+    int unix_prot = get_unix_prot( vprot ) & ~PROT_EXEC;
 
     /* check for existing view */
 
@@ -3815,7 +3789,8 @@ NTSTATUS virtual_map_builtin_module( HANDLE mapping, void **module, SIZE_T *size
 
     if (!image_info->wine_builtin) /* ignore non-builtins */
     {
-        WARN_(module)( "%s found in WINEDLLPATH but not a builtin, ignoring\n", debugstr_us(&nt_name) );
+        if (!image_info->wine_fakedll)
+            WARN_(module)( "%s found in WINEDLLPATH but not a builtin, ignoring\n", debugstr_us(&nt_name) );
         status = STATUS_DLL_NOT_FOUND;
     }
     else if (prefer_native && (image_info->dll_charact & IMAGE_DLLCHARACTERISTICS_PREFER_NATIVE))
@@ -4282,16 +4257,27 @@ NTSTATUS ldt_get_entry( WORD sel, CLIENT_ID client_id, LDT_ENTRY *entry )
  *           NtSetLdtEntries   (NTDLL.@)
  *           ZwSetLdtEntries   (NTDLL.@)
  */
-NTSTATUS WINAPI NtSetLdtEntries( ULONG sel1, LDT_ENTRY entry1, ULONG sel2, LDT_ENTRY entry2 )
+NTSTATUS WINAPI NtSetLdtEntries( ULONG sel1, ULONG entry1_low, ULONG entry1_high, ULONG sel2, ULONG entry2_low, ULONG entry2_high )
 {
     sigset_t sigset;
+    union { LDT_ENTRY entry; ULONG ul[2]; } entry;
 
     if (is_win64 && !is_wow64()) return STATUS_NOT_IMPLEMENTED;
     if (sel1 >> 16 || sel2 >> 16) return STATUS_INVALID_LDT_DESCRIPTOR;
 
     server_enter_uninterrupted_section( &virtual_mutex, &sigset );
-    if (sel1) ldt_update_entry( sel1, entry1 );
-    if (sel2) ldt_update_entry( sel2, entry2 );
+    if (sel1)
+    {
+        entry.ul[0] = entry1_low;
+        entry.ul[1] = entry1_high;
+        ldt_update_entry( sel1, entry.entry );
+    }
+    if (sel2)
+    {
+        entry.ul[0] = entry2_low;
+        entry.ul[1] = entry2_high;
+        ldt_update_entry( sel2, entry.entry );
+    }
     server_leave_uninterrupted_section( &virtual_mutex, &sigset );
     return STATUS_SUCCESS;
 }
@@ -4302,7 +4288,7 @@ NTSTATUS WINAPI NtSetLdtEntries( ULONG sel1, LDT_ENTRY entry1, ULONG sel2, LDT_E
  *           NtSetLdtEntries   (NTDLL.@)
  *           ZwSetLdtEntries   (NTDLL.@)
  */
-NTSTATUS WINAPI NtSetLdtEntries( ULONG sel1, LDT_ENTRY entry1, ULONG sel2, LDT_ENTRY entry2 )
+NTSTATUS WINAPI NtSetLdtEntries( ULONG sel1, ULONG entry1_low, ULONG entry1_high, ULONG sel2, ULONG entry2_low, ULONG entry2_high )
 {
     return STATUS_NOT_IMPLEMENTED;
 }
@@ -5143,7 +5129,11 @@ static NTSTATUS allocate_virtual_memory( void **ret, SIZE_T *size_ptr, ULONG typ
             else status = map_view( &view, base, size, type, vprot, limit_low, limit_high,
                                     align ? align - 1 : granularity_mask );
 
-            if (status == STATUS_SUCCESS) base = view->base;
+            if (status == STATUS_SUCCESS)
+            {
+                base = view->base;
+                if (vprot & VPROT_EXEC || force_exec_prot) mprotect_range( base, size, 0, 0 );
+            }
         }
     }
     else if (type & MEM_RESET)

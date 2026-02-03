@@ -6,7 +6,7 @@ msgstr ""
 "Project-Id-Version: Wine\n"
 "Report-Msgid-Bugs-To: https://bugs.winehq.org\n"
 "POT-Creation-Date: N/A\n"
-"PO-Revision-Date: 2025-09-20 00:57+0300\n"
+"PO-Revision-Date: 2025-12-06 13:21+0200\n"
 "Last-Translator: Aurimas Fišeras <aurimas@members.fsf.org>\n"
 "Language-Team: Lithuanian <komp_lt@konf.lt>\n"
 "Language: lt\n"
@@ -98,7 +98,7 @@ msgstr "Priežiūros informacija"
 #: dlls/serialui/serialui.rc:41 dlls/setupapi/setupapi.rc:59
 #: dlls/shell32/shell32.rc:278 dlls/shell32/shell32.rc:302
 #: dlls/shell32/shell32.rc:324 dlls/shell32/shell32.rc:343
-#: dlls/shlwapi/shlwapi.rc:44 dlls/twain_32/twain.rc:32
+#: dlls/shlwapi/shlwapi.rc:44 dlls/twaindsm/twain.rc:32
 #: dlls/user32/user32.rc:94 dlls/user32/user32.rc:109 dlls/user32/user32.rc:73
 #: dlls/wininet/wininet.rc:62 dlls/wininet/wininet.rc:82
 #: dlls/winspool.drv/winspool.rc:42 programs/net/net.rc:48
@@ -200,12 +200,12 @@ msgstr "&Įdiegti"
 #: dlls/inetcpl.cpl/inetcpl.rc:81 dlls/localui/localui.rc:45
 #: dlls/localui/localui.rc:58 dlls/mpr/mpr.rc:50 dlls/msacm32/msacm32.rc:54
 #: dlls/mshtml/mshtml.rc:48 dlls/mshtml/mshtml.rc:58 dlls/msvfw32/msvfw32.rc:37
-#: dlls/oledlg/oledlg.rc:63 dlls/oledlg/oledlg.rc:95
+#: dlls/oledlg/oledlg.rc:63 dlls/oledlg/oledlg.rc:95 dlls/sane.ds/sane.rc:70
 #: dlls/serialui/serialui.rc:42 dlls/setupapi/setupapi.rc:42
 #: dlls/setupapi/setupapi.rc:60 dlls/shell32/shell32.rc:279
 #: dlls/shell32/shell32.rc:303 dlls/shell32/shell32.rc:314
 #: dlls/shell32/shell32.rc:344 dlls/shlwapi/shlwapi.rc:45
-#: dlls/twain_32/twain.rc:33 dlls/user32/user32.rc:95 dlls/user32/user32.rc:110
+#: dlls/twaindsm/twain.rc:33 dlls/user32/user32.rc:95 dlls/user32/user32.rc:110
 #: dlls/user32/user32.rc:74 dlls/wininet/wininet.rc:63
 #: dlls/wininet/wininet.rc:83 dlls/winspool.drv/winspool.rc:43
 #: programs/notepad/notepad.rc:126 programs/notepad/notepad.rc:139
@@ -276,7 +276,7 @@ msgstr ""
 msgid "Not specified"
 msgstr "Nenurodyta"
 
-#: dlls/appwiz.cpl/appwiz.rc:38 dlls/oledb32/version.rc:35
+#: dlls/appwiz.cpl/appwiz.rc:38 dlls/oledb32/oledb32.rc:30
 #: dlls/shell32/shell32.rc:141 dlls/shell32/shell32.rc:243
 #: programs/regedit/regedit.rc:150 programs/winefile/winefile.rc:106
 msgid "Name"
@@ -448,7 +448,7 @@ msgstr "Vediklis"
 msgid "< &Back"
 msgstr "< &Atgal"
 
-#: dlls/comctl32/comctl32.rc:85 dlls/oledb32/version.rc:58
+#: dlls/comctl32/comctl32.rc:85 dlls/oledb32/oledb32.rc:53
 msgid "&Next >"
 msgstr "&Toliau >"
 
@@ -740,7 +740,7 @@ msgid "Scr&ipt:"
 msgstr "Si&mbolių rinkinys:"
 
 #: dlls/comdlg32/comdlg32.rc:283 dlls/comdlg32/comdlg32.rc:288
-#: dlls/compstui/compstui.rc:33
+#: dlls/compstui/compstui.rc:33 dlls/sane.ds/sane.rc:42
 msgid "Color"
 msgstr "Spalva"
 
@@ -1094,7 +1094,8 @@ msgstr "Violetinė"
 msgid "Teal"
 msgstr "Tamsiai žydra"
 
-#: dlls/comdlg32/comdlg32.rc:129 programs/wordpad/wordpad.rc:132
+#: dlls/comdlg32/comdlg32.rc:129 dlls/sane.ds/sane.rc:41
+#: programs/wordpad/wordpad.rc:132
 msgid "Gray"
 msgstr "Pilka"
 
@@ -1399,7 +1400,7 @@ msgid "&User name:"
 msgstr "&Naudotojo vardas:"
 
 #: dlls/credui/credui.rc:48 dlls/cryptui/cryptui.rc:402
-#: dlls/oledb32/version.rc:78
+#: dlls/oledb32/oledb32.rc:73
 msgid "&Password:"
 msgstr "&Slaptažodis:"
 
@@ -2737,7 +2738,7 @@ msgstr "Šis liudijimas geras."
 msgid "Field"
 msgstr "Laukas"
 
-#: dlls/cryptui/cryptui.rc:48 dlls/oledb32/version.rc:36
+#: dlls/cryptui/cryptui.rc:48 dlls/oledb32/oledb32.rc:31
 msgid "Value"
 msgstr "Reikšmė"
 
@@ -3337,7 +3338,7 @@ msgstr "Simboliai"
 msgid "OEM/DOS"
 msgstr "OEM/DOS"
 
-#: dlls/gdi32/gdi32.rc:45 dlls/oledb32/version.rc:97
+#: dlls/gdi32/gdi32.rc:45 dlls/oledb32/oledb32.rc:92
 #: dlls/wldap32/wldap32.rc:112
 msgid "Other"
 msgstr "Kita"
@@ -3405,7 +3406,7 @@ msgid "&Stop"
 msgstr "&Stabdyti"
 
 #: dlls/hhctrl.ocx/hhctrl.rc:66 dlls/hhctrl.ocx/hhctrl.rc:83
-#: dlls/oledb32/version.rc:70 dlls/shdoclc/shdoclc.rc:59
+#: dlls/oledb32/oledb32.rc:65 dlls/shdoclc/shdoclc.rc:59
 msgid "&Refresh"
 msgstr "Atsiųsti iš &naujo"
 
@@ -4177,30 +4178,25 @@ msgid "Cannot modify non-writable property '|'"
 msgstr "Negalima modifikuoti nerašomos savybės „|“"
 
 #: dlls/jscript/jscript.rc:84
-#, fuzzy
-#| msgid "DataView constructor argument offset is invalid"
 msgid "Typed array constructor argument is invalid"
-msgstr "DataView konstruktoriaus argumentas poslinkis yra netinkamas"
+msgstr "Tipizuoto masyvo konstruktoriaus argumentas netinkamas"
 
 #: dlls/jscript/jscript.rc:83
-#, fuzzy
-#| msgid "'this' is not a | object"
 msgid "'this' is not a typed array object"
-msgstr "„Šis“ nėra | objektas"
+msgstr "„Šis“ nėra tipizuoto masyvo objektas"
 
 #: dlls/jscript/jscript.rc:85
 msgid "Invalid offset/length when creating typed array"
-msgstr ""
+msgstr "Neteisingas poslinkis/ilgis kuriant tipizuotą masyvą"
 
 #: dlls/jscript/jscript.rc:86
 msgid "Invalid begin/end value in typed array subarray method"
 msgstr ""
+"Neteisinga pradžios/pabaigos reikšmė tipizuoto masyvo „subarray“ metode"
 
 #: dlls/jscript/jscript.rc:87
-#, fuzzy
-#| msgid "Invalid module type for %1.\n"
 msgid "Invalid source in typed array set"
-msgstr "Neteisingas %1 modulio tipas.\n"
+msgstr "Nustatytas neteisingas tipizuoto masyvo šaltinis"
 
 #: dlls/jscript/jscript.rc:88
 msgid "'this' is not a DataView object"
@@ -4235,14 +4231,9 @@ msgstr "Tikėtasi ArrayBuffer objekto"
 msgid "Property cannot have both accessors and a value"
 msgstr "Savybė negali turėti ir kreipiklių, ir reikšmės"
 
-#: include/wine/wine_common_ver.rc:123
+#: include/common.ver:77
 msgid "Wine kernel DLL"
 msgstr "„Wine“ branduolio DLL"
-
-#: include/wine/wine_common_ver.rc:128 dlls/winemac.drv/winemac.rc:32
-#: programs/wineboot/wineboot.rc:42 programs/winecfg/winecfg.rc:143
-msgid "Wine"
-msgstr "Wine"
 
 #: dlls/kernelbase/kernelbase.rc:29
 msgid "Western Europe and United States"
@@ -9300,99 +9291,99 @@ msgstr "Įjungta"
 msgid "Off"
 msgstr "Išjungta"
 
-#: dlls/oledb32/version.rc:53
+#: dlls/oledb32/oledb32.rc:48
 msgid "Provider"
 msgstr "Tiekėjas"
 
-#: dlls/oledb32/version.rc:56
+#: dlls/oledb32/oledb32.rc:51
 msgid "Select the data you want to connect to:"
 msgstr "Išrinkite duomenis, prie kurių norite jungtis:"
 
-#: dlls/oledb32/version.rc:63
+#: dlls/oledb32/oledb32.rc:58
 msgid "Connection"
 msgstr "Ryšys"
 
-#: dlls/oledb32/version.rc:66
+#: dlls/oledb32/oledb32.rc:61
 msgid "Specify the following to connect to ODBC data:"
 msgstr "Prisijungimui prie ODBC duomenų nurodykite:"
 
-#: dlls/oledb32/version.rc:67
+#: dlls/oledb32/oledb32.rc:62
 msgid "1. Specify the source of data:"
 msgstr "1. Nurodykite duomenų šaltinį:"
 
-#: dlls/oledb32/version.rc:68
+#: dlls/oledb32/oledb32.rc:63
 msgid "Use &data source name"
 msgstr "Naudoti &duomenų šaltinio vardą"
 
-#: dlls/oledb32/version.rc:71
+#: dlls/oledb32/oledb32.rc:66
 msgid "Use c&onnection string"
 msgstr "Naudoti r&yšio eilutę"
 
-#: dlls/oledb32/version.rc:72
+#: dlls/oledb32/oledb32.rc:67
 msgid "&Connection string:"
 msgstr "&Ryšio eilutė:"
 
-#: dlls/oledb32/version.rc:74
+#: dlls/oledb32/oledb32.rc:69
 msgid "B&uild..."
 msgstr "&Sukurti..."
 
-#: dlls/oledb32/version.rc:75
+#: dlls/oledb32/oledb32.rc:70
 msgid "2. Enter information to log on to the server"
 msgstr "2. Įveskite informaciją prisijungimui prie serverio"
 
-#: dlls/oledb32/version.rc:76
+#: dlls/oledb32/oledb32.rc:71
 msgid "User &name:"
 msgstr "&Naudotojo vardas:"
 
-#: dlls/oledb32/version.rc:80
+#: dlls/oledb32/oledb32.rc:75
 msgid "&Blank password"
 msgstr "T&uščias slaptažodis"
 
-#: dlls/oledb32/version.rc:81
+#: dlls/oledb32/oledb32.rc:76
 msgid "Allow &saving password"
 msgstr "Leisti &išsaugoti slaptažodį"
 
-#: dlls/oledb32/version.rc:82
+#: dlls/oledb32/oledb32.rc:77
 msgid "3. Enter the &initial catalog to use:"
 msgstr "3. Įveskite &pradinį katalogą naudojimui:"
 
-#: dlls/oledb32/version.rc:84
+#: dlls/oledb32/oledb32.rc:79
 msgid "&Test Connection"
 msgstr "&Tikrinti ryšį"
 
-#: dlls/oledb32/version.rc:89
+#: dlls/oledb32/oledb32.rc:84
 msgid "Advanced"
 msgstr "Pažengęs"
 
-#: dlls/oledb32/version.rc:92
+#: dlls/oledb32/oledb32.rc:87
 msgid "Network settings"
 msgstr "Tinklo nuostatos"
 
-#: dlls/oledb32/version.rc:93
+#: dlls/oledb32/oledb32.rc:88
 msgid "&Impersonation level:"
 msgstr "&Apsimetimo lygis:"
 
-#: dlls/oledb32/version.rc:95
+#: dlls/oledb32/oledb32.rc:90
 msgid "P&rotection level:"
 msgstr "Ap&saugos lygis:"
 
-#: dlls/oledb32/version.rc:98
+#: dlls/oledb32/oledb32.rc:93
 msgid "Connect:"
 msgstr "Prisijungti:"
 
-#: dlls/oledb32/version.rc:100
+#: dlls/oledb32/oledb32.rc:95
 msgid "seconds."
 msgstr "sekundės."
 
-#: dlls/oledb32/version.rc:101
+#: dlls/oledb32/oledb32.rc:96
 msgid "A&ccess:"
 msgstr "&Prieiga:"
 
-#: dlls/oledb32/version.rc:107
+#: dlls/oledb32/oledb32.rc:102
 msgid "All"
 msgstr "Visos"
 
-#: dlls/oledb32/version.rc:111
+#: dlls/oledb32/oledb32.rc:106
 msgid ""
 "These are the initialization properties for this type of data. To edit a "
 "value, select a property, then choose Edit Value below."
@@ -9400,57 +9391,57 @@ msgstr ""
 "Tai yra šio duomenų tipo inicijavimo savybės. Reikšmei redaguoti pažymėkite "
 "savybę ir spauskite „Redaguoti reikšmę“."
 
-#: dlls/oledb32/version.rc:112
+#: dlls/oledb32/oledb32.rc:107
 msgid "&Edit Value..."
 msgstr "&Redaguoti reikšmę..."
 
-#: dlls/oledb32/version.rc:46
+#: dlls/oledb32/oledb32.rc:41
 msgid "Data Link Error"
 msgstr "Duomenų saito klaida"
 
-#: dlls/oledb32/version.rc:47
+#: dlls/oledb32/oledb32.rc:42
 msgid "Please select a provider."
 msgstr "Išrinkite tiekėją."
 
-#: dlls/oledb32/version.rc:48
+#: dlls/oledb32/oledb32.rc:43
 msgid ""
 "Provider is no longer available. Ensure that the provider is installed "
 "properly."
 msgstr "Tiekėjas nebeprieinamas. Įsitikinkite, kad tiekėjas įdiegtas tinkamai."
 
-#: dlls/oledb32/version.rc:33
+#: dlls/oledb32/oledb32.rc:28
 msgid "Data Link Properties"
 msgstr "Duomenų saito savybės"
 
-#: dlls/oledb32/version.rc:34
+#: dlls/oledb32/oledb32.rc:29
 msgid "OLE DB Provider(s)"
 msgstr "OLE DB tiekėjai"
 
-#: dlls/oledb32/version.rc:38
+#: dlls/oledb32/oledb32.rc:33
 msgid "Read"
 msgstr "Skaitymas"
 
-#: dlls/oledb32/version.rc:39
+#: dlls/oledb32/oledb32.rc:34
 msgid "ReadWrite"
 msgstr "SkaitymasRašymas"
 
-#: dlls/oledb32/version.rc:40
+#: dlls/oledb32/oledb32.rc:35
 msgid "Share Deny None"
 msgstr "Bendra nieko nedrausti"
 
-#: dlls/oledb32/version.rc:41
+#: dlls/oledb32/oledb32.rc:36
 msgid "Share Deny Read"
 msgstr "Bendra drausti skaitymą"
 
-#: dlls/oledb32/version.rc:42
+#: dlls/oledb32/oledb32.rc:37
 msgid "Share Deny Write"
 msgstr "Bendra drausti rašymą"
 
-#: dlls/oledb32/version.rc:43
+#: dlls/oledb32/oledb32.rc:38
 msgid "Share Exclusive"
 msgstr "Bendra išskirtinė"
 
-#: dlls/oledb32/version.rc:44
+#: dlls/oledb32/oledb32.rc:39
 msgid "Write"
 msgstr "Rašymas"
 
@@ -9634,11 +9625,31 @@ msgstr "Nežinomas šaltinis"
 msgid "the program which created it"
 msgstr "programa, kuri jį sukūrė"
 
-#: dlls/sane.ds/sane.rc:41
+#: dlls/sane.ds/sane.rc:55 dlls/sane.ds/sane.rc:45
 msgid "Scanning"
 msgstr "Skaitoma"
 
-#: dlls/sane.ds/sane.rc:44
+#: dlls/sane.ds/sane.rc:58
+msgid "Manufacturer:"
+msgstr "Gamintojas:"
+
+#: dlls/sane.ds/sane.rc:60
+msgid "Product family:"
+msgstr "Įrenginio šeima:"
+
+#: dlls/sane.ds/sane.rc:62
+msgid "Product name:"
+msgstr "Įrenginio pavadinimas:"
+
+#: dlls/sane.ds/sane.rc:64
+msgid "Resolution:"
+msgstr "Skiriamoji geba:"
+
+#: dlls/sane.ds/sane.rc:66 programs/wordpad/wordpad.rc:181
+msgid "Page"
+msgstr "Puslapis"
+
+#: dlls/sane.ds/sane.rc:68
 msgid "SCANNING... Please Wait"
 msgstr "SKAITOMA... Palaukite"
 
@@ -9667,6 +9678,38 @@ msgstr "%"
 msgctxt "unit: microseconds"
 msgid "us"
 msgstr "µs"
+
+#: dlls/sane.ds/sane.rc:43
+msgid "LineArt"
+msgstr "Linijinis paveikslas"
+
+#: dlls/sane.ds/sane.rc:44 dlls/setupapi/setupapi.rc:32
+#: programs/ipconfig/ipconfig.rc:34
+msgid "Unknown"
+msgstr "Nežinomas"
+
+#: dlls/sane.ds/sane.rc:46
+msgid ""
+"The Automatic Document Feeder (ADF) is empty. Please insert the sheets to be "
+"scanned."
+msgstr ""
+"Automatinis dokumentų padaviklis (ADF) tuščias. Įdėkite lapus nuskaitymui."
+
+#: dlls/sane.ds/sane.rc:47
+msgid ""
+"The scanner reports a paper jam. Check for additional information on device "
+"display."
+msgstr ""
+"Skaitytuvas praneša apie užstrigusį popierių. Daugiau informacijos įrenginio "
+"ekrane."
+
+#: dlls/sane.ds/sane.rc:48
+msgid "The scanner cover is open. Please close the scanner."
+msgstr "Atidarytas skaitytuvo dangtis. Uždarykite skaitytuvą."
+
+#: dlls/sane.ds/sane.rc:49
+msgid "The scanner is busy. Try again later."
+msgstr "Skaitytuvas užimtas. Mėginkite vėliau."
 
 #: dlls/serialui/serialui.rc:28
 msgid "Settings for %s"
@@ -9719,10 +9762,6 @@ msgstr "Kopijuoti gamintojo failus iš:"
 #: dlls/setupapi/setupapi.rc:31
 msgid "The file '%1' on %2 is needed"
 msgstr "Reikalingas failas „%1“ esantis %2"
-
-#: dlls/setupapi/setupapi.rc:32 programs/ipconfig/ipconfig.rc:34
-msgid "Unknown"
-msgstr "Nežinomas"
 
 #: dlls/setupapi/setupapi.rc:33
 msgid "Copy files from:"
@@ -10619,7 +10658,7 @@ msgctxt "time unit: seconds"
 msgid " sec"
 msgstr " sek."
 
-#: dlls/twain_32/twain.rc:29
+#: dlls/twaindsm/twain.rc:29
 msgid "Select Source"
 msgstr "Parinkite šaltinį"
 
@@ -12585,8 +12624,8 @@ msgstr ""
 "duomenų."
 
 #: dlls/urlmon/urlmon.rc:63
-msgid "This zone contains all Web sites you haven't placed in other zones"
-msgstr "Šioje zonoje yra visos svetainės, kurių nėra kitose zonose"
+msgid "This zone contains all Web sites you haven't placed in other zones."
+msgstr "Šioje zonoje yra visos svetainės, kurių nėra kitose zonose."
 
 #: dlls/urlmon/urlmon.rc:65
 msgid ""
@@ -12769,6 +12808,11 @@ msgstr "Microsoft VBScript kompiliavimo klaida"
 #: dlls/vbscript/vbscript.rc:63
 msgid "Microsoft VBScript runtime error"
 msgstr "Microsoft VBScript vykdymo klaida"
+
+#: dlls/winemac.drv/winemac.rc:32 programs/wineboot/wineboot.rc:42
+#: programs/winecfg/winecfg.rc:143
+msgid "Wine"
+msgstr "Wine"
 
 #: dlls/winemac.drv/winemac.rc:33
 msgid "Hide %@"
@@ -14751,6 +14795,10 @@ msgstr "Failo pabaiga"
 #: programs/cmd/cmd.rc:410
 msgid "%t%1!u! file(s) copied\n"
 msgstr "Nukopijuota failų: %t%1!u!\n"
+
+#: programs/cmd/cmd.rc:411 programs/xcopy/xcopy.rc:83
+msgid "File cannot be copied onto itself.\n"
+msgstr "Failas negali būti nukopijuotas ant savęs.\n"
 
 #: programs/conhost/conhost.rc:54
 msgid "Cursor size"
@@ -17581,10 +17629,6 @@ msgstr ""
 "Nusiųstas priverstinio nutraukimo signalas procesui su PID %1!u!, pavaldžiam "
 "PID %2!u!.\n"
 
-#: include/wine/wine_common_ver.rc:123
-msgid "Wine tasklist"
-msgstr "„Wine“ procesų sąrašas"
-
 #: programs/tasklist/tasklist.rc:29
 msgid "Usage: tasklist [/?]\n"
 msgstr "Naudojimas: tasklist [/?]\n"
@@ -19926,10 +19970,6 @@ msgstr "Didinti"
 #: programs/wordpad/wordpad.rc:179
 msgid "Zoom out"
 msgstr "Mažinti"
-
-#: programs/wordpad/wordpad.rc:181
-msgid "Page"
-msgstr "Puslapis"
 
 #: programs/wordpad/wordpad.rc:182
 msgid "Pages"

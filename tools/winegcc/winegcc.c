@@ -627,6 +627,7 @@ static struct strarray get_link_args( const char *output_name )
             strarray_add(&link_args, strmake("-Wl,-implib:%s", make_temp_file( output_name, ".lib" )));
 
         strarray_add( &link_args, strmake( "-Wl,-filealign:%s,-align:%s,-driver", file_align, section_align ));
+        strarray_add( &link_args, "-Wl,-merge:.CRT=.rdata" );
 
         strarray_addall( &link_args, flags );
         return link_args;
@@ -1250,6 +1251,7 @@ static void build(struct strarray input_files, const char *output)
     else
     {
         strarray_add(&lib_dirs, strmake("%s/dlls", wine_objdir));
+        strarray_add(&lib_dirs, strmake("%s/libs", wine_objdir));
         strarray_addall(&lib_dirs, lib_path_dirs);
     }
 

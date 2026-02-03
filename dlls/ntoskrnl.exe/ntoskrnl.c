@@ -510,6 +510,10 @@ struct dispatch_context
     struct irp_data *irp_data;
     ULONG  in_size;
     void  *in_buff;
+    /* These output fields are only for special IRPs handled by ntoskrnl itself,
+     * for which we do not actually allocate an IRP structure nor irp_data. */
+    void *out_buff;
+    ULONG_PTR out_size;
 };
 
 static NTSTATUS dispatch_irp( DEVICE_OBJECT *device, IRP *irp, struct dispatch_context *context )
@@ -807,6 +811,21 @@ static NTSTATUS dispatch_volume( struct dispatch_context *context )
 
     if (!(out_buff = HeapAlloc( GetProcessHeap(), 0, out_size ))) return STATUS_NO_MEMORY;
 
+    if (context->params.volume.info_class == FileFsDeviceInformation)
+    {
+        /* Handled by ntoskrnl; never passed to the driver. */
+        FILE_FS_DEVICE_INFORMATION *info = out_buff;
+
+        if (out_size < sizeof(FILE_FS_DEVICE_INFORMATION))
+            return STATUS_INFO_LENGTH_MISMATCH;
+
+        info->DeviceType = file->DeviceObject->DeviceType;
+        info->Characteristics = file->DeviceObject->Characteristics;
+        context->out_buff = out_buff;
+        context->out_size = sizeof(FILE_FS_DEVICE_INFORMATION);
+        return STATUS_SUCCESS;
+    }
+
     irp = IoAllocateIrp( device->StackSize, FALSE );
     if (!irp)
     {
@@ -981,8 +1000,12 @@ NTSTATUS CDECL wine_ntoskrnl_main_loop( HANDLE stop_event )
             }
             else
             {
-                req->user_ptr = 0;
-                req->status   = status;
+                req->user_ptr    = 0;
+                req->status      = status;
+                req->pending     = 0;
+                req->iosb_status = status;
+                req->result      = context.out_size;
+                if (context.out_size) wine_server_add_data( req, context.out_buff, context.out_size );
             }
 
             wine_server_set_reply( req, context.in_buff, context.in_size );
@@ -1015,6 +1038,12 @@ NTSTATUS CDECL wine_ntoskrnl_main_loop( HANDLE stop_event )
             {
                 context.irp_data->async = TRUE;
             }
+        }
+        else
+        {
+            free( context.out_buff );
+            context.out_buff = NULL;
+            context.out_size = 0;
         }
 
         LeaveCriticalSection( &irp_completion_cs );
@@ -1646,6 +1675,7 @@ NTSTATUS WINAPI IoCreateDevice( DRIVER_OBJECT *driver, ULONG ext_size,
     device = &wine_device->device_obj;
 
     device->DriverObject    = driver;
+    device->Characteristics = characteristics;
     device->DeviceExtension = wine_device + 1;
     device->DeviceType      = type;
     device->StackSize       = 1;
@@ -2571,7 +2601,7 @@ PRKTHREAD WINAPI KeGetCurrentThread(void)
 
         /* FIXME: we shouldn't need it, GetCurrentThread() should be client thread already */
         if (GetCurrentThreadId() == request_thread)
-            handle = OpenThread( THREAD_QUERY_INFORMATION, FALSE, client_tid );
+            handle = OpenThread( MAXIMUM_ALLOWED, FALSE, client_tid );
 
         kernel_object_from_handle( handle, PsThreadType, (void**)&thread );
         if (handle != GetCurrentThread()) NtClose( handle );

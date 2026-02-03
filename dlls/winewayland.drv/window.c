@@ -620,7 +620,7 @@ LRESULT WAYLAND_WindowMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         wayland_configure_window(hwnd);
         return 0;
     case WM_WAYLAND_SET_FOREGROUND:
-        NtUserSetForegroundWindow(hwnd);
+        NtUserSetForegroundWindowInternal(hwnd);
         return 0;
     default:
         FIXME("got window msg %x hwnd %p wp %lx lp %lx\n", msg, hwnd, (long)wp, lp);
@@ -669,6 +669,7 @@ static enum xdg_toplevel_resize_edge hittest_to_resize_edge(WPARAM hittest)
  */
 void WAYLAND_SetWindowIcons(HWND hwnd, HICON icon, const ICONINFO *ii, HICON icon_small, const ICONINFO *ii_small)
 {
+    struct wayland_surface *surface;
     struct wayland_win_data *data;
 
     TRACE("hwnd=%p icon=%p ii=%p icon_small=%p ii_small=%p\n", hwnd, icon, ii, icon_small, ii_small);
@@ -677,10 +678,12 @@ void WAYLAND_SetWindowIcons(HWND hwnd, HICON icon, const ICONINFO *ii, HICON ico
     {
         if ((data = wayland_win_data_get(hwnd)))
         {
-            if (data->wayland_surface && wayland_surface_is_toplevel(data->wayland_surface))
+            if ((surface = data->wayland_surface))
             {
-                wayland_surface_set_icon(data->wayland_surface, ICON_BIG, ii);
-                wayland_surface_set_icon(data->wayland_surface, ICON_SMALL, ii_small);
+                wayland_surface_set_icon_buffer(surface, ICON_BIG, ii);
+                if (icon_small) wayland_surface_set_icon_buffer(surface, ICON_SMALL, ii_small);
+                if (wayland_surface_is_toplevel(surface))
+                    wayland_surface_assign_icon(surface);
             }
             wayland_win_data_release(data);
         }

@@ -120,9 +120,9 @@ static const struct
 static struct list files[HASH_SIZE];
 static struct list global_includes[HASH_SIZE];
 
-enum install_rules { INSTALL_LIB, INSTALL_DEV, INSTALL_TEST, NB_INSTALL_RULES };
-static const char *install_targets[NB_INSTALL_RULES] = { "install-lib", "install-dev", "install-test" };
-static const char *install_variables[NB_INSTALL_RULES] = { "INSTALL_LIB", "INSTALL_DEV", "INSTALL_TEST" };
+enum install_rules { INSTALL_LIB, INSTALL_DEV, INSTALL_UNIXLIB, INSTALL_TEST, NB_INSTALL_RULES };
+static const char *install_targets[NB_INSTALL_RULES] = { "install-lib", "install-dev", "install-unixlib", "install-test" };
+static const char *install_variables[NB_INSTALL_RULES] = { "INSTALL_LIB", "INSTALL_DEV", "INSTALL_UNIXLIB", "INSTALL_TEST" };
 
 #define MAX_ARCHS 6
 
@@ -278,6 +278,21 @@ struct install_command
 };
 
 static struct array install_commands[NB_INSTALL_RULES];
+
+static const char *version_vars[] =
+{
+    "VER_EXTRAVALUES",
+    "VER_FILEDESCRIPTION_STR",
+    "VER_FILESUBTYPE",
+    "VER_FILETYPE",
+    "VER_FILEVERSION",
+    "VER_INTERNALNAME_STR",
+    "VER_LEGALCOPYRIGHT_STR",
+    "VER_OLESELFREGISTER",
+    "VER_PRODUCTVERSION",
+    "VER_VERSION_TRANSLATION",
+    "VER_VERSION_UNICODE_LANG",
+};
 
 static const char Usage[] =
     "Usage: makedep [options]\n"
@@ -1173,9 +1188,6 @@ static void parse_in_file( struct file *source, FILE *file )
 {
     char *p, *buffer;
 
-    /* make sure it gets rebuilt when the version changes */
-    add_dependency( source, "config.h", INCL_SYSTEM );
-
     if (!strendswith( source->name, ".man.in" )) return;  /* not a man page */
 
     input_line = 0;
@@ -1245,6 +1257,7 @@ static const struct
     { ".y",   parse_c_file },
     { ".idl", parse_idl_file },
     { ".rc",  parse_rc_file },
+    { ".ver", parse_rc_file },
     { ".in",  parse_in_file },
     { ".sfd", parse_sfd_file }
 };
@@ -1669,8 +1682,6 @@ static void parse_file( struct makefile *make, struct incl_file *source, int src
             }
             return;
         }
-        if (strendswith( source->sourcename, ".y" ))
-            return;  /* generated .tab.h doesn't include anything */
     }
 
     add_all_includes( make, source, file );
@@ -1881,11 +1892,35 @@ static struct makefile *parse_makefile( const char *path )
 
 
 /*******************************************************************
+ *         add_generated_version_resource
+ *
+ * Add a generated version resource file built from common.ver.
+ */
+static void add_generated_version_resource( struct makefile *make )
+{
+    struct incl_file *file, *common_ver = find_src_file( include_makefile, "common.ver" );
+    unsigned int i;
+
+    if (!common_ver) return;
+
+    for (i = 0; i < ARRAY_SIZE(version_vars); i++) if (get_make_variable( make, version_vars[i] )) break;
+    if (i == ARRAY_SIZE(version_vars)) return;
+
+    file = add_generated_source( make, "version.ver", NULL, 0 );
+    file->filename = common_ver->filename;
+    /* copy common.ver dependencies */
+    ARRAY_FOR_EACH( dep, &common_ver->files, struct incl_file * )
+        *ARRAY_ADD( &file->files, struct incl_file * ) = *dep;
+}
+
+
+/*******************************************************************
  *         add_generated_sources
  */
 static void add_generated_sources( struct makefile *make )
 {
     unsigned int arch;
+    bool has_version_res = false;
     struct incl_file *source, *next, *file, *dlldata = NULL;
     struct strarray objs = get_expanded_make_var_array( make, "EXTRA_OBJS" );
 
@@ -1962,36 +1997,41 @@ static void add_generated_sources( struct makefile *make )
             source->file->flags = FLAG_IDL_HEADER | FLAG_INSTALL;
             add_generated_source( make, replace_extension( source->name, ".idl", ".h" ), NULL, 0 );
         }
-        if (strendswith( source->name, ".x" ))
+        else if (strendswith( source->name, ".x" ))
         {
             add_generated_source( make, replace_extension( source->name, ".x", ".h" ), NULL, 0 );
         }
-        if (strendswith( source->name, ".y" ))
+        else if (strendswith( source->name, ".y" ))
         {
             file = add_generated_source( make, replace_extension( source->name, ".y", ".tab.c" ), NULL, 0 );
             /* steal the includes list from the source file */
             file->files = source->files;
             source->files = empty_array;
         }
-        if (strendswith( source->name, ".l" ))
+        else if (strendswith( source->name, ".l" ))
         {
             file = add_generated_source( make, replace_extension( source->name, ".l", ".yy.c" ), NULL, 0 );
             /* steal the includes list from the source file */
             file->files = source->files;
             source->files = empty_array;
         }
-        if (strendswith( source->name, ".po" ))
+        else if (strendswith( source->name, ".rc" ))
+        {
+            ARRAY_FOR_EACH( dep, &source->file->deps, const struct dependency )
+                if (!strcmp( dep->name, "common.ver" )) has_version_res = true;
+        }
+        else if (strendswith( source->name, ".po" ))
         {
             if (!make->disabled[0])
                 strarray_add_uniq( &linguas, replace_extension( source->name, ".po", "" ));
         }
-        if (strendswith( source->name, ".spec" ))
+        else if (strendswith( source->name, ".spec" ))
         {
             char *obj = replace_extension( source->name, ".spec", "" );
             strarray_addall_uniq( &make->extra_imports,
                                   get_expanded_file_local_var( make, obj, "IMPORTS" ));
         }
-        if (strendswith( source->name, ".xml" ))
+        else if (strendswith( source->name, ".xml" ))
         {
             char *code_name = replace_extension( source->name , ".xml", "-protocol.c" );
             char *header_name = replace_extension( source->name , ".xml", "-client-protocol.h" );
@@ -2007,7 +2047,12 @@ static void add_generated_sources( struct makefile *make )
             free( header_name );
         }
     }
-    if (make->testdll)
+
+    if (make->module)
+    {
+        if (!has_version_res) add_generated_version_resource( make );
+    }
+    else if (make->testdll)
     {
         for (arch = 0; arch < archs.count; arch++)
         {
@@ -2575,6 +2620,56 @@ static struct strarray get_source_defines( struct makefile *make, struct incl_fi
 
 
 /*******************************************************************
+ *         defines_from_variables
+ *
+ * Build command-line "-Dfoo=bar" arguments for a set of variables.
+ */
+static struct strarray defines_from_variables( struct strarray vars )
+{
+    struct strarray defs = empty_strarray;
+    char *p, *escaped;
+
+    for (unsigned int i = 0; i < vars.count - 1; i += 2)
+    {
+        const char *val = vars.str[i + 1];
+
+        if (strpbrk( val, " \t\n*?[]'\"\\`$;&()|<>#" ))
+        {
+            escaped = p = xmalloc( 2 * strlen(val) + 1 );
+            do { if (*val == '"' || *val == '\\') *p++ = '\\'; } while ((*p++ = *val++));
+            strarray_add( &defs, strmake( "-D%s=\"%s\"", vars.str[i], escaped ));
+        }
+        else strarray_add( &defs, strmake( "-D%s=%s", vars.str[i], val ));
+    }
+    return defs;
+}
+
+
+/*******************************************************************
+ *         get_version_defines
+ */
+static struct strarray get_version_defines( struct makefile *make )
+{
+    struct strarray vars = empty_strarray;
+    const char *name = replace_extension( make->module, "16", "" );
+    unsigned int i;
+
+    if (strendswith( name, ".drv" )) strarray_set_value( &vars, "VER_FILETYPE", "VFT_DRV" );
+    else if (make->is_exe) strarray_set_value( &vars, "VER_FILETYPE", "VFT_APP" );
+    strarray_set_value( &vars, "VER_INTERNALNAME_STR", strmake( "\"%s\"", name ));
+    strarray_set_value( &vars, "VER_FILEDESCRIPTION_STR",
+                        strmake( "\"Wine %s\"", get_basename_noext( name )));
+
+    for (i = 0; i < ARRAY_SIZE(version_vars); i++)
+    {
+        char *val = get_expanded_make_variable( make, version_vars[i] );
+        if (val) strarray_set_value( &vars, version_vars[i], val );
+    }
+    return defines_from_variables( vars );
+}
+
+
+/*******************************************************************
  *         remove_warning_flags
  */
 static struct strarray remove_warning_flags( struct strarray flags )
@@ -2729,6 +2824,7 @@ static void output_install_rules( struct makefile *make )
             strarray_addall_uniq( &targets, cmd->targets );
 
         if (strcmp( install_targets[i], "install-test" )) output( "install " );
+        if (!strcmp( install_targets[i], "install-unixlib" )) output( "install-lib " );
         output( "%s::", install_targets[i] );
         output_filenames( targets );
         output_filename( install );
@@ -2887,6 +2983,38 @@ static void output_source_h( struct makefile *make, struct incl_file *source, co
         strarray_add( &make->all_targets[0], source->name );
     else if ((source->file->flags & FLAG_INSTALL) || strncmp( source->name, "wine/", 5 ))
         install_header( make, source->name, NULL );
+}
+
+
+/*******************************************************************
+ *         output_source_ver
+ */
+static void output_source_ver( struct makefile *make, struct incl_file *source, const char *obj )
+{
+    const char *res_file = strmake( "%s.res", obj );
+
+    if (!(source->file->flags & FLAG_GENERATED))
+    {
+        output_source_h( make, source, obj );
+        return;
+    }
+
+    for (unsigned int arch = 0; arch < archs.count; arch++)
+        if (!make->disabled[arch]) strarray_add( &make->res_files[arch], res_file );
+
+    output( "%s: %s", obj_dir_path( make, res_file ), src_dir_path( make, "Makefile.in" ));
+    output_filename( wrc );
+    if (make->src_dir) output_filename( "nls/locale.nls" );
+    output_filename( source->filename );
+    output_filenames( source->dependencies );
+    output( "\n" );
+    output( "\t%s%s -u -o $@", cmd_prefix( "WRC" ), wrc );
+    if (make->is_win16) output_filename( "-m16" );
+    output_filename( "--nostdinc" );
+    output_filenames( make->include_args );
+    output_filenames( get_version_defines( make ));
+    output_filename( source->filename );
+    output( "\n" );
 }
 
 
@@ -3187,7 +3315,9 @@ static void output_source_po( struct makefile *make, struct incl_file *source, c
  */
 static void output_source_in( struct makefile *make, struct incl_file *source, const char *obj )
 {
-    if (make == include_makefile) return;  /* ignore generated includes */
+    /* ignore generated includes */
+    if (make == include_makefile && (!strcmp( obj, "config.h" ) || !strcmp( obj, "stamp-h" ))) return;
+
     if (strendswith( obj, ".man" ) && source->file->args)
     {
         struct strarray symlinks;
@@ -3210,10 +3340,11 @@ static void output_source_in( struct makefile *make, struct incl_file *source, c
     strarray_add( &make->all_targets[0], obj );
     output( "%s: %s\n", obj_dir_path( make, obj ), source->filename );
     output( "\t%s%s %s >$@ || (rm -f $@ && false)\n", cmd_prefix( "SED" ), sed_cmd, source->filename );
-    output( "%s:", obj_dir_path( make, obj ));
+    output( "%s: include/config.h", obj_dir_path( make, obj ));
     output_filenames( source->dependencies );
     output( "\n" );
-    install_data_file( make, obj, obj, "$(datadir)/wine", NULL );
+    if (make == include_makefile) install_header( make, source->name, obj );
+    else install_data_file( make, obj, obj, "$(datadir)/wine", NULL );
 }
 
 
@@ -3524,6 +3655,7 @@ static const struct
     { "h", output_source_h },
     { "rh", output_source_h },
     { "inl", output_source_h },
+    { "ver", output_source_ver },
     { "rc", output_source_rc },
     { "mc", output_source_mc },
     { "res", output_source_res },
@@ -3709,7 +3841,7 @@ static void output_unix_lib( struct makefile *make )
     if (make->disabled[arch]) return;
 
     strarray_add( &make->all_targets[arch], make->unixlib );
-    install_program( make, make->module, arch, make->unixlib, arch_install_dirs[arch] );
+    install_program( make, make->unixlib, arch, make->unixlib, arch_install_dirs[arch] );
     output( "%s:", obj_dir_path( make, make->unixlib ));
     output_filenames_obj_dir( make, make->unixobj_files );
     output_filenames( unix_deps );
@@ -4567,6 +4699,7 @@ static void load_sources( struct makefile *make )
         for (i = 0; i < NB_INSTALL_RULES; i++) if (make->install[i].count) break;
         if (i == NB_INSTALL_RULES && !make->extlib)
         {
+            if (make->unixlib) strarray_add( &make->install[INSTALL_UNIXLIB], make->unixlib );
             if (make->importlib) strarray_add( &make->install[INSTALL_DEV], make->importlib );
             if (make->staticlib) strarray_add( &make->install[INSTALL_DEV], make->staticlib );
             else strarray_add( &make->install[INSTALL_LIB], make->module );

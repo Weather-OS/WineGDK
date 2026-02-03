@@ -30,6 +30,10 @@
 
 #include "wcmd.h"
 #include <shellapi.h>
+#define WIN32_NO_STATUS
+#include "winternl.h"
+#include "winioctl.h"
+#include "ddk/ntifs.h"
 #include "wine/debug.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(cmd);
@@ -523,17 +527,15 @@ static BOOL WCMD_IsSameFile(const WCHAR *name1, const WCHAR *name2)
   BY_HANDLE_FILE_INFORMATION info1, info2;
 
   file1 = CreateFileW(name1, 0, FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING, 0, 0);
-  if (file1 == INVALID_HANDLE_VALUE || !GetFileInformationByHandle(file1, &info1))
-    goto end;
+  if (file1 != INVALID_HANDLE_VALUE && GetFileInformationByHandle(file1, &info1)) {
+    file2 = CreateFileW(name2, 0, FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING, 0, 0);
+    if (file2 != INVALID_HANDLE_VALUE && GetFileInformationByHandle(file2, &info2)) {
+      ret = info1.dwVolumeSerialNumber == info2.dwVolumeSerialNumber
+        && info1.nFileIndexHigh == info2.nFileIndexHigh
+        && info1.nFileIndexLow == info2.nFileIndexLow;
+    }
+  }
 
-  file2 = CreateFileW(name2, 0, FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING, 0, 0);
-  if (file2 == INVALID_HANDLE_VALUE || !GetFileInformationByHandle(file2, &info2))
-    goto end;
-
-  ret = info1.dwVolumeSerialNumber == info2.dwVolumeSerialNumber
-    && info1.nFileIndexHigh == info2.nFileIndexHigh
-    && info1.nFileIndexLow == info2.nFileIndexLow;
-end:
   if (file1 != INVALID_HANDLE_VALUE)
     CloseHandle(file1);
   if (file2 != INVALID_HANDLE_VALUE)
@@ -673,6 +675,7 @@ RETURN_CODE WCMD_copy(WCHAR * args)
   DWORD   len;
   BOOL    dstisdevice = FALSE;
   unsigned numcopied = 0;
+  BOOL    want_numcopied = FALSE;
 
   typedef struct _COPY_FILES
   {
@@ -1042,6 +1045,7 @@ RETURN_CODE WCMD_copy(WCHAR * args)
         WCHAR outname[MAX_PATH];
         BOOL  overwrite;
         BOOL  appendtofirstfile = FALSE;
+        BOOL  issamefile;
 
         /* Skip . and .., and directories */
         if (!srcisdevice && fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
@@ -1061,13 +1065,24 @@ RETURN_CODE WCMD_copy(WCHAR * args)
             overwrite = TRUE;
           }
 
+          issamefile = WCMD_IsSameFile(srcpath, outname);
+
           WINE_TRACE("Copying from : '%s'\n", wine_dbgstr_w(srcpath));
           WINE_TRACE("Copying to : '%s'\n", wine_dbgstr_w(outname));
           WINE_TRACE("Flags: srcbinary(%d), dstbinary(%d), over(%d), prompt(%d)\n",
                      thiscopy->binarycopy, destination->binarycopy, overwrite, prompt);
 
+          if (!anyconcats && issamefile) {
+            WCMD_output_asis(srcpath);
+            WCMD_output_asis(L"\r\n");
+            WCMD_output_stderr(WCMD_LoadMessage(WCMD_NOCOPYTOSELF));
+            return_code = ERROR_INVALID_FUNCTION;
+            want_numcopied = TRUE;
+            break;
+          }
+
           if (!writtenoneconcat) {
-            appendtofirstfile = anyconcats && WCMD_IsSameFile(srcpath, outname);
+            appendtofirstfile = anyconcats && issamefile;
           }
 
           /* Prompt before overwriting */
@@ -1099,7 +1114,7 @@ RETURN_CODE WCMD_copy(WCHAR * args)
               WCMD_output_asis(srcpath);
               WCMD_output_asis(L"\r\n");
             }
-            if (anyconcats && WCMD_IsSameFile(srcpath, outname)) {
+            if (anyconcats && issamefile) {
               /* behavior is as Unix 'touch' (change last-written time only) */
               HANDLE file = CreateFileW(srcpath, GENERIC_WRITE, FILE_SHARE_WRITE, NULL,
                                         OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -1169,7 +1184,7 @@ RETURN_CODE WCMD_copy(WCHAR * args)
     }
   }
 
-  if (numcopied) {
+  if (numcopied || want_numcopied) {
     WCMD_output(WCMD_LoadMessage(WCMD_NUMCOPIED), numcopied);
   }
 
@@ -1768,7 +1783,7 @@ RETURN_CODE WCMD_pushd(const WCHAR *args)
     if (!*args)
         return errorlevel = NO_ERROR;
 
-    if (wcschr(args, '/') != NULL) {
+    if (*args == '/') {
       SetLastError(ERROR_INVALID_PARAMETER);
       WCMD_print_error();
       return errorlevel = ERROR_INVALID_FUNCTION;
@@ -3950,6 +3965,78 @@ RETURN_CODE WCMD_color(void)
   return errorlevel = return_code;
 }
 
+/* We cannot use SetVolumeMountPoint(), because that function forbids setting
+ * arbitrary directories as mount points, whereas mklink /j allows it. */
+BOOL create_mount_point(const WCHAR *full_link, const WCHAR *target) {
+    char buffer[MAXIMUM_REPARSE_DATA_BUFFER_SIZE];
+    REPARSE_DATA_BUFFER *data = (void *)buffer;
+    WCHAR *full_target;
+    UNICODE_STRING nt_link, nt_target;
+    OBJECT_ATTRIBUTES attr;
+    IO_STATUS_BLOCK io;
+    NTSTATUS status;
+    HANDLE file;
+    DWORD size;
+    BOOL ret;
+
+    TRACE( "link %s, target %s\n", debugstr_w(full_link), debugstr_w(target) );
+
+    if (!(size = GetFullPathNameW(target, 0, NULL, NULL)))
+        return FALSE;
+    full_target = malloc(size * sizeof(WCHAR));
+    GetFullPathNameW(target, size, full_target, NULL);
+
+    status = RtlDosPathNameToNtPathName_U_WithStatus(full_link, &nt_link, NULL, NULL);
+    if (status)
+    {
+        free(full_target);
+        return FALSE;
+    }
+
+    status = RtlDosPathNameToNtPathName_U_WithStatus(full_target, &nt_target, NULL, NULL);
+    if (status)
+    {
+        free(full_target);
+        RtlFreeUnicodeString(&nt_link);
+        return FALSE;
+    }
+
+    size = offsetof(REPARSE_DATA_BUFFER, MountPointReparseBuffer.PathBuffer);
+    size += nt_target.Length + sizeof(WCHAR) + (wcslen(full_target) + 1) * sizeof(WCHAR);
+    if (size > sizeof(buffer))
+    {
+        free(full_target);
+        RtlFreeUnicodeString(&nt_link);
+        RtlFreeUnicodeString(&nt_target);
+        return FALSE;
+    }
+
+    data->ReparseTag = IO_REPARSE_TAG_MOUNT_POINT;
+    data->ReparseDataLength = size - offsetof(REPARSE_DATA_BUFFER, MountPointReparseBuffer);
+    data->Reserved = 0;
+    data->MountPointReparseBuffer.SubstituteNameOffset = 0;
+    data->MountPointReparseBuffer.SubstituteNameLength = nt_target.Length;
+    data->MountPointReparseBuffer.PrintNameOffset = nt_target.Length + sizeof(WCHAR);
+    data->MountPointReparseBuffer.PrintNameLength = wcslen(full_target) * sizeof(WCHAR);
+    memcpy(data->MountPointReparseBuffer.PathBuffer,
+           nt_target.Buffer, nt_target.Length + sizeof(WCHAR));
+    memcpy(data->MountPointReparseBuffer.PathBuffer + (nt_target.Length / sizeof(WCHAR)) + 1,
+           full_target, (wcslen(full_target) + 1) * sizeof(WCHAR));
+    RtlFreeUnicodeString(&nt_target);
+    free(full_target);
+
+    InitializeObjectAttributes(&attr, &nt_link, OBJ_CASE_INSENSITIVE, 0, NULL);
+    status = NtCreateFile(&file, GENERIC_WRITE, &attr, &io, NULL, 0, 0, FILE_CREATE,
+                          FILE_OPEN_REPARSE_POINT | FILE_DIRECTORY_FILE, NULL, 0);
+    RtlFreeUnicodeString(&nt_link);
+    if (status)
+        return FALSE;
+
+    ret = DeviceIoControl(file, FSCTL_SET_REPARSE_POINT, data, size, NULL, 0, &size, NULL);
+    CloseHandle(file);
+    return ret;
+}
+
 /****************************************************************************
  * WCMD_mklink
  */
@@ -3961,13 +4048,13 @@ RETURN_CODE WCMD_mklink(WCHAR *args)
     BOOL isdir = FALSE;
     BOOL junction = FALSE;
     BOOL hard = FALSE;
-    BOOL ret = FALSE;
+    BOOL ret = TRUE;
     WCHAR file1[MAX_PATH];
-    WCHAR file2[MAX_PATH];
+    WCHAR file2[MAXSTRING];
 
     file1[0] = file2[0] = L'\0';
 
-    while (argN) {
+    while (argN && ret) {
         WCHAR *thisArg = WCMD_parameter (args, argno++, &argN, FALSE, FALSE);
 
         if (!argN) break;
@@ -3981,27 +4068,30 @@ RETURN_CODE WCMD_mklink(WCHAR *args)
         else if (lstrcmpiW(thisArg, L"/J") == 0)
             junction = TRUE;
         else if (*thisArg == L'/')
-        {
-            return errorlevel = ERROR_INVALID_FUNCTION;
-        }
+            ret = FALSE;
         else
         {
-            if(!file1[0])
-                lstrcpyW(file1, thisArg);
+            if (!file1[0])
+                ret = WCMD_get_fullpath(thisArg, ARRAY_SIZE(file1), file1, NULL);
+            else if (!file2[0])
+                wcscpy(file2, thisArg);
             else
-                lstrcpyW(file2, thisArg);
+                ret = FALSE;
         }
     }
 
-    if (*file1 && *file2)
+    if (!file2[0] || !ret)
     {
-        if (hard)
-            ret = CreateHardLinkW(file1, file2, NULL);
-        else if(!junction)
-            ret = CreateSymbolicLinkW(file1, file2, isdir);
-        else
-            TRACE("Junction links currently not supported.\n");
+        WCMD_output_stderr(WCMD_LoadMessage(WCMD_SYNTAXERR));
+        return errorlevel = ERROR_INVALID_FUNCTION;
     }
+
+    if (hard)
+        ret = CreateHardLinkW(file1, file2, NULL);
+    else if (!junction)
+        ret = CreateSymbolicLinkW(file1, file2, isdir);
+    else
+        ret = create_mount_point(file1, file2);
 
     if (ret) return errorlevel = NO_ERROR;
 

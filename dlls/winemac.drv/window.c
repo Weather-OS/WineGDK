@@ -1149,17 +1149,14 @@ struct macdrv_client_surface *macdrv_client_surface_create(HWND hwnd)
 {
     HWND toplevel = NtUserGetAncestor(hwnd, GA_ROOT);
     struct macdrv_client_surface *surface;
-    struct macdrv_win_data *data;
     RECT rect;
 
     NtUserGetClientRect(hwnd, &rect, NtUserGetWinMonitorDpi(hwnd, MDT_RAW_DPI));
     NtUserMapWindowPoints(hwnd, toplevel, (POINT *)&rect, 2, NtUserGetWinMonitorDpi(toplevel, MDT_RAW_DPI));
 
-    if (!(data = get_win_data(toplevel))) return FALSE;
     surface = client_surface_create(sizeof(*surface), &macdrv_client_surface_funcs, hwnd);
     surface->cocoa_view = macdrv_create_view(cgrect_from_rect(rect));
     macdrv_set_view_hidden(surface->cocoa_view, TRUE);
-    release_win_data(data);
 
     if (surface)
     {
@@ -1762,7 +1759,7 @@ void macdrv_window_got_focus(HWND hwnd, const macdrv_event *event)
     if (can_window_become_foreground(hwnd) && !(style & WS_MINIMIZE))
     {
         TRACE("setting foreground window to %p\n", hwnd);
-        NtUserSetForegroundWindow(hwnd);
+        NtUserSetForegroundWindowInternal(hwnd);
         return;
     }
 
@@ -1786,7 +1783,7 @@ void macdrv_window_lost_focus(HWND hwnd, const macdrv_event *event)
     {
         send_message(hwnd, WM_CANCELMODE, 0, 0);
         if (hwnd == NtUserGetForegroundWindow())
-            NtUserSetForegroundWindow(NtUserGetDesktopWindow());
+            NtUserSetForegroundWindowInternal(NtUserGetDesktopWindow());
     }
 }
 
@@ -1815,7 +1812,7 @@ void macdrv_app_deactivated(void)
     if (get_active_window() == NtUserGetForegroundWindow())
     {
         TRACE("setting fg to desktop\n");
-        NtUserSetForegroundWindow(NtUserGetDesktopWindow());
+        NtUserSetForegroundWindowInternal(NtUserGetDesktopWindow());
     }
 }
 
@@ -1978,7 +1975,7 @@ void macdrv_window_drag_begin(HWND hwnd, const macdrv_event *event)
         if (ma != MA_NOACTIVATEANDEAT && ma != MA_NOACTIVATE)
         {
             TRACE("setting foreground window to %p\n", hwnd);
-            NtUserSetForegroundWindow(hwnd);
+            NtUserSetForegroundWindowInternal(hwnd);
         }
     }
 

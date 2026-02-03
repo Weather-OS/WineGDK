@@ -96,7 +96,7 @@ msgstr "Información de Soporte"
 #: dlls/serialui/serialui.rc:41 dlls/setupapi/setupapi.rc:59
 #: dlls/shell32/shell32.rc:278 dlls/shell32/shell32.rc:302
 #: dlls/shell32/shell32.rc:324 dlls/shell32/shell32.rc:343
-#: dlls/shlwapi/shlwapi.rc:44 dlls/twain_32/twain.rc:32
+#: dlls/shlwapi/shlwapi.rc:44 dlls/twaindsm/twain.rc:32
 #: dlls/user32/user32.rc:94 dlls/user32/user32.rc:109 dlls/user32/user32.rc:73
 #: dlls/wininet/wininet.rc:62 dlls/wininet/wininet.rc:82
 #: dlls/winspool.drv/winspool.rc:42 programs/net/net.rc:48
@@ -198,12 +198,12 @@ msgstr "&Instalar"
 #: dlls/inetcpl.cpl/inetcpl.rc:81 dlls/localui/localui.rc:45
 #: dlls/localui/localui.rc:58 dlls/mpr/mpr.rc:50 dlls/msacm32/msacm32.rc:54
 #: dlls/mshtml/mshtml.rc:48 dlls/mshtml/mshtml.rc:58 dlls/msvfw32/msvfw32.rc:37
-#: dlls/oledlg/oledlg.rc:63 dlls/oledlg/oledlg.rc:95
+#: dlls/oledlg/oledlg.rc:63 dlls/oledlg/oledlg.rc:95 dlls/sane.ds/sane.rc:70
 #: dlls/serialui/serialui.rc:42 dlls/setupapi/setupapi.rc:42
 #: dlls/setupapi/setupapi.rc:60 dlls/shell32/shell32.rc:279
 #: dlls/shell32/shell32.rc:303 dlls/shell32/shell32.rc:314
 #: dlls/shell32/shell32.rc:344 dlls/shlwapi/shlwapi.rc:45
-#: dlls/twain_32/twain.rc:33 dlls/user32/user32.rc:95 dlls/user32/user32.rc:110
+#: dlls/twaindsm/twain.rc:33 dlls/user32/user32.rc:95 dlls/user32/user32.rc:110
 #: dlls/user32/user32.rc:74 dlls/wininet/wininet.rc:63
 #: dlls/wininet/wininet.rc:83 dlls/winspool.drv/winspool.rc:43
 #: programs/notepad/notepad.rc:126 programs/notepad/notepad.rc:139
@@ -275,7 +275,7 @@ msgstr ""
 msgid "Not specified"
 msgstr "No especificado"
 
-#: dlls/appwiz.cpl/appwiz.rc:38 dlls/oledb32/version.rc:35
+#: dlls/appwiz.cpl/appwiz.rc:38 dlls/oledb32/oledb32.rc:30
 #: dlls/shell32/shell32.rc:141 dlls/shell32/shell32.rc:243
 #: programs/regedit/regedit.rc:150 programs/winefile/winefile.rc:106
 msgid "Name"
@@ -449,7 +449,7 @@ msgstr "Asistente"
 msgid "< &Back"
 msgstr "< &Anterior"
 
-#: dlls/comctl32/comctl32.rc:85 dlls/oledb32/version.rc:58
+#: dlls/comctl32/comctl32.rc:85 dlls/oledb32/oledb32.rc:53
 msgid "&Next >"
 msgstr "&Siguiente >"
 
@@ -741,7 +741,7 @@ msgid "Scr&ipt:"
 msgstr "Co&dificación:"
 
 #: dlls/comdlg32/comdlg32.rc:283 dlls/comdlg32/comdlg32.rc:288
-#: dlls/compstui/compstui.rc:33
+#: dlls/compstui/compstui.rc:33 dlls/sane.ds/sane.rc:42
 msgid "Color"
 msgstr "Color"
 
@@ -1096,7 +1096,8 @@ msgstr "Morado"
 msgid "Teal"
 msgstr "Turquesa"
 
-#: dlls/comdlg32/comdlg32.rc:129 programs/wordpad/wordpad.rc:132
+#: dlls/comdlg32/comdlg32.rc:129 dlls/sane.ds/sane.rc:41
+#: programs/wordpad/wordpad.rc:132
 msgid "Gray"
 msgstr "Gris"
 
@@ -1412,7 +1413,7 @@ msgid "&User name:"
 msgstr "&Usuario:"
 
 #: dlls/credui/credui.rc:48 dlls/cryptui/cryptui.rc:402
-#: dlls/oledb32/version.rc:78
+#: dlls/oledb32/oledb32.rc:73
 msgid "&Password:"
 msgstr "&Contraseña:"
 
@@ -2757,7 +2758,7 @@ msgstr "Este certificado es Correcto."
 msgid "Field"
 msgstr "Campo"
 
-#: dlls/cryptui/cryptui.rc:48 dlls/oledb32/version.rc:36
+#: dlls/cryptui/cryptui.rc:48 dlls/oledb32/oledb32.rc:31
 msgid "Value"
 msgstr "Valor"
 
@@ -3370,7 +3371,7 @@ msgstr "Symbol"
 msgid "OEM/DOS"
 msgstr "OEM/DOS"
 
-#: dlls/gdi32/gdi32.rc:45 dlls/oledb32/version.rc:97
+#: dlls/gdi32/gdi32.rc:45 dlls/oledb32/oledb32.rc:92
 #: dlls/wldap32/wldap32.rc:112
 msgid "Other"
 msgstr "Otro"
@@ -3438,7 +3439,7 @@ msgid "&Stop"
 msgstr "&Detener"
 
 #: dlls/hhctrl.ocx/hhctrl.rc:66 dlls/hhctrl.ocx/hhctrl.rc:83
-#: dlls/oledb32/version.rc:70 dlls/shdoclc/shdoclc.rc:59
+#: dlls/oledb32/oledb32.rc:65 dlls/shdoclc/shdoclc.rc:59
 msgid "&Refresh"
 msgstr "&Recargar"
 
@@ -4303,14 +4304,9 @@ msgstr "Objeto array esperado"
 msgid "Property cannot have both accessors and a value"
 msgstr "La propiedad no puede tener tanto descriptores de acceso como un valor"
 
-#: include/wine/wine_common_ver.rc:123
+#: include/common.ver:77
 msgid "Wine kernel DLL"
 msgstr "DLL de núcle Wine"
-
-#: include/wine/wine_common_ver.rc:128 dlls/winemac.drv/winemac.rc:32
-#: programs/wineboot/wineboot.rc:42 programs/winecfg/winecfg.rc:143
-msgid "Wine"
-msgstr "Wine"
 
 #: dlls/kernelbase/kernelbase.rc:29
 msgid "Western Europe and United States"
@@ -9623,101 +9619,101 @@ msgstr "Activado"
 msgid "Off"
 msgstr "Desactivado"
 
-#: dlls/oledb32/version.rc:53
+#: dlls/oledb32/oledb32.rc:48
 msgid "Provider"
 msgstr "Provedor"
 
-#: dlls/oledb32/version.rc:56
+#: dlls/oledb32/oledb32.rc:51
 msgid "Select the data you want to connect to:"
 msgstr "Seleccione los datos que quiere conectar:"
 
-#: dlls/oledb32/version.rc:63
+#: dlls/oledb32/oledb32.rc:58
 msgid "Connection"
 msgstr "Conexión"
 
-#: dlls/oledb32/version.rc:66
+#: dlls/oledb32/oledb32.rc:61
 #, fuzzy
 #| msgid "Select the format you want to use:"
 msgid "Specify the following to connect to ODBC data:"
 msgstr "Seleccione el formato que quiere utilizar:"
 
-#: dlls/oledb32/version.rc:67
+#: dlls/oledb32/oledb32.rc:62
 msgid "1. Specify the source of data:"
 msgstr "1. Especifique la fuente de los datos:"
 
-#: dlls/oledb32/version.rc:68
+#: dlls/oledb32/oledb32.rc:63
 msgid "Use &data source name"
 msgstr "Utilice el nombre de la fuente de &datos"
 
-#: dlls/oledb32/version.rc:71
+#: dlls/oledb32/oledb32.rc:66
 msgid "Use c&onnection string"
 msgstr "Utilice datos de C&onexión"
 
-#: dlls/oledb32/version.rc:72
+#: dlls/oledb32/oledb32.rc:67
 msgid "&Connection string:"
 msgstr "Dados de &Conexión:"
 
-#: dlls/oledb32/version.rc:74
+#: dlls/oledb32/oledb32.rc:69
 msgid "B&uild..."
 msgstr "Constr&uir..."
 
-#: dlls/oledb32/version.rc:75
+#: dlls/oledb32/oledb32.rc:70
 msgid "2. Enter information to log on to the server"
 msgstr "2. Ingrese la información para iniciar sesión en el servidor"
 
-#: dlls/oledb32/version.rc:76
+#: dlls/oledb32/oledb32.rc:71
 msgid "User &name:"
 msgstr "&Usuario:"
 
-#: dlls/oledb32/version.rc:80
+#: dlls/oledb32/oledb32.rc:75
 msgid "&Blank password"
 msgstr "Página en &blanco"
 
-#: dlls/oledb32/version.rc:81
+#: dlls/oledb32/oledb32.rc:76
 msgid "Allow &saving password"
 msgstr "Permitir guardar contra&seña"
 
-#: dlls/oledb32/version.rc:82
+#: dlls/oledb32/oledb32.rc:77
 msgid "3. Enter the &initial catalog to use:"
 msgstr "3. Ingrese el catálogo &inicial a utilizar:"
 
-#: dlls/oledb32/version.rc:84
+#: dlls/oledb32/oledb32.rc:79
 msgid "&Test Connection"
 msgstr "&Prueba Conexión"
 
-#: dlls/oledb32/version.rc:89
+#: dlls/oledb32/oledb32.rc:84
 msgid "Advanced"
 msgstr "Avanzado"
 
-#: dlls/oledb32/version.rc:92
+#: dlls/oledb32/oledb32.rc:87
 msgid "Network settings"
 msgstr "Ajustes de red"
 
-#: dlls/oledb32/version.rc:93
+#: dlls/oledb32/oledb32.rc:88
 msgid "&Impersonation level:"
 msgstr "Nivel de personificación :"
 
-#: dlls/oledb32/version.rc:95
+#: dlls/oledb32/oledb32.rc:90
 msgid "P&rotection level:"
 msgstr "Nivel de p&rotección:"
 
-#: dlls/oledb32/version.rc:98
+#: dlls/oledb32/oledb32.rc:93
 msgid "Connect:"
 msgstr "Conectado:"
 
-#: dlls/oledb32/version.rc:100
+#: dlls/oledb32/oledb32.rc:95
 msgid "seconds."
 msgstr "segundos."
 
-#: dlls/oledb32/version.rc:101
+#: dlls/oledb32/oledb32.rc:96
 msgid "A&ccess:"
 msgstr "A&cceso:"
 
-#: dlls/oledb32/version.rc:107
+#: dlls/oledb32/oledb32.rc:102
 msgid "All"
 msgstr "Todo"
 
-#: dlls/oledb32/version.rc:111
+#: dlls/oledb32/oledb32.rc:106
 msgid ""
 "These are the initialization properties for this type of data. To edit a "
 "value, select a property, then choose Edit Value below."
@@ -9726,21 +9722,21 @@ msgstr ""
 "editar un valor, seleccione una propiedad y luego elija Editar valor a "
 "continuación."
 
-#: dlls/oledb32/version.rc:112
+#: dlls/oledb32/oledb32.rc:107
 msgid "&Edit Value..."
 msgstr "&Editar Valor..."
 
-#: dlls/oledb32/version.rc:46
+#: dlls/oledb32/oledb32.rc:41
 #, fuzzy
 #| msgid "Properties"
 msgid "Data Link Error"
 msgstr "Propiedades"
 
-#: dlls/oledb32/version.rc:47
+#: dlls/oledb32/oledb32.rc:42
 msgid "Please select a provider."
 msgstr "Seleccione un provedor por favor."
 
-#: dlls/oledb32/version.rc:48
+#: dlls/oledb32/oledb32.rc:43
 msgid ""
 "Provider is no longer available. Ensure that the provider is installed "
 "properly."
@@ -9748,41 +9744,41 @@ msgstr ""
 "El proveedor ya no está disponible. Asegúrese de que el proveedor esté "
 "instalado correctamente."
 
-#: dlls/oledb32/version.rc:33
+#: dlls/oledb32/oledb32.rc:28
 #, fuzzy
 #| msgid "Properties"
 msgid "Data Link Properties"
 msgstr "Propiedades"
 
-#: dlls/oledb32/version.rc:34
+#: dlls/oledb32/oledb32.rc:29
 msgid "OLE DB Provider(s)"
 msgstr ""
 
-#: dlls/oledb32/version.rc:38
+#: dlls/oledb32/oledb32.rc:33
 msgid "Read"
 msgstr "Leer"
 
-#: dlls/oledb32/version.rc:39
+#: dlls/oledb32/oledb32.rc:34
 msgid "ReadWrite"
 msgstr "LerEscribir"
 
-#: dlls/oledb32/version.rc:40
+#: dlls/oledb32/oledb32.rc:35
 msgid "Share Deny None"
 msgstr ""
 
-#: dlls/oledb32/version.rc:41
+#: dlls/oledb32/oledb32.rc:36
 msgid "Share Deny Read"
 msgstr ""
 
-#: dlls/oledb32/version.rc:42
+#: dlls/oledb32/oledb32.rc:37
 msgid "Share Deny Write"
 msgstr ""
 
-#: dlls/oledb32/version.rc:43
+#: dlls/oledb32/oledb32.rc:38
 msgid "Share Exclusive"
 msgstr ""
 
-#: dlls/oledb32/version.rc:44
+#: dlls/oledb32/oledb32.rc:39
 msgid "Write"
 msgstr "Escribiendo"
 
@@ -9969,11 +9965,39 @@ msgstr "Origen desconocido"
 msgid "the program which created it"
 msgstr "el programa que lo creó"
 
-#: dlls/sane.ds/sane.rc:41
+#: dlls/sane.ds/sane.rc:55 dlls/sane.ds/sane.rc:45
 msgid "Scanning"
 msgstr "Escaneando"
 
-#: dlls/sane.ds/sane.rc:44
+#: dlls/sane.ds/sane.rc:58
+#, fuzzy
+#| msgid "feature from:"
+msgid "Manufacturer:"
+msgstr "característica de:"
+
+#: dlls/sane.ds/sane.rc:60
+#, fuzzy
+#| msgid "Product Updates:"
+msgid "Product family:"
+msgstr "Actualizaciones del Producto:"
+
+#: dlls/sane.ds/sane.rc:62
+#, fuzzy
+#| msgid "Product Updates:"
+msgid "Product name:"
+msgstr "Actualizaciones del Producto:"
+
+#: dlls/sane.ds/sane.rc:64
+#, fuzzy
+#| msgid "Screen resolution"
+msgid "Resolution:"
+msgstr "Resolución"
+
+#: dlls/sane.ds/sane.rc:66 programs/wordpad/wordpad.rc:181
+msgid "Page"
+msgstr "Página"
+
+#: dlls/sane.ds/sane.rc:68
 msgid "SCANNING... Please Wait"
 msgstr "ESCANEANDO... Por favor espere"
 
@@ -10002,6 +10026,35 @@ msgstr "%"
 msgctxt "unit: microseconds"
 msgid "us"
 msgstr "µs"
+
+#: dlls/sane.ds/sane.rc:43
+msgid "LineArt"
+msgstr ""
+
+#: dlls/sane.ds/sane.rc:44 dlls/setupapi/setupapi.rc:32
+#: programs/ipconfig/ipconfig.rc:34
+msgid "Unknown"
+msgstr "Desconocido"
+
+#: dlls/sane.ds/sane.rc:46
+msgid ""
+"The Automatic Document Feeder (ADF) is empty. Please insert the sheets to be "
+"scanned."
+msgstr ""
+
+#: dlls/sane.ds/sane.rc:47
+msgid ""
+"The scanner reports a paper jam. Check for additional information on device "
+"display."
+msgstr ""
+
+#: dlls/sane.ds/sane.rc:48
+msgid "The scanner cover is open. Please close the scanner."
+msgstr ""
+
+#: dlls/sane.ds/sane.rc:49
+msgid "The scanner is busy. Try again later."
+msgstr ""
 
 #: dlls/serialui/serialui.rc:28
 msgid "Settings for %s"
@@ -10054,10 +10107,6 @@ msgstr "Copiar archivos del fabricante desde:"
 #: dlls/setupapi/setupapi.rc:31
 msgid "The file '%1' on %2 is needed"
 msgstr "El archivo '%1' en %2 es necesario"
-
-#: dlls/setupapi/setupapi.rc:32 programs/ipconfig/ipconfig.rc:34
-msgid "Unknown"
-msgstr "Desconocido"
 
 #: dlls/setupapi/setupapi.rc:33
 msgid "Copy files from:"
@@ -10960,7 +11009,7 @@ msgctxt "time unit: seconds"
 msgid " sec"
 msgstr " seg"
 
-#: dlls/twain_32/twain.rc:29
+#: dlls/twaindsm/twain.rc:29
 msgid "Select Source"
 msgstr "Seleccionar Fuente"
 
@@ -13217,7 +13266,7 @@ msgid ""
 msgstr ""
 
 #: dlls/urlmon/urlmon.rc:63
-msgid "This zone contains all Web sites you haven't placed in other zones"
+msgid "This zone contains all Web sites you haven't placed in other zones."
 msgstr ""
 
 #: dlls/urlmon/urlmon.rc:65
@@ -13410,6 +13459,11 @@ msgstr ""
 #: dlls/vbscript/vbscript.rc:63
 msgid "Microsoft VBScript runtime error"
 msgstr ""
+
+#: dlls/winemac.drv/winemac.rc:32 programs/wineboot/wineboot.rc:42
+#: programs/winecfg/winecfg.rc:143
+msgid "Wine"
+msgstr "Wine"
 
 #: dlls/winemac.drv/winemac.rc:33
 msgid "Hide %@"
@@ -15472,6 +15526,12 @@ msgstr "Fin del archivo.\n"
 #| msgid "%1!d! file(s) copied\n"
 msgid "%t%1!u! file(s) copied\n"
 msgstr "%1!d! archivo(s) copiados\n"
+
+#: programs/cmd/cmd.rc:411 programs/xcopy/xcopy.rc:83
+#, fuzzy
+#| msgid "The file cannot be accessed.\n"
+msgid "File cannot be copied onto itself.\n"
+msgstr "El fichero no puede ser accedido.\n"
 
 #: programs/conhost/conhost.rc:54
 msgid "Cursor size"
@@ -18114,12 +18174,6 @@ msgid ""
 "Sent termination signal to process with PID %1!u!, child of PID %2!u!.\n"
 msgstr ""
 
-#: include/wine/wine_common_ver.rc:123
-#, fuzzy
-#| msgid "page tab list"
-msgid "Wine tasklist"
-msgstr "lista de pestañas"
-
 #: programs/tasklist/tasklist.rc:29
 msgid "Usage: tasklist [/?]\n"
 msgstr ""
@@ -20483,10 +20537,6 @@ msgstr "Más zoom"
 #: programs/wordpad/wordpad.rc:179
 msgid "Zoom out"
 msgstr "Menos zoom"
-
-#: programs/wordpad/wordpad.rc:181
-msgid "Page"
-msgstr "Página"
 
 #: programs/wordpad/wordpad.rc:182
 msgid "Pages"

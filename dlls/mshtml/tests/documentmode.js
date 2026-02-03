@@ -2892,7 +2892,6 @@ sync_test("elem_attr", function() {
     ok(r === (v < 9 ? "test" : "string"), "onclick attr = " + r);
     r = elem.removeAttribute("onclick");
     ok(r === (v < 9 ? true : undefined), "removeAttribute returned " + r);
-    todo_wine_if(v >= 9).
     ok(elem.onclick === null, "removed onclick = " + elem.onclick);
 
     elem.setAttribute("ondblclick", arr);
@@ -3168,6 +3167,39 @@ sync_test("elem_attrNS", function() {
     elem.setAttributeNS(svg_ns, "numattr", 13);
     r = elem.getAttributeNS(svg_ns, "numattr");
     ok(r === "13", "numattr = " + r);
+});
+
+
+var rec;
+
+sync_test("event attr", function() {
+    document.body.innerHTML = '<div></div>';
+    var elem = document.body.firstChild, prev;
+    var v = document.documentMode;
+
+    ok(elem.onclick === null, "elem.onclick = " + elem.onclick);
+    elem.setAttribute("onclick", "rec += 'attr';");
+    if (v < 8)
+        ok(elem.onclick === "rec += 'attr';", "elem.onclick = " + elem.onclick);
+    else
+        todo_wine_if(v == 8).
+        ok(typeof(elem.onclick) === "function", "elem.onclick = " + elem.onclick);
+    rec = "";
+    elem.click();
+    todo_wine_if(v == 8).
+    ok(rec === (v < 8 ? "" : "attr"), "unexpected rec = " + rec );
+
+    elem.setAttribute("onclick", "rec += 'attr2';");
+    rec = "";
+    elem.click();
+    todo_wine_if(v == 8).
+    ok(rec === (v < 8 ? "" : "attr2"), "unexpected rec = " + rec );
+
+    elem.onclick = "rec += 'prop';";
+    ok(elem.onclick === (v < 9 ? "rec += 'prop';" : null), "elem.onclick = " + elem.onclick);
+    rec = "";
+    elem.click();
+    ok(rec === "", "unexpected rec = " + rec );
 });
 
 sync_test("builtins_diffs", function() {
@@ -3951,6 +3983,65 @@ sync_test("form", function() {
     ok(typeof(form[1]) === "object", "form[1] = " + form[1]);
     form.innerHTML = "";
     ok(form[0] === "test", "form[0] = " + form[0]);
+});
+
+sync_test("indexed hostobj props", function() {
+    var v = document.documentMode;
+    if(v < 9)
+        return;
+    function getter() { return 42; }
+
+    function check(obj, value) {
+        var name = Object.prototype.toString.call(obj).slice(8, -1);
+        if(value === undefined)
+            ok(typeof(obj[0]) === "object", name + "[0] = " + obj[0]);
+        else
+            ok(obj[0] === value, name + "[0] post-del = " + obj[0]);
+
+        Object.defineProperty(obj, "0", { get: getter, set: undefined, configurable: true, enumerable: false });
+        var desc = Object.getOwnPropertyDescriptor(obj, "0");
+        ok(desc.value === undefined, name + "[0] value = " + desc.value);
+        ok(desc.get === getter, name + "[0] get = " + desc.get);
+        ok(desc.set === undefined, name + "[0] set = " + desc.set);
+        ok(desc.writable === undefined, name + "[0] writable = " + desc.writable);
+        ok(desc.enumerable === false, name + "[0] enumerable = " + desc.enumerable);
+        ok(desc.configurable === true, name + "[0] configurable = " + desc.configurable);
+
+        ok(obj[0] === 42, name + "[0] = " + obj[0]);
+        delete obj["0"];
+
+        desc = Object.getOwnPropertyDescriptor(obj, "0");
+        if(value === undefined)
+            ok(typeof(desc.value) === "object", name + "[0] value post-del = " + desc.value);
+        else
+            ok(desc.value === value, name + "[0] value post-del = " + desc.value);
+        ok(desc.get === undefined, name + "[0] get post-del = " + desc.get);
+        ok(desc.set === undefined, name + "[0] set post-del = " + desc.set);
+        ok(desc.writable === true, name + "[0] writable post-del = " + desc.writable);
+        todo_wine.
+        ok(desc.enumerable === true, name + "[0] enumerable post-del = " + desc.enumerable);
+        ok(desc.configurable === true, name + "[0] configurable post-del = " + desc.configurable);
+        if(value === undefined)
+            ok(typeof(obj[0]) === "object", name + "[0] post-del = " + obj[0]);
+        else
+            ok(obj[0] === value, name + "[0] post-del = " + obj[0]);
+        ok(obj.hasOwnProperty("0"), "0 not a prop of " + name);
+    }
+
+    document.body.innerHTML = "<style>div { margin-left: 1px; }</style>";
+    var e = document.createElement("select");
+    e.innerHTML = '<option value="wine"/>'
+    e.setAttribute("class", "wine");
+
+    check(document.all);
+    check(document.childNodes);
+    check(document.styleSheets);
+    check(document.styleSheets[0].rules);
+    check(document.body.getClientRects());
+    check(e);
+    check(e.attributes);
+    if(v > 9)
+        check(e.classList, "wine");
 });
 
 function test_own_props(obj, name, props, todos, flaky) {

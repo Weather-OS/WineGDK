@@ -713,6 +713,28 @@ static void test_get_displayname(void)
     ok(ret, "Expected success (err=%ld)\n", GetLastError());
 
     CloseServiceHandle(svc_handle);
+
+    /* Test empty DisplayName */
+    do
+    {
+        SetLastError(0xdeadbeef);
+        svc_handle = CreateServiceA(scm_handle, servicename, "", DELETE,
+                                SERVICE_WIN32_OWN_PROCESS | SERVICE_INTERACTIVE_PROCESS,
+                                SERVICE_DISABLED, 0, pathname, NULL, NULL, NULL, NULL, NULL);
+    } while (!svc_handle && GetLastError() == ERROR_SERVICE_MARKED_FOR_DELETE);
+    ok(svc_handle != NULL, "CreateService() error %lu\n", GetLastError());
+
+    strcpy(displayname, "deadbeef");
+    displaysize = sizeof(displayname);
+    SetLastError(0xdeadbeef);
+    ret = GetServiceDisplayNameA(scm_handle, servicename, displayname, &displaysize);
+    ok(ret, "GetServiceDisplayName() error %lu\n", GetLastError());
+    ok(!lstrcmpiA(displayname, servicename), "got \"%s\"\n", displayname);
+
+    ret = DeleteService(svc_handle);
+    ok(ret, "DeleteService() error %lu\n", GetLastError());
+
+    CloseServiceHandle(svc_handle);
     CloseServiceHandle(scm_handle);
 }
 
@@ -2857,15 +2879,14 @@ static void test_refcount(void)
     ret = CloseServiceHandle(svc_handle1);
     ok(ret, "Expected success (err=%ld)\n", GetLastError());
 
-    /* Wait a while. Doing a CreateService too soon will result again
-     * in an ERROR_SERVICE_MARKED_FOR_DELETE error.
-     */
-    Sleep(1000);
-
-    /* We succeed now as all handles are closed (tested this also with a long SLeep() */
-    svc_handle5 = CreateServiceA(scm_handle, servicename, NULL, GENERIC_ALL,
-                                 SERVICE_WIN32_OWN_PROCESS | SERVICE_INTERACTIVE_PROCESS,
-                                 SERVICE_DISABLED, 0, pathname, NULL, NULL, NULL, NULL, NULL);
+    /* We succeed now as all handles are closed (tested this also with a long Sleep() */
+    do
+    {
+        SetLastError(0xdeadbeef);
+        svc_handle5 = CreateServiceA(scm_handle, servicename, NULL, GENERIC_ALL,
+                                     SERVICE_WIN32_OWN_PROCESS | SERVICE_INTERACTIVE_PROCESS,
+                                     SERVICE_DISABLED, 0, pathname, NULL, NULL, NULL, NULL, NULL);
+    } while (!svc_handle5 && GetLastError() == ERROR_SERVICE_MARKED_FOR_DELETE);
     ok(svc_handle5 != NULL, "Expected success, got error %lu\n", GetLastError());
 
     /* Delete the service */

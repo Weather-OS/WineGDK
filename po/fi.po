@@ -94,7 +94,7 @@ msgstr "Tukitietoja"
 #: dlls/serialui/serialui.rc:41 dlls/setupapi/setupapi.rc:59
 #: dlls/shell32/shell32.rc:278 dlls/shell32/shell32.rc:302
 #: dlls/shell32/shell32.rc:324 dlls/shell32/shell32.rc:343
-#: dlls/shlwapi/shlwapi.rc:44 dlls/twain_32/twain.rc:32
+#: dlls/shlwapi/shlwapi.rc:44 dlls/twaindsm/twain.rc:32
 #: dlls/user32/user32.rc:94 dlls/user32/user32.rc:109 dlls/user32/user32.rc:73
 #: dlls/wininet/wininet.rc:62 dlls/wininet/wininet.rc:82
 #: dlls/winspool.drv/winspool.rc:42 programs/net/net.rc:48
@@ -194,12 +194,12 @@ msgstr "&Asenna"
 #: dlls/inetcpl.cpl/inetcpl.rc:81 dlls/localui/localui.rc:45
 #: dlls/localui/localui.rc:58 dlls/mpr/mpr.rc:50 dlls/msacm32/msacm32.rc:54
 #: dlls/mshtml/mshtml.rc:48 dlls/mshtml/mshtml.rc:58 dlls/msvfw32/msvfw32.rc:37
-#: dlls/oledlg/oledlg.rc:63 dlls/oledlg/oledlg.rc:95
+#: dlls/oledlg/oledlg.rc:63 dlls/oledlg/oledlg.rc:95 dlls/sane.ds/sane.rc:70
 #: dlls/serialui/serialui.rc:42 dlls/setupapi/setupapi.rc:42
 #: dlls/setupapi/setupapi.rc:60 dlls/shell32/shell32.rc:279
 #: dlls/shell32/shell32.rc:303 dlls/shell32/shell32.rc:314
 #: dlls/shell32/shell32.rc:344 dlls/shlwapi/shlwapi.rc:45
-#: dlls/twain_32/twain.rc:33 dlls/user32/user32.rc:95 dlls/user32/user32.rc:110
+#: dlls/twaindsm/twain.rc:33 dlls/user32/user32.rc:95 dlls/user32/user32.rc:110
 #: dlls/user32/user32.rc:74 dlls/wininet/wininet.rc:63
 #: dlls/wininet/wininet.rc:83 dlls/winspool.drv/winspool.rc:43
 #: programs/notepad/notepad.rc:126 programs/notepad/notepad.rc:139
@@ -268,7 +268,7 @@ msgstr ""
 msgid "Not specified"
 msgstr "Ei määritelty"
 
-#: dlls/appwiz.cpl/appwiz.rc:38 dlls/oledb32/version.rc:35
+#: dlls/appwiz.cpl/appwiz.rc:38 dlls/oledb32/oledb32.rc:30
 #: dlls/shell32/shell32.rc:141 dlls/shell32/shell32.rc:243
 #: programs/regedit/regedit.rc:150 programs/winefile/winefile.rc:106
 msgid "Name"
@@ -442,7 +442,7 @@ msgstr "Velho"
 msgid "< &Back"
 msgstr "< &Edellinen"
 
-#: dlls/comctl32/comctl32.rc:85 dlls/oledb32/version.rc:58
+#: dlls/comctl32/comctl32.rc:85 dlls/oledb32/oledb32.rc:53
 msgid "&Next >"
 msgstr "&Seuraava >"
 
@@ -734,7 +734,7 @@ msgid "Scr&ipt:"
 msgstr "Merk&istö:"
 
 #: dlls/comdlg32/comdlg32.rc:283 dlls/comdlg32/comdlg32.rc:288
-#: dlls/compstui/compstui.rc:33
+#: dlls/compstui/compstui.rc:33 dlls/sane.ds/sane.rc:42
 msgid "Color"
 msgstr "Väri"
 
@@ -1088,7 +1088,8 @@ msgstr "Purppura"
 msgid "Teal"
 msgstr "Turkoosi"
 
-#: dlls/comdlg32/comdlg32.rc:129 programs/wordpad/wordpad.rc:132
+#: dlls/comdlg32/comdlg32.rc:129 dlls/sane.ds/sane.rc:41
+#: programs/wordpad/wordpad.rc:132
 msgid "Gray"
 msgstr "Harmaa"
 
@@ -1392,7 +1393,7 @@ msgid "&User name:"
 msgstr "&Käyttäjänimi:"
 
 #: dlls/credui/credui.rc:48 dlls/cryptui/cryptui.rc:402
-#: dlls/oledb32/version.rc:78
+#: dlls/oledb32/oledb32.rc:73
 msgid "&Password:"
 msgstr "&Salasana:"
 
@@ -2725,7 +2726,7 @@ msgstr "Varmenne on kelvollinen."
 msgid "Field"
 msgstr "Kenttä"
 
-#: dlls/cryptui/cryptui.rc:48 dlls/oledb32/version.rc:36
+#: dlls/cryptui/cryptui.rc:48 dlls/oledb32/oledb32.rc:31
 msgid "Value"
 msgstr "Arvo"
 
@@ -3327,7 +3328,7 @@ msgstr "Symbolit"
 msgid "OEM/DOS"
 msgstr "OEM/DOS"
 
-#: dlls/gdi32/gdi32.rc:45 dlls/oledb32/version.rc:97
+#: dlls/gdi32/gdi32.rc:45 dlls/oledb32/oledb32.rc:92
 #: dlls/wldap32/wldap32.rc:112
 msgid "Other"
 msgstr "Muu"
@@ -3395,7 +3396,7 @@ msgid "&Stop"
 msgstr "&Pysäytä"
 
 #: dlls/hhctrl.ocx/hhctrl.rc:66 dlls/hhctrl.ocx/hhctrl.rc:83
-#: dlls/oledb32/version.rc:70 dlls/shdoclc/shdoclc.rc:59
+#: dlls/oledb32/oledb32.rc:65 dlls/shdoclc/shdoclc.rc:59
 msgid "&Refresh"
 msgstr "P&äivitä"
 
@@ -4166,30 +4167,24 @@ msgid "Cannot modify non-writable property '|'"
 msgstr "Kirjoitussuojattua ominaisuutta '|' ei voi muokata"
 
 #: dlls/jscript/jscript.rc:84
-#, fuzzy
-#| msgid "DataView constructor argument offset is invalid"
 msgid "Typed array constructor argument is invalid"
-msgstr "DataView'n muodostimen kohta-argumentti (offset) ei kelpaa"
+msgstr "Tyypitetyn taulukon muodostimen argumentti ei kelpaa"
 
 #: dlls/jscript/jscript.rc:83
-#, fuzzy
-#| msgid "'this' is not a | object"
 msgid "'this' is not a typed array object"
-msgstr "'this' ei ole |-objekti"
+msgstr "'this' ei ole tyypitetty taulukko"
 
 #: dlls/jscript/jscript.rc:85
 msgid "Invalid offset/length when creating typed array"
-msgstr ""
+msgstr "Tyypitetyn taulukon pituus tai kohta (offset) ei kelpaa"
 
 #: dlls/jscript/jscript.rc:86
 msgid "Invalid begin/end value in typed array subarray method"
-msgstr ""
+msgstr "Alku tai loppu ei kelpaa tyypitetyn taulukon subarray-metodissa"
 
 #: dlls/jscript/jscript.rc:87
-#, fuzzy
-#| msgid "Invalid module type for %1.\n"
 msgid "Invalid source in typed array set"
-msgstr "%1:n moduulin tyyppi ei kelpaa.\n"
+msgstr "Tyypitetyn taulukon lähde ei kelpaa"
 
 #: dlls/jscript/jscript.rc:88
 msgid "'this' is not a DataView object"
@@ -4223,14 +4218,9 @@ msgstr "Odotettiin ArrayBuffer-objektia"
 msgid "Property cannot have both accessors and a value"
 msgstr "Ominaisuudella ei voi olla sekä hakufunktiota että arvoa"
 
-#: include/wine/wine_common_ver.rc:123
+#: include/common.ver:77
 msgid "Wine kernel DLL"
 msgstr "Winen ydin-DLL"
-
-#: include/wine/wine_common_ver.rc:128 dlls/winemac.drv/winemac.rc:32
-#: programs/wineboot/wineboot.rc:42 programs/winecfg/winecfg.rc:143
-msgid "Wine"
-msgstr "Wine"
 
 #: dlls/kernelbase/kernelbase.rc:29
 msgid "Western Europe and United States"
@@ -9288,99 +9278,99 @@ msgstr "Päällä"
 msgid "Off"
 msgstr "Pois päältä"
 
-#: dlls/oledb32/version.rc:53
+#: dlls/oledb32/oledb32.rc:48
 msgid "Provider"
 msgstr "Tarjoaja"
 
-#: dlls/oledb32/version.rc:56
+#: dlls/oledb32/oledb32.rc:51
 msgid "Select the data you want to connect to:"
 msgstr "Valitse tietolähde, johon haluat yhdistää:"
 
-#: dlls/oledb32/version.rc:63
+#: dlls/oledb32/oledb32.rc:58
 msgid "Connection"
 msgstr "Yhteys"
 
-#: dlls/oledb32/version.rc:66
+#: dlls/oledb32/oledb32.rc:61
 msgid "Specify the following to connect to ODBC data:"
 msgstr "Määritä seuraavat, jotta voit yhdistää ODBC-tietolähteeseen:"
 
-#: dlls/oledb32/version.rc:67
+#: dlls/oledb32/oledb32.rc:62
 msgid "1. Specify the source of data:"
 msgstr "1. Määritä tietolähde:"
 
-#: dlls/oledb32/version.rc:68
+#: dlls/oledb32/oledb32.rc:63
 msgid "Use &data source name"
 msgstr "Käytä tietolähteen &nimeä"
 
-#: dlls/oledb32/version.rc:71
+#: dlls/oledb32/oledb32.rc:66
 msgid "Use c&onnection string"
 msgstr "Syötä yhteysasetukset &merkkijonona"
 
-#: dlls/oledb32/version.rc:72
+#: dlls/oledb32/oledb32.rc:67
 msgid "&Connection string:"
 msgstr "Yhteys&asetukset:"
 
-#: dlls/oledb32/version.rc:74
+#: dlls/oledb32/oledb32.rc:69
 msgid "B&uild..."
 msgstr "&Luo..."
 
-#: dlls/oledb32/version.rc:75
+#: dlls/oledb32/oledb32.rc:70
 msgid "2. Enter information to log on to the server"
 msgstr "2. Syötä palvelimen kirjautumistiedot"
 
-#: dlls/oledb32/version.rc:76
+#: dlls/oledb32/oledb32.rc:71
 msgid "User &name:"
 msgstr "&Tunnus:"
 
-#: dlls/oledb32/version.rc:80
+#: dlls/oledb32/oledb32.rc:75
 msgid "&Blank password"
 msgstr "&Ei salasanaa"
 
-#: dlls/oledb32/version.rc:81
+#: dlls/oledb32/oledb32.rc:76
 msgid "Allow &saving password"
 msgstr "Sa&lli salasanan tallennus"
 
-#: dlls/oledb32/version.rc:82
+#: dlls/oledb32/oledb32.rc:77
 msgid "3. Enter the &initial catalog to use:"
 msgstr "3. Syötä ensiksi käytettävä &katalogi:"
 
-#: dlls/oledb32/version.rc:84
+#: dlls/oledb32/oledb32.rc:79
 msgid "&Test Connection"
 msgstr "Testaa y&hteyttä"
 
-#: dlls/oledb32/version.rc:89
+#: dlls/oledb32/oledb32.rc:84
 msgid "Advanced"
 msgstr "Kehittynyt"
 
-#: dlls/oledb32/version.rc:92
+#: dlls/oledb32/oledb32.rc:87
 msgid "Network settings"
 msgstr "Verkkoasetukset"
 
-#: dlls/oledb32/version.rc:93
+#: dlls/oledb32/oledb32.rc:88
 msgid "&Impersonation level:"
 msgstr "&Tekeytymistaso:"
 
-#: dlls/oledb32/version.rc:95
+#: dlls/oledb32/oledb32.rc:90
 msgid "P&rotection level:"
 msgstr "&Suojaustaso:"
 
-#: dlls/oledb32/version.rc:98
+#: dlls/oledb32/oledb32.rc:93
 msgid "Connect:"
 msgstr "Yhdistä:"
 
-#: dlls/oledb32/version.rc:100
+#: dlls/oledb32/oledb32.rc:95
 msgid "seconds."
 msgstr "sekuntia."
 
-#: dlls/oledb32/version.rc:101
+#: dlls/oledb32/oledb32.rc:96
 msgid "A&ccess:"
 msgstr "&Käyttöoikeus:"
 
-#: dlls/oledb32/version.rc:107
+#: dlls/oledb32/oledb32.rc:102
 msgid "All"
 msgstr "Kaikki"
 
-#: dlls/oledb32/version.rc:111
+#: dlls/oledb32/oledb32.rc:106
 msgid ""
 "These are the initialization properties for this type of data. To edit a "
 "value, select a property, then choose Edit Value below."
@@ -9388,57 +9378,57 @@ msgstr ""
 "Nämä ovat tietotyypin alustusominaisuudet. Muokataksesi arvoa valitse ensin "
 "ominaisuus ja paina sitten Muokkaa arvoa -painiketta."
 
-#: dlls/oledb32/version.rc:112
+#: dlls/oledb32/oledb32.rc:107
 msgid "&Edit Value..."
 msgstr "&Muokkaa arvoa..."
 
-#: dlls/oledb32/version.rc:46
+#: dlls/oledb32/oledb32.rc:41
 msgid "Data Link Error"
 msgstr "Datayhteysvirhe"
 
-#: dlls/oledb32/version.rc:47
+#: dlls/oledb32/oledb32.rc:42
 msgid "Please select a provider."
 msgstr "Valitse tarjoaja."
 
-#: dlls/oledb32/version.rc:48
+#: dlls/oledb32/oledb32.rc:43
 msgid ""
 "Provider is no longer available. Ensure that the provider is installed "
 "properly."
 msgstr "Tarjoajaa ei ole enää saatavilla. Varmista, että se on asennettu."
 
-#: dlls/oledb32/version.rc:33
+#: dlls/oledb32/oledb32.rc:28
 msgid "Data Link Properties"
 msgstr "Datayhteyden ominaisuudet"
 
-#: dlls/oledb32/version.rc:34
+#: dlls/oledb32/oledb32.rc:29
 msgid "OLE DB Provider(s)"
 msgstr "OLE DB -tarjoaja(t)"
 
-#: dlls/oledb32/version.rc:38
+#: dlls/oledb32/oledb32.rc:33
 msgid "Read"
 msgstr "Luku"
 
-#: dlls/oledb32/version.rc:39
+#: dlls/oledb32/oledb32.rc:34
 msgid "ReadWrite"
 msgstr "Luku ja kirjoitus"
 
-#: dlls/oledb32/version.rc:40
+#: dlls/oledb32/oledb32.rc:35
 msgid "Share Deny None"
 msgstr "Salli samaan aikaan käyttö"
 
-#: dlls/oledb32/version.rc:41
+#: dlls/oledb32/oledb32.rc:36
 msgid "Share Deny Read"
 msgstr "Estä samaan aikaan lukeminen"
 
-#: dlls/oledb32/version.rc:42
+#: dlls/oledb32/oledb32.rc:37
 msgid "Share Deny Write"
 msgstr "Estä samaan aikaan kirjoittaminen"
 
-#: dlls/oledb32/version.rc:43
+#: dlls/oledb32/oledb32.rc:38
 msgid "Share Exclusive"
 msgstr "Estä kaikki samaan aikaan käyttö"
 
-#: dlls/oledb32/version.rc:44
+#: dlls/oledb32/oledb32.rc:39
 msgid "Write"
 msgstr "Kirjoitus"
 
@@ -9623,11 +9613,31 @@ msgstr "Tuntematon lähde"
 msgid "the program which created it"
 msgstr "ohjelma, joka loi sen"
 
-#: dlls/sane.ds/sane.rc:41
+#: dlls/sane.ds/sane.rc:55 dlls/sane.ds/sane.rc:45
 msgid "Scanning"
 msgstr "Skannataan"
 
-#: dlls/sane.ds/sane.rc:44
+#: dlls/sane.ds/sane.rc:58
+msgid "Manufacturer:"
+msgstr "Valmistaja:"
+
+#: dlls/sane.ds/sane.rc:60
+msgid "Product family:"
+msgstr "Tuoteperhe:"
+
+#: dlls/sane.ds/sane.rc:62
+msgid "Product name:"
+msgstr "Tuote:"
+
+#: dlls/sane.ds/sane.rc:64
+msgid "Resolution:"
+msgstr "Resoluutio:"
+
+#: dlls/sane.ds/sane.rc:66 programs/wordpad/wordpad.rc:181
+msgid "Page"
+msgstr "Sivu"
+
+#: dlls/sane.ds/sane.rc:68
 msgid "SCANNING... Please Wait"
 msgstr "SKANNATAAN... Odota"
 
@@ -9656,6 +9666,35 @@ msgstr "%"
 msgctxt "unit: microseconds"
 msgid "us"
 msgstr "µs"
+
+#: dlls/sane.ds/sane.rc:43
+msgid "LineArt"
+msgstr "Viivapiirros"
+
+#: dlls/sane.ds/sane.rc:44 dlls/setupapi/setupapi.rc:32
+#: programs/ipconfig/ipconfig.rc:34
+msgid "Unknown"
+msgstr "Tuntematon"
+
+#: dlls/sane.ds/sane.rc:46
+msgid ""
+"The Automatic Document Feeder (ADF) is empty. Please insert the sheets to be "
+"scanned."
+msgstr "Automaattisyöttö on tyhjä. Syötä skannattavat paperit."
+
+#: dlls/sane.ds/sane.rc:47
+msgid ""
+"The scanner reports a paper jam. Check for additional information on device "
+"display."
+msgstr "Skanneri ilmoittaa paperitukoksesta. Tarkasta tilanne laitteesta."
+
+#: dlls/sane.ds/sane.rc:48
+msgid "The scanner cover is open. Please close the scanner."
+msgstr "Skannerin kansi on auki. Sulje se."
+
+#: dlls/sane.ds/sane.rc:49
+msgid "The scanner is busy. Try again later."
+msgstr "Skanneri on käytössä. Yritä myöhemmin uudestaan."
 
 #: dlls/serialui/serialui.rc:28
 msgid "Settings for %s"
@@ -9708,10 +9747,6 @@ msgstr "Kopioi valmistajan tiedostot:"
 #: dlls/setupapi/setupapi.rc:31
 msgid "The file '%1' on %2 is needed"
 msgstr "Tiedostoa '%1' %2:lla tarvitaan"
-
-#: dlls/setupapi/setupapi.rc:32 programs/ipconfig/ipconfig.rc:34
-msgid "Unknown"
-msgstr "Tuntematon"
 
 #: dlls/setupapi/setupapi.rc:33
 msgid "Copy files from:"
@@ -10607,7 +10642,7 @@ msgctxt "time unit: seconds"
 msgid " sec"
 msgstr " s"
 
-#: dlls/twain_32/twain.rc:29
+#: dlls/twaindsm/twain.rc:29
 msgid "Select Source"
 msgstr "Valitse lähde"
 
@@ -12573,7 +12608,7 @@ msgstr ""
 "tai tiedostoja."
 
 #: dlls/urlmon/urlmon.rc:63
-msgid "This zone contains all Web sites you haven't placed in other zones"
+msgid "This zone contains all Web sites you haven't placed in other zones."
 msgstr ""
 "Tämä vyöhyke on Internet-sivustoille, jotka eivät kuulu luotettuun tai "
 "rajoitettuun vyöhykkeeseen."
@@ -12758,6 +12793,11 @@ msgstr "Microsoft VBScript -käännösvirhe"
 #: dlls/vbscript/vbscript.rc:63
 msgid "Microsoft VBScript runtime error"
 msgstr "Microsoft VBScript -suoritusvirhe"
+
+#: dlls/winemac.drv/winemac.rc:32 programs/wineboot/wineboot.rc:42
+#: programs/winecfg/winecfg.rc:143
+msgid "Wine"
+msgstr "Wine"
 
 #: dlls/winemac.drv/winemac.rc:33
 msgid "Hide %@"
@@ -14724,6 +14764,10 @@ msgstr "Tiedoston loppu"
 #: programs/cmd/cmd.rc:410
 msgid "%t%1!u! file(s) copied\n"
 msgstr "%t%1!u! tiedosto(a) kopioitu\n"
+
+#: programs/cmd/cmd.rc:411 programs/xcopy/xcopy.rc:83
+msgid "File cannot be copied onto itself.\n"
+msgstr "Tiedostoa ei voi kopioida itsensä päälle.\n"
 
 #: programs/conhost/conhost.rc:54
 msgid "Cursor size"
@@ -17523,10 +17567,6 @@ msgstr ""
 "Lähetettiin lopetussignaali prosessille PID %1!u! (prosessin PID %2!u! "
 "lapsi).\n"
 
-#: include/wine/wine_common_ver.rc:123
-msgid "Wine tasklist"
-msgstr "Winen tehtävälista"
-
 #: programs/tasklist/tasklist.rc:29
 msgid "Usage: tasklist [/?]\n"
 msgstr "Käyttö: tasklist [/?]\n"
@@ -19855,10 +19895,6 @@ msgstr "Lähennä"
 #: programs/wordpad/wordpad.rc:179
 msgid "Zoom out"
 msgstr "Loitonna"
-
-#: programs/wordpad/wordpad.rc:181
-msgid "Page"
-msgstr "Sivu"
 
 #: programs/wordpad/wordpad.rc:182
 msgid "Pages"

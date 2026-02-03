@@ -82,6 +82,17 @@ static TW_UINT16 SANE_OpenDS( pTW_IDENTITY pOrigin, pTW_IDENTITY self)
         activeDS.appIdentity = *pOrigin;
         activeDS.capXferMech = TWSX_NATIVE;
         activeDS.capXferCount = -1;
+        activeDS.capIndicators = TRUE;
+        activeDS.ShowUI = FALSE;
+
+        /* Sane does not support a concept of 'default' resolution, so we have to
+         *   cache the resolution the very first time we load the scanner, and use that
+         *   as the default */
+        sane_option_get_resolution("x-resolution", &activeDS.defaultXResolution);
+        sane_option_get_resolution("y-resolution", &activeDS.defaultYResolution);
+
+        SANE_LoadOptions();
+
         return TWRC_SUCCESS;
     }
     SANE_CALL( close_ds, NULL );
@@ -89,6 +100,21 @@ static TW_UINT16 SANE_OpenDS( pTW_IDENTITY pOrigin, pTW_IDENTITY self)
 }
 
 static TW_UINT16 SANE_SetEntryPoint (pTW_IDENTITY pOrigin, TW_MEMREF pData);
+
+
+/** @brief Close the data source.
+ *  Closes all associated windows and frees memory.
+ */
+static void SANE_CloseDS(void)
+{
+    if(activeDS.progressWnd)
+    {
+        ScanningDialogBox(activeDS.progressWnd, -1);
+    }
+    SANE_CALL( close_ds, NULL );
+    UI_Destroy();
+}
+
 
 static TW_UINT16 SANE_SourceControlHandler (
            pTW_IDENTITY pOrigin,
@@ -104,7 +130,7 @@ static TW_UINT16 SANE_SourceControlHandler (
 	    switch (MSG)
 	    {
 		case MSG_CLOSEDS:
-                    SANE_CALL( close_ds, NULL );
+                    SANE_CloseDS();
                     break;
 		case MSG_OPENDS:
 		     twRC = SANE_OpenDS( pOrigin, (pTW_IDENTITY)pData);
@@ -368,7 +394,7 @@ void SANE_Notify (TW_UINT16 message)
 /** @brief A new TWAIN data transfer is ready to be processed
  *
  *  - Notify Application.
- *  - Set activeDS.remainingImages to start value.
+ *  - Set activeDS.sannedImages to zero.
  *  - Set activeDS.feederEnabled according to current sane parameters
  *    if Automatic Document Feeder (ADF) is enabled.
  *  - Notify the Application of MSG_XFERREADY.
@@ -387,6 +413,10 @@ SANE_XferReady(void)
     activeDS.feederEnabled =
       sane_option_get_str ("source", current_source, sizeof(current_source)) == TWCC_SUCCESS &&
       (current_source[0]=='A' || current_source[0]=='a');
+    activeDS.userCancelled = FALSE;
+
+    sane_option_get_resolution("x-resolution", &activeDS.XResolution);
+    sane_option_get_resolution("y-resolution", &activeDS.YResolution);
 
     SANE_Notify(MSG_XFERREADY);
 }

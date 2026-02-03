@@ -641,6 +641,13 @@ static const char *debug_cs_op(enum wined3d_cs_op op)
     return wine_dbg_sprintf("UNKNOWN_OP(%#x)", op);
 }
 
+static const char *debug_cs_packet(const struct wined3d_cs_packet *packet)
+{
+    if (!packet->size)
+        return wine_dbg_sprintf("padding at %p", packet);
+    return wine_dbg_sprintf("op %s at %p", debug_cs_op(*(const enum wined3d_cs_op *)packet->data), packet);
+}
+
 static struct wined3d_cs_packet *wined3d_next_cs_packet(const uint8_t *data, SIZE_T *offset, SIZE_T mask)
 {
     struct wined3d_cs_packet *packet = (struct wined3d_cs_packet *)&data[*offset & mask];
@@ -1578,7 +1585,7 @@ void wined3d_device_context_emit_set_constant_buffers(struct wined3d_device_cont
 static bool texture_binding_might_invalidate_ps(struct wined3d_shader_resource_view *view,
         struct wined3d_shader_resource_view *prev, const struct wined3d_d3d_info *d3d_info)
 {
-    unsigned int old_usage, new_usage, old_caps, new_caps;
+    unsigned int old_usage, new_usage;
     const struct wined3d_format *old_format, *new_format;
 
     if (!prev)
@@ -1593,9 +1600,7 @@ static bool texture_binding_might_invalidate_ps(struct wined3d_shader_resource_v
 
     old_format = prev->resource->format;
     new_format = view->resource->format;
-    old_caps = prev->resource->format_caps;
-    new_caps = view->resource->format_caps;
-    if ((old_caps & WINED3D_FORMAT_CAP_SHADOW) != (new_caps & WINED3D_FORMAT_CAP_SHADOW))
+    if ((old_format->attrs & WINED3D_FORMAT_ATTR_SHADOW) != (new_format->attrs & WINED3D_FORMAT_ATTR_SHADOW))
         return true;
 
     if (is_same_fixup(old_format->color_fixup, new_format->color_fixup))
@@ -3312,7 +3317,7 @@ static void wined3d_cs_queue_submit(struct wined3d_cs_queue *queue, struct wined
     size_t packet_size;
 
     packet = (struct wined3d_cs_packet *)&queue->data[queue->head & WINED3D_CS_QUEUE_MASK];
-    TRACE("Queuing op %s at %p.\n", debug_cs_op(*(const enum wined3d_cs_op *)packet->data), packet);
+    TRACE("Queuing %s.\n", debug_cs_packet(packet));
     packet_size = FIELD_OFFSET(struct wined3d_cs_packet, data[packet->size]);
     InterlockedExchange((LONG *)&queue->head, queue->head + packet_size);
 
@@ -3502,7 +3507,7 @@ static inline bool wined3d_cs_execute_next(struct wined3d_cs *cs, struct wined3d
     {
         opcode = *(const enum wined3d_cs_op *)packet->data;
 
-        TRACE("Executing %s at %p.\n", debug_cs_op(opcode), packet);
+        TRACE("Executing %s.\n", debug_cs_packet(packet));
         if (opcode >= WINED3D_CS_OP_STOP)
         {
             if (opcode > WINED3D_CS_OP_STOP)
@@ -3513,7 +3518,7 @@ static inline bool wined3d_cs_execute_next(struct wined3d_cs *cs, struct wined3d
         wined3d_cs_command_lock(cs);
         wined3d_cs_op_handlers[opcode](cs, packet->data);
         wined3d_cs_command_unlock(cs);
-        TRACE("%s at %p executed.\n", debug_cs_op(opcode), packet);
+        TRACE("%s executed.\n", debug_cs_packet(packet));
     }
 
     InterlockedExchange((LONG *)&queue->tail, tail);

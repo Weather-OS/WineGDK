@@ -4748,10 +4748,11 @@ HRESULT set_event_handler(EventTarget *event_target, eventid_t eid, VARIANT *var
         return set_event_handler_disp(event_target, eid, V_DISPATCH(var));
 
     case VT_BSTR: {
+        compat_mode_t compat_mode = dispex_compat_mode(&event_target->dispex);
         VARIANT *v;
         HRESULT hres;
 
-        if(!use_event_quirks(event_target))
+        if(compat_mode == COMPAT_MODE_IE8)
             FIXME("Setting to string %s not supported\n", debugstr_w(V_BSTR(var)));
 
         /*
@@ -4761,6 +4762,8 @@ HRESULT set_event_handler(EventTarget *event_target, eventid_t eid, VARIANT *var
          * properties.
          */
         remove_event_handler(event_target, eid);
+        if(compat_mode >= COMPAT_MODE_IE9)
+            return S_OK;
 
         hres = get_event_dispex_ref(event_target, eid, TRUE, &v);
         if(FAILED(hres))
@@ -4879,6 +4882,45 @@ void update_doc_cp_events(HTMLDocumentNode *doc, cp_static_data_t *cp)
         if((event_info[i].flags & EVENT_DEFAULTLISTENER) && is_cp_event(cp, event_info[i].dispid))
             ensure_doc_nsevent_handler(doc, NULL, i);
     }
+}
+
+void event_attr_changed(HTMLDocumentNode *doc, nsIDOMElement *nselem, const WCHAR *name)
+{
+    nsAString name_str, value_str;
+    const PRUnichar *value;
+    HTMLDOMNode *node;
+    IDispatch *disp;
+    eventid_t eid;
+    nsresult nsres;
+    HRESULT hres;
+
+    eid = attr_to_eid(name);
+    if(eid == EVENTID_LAST)
+        return;
+
+    hres = get_node((nsIDOMNode*)nselem, TRUE, &node);
+    if(FAILED(hres))
+        return;
+
+    nsAString_InitDepend(&name_str, name);
+    nsAString_InitDepend(&value_str, NULL);
+
+    nsres = nsIDOMElement_GetAttribute(nselem, &name_str, &value_str);
+    if(NS_SUCCEEDED(nsres)) {
+        nsAString_GetData(&value_str, &value);
+
+        TRACE("%p.%s = %s\n", nselem, debugstr_w(name), debugstr_w(value));
+
+        disp = script_parse_event(doc->window, value);
+        if(disp) {
+            set_event_handler_disp(get_node_event_prop_target(node, eid), eid, disp);
+            IDispatch_Release(disp);
+        }
+    }
+
+    node_release(node);
+    nsAString_Finish(&name_str);
+    nsAString_Finish(&value_str);
 }
 
 void check_event_attr(HTMLDocumentNode *doc, nsIDOMElement *nselem)

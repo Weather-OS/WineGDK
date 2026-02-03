@@ -3372,6 +3372,11 @@ struct glBitmapxOES_params
     const GLubyte *bitmap;
 };
 
+struct glBlendBarrier_params
+{
+    TEB *teb;
+};
+
 struct glBlendBarrierKHR_params
 {
     TEB *teb;
@@ -7416,6 +7421,18 @@ struct glFramebufferSamplePositionsfvAMD_params
     const GLfloat *values;
 };
 
+struct glFramebufferShadingRateEXT_params
+{
+    TEB *teb;
+    GLenum target;
+    GLenum attachment;
+    GLuint texture;
+    GLint baseLayer;
+    GLsizei numLayers;
+    GLsizei texelWidth;
+    GLsizei texelHeight;
+};
+
 struct glFramebufferTexture_params
 {
     TEB *teb;
@@ -8607,6 +8624,15 @@ struct glGetFragmentMaterialivSGIX_params
     GLenum face;
     GLenum pname;
     GLint *params;
+};
+
+struct glGetFragmentShadingRatesEXT_params
+{
+    TEB *teb;
+    GLsizei samples;
+    GLsizei maxCount;
+    GLsizei *count;
+    GLenum *shadingRates;
 };
 
 struct glGetFramebufferAttachmentParameteriv_params
@@ -11731,15 +11757,6 @@ struct glImageTransformParameterivHP_params
     const GLint *params;
 };
 
-struct glImportMemoryFdEXT_params
-{
-    TEB *teb;
-    GLuint memory;
-    GLuint64 size;
-    GLenum handleType;
-    GLint fd;
-};
-
 struct glImportMemoryWin32HandleEXT_params
 {
     TEB *teb;
@@ -11756,14 +11773,6 @@ struct glImportMemoryWin32NameEXT_params
     GLuint64 size;
     GLenum handleType;
     const void *name;
-};
-
-struct glImportSemaphoreFdEXT_params
-{
-    TEB *teb;
-    GLuint semaphore;
-    GLenum handleType;
-    GLint fd;
 };
 
 struct glImportSemaphoreWin32HandleEXT_params
@@ -16197,6 +16206,19 @@ struct glPresentFrameKeyedNV_params
     GLuint key1;
 };
 
+struct glPrimitiveBoundingBox_params
+{
+    TEB *teb;
+    GLfloat minX;
+    GLfloat minY;
+    GLfloat minZ;
+    GLfloat minW;
+    GLfloat maxX;
+    GLfloat maxY;
+    GLfloat maxZ;
+    GLfloat maxW;
+};
+
 struct glPrimitiveBoundingBoxARB_params
 {
     TEB *teb;
@@ -19134,6 +19156,19 @@ struct glShaderStorageBlockBinding_params
     GLuint program;
     GLuint storageBlockIndex;
     GLuint storageBlockBinding;
+};
+
+struct glShadingRateCombinerOpsEXT_params
+{
+    TEB *teb;
+    GLenum combinerOp0;
+    GLenum combinerOp1;
+};
+
+struct glShadingRateEXT_params
+{
+    TEB *teb;
+    GLenum rate;
 };
 
 struct glShadingRateImageBarrierNV_params
@@ -26302,6 +26337,7 @@ enum unix_funcs
     unix_glBinormal3svEXT,
     unix_glBinormalPointerEXT,
     unix_glBitmapxOES,
+    unix_glBlendBarrier,
     unix_glBlendBarrierKHR,
     unix_glBlendBarrierNV,
     unix_glBlendColor,
@@ -26770,6 +26806,7 @@ enum unix_funcs
     unix_glFramebufferSampleLocationsfvARB,
     unix_glFramebufferSampleLocationsfvNV,
     unix_glFramebufferSamplePositionsfvAMD,
+    unix_glFramebufferShadingRateEXT,
     unix_glFramebufferTexture,
     unix_glFramebufferTexture1D,
     unix_glFramebufferTexture1DEXT,
@@ -26910,6 +26947,7 @@ enum unix_funcs
     unix_glGetFragmentLightivSGIX,
     unix_glGetFragmentMaterialfvSGIX,
     unix_glGetFragmentMaterialivSGIX,
+    unix_glGetFragmentShadingRatesEXT,
     unix_glGetFramebufferAttachmentParameteriv,
     unix_glGetFramebufferAttachmentParameterivEXT,
     unix_glGetFramebufferParameterfvAMD,
@@ -27274,10 +27312,8 @@ enum unix_funcs
     unix_glImageTransformParameterfvHP,
     unix_glImageTransformParameteriHP,
     unix_glImageTransformParameterivHP,
-    unix_glImportMemoryFdEXT,
     unix_glImportMemoryWin32HandleEXT,
     unix_glImportMemoryWin32NameEXT,
-    unix_glImportSemaphoreFdEXT,
     unix_glImportSemaphoreWin32HandleEXT,
     unix_glImportSemaphoreWin32NameEXT,
     unix_glImportSyncEXT,
@@ -27810,6 +27846,7 @@ enum unix_funcs
     unix_glPopGroupMarkerEXT,
     unix_glPresentFrameDualFillNV,
     unix_glPresentFrameKeyedNV,
+    unix_glPrimitiveBoundingBox,
     unix_glPrimitiveBoundingBoxARB,
     unix_glPrimitiveRestartIndex,
     unix_glPrimitiveRestartIndexNV,
@@ -28148,6 +28185,8 @@ enum unix_funcs
     unix_glShaderSource,
     unix_glShaderSourceARB,
     unix_glShaderStorageBlockBinding,
+    unix_glShadingRateCombinerOpsEXT,
+    unix_glShadingRateEXT,
     unix_glShadingRateImageBarrierNV,
     unix_glShadingRateImagePaletteNV,
     unix_glShadingRateSampleOrderCustomNV,

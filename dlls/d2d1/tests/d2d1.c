@@ -7505,6 +7505,7 @@ static void test_stroke_style(BOOL d3d11)
     };
     D2D1_STROKE_STYLE_PROPERTIES desc;
     struct d2d1_test_context ctx;
+    ID2D1StrokeStyle1 *style1;
     ID2D1StrokeStyle *style;
     UINT32 count;
     HRESULT hr;
@@ -7627,6 +7628,25 @@ static void test_stroke_style(BOOL d3d11)
     ok(count == 0, "Unexpected dashes count %u.\n", count);
 
     ID2D1StrokeStyle_Release(style);
+
+    if (ctx.factory1)
+    {
+        D2D1_STROKE_TRANSFORM_TYPE transform_type;
+
+        hr = ID2D1Factory_CreateStrokeStyle(ctx.factory, &desc, NULL, 0, &style);
+        ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+        hr = ID2D1StrokeStyle_QueryInterface(style, &IID_ID2D1StrokeStyle1, (void **)&style1);
+        ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+        transform_type = ID2D1StrokeStyle1_GetStrokeTransformType(style1);
+        ok(transform_type == D2D1_STROKE_TRANSFORM_TYPE_NORMAL, "Unexpected type %u.\n", transform_type);
+
+        ID2D1StrokeStyle1_Release(style1);
+        ID2D1StrokeStyle_Release(style);
+    }
+    else
+        win_skip("ID2D1StrokeStyle1 is not supported.\n");
 
     release_test_context(&ctx);
 }
@@ -13986,6 +14006,287 @@ static void test_effect_color_matrix(BOOL d3d11)
     release_test_context(&ctx);
 }
 
+static void test_effect_blend(BOOL d3d11)
+{
+    static const struct effect_property properties[] =
+    {
+        { L"Mode", D2D1_BLEND_PROP_MODE, D2D1_PROPERTY_TYPE_ENUM },
+    };
+    D2D1_BLEND_MODE mode;
+    struct d2d1_test_context ctx;
+    ID2D1DeviceContext *context;
+    unsigned int count, i;
+    ID2D1Effect *effect;
+    WCHAR name[64];
+    HRESULT hr;
+
+    if (!init_test_context(&ctx, d3d11))
+        return;
+
+    context = ctx.context;
+
+    hr = ID2D1DeviceContext_CreateEffect(context, &CLSID_D2D1Blend, &effect);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    check_system_properties(effect);
+
+    count = ID2D1Effect_GetPropertyCount(effect);
+    ok(count == 1, "Got unexpected property count %u.\n", count);
+
+    for (i = 0; i < ARRAY_SIZE(properties); ++i)
+    {
+        hr = ID2D1Effect_GetPropertyName(effect, properties[i].index, name, 64);
+        ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+        ok(!wcscmp(name, properties[i].name), "Unexpected name %s.\n", wine_dbgstr_w(name));
+    }
+
+    mode = effect_get_enum_prop(effect, D2D1_BLEND_PROP_MODE);
+    ok(mode == D2D1_BLEND_MODE_MULTIPLY, "got %d.\n", mode);
+
+    ID2D1Effect_Release(effect);
+    release_test_context(&ctx);
+}
+
+static void test_effect_brightness(BOOL d3d11)
+{
+    static const struct effect_property properties[] =
+    {
+        { L"WhitePoint", D2D1_BRIGHTNESS_PROP_WHITE_POINT, D2D1_PROPERTY_TYPE_VECTOR2 },
+        { L"BlackPoint", D2D1_BRIGHTNESS_PROP_BLACK_POINT, D2D1_PROPERTY_TYPE_VECTOR2 },
+    };
+    struct d2d1_test_context ctx;
+    ID2D1DeviceContext *context;
+    unsigned int count, i;
+    ID2D1Effect *effect;
+    D2D_VECTOR_2F vec;
+    WCHAR name[64];
+    HRESULT hr;
+
+    if (!init_test_context(&ctx, d3d11))
+        return;
+
+    context = ctx.context;
+
+    hr = ID2D1DeviceContext_CreateEffect(context, &CLSID_D2D1Brightness, &effect);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    check_system_properties(effect);
+
+    count = ID2D1Effect_GetPropertyCount(effect);
+    ok(count == 2, "Got unexpected property count %u.\n", count);
+
+    for (i = 0; i < ARRAY_SIZE(properties); ++i)
+    {
+        hr = ID2D1Effect_GetPropertyName(effect, properties[i].index, name, 64);
+        ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+        ok(!wcscmp(name, properties[i].name), "Unexpected name %s.\n", wine_dbgstr_w(name));
+    }
+
+    vec = effect_get_vec2_prop(effect, D2D1_BRIGHTNESS_PROP_WHITE_POINT);
+    ok(vec.x == 1.0f && vec.y == 1.0f, "Unexpected value {%.8e,%.8e}.\n", vec.x, vec.y);
+
+    vec = effect_get_vec2_prop(effect, D2D1_BRIGHTNESS_PROP_BLACK_POINT);
+    ok(vec.x == 0.0f && vec.y == 0.0f, "Unexpected value {%.8e,%.8e}.\n", vec.x, vec.y);
+
+    ID2D1Effect_Release(effect);
+    release_test_context(&ctx);
+}
+
+static void test_effect_directional_blur(BOOL d3d11)
+{
+    static const struct effect_property properties[] =
+    {
+        { L"StandardDeviation", D2D1_DIRECTIONALBLUR_PROP_STANDARD_DEVIATION, D2D1_PROPERTY_TYPE_FLOAT },
+        { L"Angle", D2D1_DIRECTIONALBLUR_PROP_ANGLE, D2D1_PROPERTY_TYPE_FLOAT },
+        { L"Optimization", D2D1_DIRECTIONALBLUR_PROP_OPTIMIZATION, D2D1_PROPERTY_TYPE_ENUM },
+        { L"BorderMode", D2D1_DIRECTIONALBLUR_PROP_BORDER_MODE, D2D1_PROPERTY_TYPE_ENUM },
+    };
+    struct d2d1_test_context ctx;
+    ID2D1DeviceContext *context;
+    unsigned int count, i;
+    ID2D1Effect *effect;
+    WCHAR name[64];
+    HRESULT hr;
+    UINT32 v;
+    float f;
+
+    if (!init_test_context(&ctx, d3d11))
+        return;
+
+    context = ctx.context;
+
+    hr = ID2D1DeviceContext_CreateEffect(context, &CLSID_D2D1DirectionalBlur, &effect);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    check_system_properties(effect);
+
+    count = ID2D1Effect_GetPropertyCount(effect);
+    ok(count == 4, "Got unexpected property count %u.\n", count);
+
+    for (i = 0; i < ARRAY_SIZE(properties); ++i)
+    {
+        hr = ID2D1Effect_GetPropertyName(effect, properties[i].index, name, 64);
+        ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+        ok(!wcscmp(name, properties[i].name), "Unexpected name %s.\n", wine_dbgstr_w(name));
+    }
+
+    f = effect_get_float_prop(effect, D2D1_DIRECTIONALBLUR_PROP_STANDARD_DEVIATION);
+    ok(f == 3.0f, "got %f.\n", f);
+
+    f = effect_get_float_prop(effect, D2D1_DIRECTIONALBLUR_PROP_ANGLE);
+    ok(f == 0.0f, "got %f.\n", f);
+
+    v = effect_get_enum_prop(effect, D2D1_DIRECTIONALBLUR_PROP_OPTIMIZATION);
+    ok(v == D2D1_DIRECTIONALBLUR_OPTIMIZATION_BALANCED, "Unexpected value %#x.\n", v);
+
+    v = effect_get_enum_prop(effect, D2D1_DIRECTIONALBLUR_PROP_BORDER_MODE);
+    ok(v == D2D1_BORDER_MODE_SOFT, "Unexpected value %#x.\n", v);
+
+    ID2D1Effect_Release(effect);
+    release_test_context(&ctx);
+}
+
+static void test_effect_hue_rotation(BOOL d3d11)
+{
+    static const struct effect_property properties[] =
+    {
+        { L"Angle", D2D1_HUEROTATION_PROP_ANGLE, D2D1_PROPERTY_TYPE_FLOAT },
+    };
+    struct d2d1_test_context ctx;
+    ID2D1DeviceContext *context;
+    unsigned int count, i;
+    ID2D1Effect *effect;
+    WCHAR name[64];
+    HRESULT hr;
+    float f;
+
+    if (!init_test_context(&ctx, d3d11))
+        return;
+
+    context = ctx.context;
+
+    hr = ID2D1DeviceContext_CreateEffect(context, &CLSID_D2D1HueRotation, &effect);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    check_system_properties(effect);
+
+    count = ID2D1Effect_GetPropertyCount(effect);
+    ok(count == 1, "Got unexpected property count %u.\n", count);
+
+    for (i = 0; i < ARRAY_SIZE(properties); ++i)
+    {
+        hr = ID2D1Effect_GetPropertyName(effect, properties[i].index, name, 64);
+        ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+        ok(!wcscmp(name, properties[i].name), "Unexpected name %s.\n", wine_dbgstr_w(name));
+    }
+
+    f = effect_get_float_prop(effect, D2D1_HUEROTATION_PROP_ANGLE);
+    ok(f == 0.0f, "got %f.\n", f);
+
+    ID2D1Effect_Release(effect);
+    release_test_context(&ctx);
+}
+
+static void test_effect_saturation(BOOL d3d11)
+{
+    static const struct effect_property properties[] =
+    {
+        { L"Saturation", D2D1_SATURATION_PROP_SATURATION, D2D1_PROPERTY_TYPE_FLOAT },
+    };
+    struct d2d1_test_context ctx;
+    ID2D1DeviceContext *context;
+    unsigned int count, i;
+    ID2D1Effect *effect;
+    WCHAR name[64];
+    HRESULT hr;
+    float f;
+
+    if (!init_test_context(&ctx, d3d11))
+        return;
+
+    context = ctx.context;
+
+    hr = ID2D1DeviceContext_CreateEffect(context, &CLSID_D2D1Saturation, &effect);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    check_system_properties(effect);
+
+    count = ID2D1Effect_GetPropertyCount(effect);
+    ok(count == 1, "Got unexpected property count %u.\n", count);
+
+    for (i = 0; i < ARRAY_SIZE(properties); ++i)
+    {
+        hr = ID2D1Effect_GetPropertyName(effect, properties[i].index, name, 64);
+        ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+        ok(!wcscmp(name, properties[i].name), "Unexpected name %s.\n", wine_dbgstr_w(name));
+    }
+
+    f = effect_get_float_prop(effect, D2D1_SATURATION_PROP_SATURATION);
+    ok(f == 0.5f, "got %f.\n", f);
+
+    ID2D1Effect_Release(effect);
+    release_test_context(&ctx);
+}
+
+static void test_effect_scale(BOOL d3d11)
+{
+    static const struct effect_property properties[] =
+    {
+        { L"Scale", D2D1_SCALE_PROP_SCALE, D2D1_PROPERTY_TYPE_VECTOR2 },
+        { L"CenterPoint", D2D1_SCALE_PROP_CENTER_POINT, D2D1_PROPERTY_TYPE_VECTOR2 },
+        { L"InterpolationMode", D2D1_SCALE_PROP_INTERPOLATION_MODE, D2D1_PROPERTY_TYPE_ENUM },
+        { L"BorderMode", D2D1_SCALE_PROP_BORDER_MODE, D2D1_PROPERTY_TYPE_ENUM },
+        { L"Sharpness", D2D1_SCALE_PROP_SHARPNESS, D2D1_PROPERTY_TYPE_FLOAT },
+    };
+    struct d2d1_test_context ctx;
+    ID2D1DeviceContext *context;
+    unsigned int count, i;
+    ID2D1Effect *effect;
+    D2D_VECTOR_2F vec;
+    WCHAR name[64];
+    HRESULT hr;
+    UINT32 v;
+    float f;
+
+    if (!init_test_context(&ctx, d3d11))
+        return;
+
+    context = ctx.context;
+
+    hr = ID2D1DeviceContext_CreateEffect(context, &CLSID_D2D1Scale, &effect);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    check_system_properties(effect);
+
+    count = ID2D1Effect_GetPropertyCount(effect);
+    ok(count == 5, "Got unexpected property count %u.\n", count);
+
+    for (i = 0; i < ARRAY_SIZE(properties); ++i)
+    {
+        hr = ID2D1Effect_GetPropertyName(effect, properties[i].index, name, 64);
+        ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+        ok(!wcscmp(name, properties[i].name), "%u Unexpected name %s.\n", i, wine_dbgstr_w(name));
+    }
+
+    vec = effect_get_vec2_prop(effect, D2D1_SCALE_PROP_SCALE);
+    ok(vec.x == 1.0f && vec.y == 1.0f, "Unexpected value {%.8e,%.8e}.\n", vec.x, vec.y);
+
+    vec = effect_get_vec2_prop(effect, D2D1_SCALE_PROP_CENTER_POINT);
+    ok(vec.x == 0.0f && vec.y == 0.0f, "Unexpected value {%.8e,%.8e}.\n", vec.x, vec.y);
+
+    v = effect_get_enum_prop(effect, D2D1_SCALE_PROP_INTERPOLATION_MODE);
+    ok(v == D2D1_SCALE_INTERPOLATION_MODE_LINEAR, "Unexpected value %#x.\n", v);
+
+    v = effect_get_enum_prop(effect, D2D1_SCALE_PROP_BORDER_MODE);
+    ok(v == D2D1_BORDER_MODE_SOFT, "Unexpected value %#x.\n", v);
+
+    f = effect_get_float_prop(effect, D2D1_SCALE_PROP_SHARPNESS);
+    ok(f == 0.0f, "Unexpected value %.8e.\n", f);
+
+    ID2D1Effect_Release(effect);
+    release_test_context(&ctx);
+}
+
 static void test_registered_effects(BOOL d3d11)
 {
     UINT32 ret, count, count2, count3;
@@ -17273,6 +17574,225 @@ static void test_path_geometry_stream(BOOL d3d11)
     release_test_context(&ctx);
 }
 
+static void test_transformed_geometry(BOOL d3d11)
+{
+    ID2D1TransformedGeometry *geometry, *geometry2;
+    ID2D1PathGeometry *path_geometry;
+    struct d2d1_test_context ctx;
+    D2D1_MATRIX_3X2_F matrix;
+    ID2D1GeometrySink *sink;
+    D2D1_POINT_2F point;
+    D2D1_RECT_F bounds;
+    BOOL match;
+    float area;
+    HRESULT hr;
+
+    if (!init_test_context(&ctx, d3d11))
+        return;
+
+    hr = ID2D1Factory_CreatePathGeometry(ctx.factory, &path_geometry);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    /* Path geometry hasn't been populated yet. */
+    set_matrix_identity(&matrix);
+    translate_matrix(&matrix, 240.0f, 720.0f);
+    hr = ID2D1Factory_CreateTransformedGeometry(ctx.factory, (ID2D1Geometry *)path_geometry,
+            &matrix, &geometry);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    translate_matrix(&matrix, 240.0f, 720.0f);
+    hr = ID2D1Factory_CreateTransformedGeometry(ctx.factory, (ID2D1Geometry *)geometry,
+            &matrix, &geometry2);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    set_rect(&bounds, 1.0f, 2.0f, 3.0f, 4.0f);
+    hr = ID2D1TransformedGeometry_GetBounds(geometry, NULL, &bounds);
+    todo_wine
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    if (hr == S_OK)
+    {
+        match = compare_rect(&bounds, INFINITY, INFINITY, FLT_MAX, FLT_MAX, 0);
+        ok(match, "Got unexpected bounds {%.8e, %.8e, %.8e, %.8e}.\n",
+                bounds.left, bounds.top, bounds.right, bounds.bottom);
+    }
+
+    set_rect(&bounds, 1.0f, 2.0f, 3.0f, 4.0f);
+    hr = ID2D1TransformedGeometry_GetBounds(geometry2, NULL, &bounds);
+    todo_wine
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    if (hr == S_OK)
+    {
+        match = compare_rect(&bounds, INFINITY, INFINITY, FLT_MAX, FLT_MAX, 0);
+        ok(match, "Got unexpected bounds {%.8e, %.8e, %.8e, %.8e}.\n",
+                bounds.left, bounds.top, bounds.right, bounds.bottom);
+    }
+
+    set_rect(&bounds, 1.0f, 2.0f, 3.0f, 4.0f);
+    hr = ID2D1PathGeometry_GetBounds(path_geometry, NULL, &bounds);
+    ok(hr == D2DERR_WRONG_STATE, "Got unexpected hr %#lx.\n", hr);
+    match = compare_rect(&bounds, 1.0f, 2.0f, 3.0f, 4.0f, 0);
+    ok(match, "Got unexpected bounds {%.8e, %.8e, %.8e, %.8e}.\n",
+            bounds.left, bounds.top, bounds.right, bounds.bottom);
+
+    area = 123.0f;
+    hr = ID2D1TransformedGeometry_ComputeArea(geometry, NULL, 1.0f, &area);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    ok(area == 0.0f, "Unexpected value %.8e.\n", area);
+
+    area = 123.0f;
+    hr = ID2D1TransformedGeometry_ComputeArea(geometry2, NULL, 1.0f, &area);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    ok(area == 0.0f, "Unexpected value %.8e.\n", area);
+
+    hr = ID2D1PathGeometry_Open(path_geometry, &sink);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    set_point(&point, 0.0f, 0.0f);
+    ID2D1GeometrySink_BeginFigure(sink, point, D2D1_FIGURE_BEGIN_FILLED);
+    line_to(sink, 10.0f, 10.0f);
+    line_to(sink, 0.0f, 10.0f);
+    ID2D1GeometrySink_EndFigure(sink, D2D1_FIGURE_END_CLOSED);
+    hr = ID2D1GeometrySink_Close(sink);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    ID2D1GeometrySink_Release(sink);
+
+    area = 0.0f;
+    hr = ID2D1TransformedGeometry_ComputeArea(geometry, NULL, 0.0f, &area);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    ok(area > 0.0f, "Unexpected value %.8e.\n", area);
+
+    area = 0.0f;
+    hr = ID2D1TransformedGeometry_ComputeArea(geometry2, NULL, 0.0f, &area);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    ok(area > 0.0f, "Unexpected value %.8e.\n", area);
+
+    ID2D1TransformedGeometry_Release(geometry2);
+    ID2D1TransformedGeometry_Release(geometry);
+    ID2D1PathGeometry_Release(path_geometry);
+
+    release_test_context(&ctx);
+}
+
+static IDWriteFontFace *get_tahoma(IDWriteFactory *factory)
+{
+    IDWriteFontCollection *collection;
+    IDWriteFontFace *fontface = NULL;
+    IDWriteFontFamily *family;
+    IDWriteFont *font;
+    UINT32 index;
+    BOOL exists;
+    HRESULT hr;
+
+    hr = IDWriteFactory_GetSystemFontCollection(factory, &collection, FALSE);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    index = ~0;
+    exists = FALSE;
+    hr = IDWriteFontCollection_FindFamilyName(collection, L"Tahoma", &index, &exists);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    if (!exists) goto not_found;
+
+    hr = IDWriteFontCollection_GetFontFamily(collection, index, &family);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = IDWriteFontFamily_GetFirstMatchingFont(family, DWRITE_FONT_WEIGHT_NORMAL,
+            DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL, &font);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = IDWriteFont_CreateFontFace(font, &fontface);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    IDWriteFont_Release(font);
+
+    IDWriteFontFamily_Release(family);
+not_found:
+    IDWriteFontCollection_Release(collection);
+    return fontface;
+}
+
+static void test_glyph_run_world_bounds(BOOL d3d11)
+{
+    ID2D1DeviceContext *device_context, *device_context2;
+    IDWriteFactory *dwrite_factory;
+    struct d2d1_test_context ctx;
+    D2D1_RECT_F bounds, bounds2;
+    DWRITE_GLYPH_RUN glyph_run;
+    IDWriteFontFace *fontface;
+    D2D1_MATRIX_3X2_F matrix;
+    D2D1_POINT_2F origin;
+    ID2D1Device *device;
+    UINT16 indices[1];
+    HRESULT hr;
+    UINT32 ch;
+
+    if (!init_test_context(&ctx, d3d11))
+        return;
+
+    device_context = ctx.context;
+
+    hr = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, &IID_IDWriteFactory, (IUnknown **)&dwrite_factory);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    fontface = get_tahoma(dwrite_factory);
+
+    ch = 'A';
+    *indices = 0;
+    hr = IDWriteFontFace_GetGlyphIndices(fontface, &ch, 1, indices);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    ok(!!*indices, "Unexpected index %u.\n", indices[0]);
+
+    glyph_run.fontFace = fontface;
+    glyph_run.fontEmSize = 360.0f;
+    glyph_run.glyphCount = 1;
+    glyph_run.glyphIndices = indices;
+    glyph_run.glyphAdvances = NULL;
+    glyph_run.glyphOffsets = NULL;
+    glyph_run.isSideways = FALSE;
+    glyph_run.bidiLevel = 0;
+
+    set_point(&origin, 0.0f, 0.0f);
+    hr = ID2D1DeviceContext_GetGlyphRunWorldBounds(device_context, origin, &glyph_run,
+            DWRITE_MEASURING_MODE_NATURAL, &bounds);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    set_point(&origin, -1.0f, 2.0f);
+    hr = ID2D1DeviceContext_GetGlyphRunWorldBounds(device_context, origin, &glyph_run,
+            DWRITE_MEASURING_MODE_NATURAL, &bounds2);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    ok(bounds2.left == bounds.left + origin.x, "Unexpected bound %.8e.\n", bounds2.left);
+    ok(bounds2.top == bounds.top + origin.y, "Unexpected bound %.8e %.8e.\n", bounds2.top, bounds.top);
+
+    set_matrix_identity(&matrix);
+    translate_matrix(&matrix, 2.0f, -1.0f);
+    ID2D1DeviceContext_SetTransform(device_context, &matrix);
+
+    set_point(&origin, 0.0f, 0.0f);
+    hr = ID2D1DeviceContext_GetGlyphRunWorldBounds(device_context, origin, &glyph_run,
+            DWRITE_MEASURING_MODE_NATURAL, &bounds2);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    ok(bounds2.left == bounds.left + matrix._31, "Unexpected bound %.8e.\n", bounds2.left);
+    ok(bounds2.top == bounds.top + matrix._32, "Unexpected bound %.8e.\n", bounds2.top);
+
+    /* Without a target */
+    ID2D1DeviceContext_GetDevice(device_context, &device);
+
+    hr = ID2D1Device_CreateDeviceContext(device, D2D1_DEVICE_CONTEXT_OPTIONS_NONE, &device_context2);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    set_point(&origin, 0.0f, 0.0f);
+    hr = ID2D1DeviceContext_GetGlyphRunWorldBounds(device_context, origin, &glyph_run,
+            DWRITE_MEASURING_MODE_NATURAL, &bounds);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    ok(!memcmp(&bounds2, &bounds, sizeof(bounds)), "Unexpected bounds.\n");
+
+    ID2D1DeviceContext_Release(device_context2);
+
+    ID2D1Device_Release(device);
+
+    IDWriteFontFace_Release(fontface);
+    IDWriteFactory_Release(dwrite_factory);
+
+    release_test_context(&ctx);
+}
+
 START_TEST(d2d1)
 {
     HMODULE d2d1_dll = GetModuleHandleA("d2d1.dll");
@@ -17368,6 +17888,12 @@ START_TEST(d2d1)
     queue_d3d10_test(test_effect_composite);
     queue_d3d10_test(test_effect_color_matrix);
     queue_test(test_effect_flood);
+    queue_d3d10_test(test_effect_blend);
+    queue_d3d10_test(test_effect_brightness);
+    queue_d3d10_test(test_effect_directional_blur);
+    queue_d3d10_test(test_effect_hue_rotation);
+    queue_d3d10_test(test_effect_saturation);
+    queue_d3d10_test(test_effect_scale);
     queue_test(test_transform_graph);
     queue_test(test_offset_transform);
     queue_test(test_blend_transform);
@@ -17388,6 +17914,8 @@ START_TEST(d2d1)
     queue_test(test_mesh);
     queue_test(test_geometry_realization);
     queue_d3d10_test(test_path_geometry_stream);
+    queue_d3d10_test(test_transformed_geometry);
+    queue_d3d10_test(test_glyph_run_world_bounds);
 
     run_queued_tests();
 }

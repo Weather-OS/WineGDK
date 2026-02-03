@@ -382,7 +382,7 @@ static void compare_bitmap_data(const struct bitmap_data *src, const struct bitm
      * optimized palette generation implementation. We either need to
      * assign our own palette, or just skip the comparison.
      */
-    if (!(!is_indexed_format(src->format) && is_indexed_format(expect->format)))
+    if (is_indexed_format(src->format) == is_indexed_format(expect->format))
         ok(compare_bits(expect, buffersize, converted_bits), "unexpected pixel data (%s)\n", name);
 
     /* Test with NULL rectangle - should copy the whole bitmap */
@@ -390,7 +390,7 @@ static void compare_bitmap_data(const struct bitmap_data *src, const struct bitm
     hr = IWICBitmapSource_CopyPixels(source, NULL, stride, buffersize, converted_bits);
     ok(SUCCEEDED(hr), "CopyPixels(%s,rc=NULL) failed, hr=%lx\n", name, hr);
     /* see comment above */
-    if (!(!is_indexed_format(src->format) && is_indexed_format(expect->format)))
+    if (is_indexed_format(src->format) == is_indexed_format(expect->format))
         ok(compare_bits(expect, buffersize, converted_bits), "unexpected pixel data (%s)\n", name);
 
     HeapFree(GetProcessHeap(), 0, converted_bits);
@@ -659,6 +659,26 @@ static const WORD bits_48bppRGB[] = {
 static const struct bitmap_data testdata_48bppRGB = {
     &GUID_WICPixelFormat48bppRGB, 48, (BYTE*)bits_48bppRGB, 3, 2, 96.0, 96.0};
 
+static const WORD bits_64bppRGBA_1[] = {
+    0,0,0xffff,0xffff, 0,0xffff,0,0xffff, 0xffff,0,0,0xffff, 0,0,0,0xffff,
+    0,0,0xffff,0xffff, 0,0xffff,0,0xffff, 0xffff,0,0,0xffff, 0,0,0,0xffff,
+    0,0,0xffff,0xffff, 0,0xffff,0,0xffff, 0xffff,0,0,0xffff, 0,0,0,0xffff,
+    0,0,0xffff,0xffff, 0,0xffff,0,0xffff, 0xffff,0,0,0xffff, 0,0,0,0xffff,
+    0,0,0xffff,0xffff, 0,0xffff,0,0xffff, 0xffff,0,0,0xffff, 0,0,0,0xffff,
+    0,0,0xffff,0xffff, 0,0xffff,0,0xffff, 0xffff,0,0,0xffff, 0,0,0,0xffff,
+    0,0,0xffff,0xffff, 0,0xffff,0,0xffff, 0xffff,0,0,0xffff, 0,0,0,0xffff,
+    0,0,0xffff,0xffff, 0,0xffff,0,0xffff, 0xffff,0,0,0xffff, 0,0,0,0xffff,
+    0xffff,0xffff,0,0xffff, 0xffff,0,0xffff,0xffff, 0,0xffff,0xffff,0xffff, 0xffff,0xffff,0xffff,0xffff,
+    0xffff,0xffff,0,0xffff, 0xffff,0,0xffff,0xffff, 0,0xffff,0xffff,0xffff, 0xffff,0xffff,0xffff,0xffff,
+    0xffff,0xffff,0,0xffff, 0xffff,0,0xffff,0xffff, 0,0xffff,0xffff,0xffff, 0xffff,0xffff,0xffff,0xffff,
+    0xffff,0xffff,0,0xffff, 0xffff,0,0xffff,0xffff, 0,0xffff,0xffff,0xffff, 0xffff,0xffff,0xffff,0xffff,
+    0xffff,0xffff,0,0xffff, 0xffff,0,0xffff,0xffff, 0,0xffff,0xffff,0xffff, 0xffff,0xffff,0xffff,0xffff,
+    0xffff,0xffff,0,0xffff, 0xffff,0,0xffff,0xffff, 0,0xffff,0xffff,0xffff, 0xffff,0xffff,0xffff,0xffff,
+    0xffff,0xffff,0,0xffff, 0xffff,0,0xffff,0xffff, 0,0xffff,0xffff,0xffff, 0xffff,0xffff,0xffff,0xffff,
+    0xffff,0xffff,0,0xffff, 0xffff,0,0xffff,0xffff, 0,0xffff,0xffff,0xffff, 0xffff,0xffff,0xffff,0xffff};
+static const struct bitmap_data testdata_64bppRGBA_1 = {
+    &GUID_WICPixelFormat64bppRGBA, 64, (BYTE*)bits_64bppRGBA_1, 32, 2, 96.0, 96.0};
+
 static const WORD bits_64bppRGBA_2[] = {
     0,0,0,65535, 0,65535,0,65535, 32767,32768,32767,65535,
     65535,65535,65535,65535, 10,10,10,65535, 0,0,10,65535,};
@@ -830,14 +850,14 @@ static void test_can_convert(void)
     td[] =
     {
         {WIC_PIXEL_FORMAT(Undefined)},
-        {WIC_PIXEL_FORMAT(1bppIndexed), TRUE, TRUE, 35},
+        {WIC_PIXEL_FORMAT(1bppIndexed), TRUE, TRUE, 33},
         {WIC_PIXEL_FORMAT(2bppIndexed), TRUE, TRUE, 35},
         {WIC_PIXEL_FORMAT(4bppIndexed), TRUE, TRUE, 35},
         {WIC_PIXEL_FORMAT(8bppIndexed), TRUE, TRUE, 26},
         {WIC_PIXEL_FORMAT(BlackWhite), TRUE, TRUE, 35},
         {WIC_PIXEL_FORMAT(2bppGray), TRUE, TRUE, 35},
         {WIC_PIXEL_FORMAT(4bppGray), TRUE, TRUE, 35},
-        {WIC_PIXEL_FORMAT(8bppGray), TRUE, TRUE, 26},
+        {WIC_PIXEL_FORMAT(8bppGray), TRUE, TRUE, 25},
         {WIC_PIXEL_FORMAT(16bppGray), TRUE, TRUE, 35},
 
         {WIC_PIXEL_FORMAT(8bppAlpha), TRUE, TRUE, 35, TRUE},
@@ -845,8 +865,8 @@ static void test_can_convert(void)
         {WIC_PIXEL_FORMAT(16bppBGR555), TRUE, TRUE, 35},
         {WIC_PIXEL_FORMAT(16bppBGR565), TRUE, TRUE, 35},
         {WIC_PIXEL_FORMAT(16bppBGRA5551), TRUE, TRUE, 33, TRUE},
-        {WIC_PIXEL_FORMAT(24bppBGR), TRUE, TRUE, 27},
-        {WIC_PIXEL_FORMAT(24bppRGB), TRUE, TRUE, 30},
+        {WIC_PIXEL_FORMAT(24bppBGR), TRUE, TRUE, 26},
+        {WIC_PIXEL_FORMAT(24bppRGB), TRUE, TRUE, 29},
         {WIC_PIXEL_FORMAT(32bppBGR), TRUE, TRUE, 13},
         {WIC_PIXEL_FORMAT(32bppBGRA), TRUE, TRUE, 13},
         {WIC_PIXEL_FORMAT(32bppPBGRA), TRUE, TRUE, 13},
@@ -858,7 +878,7 @@ static void test_can_convert(void)
         {WIC_PIXEL_FORMAT(48bppRGB), TRUE, TRUE, 35},
         {WIC_PIXEL_FORMAT(48bppBGR), TRUE, TRUE, 35, TRUE},
         {WIC_PIXEL_FORMAT(64bppRGB), TRUE, TRUE, 35, TRUE},
-        {WIC_PIXEL_FORMAT(64bppRGBA), TRUE, TRUE, 33},
+        {WIC_PIXEL_FORMAT(64bppRGBA), TRUE, TRUE, 31},
         {WIC_PIXEL_FORMAT(64bppBGRA), TRUE, TRUE, 35, TRUE},
         {WIC_PIXEL_FORMAT(64bppPRGBA), TRUE, TRUE, 35},
         {WIC_PIXEL_FORMAT(64bppPBGRA), TRUE, TRUE, 35, TRUE},
@@ -979,7 +999,7 @@ static void test_can_convert(void)
         }
 
         todo_wine_if (td[j].dst_todo_count == todo_count && todo_count != 0)
-        ok(todo_count == 0 || broken(todo_count == 35 || todo_count == 11 || todo_count == 4 || todo_count == 1),
+        ok(todo_count == 0 || broken(todo_count == 31 || todo_count == 11 || todo_count == 4 || todo_count == 1),
             "CanConvert missing %d expected source formats to destination format %s.\n",
             todo_count, td[j].name);
     }
@@ -2176,7 +2196,7 @@ static void test_converter_8bppIndexed(void)
     hr = IWICFormatConverter_Initialize(converter, &src_obj->IWICBitmapSource_iface,
                                         &GUID_WICPixelFormat1bppIndexed, WICBitmapDitherTypeNone,
                                         NULL, 0.0, WICBitmapPaletteTypeMedianCut);
-    todo_wine ok(hr == S_OK, "unexpected error %#lx\n", hr);
+    ok(hr == S_OK, "unexpected error %#lx\n", hr);
     IWICFormatConverter_Release(converter);
 
     hr = IWICImagingFactory_CreateFormatConverter(factory, &converter);
@@ -2184,7 +2204,7 @@ static void test_converter_8bppIndexed(void)
     hr = IWICFormatConverter_Initialize(converter, &src_obj->IWICBitmapSource_iface,
                                         &GUID_WICPixelFormat1bppIndexed, WICBitmapDitherTypeNone,
                                         NULL, 0.0, WICBitmapPaletteTypeFixedBW);
-    todo_wine ok(hr == S_OK, "unexpected error %#lx\n", hr);
+    ok(hr == S_OK, "unexpected error %#lx\n", hr);
     IWICFormatConverter_Release(converter);
 
     hr = IWICImagingFactory_CreateFormatConverter(factory, &converter);
@@ -2323,11 +2343,15 @@ START_TEST(converter)
     test_conversion(&testdata_24bppRGB, &testdata_4bppIndexed, "24bppRGB -> 4bppIndexed", TRUE);
     test_conversion(&testdata_24bppRGB, &testdata_8bppIndexed, "24bppRGB -> 8bppIndexed", FALSE);
 
+    test_conversion(&testdata_BlackWhite, &testdata_1bppIndexed, "BlackWhite -> 1bppIndexed", FALSE);
     test_conversion(&testdata_BlackWhite, &testdata_8bppIndexed_BW, "BlackWhite -> 8bppIndexed", FALSE);
     test_conversion(&testdata_BlackWhite, &testdata_24bppBGR_BW, "BlackWhite -> 24bppBGR", FALSE);
     test_conversion(&testdata_1bppIndexed, &testdata_8bppIndexed_BW, "1bppIndexed -> 8bppIndexed", TRUE);
     test_conversion(&testdata_2bppIndexed, &testdata_8bppIndexed_4colors, "2bppIndexed -> 8bppIndexed", TRUE);
     test_conversion(&testdata_4bppIndexed, &testdata_8bppIndexed, "4bppIndexed -> 8bppIndexed", TRUE);
+
+    test_conversion(&testdata_8bppIndexed, &testdata_24bppRGB, "8bppIndexed -> 24bppRGB", FALSE);
+    test_conversion(&testdata_8bppIndexed, &testdata_24bppBGR, "8bppIndexed -> 24bppBGR", FALSE);
 
     test_conversion(&testdata_32bppBGRA, &testdata_32bppBGR, "BGRA -> BGR", FALSE);
     test_conversion(&testdata_32bppBGR, &testdata_32bppBGRA, "BGR -> BGRA", FALSE);
@@ -2364,6 +2388,10 @@ START_TEST(converter)
     test_conversion(&testdata_32bppGrayFloat, &testdata_24bppBGR_gray, "32bppGrayFloat -> 24bppBGR gray", FALSE);
     test_conversion(&testdata_32bppGrayFloat, &testdata_8bppGray, "32bppGrayFloat -> 8bppGray", FALSE);
     test_conversion(&testdata_32bppBGRA, &testdata_16bppBGRA5551, "32bppBGRA -> 16bppBGRA5551", FALSE);
+
+    test_conversion(&testdata_24bppBGR, &testdata_64bppRGBA_1, "24bppBGR -> 64bppRGBA", FALSE);
+    test_conversion(&testdata_32bppRGBA, &testdata_64bppRGBA_1, "32bppRGBA -> 64bppRGBA", FALSE);
+    test_conversion(&testdata_32bppBGRA, &testdata_64bppRGBA_1, "32bppBGRA -> 64bppRGBA", FALSE);
     test_conversion(&testdata_48bppRGB, &testdata_64bppRGBA_2, "48bppRGB -> 64bppRGBA", FALSE);
 
     test_conversion(&testdata_48bppRGB, &testdata_128bppRGBFloat, "48bppRGB -> 128bppRGBFloat", FALSE);

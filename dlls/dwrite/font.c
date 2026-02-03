@@ -4673,7 +4673,7 @@ HRESULT create_font_collection(IDWriteFactory7 *factory, IDWriteFontFileEnumerat
     struct list scannedfiles;
     IDWriteFontSetBuilder1 *builder;
     IDWriteFontSet *fontset = NULL;
-    BOOL current;
+    BOOL current = FALSE;
     HRESULT hr;
 
     *ret = NULL;
@@ -4689,6 +4689,8 @@ HRESULT create_font_collection(IDWriteFactory7 *factory, IDWriteFontFileEnumerat
     {
         IDWriteFontFile *file;
         BOOL same = FALSE;
+
+        current = FALSE;
 
         hr = IDWriteFontFileEnumerator_GetCurrentFontFile(enumerator, &file);
         if (FAILED(hr))
@@ -5775,7 +5777,6 @@ HRESULT get_local_refkey(const WCHAR *path, const FILETIME *writetime, void **ke
 
     refkey->writetime = *writetime;
     memcpy(refkey->name, path, len * sizeof(WCHAR));
-    wcsupr(refkey->name);
 
     *key = refkey;
 

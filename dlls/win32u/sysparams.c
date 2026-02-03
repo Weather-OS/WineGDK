@@ -51,7 +51,7 @@ static const char control_keyA[] = "\\Registry\\Machine\\System\\CurrentControlS
 static const char config_keyA[] = "\\Registry\\Machine\\System\\CurrentControlSet\\Hardware Profiles\\Current";
 static const char directx_keyA[] = "\\Registry\\Machine\\Software\\Microsoft\\DirectX";
 
-static const char devpropkey_gpu_vulkan_uuidA[] = "Properties\\{233A9EF3-AFC4-4ABD-B564-C32F21F1535C}\\0002";
+static const char devpropkey_gpu_uuidA[] = "Properties\\{233A9EF3-AFC4-4ABD-B564-C32F21F1535C}\\0002";
 static const char devpropkey_gpu_luidA[] = "Properties\\{60B193CB-5276-4D0F-96FC-F173ABAD3EC6}\\0002";
 static const char devpkey_device_driver_date[] = "Properties\\{A8B865DD-2E3D-4094-AD97-E593A70C75D6}\\0002";
 static const char devpkey_device_driver_version[] = "Properties\\{A8B865DD-2E3D-4094-AD97-E593A70C75D6}\\0003";
@@ -64,6 +64,7 @@ static const char devpropkey_device_ispresentA[] = "Properties\\{540B947E-8B40-4
 static const char devpropkey_monitor_gpu_luidA[] = "Properties\\{CA085853-16CE-48AA-B114-DE9C72334223}\\0001";
 static const char devpropkey_monitor_output_idA[] = "Properties\\{CA085853-16CE-48AA-B114-DE9C72334223}\\0002";
 static const char wine_devpropkey_monitor_rcworkA[] = "Properties\\{233a9ef3-afc4-4abd-b564-c32f21f1535b}\\0004";
+static const char wine_devpropkey_monitor_hdr_enabledA[] = "Properties\\{233a9ef3-afc4-4abd-b564-c32f21f1535b}\\0006";
 
 static const WCHAR linkedW[] = {'L','i','n','k','e','d',0};
 static const WCHAR symbolic_link_valueW[] =
@@ -106,7 +107,7 @@ struct gpu
     char guid[39];
     LUID luid;
     UINT index;
-    GUID vulkan_uuid;
+    GUID uuid;
     UINT source_count;
 };
 
@@ -155,6 +156,7 @@ struct monitor
     RECT rc_work;
     BOOL is_clone;
     struct edid_monitor_info edid_info;
+    BOOL hdr_enabled;
 };
 
 static struct list gpus = LIST_INIT(gpus);
@@ -508,7 +510,7 @@ static BOOL read_source_mode( HKEY hkey, UINT index, DEVMODEW *mode )
     else return FALSE;
 
     if (!query_reg_ascii_value( hkey, key, value, sizeof(value_buf) )) return FALSE;
-    memcpy( &mode->dmFields, value->Data, sizeof(*mode) - offsetof(DEVMODEW, dmFields) );
+    memcpy( &mode->dmFields, value->Data, offsetof(DEVMODEW, dmICMMethod) - offsetof(DEVMODEW, dmFields) );
     return TRUE;
 }
 
@@ -552,7 +554,7 @@ static BOOL source_set_registry_settings( const struct source *source, const DEV
 
 static BOOL source_get_current_settings( const struct source *source, DEVMODEW *mode )
 {
-    memcpy( &mode->dmFields, &source->current.dmFields, sizeof(*mode) - offsetof(DEVMODEW, dmFields) );
+    memcpy( &mode->dmFields, &source->current.dmFields, offsetof(DEVMODEW, dmICMMethod) - offsetof(DEVMODEW, dmFields) );
     if (source->depth) mode->dmBitsPerPel = source->depth;
     return TRUE;
 }
@@ -755,6 +757,16 @@ static BOOL read_monitor_from_registry( struct monitor *monitor )
         NtClose( subkey );
     }
 
+    /* WINE_DEVPROPKEY_MONITOR_HDR_ENABLED */
+    size = query_reg_subkey_value( hkey, wine_devpropkey_monitor_hdr_enabledA,
+                                   value, sizeof(buffer) );
+    if (size != sizeof(monitor->hdr_enabled))
+    {
+        NtClose( hkey );
+        return FALSE;
+    }
+    monitor->hdr_enabled = *(const BOOL *)value->Data;
+
     NtClose( hkey );
     return TRUE;
 }
@@ -775,7 +787,7 @@ static BOOL read_source_monitor_path( HKEY hkey, UINT index, char *path )
     return TRUE;
 }
 
-static void reg_empty_key( HKEY root, const char *key_name )
+static void reg_empty_key( HKEY root, const char *key_name, BOOL subkeys_only )
 {
     char buffer[4096];
     KEY_NODE_INFORMATION *key = (KEY_NODE_INFORMATION *)buffer;
@@ -786,10 +798,13 @@ static void reg_empty_key( HKEY root, const char *key_name )
     while (!NtEnumerateKey( hkey, 0, KeyNodeInformation, key, sizeof(buffer), &size ))
         reg_delete_tree( hkey, key->Name, key->NameLength );
 
-    while (!NtEnumerateValueKey( hkey, 0, KeyValueFullInformation, value, sizeof(buffer), &size ))
+    if (!subkeys_only)
     {
-        UNICODE_STRING name = { value->NameLength, value->NameLength, value->Name };
-        NtDeleteValueKey( hkey, &name );
+        while (!NtEnumerateValueKey( hkey, 0, KeyValueFullInformation, value, sizeof(buffer), &size ))
+        {
+            UNICODE_STRING name = { value->NameLength, value->NameLength, value->Name };
+            NtDeleteValueKey( hkey, &name );
+        }
     }
 
     if (hkey != root) NtClose( hkey );
@@ -846,27 +861,27 @@ static void prepare_devices(void)
     if (!video_key) video_key = reg_create_ascii_key( NULL, devicemap_video_keyA, REG_OPTION_VOLATILE, NULL );
 
     /* delete monitors */
-    reg_empty_key( enum_key, "DISPLAY" );
+    reg_empty_key( enum_key, "DISPLAY", FALSE );
     snprintf( buffer, sizeof(buffer), "Class\\%s", guid_devclass_monitorA );
     hkey = reg_create_ascii_key( control_key, buffer, 0, NULL );
-    reg_empty_key( hkey, NULL );
+    reg_empty_key( hkey, NULL, FALSE );
     set_reg_ascii_value( hkey, "", "Monitors" );
     set_reg_ascii_value( hkey, "Class", "Monitor" );
     NtClose( hkey );
 
     /* delete sources */
-    reg_empty_key( video_key, NULL );
+    reg_empty_key( video_key, NULL, FALSE );
 
     /* clean GPUs */
     snprintf( buffer, sizeof(buffer), "Class\\%s", guid_devclass_displayA );
     hkey = reg_create_ascii_key( control_key, buffer, 0, NULL );
-    reg_empty_key( hkey, NULL );
+    reg_empty_key( hkey, NULL, FALSE );
     set_reg_ascii_value( hkey, "", "Display adapters" );
     set_reg_ascii_value( hkey, "Class", "Display" );
     NtClose( hkey );
     if ((hkey = reg_create_ascii_key( NULL, directx_keyA, 0, NULL )))
     {
-        reg_empty_key( hkey, NULL );
+        reg_empty_key( hkey, NULL, TRUE );
         NtClose( hkey );
     }
 
@@ -1012,6 +1027,7 @@ struct device_manager_ctx
     UINT monitor_count;
     HANDLE mutex;
     struct list vulkan_gpus;
+    struct list opengl_gpus;
     BOOL has_primary;
     /* for the virtual desktop settings */
     BOOL is_primary;
@@ -1081,10 +1097,10 @@ static BOOL read_gpu_from_registry( struct gpu *gpu )
         NtClose( subkey );
     }
 
-    if ((subkey = reg_open_ascii_key( hkey, devpropkey_gpu_vulkan_uuidA )))
+    if ((subkey = reg_open_ascii_key( hkey, devpropkey_gpu_uuidA )))
     {
         if (query_reg_value( subkey, NULL, value, sizeof(buffer) ) == sizeof(GUID))
-            gpu->vulkan_uuid = *(const GUID *)value->Data;
+            gpu->uuid = *(const GUID *)value->Data;
         NtClose( subkey );
     }
 
@@ -1568,10 +1584,9 @@ static BOOL write_gpu_to_registry( const struct gpu *gpu, const struct pci_id *p
         NtClose( subkey );
     }
 
-    if ((subkey = reg_create_ascii_key( hkey, devpropkey_gpu_vulkan_uuidA, 0, NULL )))
+    if ((subkey = reg_create_ascii_key( hkey, devpropkey_gpu_uuidA, 0, NULL )))
     {
-        set_reg_value( subkey, NULL, 0xffff0000 | DEVPROP_TYPE_GUID,
-                       &gpu->vulkan_uuid, sizeof(gpu->vulkan_uuid) );
+        set_reg_value( subkey, NULL, 0xffff0000 | DEVPROP_TYPE_GUID, &gpu->uuid, sizeof(gpu->uuid) );
         NtClose( subkey );
     }
 
@@ -1602,9 +1617,6 @@ static BOOL write_gpu_to_registry( const struct gpu *gpu, const struct pci_id *p
     set_reg_value( hkey, bios_stringW, REG_SZ, gpu->name, name_size );
     set_reg_value( hkey, chip_typeW, REG_SZ, gpu->name, name_size );
     set_reg_value( hkey, dac_typeW, REG_SZ, ramdacW, sizeof(ramdacW) );
-
-    /* If we failed to retrieve the gpu memory size set a default of 1Gb */
-    if (!memory_size) memory_size = 1073741824;
 
     set_reg_value( hkey, qw_memory_sizeW, REG_QWORD, &memory_size, sizeof(memory_size) );
     value = (ULONG)min( memory_size, (ULONGLONG)ULONG_MAX );
@@ -1641,35 +1653,63 @@ static BOOL write_gpu_to_registry( const struct gpu *gpu, const struct pci_id *p
     return TRUE;
 }
 
-static struct vulkan_gpu *find_vulkan_gpu_from_uuid( const struct device_manager_ctx *ctx, const GUID *uuid )
+static struct gpu_info *find_gpu_info_from_uuid( const struct list *infos, const GUID *uuid )
 {
-    struct vulkan_gpu *gpu;
+    struct gpu_info *gpu;
 
     if (!uuid) return NULL;
 
-    LIST_FOR_EACH_ENTRY( gpu, &ctx->vulkan_gpus, struct vulkan_gpu, entry )
+    LIST_FOR_EACH_ENTRY( gpu, infos, struct gpu_info, entry )
         if (!memcmp( &gpu->uuid, uuid, sizeof(*uuid) )) return gpu;
 
     return NULL;
 }
 
-static struct vulkan_gpu *find_vulkan_gpu_from_pci_id( const struct device_manager_ctx *ctx, const struct pci_id *pci_id )
+static struct gpu_info *find_gpu_info_from_pci_id( const struct list *infos, const struct pci_id *pci_id )
 {
-    struct vulkan_gpu *gpu;
+    struct gpu_info *gpu;
 
-    LIST_FOR_EACH_ENTRY( gpu, &ctx->vulkan_gpus, struct vulkan_gpu, entry )
+    LIST_FOR_EACH_ENTRY( gpu, infos, struct gpu_info, entry )
         if (gpu->pci_id.vendor == pci_id->vendor && gpu->pci_id.device == pci_id->device) return gpu;
 
     return NULL;
 }
 
-static void add_gpu( const char *name, const struct pci_id *pci_id, const GUID *vulkan_uuid, void *param )
+static struct gpu_info *find_gpu_info( const struct list *infos, const GUID *uuid, const struct pci_id *pci_id )
+{
+    struct gpu_info *info;
+    struct list *ptr;
+
+    if ((info = find_gpu_info_from_uuid( infos, uuid )))
+        TRACE( "Found GPU matching uuid %s, pci_id %#04x:%#04x, name %s\n", debugstr_guid( &info->uuid ),
+               info->pci_id.vendor, info->pci_id.device, debugstr_a(info->name) );
+    else if ((info = find_gpu_info_from_pci_id( infos, pci_id )))
+        TRACE( "Found GPU matching pci_id %#04x:%#04x, uuid %s, name %s\n", info->pci_id.vendor,
+               info->pci_id.device, debugstr_guid( &info->uuid ), debugstr_a(info->name) );
+    else if ((ptr = list_head( infos )))
+    {
+        info = LIST_ENTRY( ptr, struct gpu_info, entry );
+        WARN( "Using GPU pci_id %#04x:%#04x, uuid %s, name %s\n", info->pci_id.vendor,
+              info->pci_id.device, debugstr_guid( &info->uuid ), debugstr_a(info->name) );
+    }
+
+    return info;
+}
+
+static void free_gpu_info( struct gpu_info *info )
+{
+    list_remove( &info->entry );
+    free( info->name );
+    free( info );
+}
+
+static void add_gpu( const char *name, const struct pci_id *pci_id, const GUID *uuid, void *param )
 {
     struct device_manager_ctx *ctx = param;
     char buffer[4096];
     KEY_VALUE_PARTIAL_INFORMATION *value = (void *)buffer;
-    struct vulkan_gpu *vulkan_gpu = NULL;
-    struct list *ptr;
+    struct gpu_info *vulkan_gpu = NULL, *opengl_gpu = NULL;
+    ULONGLONG memory = 0;
     struct gpu *gpu;
     unsigned int i;
     HKEY hkey, subkey;
@@ -1678,7 +1718,7 @@ static void add_gpu( const char *name, const struct pci_id *pci_id, const GUID *
     static const GUID empty_uuid;
 
     TRACE( "%s %04X %04X %08X %02X %s\n", debugstr_a( name ), pci_id->vendor, pci_id->device,
-           pci_id->subsystem, pci_id->revision, debugstr_guid( vulkan_uuid ) );
+           pci_id->subsystem, pci_id->revision, debugstr_guid( uuid ) );
 
     if (!enum_key && !(enum_key = reg_create_ascii_key( NULL, enum_keyA, 0, NULL )))
         return;
@@ -1693,28 +1733,18 @@ static void add_gpu( const char *name, const struct pci_id *pci_id, const GUID *
     gpu->refcount = 1;
     gpu->index = ctx->gpu_count;
 
-    if ((vulkan_gpu = find_vulkan_gpu_from_uuid( ctx, vulkan_uuid )))
-        TRACE( "Found vulkan GPU matching uuid %s, pci_id %#04x:%#04x, name %s\n", debugstr_guid(&vulkan_gpu->uuid),
-               vulkan_gpu->pci_id.vendor, vulkan_gpu->pci_id.device, debugstr_a(vulkan_gpu->name));
-    else if ((vulkan_gpu = find_vulkan_gpu_from_pci_id( ctx, pci_id )))
-        TRACE( "Found vulkan GPU matching pci_id %#04x:%#04x, uuid %s, name %s\n",
-               vulkan_gpu->pci_id.vendor, vulkan_gpu->pci_id.device,
-               debugstr_guid(&vulkan_gpu->uuid), debugstr_a(vulkan_gpu->name));
-    else if ((ptr = list_head( &ctx->vulkan_gpus )))
-    {
-        vulkan_gpu = LIST_ENTRY( ptr, struct vulkan_gpu, entry );
-        WARN( "Using vulkan GPU pci_id %#04x:%#04x, uuid %s, name %s\n",
-               vulkan_gpu->pci_id.vendor, vulkan_gpu->pci_id.device,
-               debugstr_guid(&vulkan_gpu->uuid), debugstr_a(vulkan_gpu->name));
-    }
-
-    if (vulkan_uuid && !IsEqualGUID( vulkan_uuid, &empty_uuid )) gpu->vulkan_uuid = *vulkan_uuid;
-    else if (vulkan_gpu) gpu->vulkan_uuid = vulkan_gpu->uuid;
+    vulkan_gpu = find_gpu_info( &ctx->vulkan_gpus, uuid, pci_id );
+    opengl_gpu = find_gpu_info( &ctx->opengl_gpus, uuid, pci_id );
+    if (uuid && !IsEqualGUID( uuid, &empty_uuid )) gpu->uuid = *uuid;
+    else if (vulkan_gpu) gpu->uuid = vulkan_gpu->uuid;
+    else if (opengl_gpu) gpu->uuid = opengl_gpu->uuid;
 
     if (!pci_id->vendor && !pci_id->device && vulkan_gpu) pci_id = &vulkan_gpu->pci_id;
+    if (!pci_id->vendor && !pci_id->device && opengl_gpu) pci_id = &opengl_gpu->pci_id;
 
     name = gpu_device_name( pci_id->vendor, pci_id->device, name );
     if (!strcmp( name, "Wine Adapter" ) && vulkan_gpu) name = vulkan_gpu->name;
+    if (!strcmp( name, "Wine Adapter" ) && opengl_gpu) name = opengl_gpu->name;
     RtlUTF8ToUnicodeN( gpu->name, sizeof(gpu->name) - sizeof(WCHAR), &len, name, strlen( name ) );
 
     snprintf( gpu->path, sizeof(gpu->path), "PCI\\VEN_%04X&DEV_%04X&SUBSYS_%08X&REV_%02X\\%08X",
@@ -1758,7 +1788,11 @@ static void add_gpu( const char *name, const struct pci_id *pci_id, const GUID *
 
     NtClose( hkey );
 
-    if (!write_gpu_to_registry( gpu, pci_id, vulkan_gpu ? vulkan_gpu->memory : 0 ))
+    if (!memory && vulkan_gpu) memory = vulkan_gpu->memory;
+    if (!memory && opengl_gpu) memory = opengl_gpu->memory;
+    if (!memory) memory = 1024 * 1024 * 1024;
+
+    if (!write_gpu_to_registry( gpu, pci_id, memory ))
     {
         WARN( "Failed to write gpu %p to registry\n", gpu );
         gpu_release( gpu );
@@ -1770,11 +1804,8 @@ static void add_gpu( const char *name, const struct pci_id *pci_id, const GUID *
         ctx->gpu_count++;
     }
 
-    if (vulkan_gpu)
-    {
-        list_remove( &vulkan_gpu->entry );
-        free_vulkan_gpu( vulkan_gpu );
-    }
+    if (vulkan_gpu) free_gpu_info( vulkan_gpu );
+    if (opengl_gpu) free_gpu_info( opengl_gpu );
 }
 
 static BOOL write_source_to_registry( struct source *source )
@@ -1925,6 +1956,14 @@ static BOOL write_monitor_to_registry( struct monitor *monitor, const BYTE *edid
         NtClose( subkey );
     }
 
+    /* WINE_DEVPROPKEY_MONITOR_HDR_ENABLED */
+    if ((subkey = reg_create_ascii_key( hkey, wine_devpropkey_monitor_hdr_enabledA, 0, NULL )))
+    {
+        set_reg_value( subkey, NULL, 0xffff0000 | DEVPROP_TYPE_BOOLEAN,
+                       &monitor->hdr_enabled, sizeof(monitor->hdr_enabled) );
+        NtClose( subkey );
+    }
+
     NtClose( hkey );
 
 
@@ -1954,6 +1993,7 @@ static void add_monitor( const struct gdi_monitor *gdi_monitor, void *param )
     monitor->id = source->monitor_count;
     monitor->output_id = ctx->monitor_count;
     monitor->rc_work = gdi_monitor->rc_work;
+    monitor->hdr_enabled = gdi_monitor->hdr_enabled;
 
     TRACE( "%u %s %s\n", monitor->id, wine_dbgstr_rect(&gdi_monitor->rc_monitor), wine_dbgstr_rect(&gdi_monitor->rc_work) );
 
@@ -2009,6 +2049,8 @@ static SIZE *get_screen_sizes( const DEVMODEW *maximum, const DEVMODEW *modes, U
         { 640,  480},
         { 800,  600},
         {1024,  768},
+        {1152,  864},
+        {1280,  960},
         {1600, 1200},
         /* 16:9 */
         { 960,  540},
@@ -2193,6 +2235,17 @@ static const struct gdi_device_manager device_manager =
     add_modes,
 };
 
+static void free_gpu_infos( struct list *infos )
+{
+    struct list *ptr;
+
+    while ((ptr = list_head( infos )))
+    {
+        struct gpu_info *info = LIST_ENTRY( ptr, struct gpu_info, entry );
+        free_gpu_info( info );
+    }
+}
+
 static void release_display_manager_ctx( struct device_manager_ctx *ctx )
 {
     if (ctx->mutex)
@@ -2204,12 +2257,8 @@ static void release_display_manager_ctx( struct device_manager_ctx *ctx )
     if (!list_empty( &sources )) last_query_display_time = 0;
     if (ctx->gpu_count) cleanup_devices();
 
-    while (!list_empty( &ctx->vulkan_gpus ))
-    {
-        struct vulkan_gpu *gpu = LIST_ENTRY( list_head( &ctx->vulkan_gpus ), struct vulkan_gpu, entry );
-        list_remove( &gpu->entry );
-        free_vulkan_gpu( gpu );
-    }
+    free_gpu_infos( &ctx->vulkan_gpus );
+    free_gpu_infos( &ctx->opengl_gpus );
 }
 
 static BOOL is_monitor_active( struct monitor *monitor )
@@ -2749,11 +2798,16 @@ static UINT update_display_devices( struct device_manager_ctx *ctx )
 
 static void commit_display_devices( struct device_manager_ctx *ctx )
 {
-    struct vulkan_gpu *gpu, *next;
+    struct gpu_info *gpu, *next;
 
-    LIST_FOR_EACH_ENTRY_SAFE( gpu, next, &ctx->vulkan_gpus, struct vulkan_gpu, entry )
+    LIST_FOR_EACH_ENTRY_SAFE( gpu, next, &ctx->vulkan_gpus, struct gpu_info, entry )
     {
         TRACE( "adding vulkan-only gpu uuid %s, name %s\n", debugstr_guid(&gpu->uuid), debugstr_a(gpu->name));
+        add_gpu( gpu->name, &gpu->pci_id, &gpu->uuid, ctx );
+    }
+    LIST_FOR_EACH_ENTRY_SAFE( gpu, next, &ctx->opengl_gpus, struct gpu_info, entry )
+    {
+        TRACE( "adding opengl-only gpu uuid %s, name %s\n", debugstr_guid(&gpu->uuid), debugstr_a(gpu->name));
         add_gpu( gpu->name, &gpu->pci_id, &gpu->uuid, ctx );
     }
 
@@ -2784,7 +2838,11 @@ static BOOL lock_display_devices( BOOL force )
 {
     static const WCHAR wine_service_station_name[] =
         {'_','_','w','i','n','e','s','e','r','v','i','c','e','_','w','i','n','s','t','a','t','i','o','n',0};
-    struct device_manager_ctx ctx = {.vulkan_gpus = LIST_INIT(ctx.vulkan_gpus)};
+    struct device_manager_ctx ctx =
+    {
+        .opengl_gpus = LIST_INIT(ctx.opengl_gpus),
+        .vulkan_gpus = LIST_INIT(ctx.vulkan_gpus),
+    };
     UINT64 serial;
     UINT status;
     WCHAR name[MAX_PATH];
@@ -2810,7 +2868,8 @@ static BOOL lock_display_devices( BOOL force )
     if (!force && !update_display_cache_from_registry( serial )) force = TRUE;
     if (force)
     {
-        if (!get_vulkan_gpus( &ctx.vulkan_gpus )) WARN( "Failed to find any vulkan GPU\n" );
+        if (!get_vulkan_gpus( &ctx.vulkan_gpus )) WARN( "Failed to find any Vulkan GPU\n" );
+        if (!get_opengl_gpus( &ctx.opengl_gpus )) WARN( "Failed to find any OpenGL GPU\n" );
         if (!(status = update_display_devices( &ctx ))) commit_display_devices( &ctx );
         else WARN( "Failed to update display devices, status %#x\n", status );
         release_display_manager_ctx( &ctx );
@@ -4421,7 +4480,7 @@ static BOOL source_enum_display_settings( const struct source *source, UINT inde
             continue;
         if (!i--)
         {
-            memcpy( &devmode->dmFields, &source_mode->dmFields, devmode->dmSize - FIELD_OFFSET(DEVMODEW, dmFields) );
+            memcpy( &devmode->dmFields, &source_mode->dmFields, offsetof(DEVMODEW, dmICMMethod) - FIELD_OFFSET(DEVMODEW, dmFields) );
             devmode->dmDisplayFlags &= ~WINE_DM_UNSUPPORTED;
             return TRUE;
         }
@@ -7764,11 +7823,52 @@ NTSTATUS WINAPI NtUserDisplayConfigGetDeviceInfo( DISPLAYCONFIG_DEVICE_INFO_HEAD
         unlock_display_devices();
         return ret;
     }
+    case DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO:
+    {
+        DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO *color_info = (DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO *)packet;
+        struct monitor *monitor;
+
+        FIXME( "DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO semi-stub.\n" );
+
+        if (packet->size < sizeof(*color_info))
+            return STATUS_INVALID_PARAMETER;
+
+        if (!lock_display_devices( FALSE )) return STATUS_UNSUCCESSFUL;
+
+        LIST_FOR_EACH_ENTRY(monitor, &monitors, struct monitor, entry)
+        {
+            if (color_info->header.id != monitor->output_id) continue;
+            if (memcmp( &color_info->header.adapterId, &monitor->source->gpu->luid,
+                        sizeof(monitor->source->gpu->luid) ))
+                continue;
+
+            if (monitor->hdr_enabled)
+            {
+                color_info->advancedColorSupported = 1;
+                color_info->advancedColorEnabled = 1;
+                color_info->bitsPerColorChannel = 10;
+            }
+            else
+            {
+                color_info->advancedColorSupported = 0;
+                color_info->advancedColorEnabled = 0;
+                color_info->bitsPerColorChannel = 8;
+            }
+            color_info->wideColorEnforced = 0;
+            color_info->advancedColorForceDisabled = 0;
+            color_info->colorEncoding = DISPLAYCONFIG_COLOR_ENCODING_RGB;
+
+            ret = STATUS_SUCCESS;
+            break;
+        }
+
+        unlock_display_devices();
+        return ret;
+    }
     case DISPLAYCONFIG_DEVICE_INFO_SET_TARGET_PERSISTENCE:
     case DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_BASE_TYPE:
     case DISPLAYCONFIG_DEVICE_INFO_GET_SUPPORT_VIRTUAL_RESOLUTION:
     case DISPLAYCONFIG_DEVICE_INFO_SET_SUPPORT_VIRTUAL_RESOLUTION:
-    case DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO:
     case DISPLAYCONFIG_DEVICE_INFO_SET_ADVANCED_COLOR_STATE:
     case DISPLAYCONFIG_DEVICE_INFO_GET_SDR_WHITE_LEVEL:
     default:
@@ -7942,8 +8042,8 @@ done:
     return status;
 }
 
-/* Find the Vulkan device UUID corresponding to a LUID */
-BOOL get_vulkan_uuid_from_luid( const LUID *luid, GUID *uuid )
+/* Find the GPU device UUID corresponding to a LUID */
+BOOL get_gpu_uuid_from_luid( const LUID *luid, GUID *uuid )
 {
     BOOL found = FALSE;
     struct gpu *gpu;
@@ -7954,7 +8054,7 @@ BOOL get_vulkan_uuid_from_luid( const LUID *luid, GUID *uuid )
     {
         if ((found = !memcmp( &gpu->luid, luid, sizeof(*luid) )))
         {
-            *uuid = gpu->vulkan_uuid;
+            *uuid = gpu->uuid;
             break;
         }
     }
@@ -7963,8 +8063,8 @@ BOOL get_vulkan_uuid_from_luid( const LUID *luid, GUID *uuid )
     return found;
 }
 
-/* Find the Vulkan LUID corresponding to a device UUID */
-BOOL get_luid_from_vulkan_uuid( const GUID *uuid, LUID *luid, UINT32 *node_mask )
+/* Find the GPU LUID corresponding to a device UUID */
+BOOL get_gpu_info_from_uuid( const GUID *uuid, LUID *luid, UINT32 *node_mask, char *name )
 {
     BOOL found = FALSE;
     struct gpu *gpu;
@@ -7973,9 +8073,10 @@ BOOL get_luid_from_vulkan_uuid( const GUID *uuid, LUID *luid, UINT32 *node_mask 
 
     LIST_FOR_EACH_ENTRY( gpu, &gpus, struct gpu, entry )
     {
-        if (!IsEqualGUID( uuid, &gpu->vulkan_uuid )) continue;
+        if (!IsEqualGUID( uuid, &gpu->uuid )) continue;
         *luid = gpu->luid;
         *node_mask = 1;
+        if (name) unicodez_to_ascii( name, gpu->name );
         found = TRUE;
         break;
     }

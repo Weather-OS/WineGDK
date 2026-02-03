@@ -65,13 +65,24 @@ static void test_MetaDataGetDispenser(void)
         IMetaDataDispenserEx_Release(dispenser_ex);
 }
 
+static const BYTE *load_resource_data(const WCHAR *name, ULONG *data_size)
+{
+    const BYTE *data;
+    HRSRC res;
+
+    res = FindResourceW(NULL, name, (LPCWSTR)RT_RCDATA);
+    ok(!!res, "Failed to load resource %s, error %lu.\n", debugstr_w(name), GetLastError());
+    data = LockResource(LoadResource(GetModuleHandleA(NULL), res));
+    *data_size = SizeofResource(GetModuleHandleA(NULL), res);
+    return data;
+}
+
 static WCHAR *load_resource(const WCHAR *name)
 {
     static WCHAR pathW[MAX_PATH];
-    DWORD written;
+    DWORD written, res_size;
+    const BYTE *data;
     HANDLE file;
-    HRSRC res;
-    void *ptr;
 
     GetTempPathW(ARRAY_SIZE(pathW), pathW);
     wcscat(pathW, name);
@@ -80,11 +91,9 @@ static WCHAR *load_resource(const WCHAR *name)
     ok(file != INVALID_HANDLE_VALUE, "Failed to create file %s, error %lu.\n",
             wine_dbgstr_w(pathW), GetLastError());
 
-    res = FindResourceW(NULL, name, (LPCWSTR)RT_RCDATA);
-    ok(!!res, "Failed to load resource, error %lu.\n", GetLastError());
-    ptr = LockResource(LoadResource(GetModuleHandleA(NULL), res));
-    WriteFile(file, ptr, SizeofResource( GetModuleHandleA(NULL), res), &written, NULL);
-    ok(written == SizeofResource(GetModuleHandleA(NULL), res), "Failed to write resource.\n");
+    data = load_resource_data(name, &res_size);
+    WriteFile(file, data, res_size, &written, NULL);
+    ok(written == res_size, "Failed to write resource.\n");
     CloseHandle(file);
 
     return pathW;
@@ -541,8 +550,9 @@ static void test_MetaDataDispenser_OpenScope(void)
         { tdInterface | tdAbstract | tdWindowsRuntime, "ITest1", "Wine.Test" },
         { tdPublic | tdSealed | tdWindowsRuntime, "Test1", "Wine.Test" },
     };
+    ULONG val = 0, i, guid_ctor_idx = 0, itest1_def_idx = 0, md_size;
+    const BYTE *md_bytes = load_resource_data(L"test-simple.winmd", &md_size);
     const WCHAR *filename = load_resource(L"test-simple.winmd");
-    ULONG val = 0, i, guid_ctor_idx = 0, itest1_def_idx = 0;
     const struct row_typedef *type_def = NULL;
     const struct row_module *module = NULL;
     IMetaDataDispenser *dispenser;
@@ -553,6 +563,26 @@ static void test_MetaDataDispenser_OpenScope(void)
 
     hr = MetaDataGetDispenser(&CLSID_CorMetaDataDispenser, &IID_IMetaDataDispenser, (void **)&dispenser);
     ok(hr == S_OK, "got hr %#lx\n", hr);
+
+    hr = IMetaDataDispenser_OpenScopeOnMemory(dispenser, NULL, 0, 0, &IID_IMetaDataTables, (IUnknown **)&md_tables);
+    ok(hr == E_FAIL, "got hr %#lx\n", hr);
+
+    hr = IMetaDataDispenser_OpenScopeOnMemory(dispenser, NULL, md_size, 0, &IID_IMetaDataTables,
+                                              (IUnknown **)&md_tables);
+    ok(hr == E_FAIL, "got hr %#lx\n", hr);
+
+    hr = IMetaDataDispenser_OpenScopeOnMemory(dispenser, md_bytes, 0, 0, &IID_IMetaDataTables,
+                                              (IUnknown **)&md_tables);
+    ok(hr == CLDB_E_NO_DATA, "got hr %#lx\n", hr);
+
+    hr = IMetaDataDispenser_OpenScopeOnMemory(dispenser, md_bytes, sizeof(IMAGE_DOS_HEADER), 0, &IID_IMetaDataTables,
+                                              (IUnknown **)&md_tables);
+    ok(hr == CLDB_E_FILE_CORRUPT, "got hr %#lx\n", hr);
+
+    hr = IMetaDataDispenser_OpenScopeOnMemory(dispenser, md_bytes, md_size, 0, &IID_IMetaDataTables,
+                                              (IUnknown **)&md_tables);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
+    IMetaDataTables_Release(md_tables);
 
     hr = IMetaDataDispenser_OpenScope(dispenser, filename, 0, &IID_IMetaDataTables, (IUnknown **)&md_tables);
     ok(hr == S_OK, "got hr %#lx\n", hr);
@@ -920,16 +950,15 @@ static void test_prop_method_token_(int line, IMetaDataImport *md_import, mdType
 
     ok_(__FILE__, line)(token && token != mdMethodDefNil, "got token %#x\n", token);
     valid = IMetaDataImport_IsValidToken(md_import, token);
-    ok_(__FILE__, line)(valid, "got value %d\n", valid);
+    todo_wine ok_(__FILE__, line)(valid, "got value %d\n", valid);
     name[0] = L'\0';
     hr = IMetaDataImport_GetMethodProps(md_import, token, &type_def, name, ARRAY_SIZE(name), NULL, &attrs, NULL, NULL,
                                         NULL, &impl);
-    todo_wine ok_(__FILE__, line)(hr == S_OK, "GetMethodProps failed, got hr %#lx\n", hr);
+    ok_(__FILE__, line)(hr == S_OK, "GetMethodProps failed, got hr %#lx\n", hr);
     swprintf(exp_name, ARRAY_SIZE(exp_name), L"%s_%s", prefix, prop_name);
-    todo_wine ok_(__FILE__, line)(!wcscmp(name, exp_name), "got name %s != %s\n", debugstr_w(name),
-                                  debugstr_w(exp_name));
-    todo_wine ok_(__FILE__, line)(attrs == exp_attrs, "got attrs %#lx != %#x\n", attrs, exp_attrs);
-    todo_wine ok_(__FILE__, line)(!impl, "got impl %#lx\n", impl);
+    ok_(__FILE__, line)(!wcscmp(name, exp_name), "got name %s != %s\n", debugstr_w(name), debugstr_w(exp_name));
+    ok_(__FILE__, line)(attrs == exp_attrs, "got attrs %#lx != %#x\n", attrs, exp_attrs);
+    ok_(__FILE__, line)(!impl, "got impl %#lx\n", impl);
 }
 
 static void test_IMetaDataImport(void)
@@ -981,16 +1010,17 @@ static void test_IMetaDataImport(void)
     static const WCHAR *guid_attribute_name = L"Windows.Foundation.Metadata.GuidAttribute";
 
     const WCHAR *filename = load_resource(L"test-enum.winmd");
-    ULONG buf_len, buf_count, str_len, str_reqd, i;
+    ULONG buf_len, buf_len2, buf_count, str_len, str_reqd, i;
     mdTypeDef *typedef_tokens, typedef1, typedef2;
-    mdMethodDef *methoddef_tokens;
+    mdMethodDef *methoddef_tokens, methoddef;
+    mdFieldDef *fielddef_tokens, fielddef;
+    HCORENUM henum = NULL, henum2 = NULL;
     IMetaDataDispenser *dispenser;
-    mdFieldDef *fielddef_tokens;
     mdProperty *property_tokens;
     IMetaDataImport *md_import;
     const BYTE *data = NULL;
-    HCORENUM henum = 0;
     const GUID *guid;
+    mdToken token;
     WCHAR *strW;
     HRESULT hr;
     ULONG val;
@@ -1005,21 +1035,21 @@ static void test_IMetaDataImport(void)
     buf_count = 0xdeadbeef;
     henum = NULL;
     hr = IMetaDataImport_EnumTypeDefs(md_import, &henum, NULL, 0, &buf_count);
-    todo_wine ok(hr == S_FALSE, "got hr %#lx\n", hr);
-    todo_wine ok(buf_count == 0, "got buf_reqd %lu\n", buf_count);
-    todo_wine ok(!!henum, "got henum %p\n", henum);
+    ok(hr == S_FALSE, "got hr %#lx\n", hr);
+    ok(buf_count == 0, "got buf_reqd %lu\n", buf_count);
+    ok(!!henum, "got henum %p\n", henum);
 
     buf_len = 0;
     hr = IMetaDataImport_CountEnum(md_import, henum, &buf_len);
-    todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
     /* The <Module> typedef is ommitted. */
-    todo_wine ok(buf_len == ARRAY_SIZE(type_defs), "got len %lu\n", buf_len);
+    ok(buf_len == ARRAY_SIZE(type_defs), "got len %lu\n", buf_len);
 
     typedef_tokens = calloc(buf_len, sizeof(*typedef_tokens));
     ok(!!typedef_tokens, "got typedef_tokens %p\n", typedef_tokens);
     hr = IMetaDataImport_EnumTypeDefs(md_import, &henum, typedef_tokens, buf_len, &buf_count);
-    todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
-    todo_wine ok(buf_len == buf_count, "got len %lu != %lu\n", buf_len, buf_count);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
+    ok(buf_len == buf_count, "got len %lu != %lu\n", buf_len, buf_count);
     for (i = 0; i < buf_len; i++)
     {
         const struct type_info *info = &type_defs[i];
@@ -1037,85 +1067,84 @@ static void test_IMetaDataImport(void)
         exp_len = snprintf(bufA, sizeof(bufA), "%s.%s", info->exp_namespace, info->exp_name) + 1;
         str_reqd = 0;
         hr = IMetaDataImport_GetTypeDefProps(md_import, typedef_tokens[i], NULL, 0, &str_reqd, NULL, NULL);
-        todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
-        todo_wine ok(str_reqd == exp_len, "got str_reqd %lu != %lu\n", str_reqd, exp_len);
+        ok(hr == S_OK, "got hr %#lx\n", hr);
+        ok(str_reqd == exp_len, "got str_reqd %lu != %lu\n", str_reqd, exp_len);
         MultiByteToWideChar(CP_ACP, 0, bufA, -1, bufW, ARRAY_SIZE(bufW));
 
         str_len = str_reqd;
         strW = calloc(str_len, sizeof(WCHAR));
         hr = IMetaDataImport_GetTypeDefProps(md_import, typedef_tokens[i], strW, str_len - 1, &str_reqd, &val, &base);
-        todo_wine ok(hr == CLDB_S_TRUNCATION, "got hr %#lx\n", hr);
+        ok(hr == CLDB_S_TRUNCATION, "got hr %#lx\n", hr);
         len = wcslen(strW);
-        todo_wine ok( len == str_len - 2, "got len %lu != %lu\n", len, str_len - 2);
+        ok( len == str_len - 2, "got len %lu != %lu\n", len, str_len - 2);
         if (hr == CLDB_S_TRUNCATION)
-            todo_wine ok(!wcsncmp(strW, bufW, str_len - 2), "got bufW %s != %s\n", debugstr_w(strW),
-                         debugstr_wn(bufW, str_len - 2));
+            ok(!wcsncmp(strW, bufW, str_len - 2), "got bufW %s != %s\n", debugstr_w(strW),
+               debugstr_wn(bufW, str_len - 2));
         val = base = 0;
         hr = IMetaDataImport_GetTypeDefProps(md_import, typedef_tokens[i], strW, str_len, NULL, &val, &base);
-        todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
+        ok(hr == S_OK, "got hr %#lx\n", hr);
         if (hr == S_OK)
             ok(1 || !wcscmp(strW, bufW), "got strW %s != %s\n", debugstr_w(strW), debugstr_w(bufW));
         free(strW);
 
-        todo_wine ok(val == info->exp_flags, "got val %#lx != %#lx\n", val, info->exp_flags);
-        todo_wine ok(base == info->exp_base, "got base %s != %s\n", debugstr_mdToken(base),
-                     debugstr_mdToken(info->exp_base));
+        ok(val == info->exp_flags, "got val %#lx != %#lx\n", val, info->exp_flags);
+        ok(base == info->exp_base, "got base %s != %s\n", debugstr_mdToken(base), debugstr_mdToken(info->exp_base));
 
         hr = IMetaDataImport_FindTypeDefByName(md_import, bufW, 0, &token);
-        todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
-        todo_wine ok(token == typedef_tokens[i], "got token %s != %s\n", debugstr_mdToken(token), debugstr_mdToken(typedef_tokens[i]));
+        ok(hr == S_OK, "got hr %#lx\n", hr);
+        ok(token == typedef_tokens[i], "got token %s != %s\n", debugstr_mdToken(token), debugstr_mdToken(typedef_tokens[i]));
 
         if (info->exp_contract_name)
         {
             data_len = 0;
             data = NULL;
             hr = IMetaDataImport_GetCustomAttributeByName(md_import, typedef_tokens[i], contract_attribute_name, &data, &data_len);
-            todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
-            todo_wine test_contract_value(data, data_len, info->exp_contract_name, info->exp_contract_version);
+            ok(hr == S_OK, "got hr %#lx\n", hr);
+            test_contract_value(data, data_len, info->exp_contract_name, info->exp_contract_version);
         }
 
         winetest_pop_context();
     }
     hr = IMetaDataImport_EnumTypeDefs(md_import, &henum, typedef_tokens, buf_len, &buf_count);
-    todo_wine ok(hr == S_FALSE, "got hr %#lx\n", hr);
+    ok(hr == S_FALSE, "got hr %#lx\n", hr);
 
     hr = IMetaDataImport_ResetEnum(md_import, henum, 0);
-    todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
     buf_count = 0xdeadbeef;
     hr = IMetaDataImport_EnumTypeDefs(md_import, &henum, typedef_tokens, buf_len, &buf_count);
-    todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
-    todo_wine ok(buf_len == buf_count, "got len %lu != %lu\n", buf_len, buf_count);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
+    ok(buf_len == buf_count, "got len %lu != %lu\n", buf_len, buf_count);
     hr = IMetaDataImport_EnumTypeDefs(md_import, &henum, typedef_tokens, buf_len, &buf_count);
-    todo_wine ok(hr == S_FALSE, "got hr %#lx\n", hr);
+    ok(hr == S_FALSE, "got hr %#lx\n", hr);
     IMetaDataImport_CloseEnum(md_import, henum);
     free(typedef_tokens);
 
     hr = IMetaDataImport_FindTypeDefByName(md_import, NULL, 0, NULL);
-    todo_wine ok(hr == E_INVALIDARG, "got hr %#lx\n", hr);
+    ok(hr == E_INVALIDARG, "got hr %#lx\n", hr);
 
     hr = IMetaDataImport_FindTypeDefByName(md_import, L"Test2", 0, &typedef1);
-    todo_wine ok(hr == CLDB_E_RECORD_NOTFOUND, "got hr %#lx\n", hr);
+    ok(hr == CLDB_E_RECORD_NOTFOUND, "got hr %#lx\n", hr);
     hr = IMetaDataImport_FindTypeDefByName(md_import, NULL, 0, &typedef1);
-    todo_wine ok(hr == E_INVALIDARG, "got hr %#lx\n", hr);
+    ok(hr == E_INVALIDARG, "got hr %#lx\n", hr);
 
     typedef1 = 0;
     hr = IMetaDataImport_FindTypeDefByName(md_import, L"Wine.Test.Test2", 0, &typedef1);
-    todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
-    todo_wine test_token(md_import, typedef1, mdtTypeDef, FALSE);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
+    test_token(md_import, typedef1, mdtTypeDef, FALSE);
     buf_count = 0xdeadbeef;
     henum = NULL;
     hr = IMetaDataImport_EnumMethods(md_import, &henum, typedef1, NULL, 0, &buf_count);
-    todo_wine ok(hr == S_FALSE, "got hr %#lx\n", hr);
-    todo_wine ok(buf_count == 0, "got buf_reqd %lu\n", buf_count);
+    ok(hr == S_FALSE, "got hr %#lx\n", hr);
+    ok(buf_count == 0, "got buf_reqd %lu\n", buf_count);
     buf_len = 0;
     hr = IMetaDataImport_CountEnum(md_import, henum, &buf_len);
-    todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
-    todo_wine ok(buf_len == ARRAY_SIZE(test2_methods), "got buf_len %#lx\n" , buf_len);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
+    ok(buf_len == ARRAY_SIZE(test2_methods), "got buf_len %#lx\n" , buf_len);
     methoddef_tokens = calloc(buf_len, sizeof(*methoddef_tokens));
     ok(!!methoddef_tokens, "got methoddef_tokens %p\n", methoddef_tokens);
     hr = IMetaDataImport_EnumMethods(md_import, &henum, typedef1, methoddef_tokens, buf_len, &buf_count);
-    todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
-    todo_wine ok(buf_count == buf_len, "got buf_reqd %lu != %lu\n", buf_count, buf_len);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
+    ok(buf_count == buf_len, "got buf_reqd %lu != %lu\n", buf_count, buf_len);
     for (i = 0; i < buf_len; i++)
     {
         ULONG method_flags = 0, impl_flags = 0, sig_len = 0, call_conv = 0;
@@ -1130,27 +1159,111 @@ static void test_IMetaDataImport(void)
         str_len = 0;
         hr = IMetaDataImport_GetMethodProps(md_import, methoddef_tokens[i], &typedef2, name, ARRAY_SIZE(name), &str_len,
                                             &method_flags, &sig_blob, &sig_len, NULL, &impl_flags);
-        todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
-        todo_wine ok(typedef2 == typedef1, "got typedef2 %s != %s\n", debugstr_mdToken(typedef2),
-                     debugstr_mdToken(typedef1));
-        todo_wine ok(method_flags == method->exp_method_flags, "got method_flags %#lx != %#x\n", method_flags,
-                     method->exp_method_flags);
-        todo_wine ok(impl_flags == method->exp_impl_flags, "got impl_flags %#lx != %#x\n", impl_flags,
-                     method->exp_impl_flags);
-        todo_wine ok(!!sig_blob, "got sig_blob %p\n", sig_blob);
-        todo_wine ok(sig_len == method->exp_sig_len, "got sig_len %lu != %lu\n", sig_len, method->exp_sig_len);
+        ok(hr == S_OK, "got hr %#lx\n", hr);
+        ok(typedef2 == typedef1, "got typedef2 %s != %s\n", debugstr_mdToken(typedef2), debugstr_mdToken(typedef1));
+        ok(method_flags == method->exp_method_flags, "got method_flags %#lx != %#x\n", method_flags,
+           method->exp_method_flags);
+        ok(impl_flags == method->exp_impl_flags, "got impl_flags %#lx != %#x\n", impl_flags, method->exp_impl_flags);
+        ok(!!sig_blob, "got sig_blob %p\n", sig_blob);
+        ok(sig_len == method->exp_sig_len, "got sig_len %lu != %lu\n", sig_len, method->exp_sig_len);
         if (sig_blob && sig_len == method->exp_sig_len)
             ok(!memcmp(sig_blob, method->exp_sig_blob, method->exp_sig_len), "got unexpected sig_blob\n");
-        todo_wine ok(!wcscmp(name, method->exp_name), "got name %s != %s\n", debugstr_w(name),
-                     debugstr_w(method->exp_name));
+        ok(!wcscmp(name, method->exp_name), "got name %s != %s\n", debugstr_w(name), debugstr_w(method->exp_name));
 
         hr = IMetaDataImport_GetNativeCallConvFromSig(md_import, sig_blob, sig_len, &call_conv);
         todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
         todo_wine ok(call_conv == method->exp_call_conv, "got call_conv %#lx != %#x\n", call_conv, method->exp_call_conv);
 
+        methoddef = mdMethodDefNil;
+        hr = IMetaDataImport_FindMethod(md_import, typedef2, name, sig_blob, sig_len, &methoddef);
+        ok(hr == S_OK, "got hr %#lx\n", hr);
+        ok(methoddef == methoddef_tokens[i], "got methoddef %s != %s\n", debugstr_mdToken(methoddef),
+           debugstr_mdToken(methoddef_tokens[i]));
+        methoddef = mdMethodDefNil;
+        hr = IMetaDataImport_FindMethod(md_import, typedef2, name, NULL, 0, &methoddef);
+        ok(hr == S_OK, "got hr %#lx\n", hr);
+        ok(methoddef == methoddef_tokens[i], "got methoddef %s != %s\n", debugstr_mdToken(methoddef),
+           debugstr_mdToken(methoddef_tokens[i]));
+
+        henum2 = NULL;
+        methoddef = mdMethodDefNil;
+        hr = IMetaDataImport_EnumMethodsWithName(md_import, &henum2, typedef2, name, NULL, 0, NULL);
+        ok(hr == S_FALSE, "got hr %#lx\n", hr);
+        ok(!!henum2, "got henum2 %p\n", henum2);
+        buf_len2 = 0;
+        hr = IMetaDataImport_CountEnum(md_import, henum2, &buf_len2);
+        ok(hr == S_OK, "got hr %#lx\n", hr);
+        ok(buf_len2 == 1, "got buf_count2 %lu\n", buf_len2);
+        buf_len2 = 0;
+        hr = IMetaDataImport_EnumMethodsWithName(md_import, &henum2, typedef2, name, &methoddef, 1, &buf_len2);
+        ok(hr == S_OK, "got hr %#lx\n", hr);
+        ok(buf_len2 == 1, "got count %lu\n", hr);
+        ok(methoddef == methoddef_tokens[i], "got methoddef %s != %s\n", debugstr_mdToken(methoddef),
+           debugstr_mdToken(methoddef_tokens[i]));
+        IMetaDataImport_CloseEnum(md_import, henum2);
+
+        token = mdTokenNil;
+        hr = IMetaDataImport_FindMember(md_import, typedef2, name, sig_blob, sig_len, &token);
+        todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
+        todo_wine ok(token == methoddef_tokens[i], "got token %s != %s\n", debugstr_mdToken(token),
+                     debugstr_mdToken(methoddef_tokens[i]));
+        token = mdTokenNil;
+        hr = IMetaDataImport_FindMember(md_import, typedef2, name, NULL, 0, &token);
+        todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
+        todo_wine ok(token == methoddef_tokens[i], "got token %s != %s\n", debugstr_mdToken(token),
+                     debugstr_mdToken(methoddef_tokens[i]));
+
+        henum2 = NULL;
+        token = mdTokenNil;
+        hr = IMetaDataImport_EnumMembersWithName(md_import, &henum2, typedef2, name, &token, 1, NULL);
+        todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
+        todo_wine ok(!!henum2, "got henum2 %p\n", henum2);
+        buf_len2 = 0;
+        hr = IMetaDataImport_CountEnum(md_import, henum2, &buf_len2);
+        ok(hr == S_OK, "got hr %#lx\n", hr);
+        todo_wine ok(buf_len2 == 1, "got buf_len2 %lu\n", buf_len2);
+        todo_wine ok(token == methoddef_tokens[i], "got token %s != %s\n", debugstr_mdToken(token),
+                     debugstr_mdToken(methoddef_tokens[i]));
+        IMetaDataImport_CloseEnum(md_import, henum2);
+
         winetest_pop_context();
     }
+    hr = IMetaDataImport_FindMethod(md_import, typedef2, NULL, NULL, 0, &methoddef);
+    ok(hr == E_INVALIDARG, "got hr %#lx\n", hr);
+    hr = IMetaDataImport_FindMethod(md_import, typedef2, L"foo", NULL, 0, &methoddef);
+    ok(hr == CLDB_E_RECORD_NOTFOUND, "got hr %#lx\n", hr);
     free(methoddef_tokens);
+    IMetaDataImport_CloseEnum(md_import, henum);
+
+    henum = NULL;
+    /* EnumMethodsWithName with a NULL name is the same as EnumMethods. */
+    hr = IMetaDataImport_EnumMethodsWithName(md_import, &henum, typedef2, NULL, NULL, 0, NULL);
+    ok(hr == S_FALSE, "got hr %#lx\n", hr);
+    ok(!!henum, "got henum %p\n", henum);
+    buf_len2 = 0;
+    hr = IMetaDataImport_CountEnum(md_import, henum, &buf_len2);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
+    ok(buf_len2 == buf_len, "got buf_len2 %lu != %lu\n", buf_len2, buf_len);
+    IMetaDataImport_CloseEnum(md_import, henum);
+
+    henum = NULL;
+    hr = IMetaDataImport_EnumMembers(md_import, &henum, typedef2, NULL, 0, NULL);
+    todo_wine ok(hr == S_FALSE, "got hr %#lx\n", hr);
+    todo_wine ok(!!henum, "got henum %p\n", henum);
+    buf_len2 = 0;
+    hr = IMetaDataImport_CountEnum(md_import, henum, &buf_len2);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
+    todo_wine ok(buf_len2 == buf_len, "got buf_len2 %lu != %lu\n", buf_len2, buf_len);
+    IMetaDataImport_CloseEnum(md_import, henum);
+
+    henum = NULL;
+    hr = IMetaDataImport_EnumMembersWithName(md_import, &henum, typedef2, NULL, NULL, 0, NULL);
+    todo_wine ok(hr == S_FALSE, "got hr %#lx\n", hr);
+    todo_wine ok(!!henum, "got henum %p\n", henum);
+    buf_len2 = 0;
+    hr = IMetaDataImport_CountEnum(md_import, henum, &buf_len2);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
+    todo_wine ok(buf_len2 == buf_len, "got buf_len2 %lu != %lu\n", buf_len2, buf_len);
     IMetaDataImport_CloseEnum(md_import, henum);
 
     for (i = 0; i < ARRAY_SIZE(field_enum_test_cases); i++)
@@ -1164,23 +1277,54 @@ static void test_IMetaDataImport(void)
 
         typedef1 = 0;
         hr = IMetaDataImport_FindTypeDefByName(md_import, type_name, 0, &typedef1);
-        todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
-        todo_wine test_token(md_import, typedef1, mdtTypeDef, FALSE);
+        ok(hr == S_OK, "got hr %#lx\n", hr);
+        test_token(md_import, typedef1, mdtTypeDef, FALSE);
         henum = NULL;
         buf_count = 0xdeadbeef;
         hr = IMetaDataImport_EnumFields(md_import, &henum, typedef1, NULL, 0, &buf_count);
-        todo_wine ok(hr == S_FALSE, "got hr %#lx\n", hr);
-        todo_wine ok(!!henum, "got henum %p\n", henum);
-        todo_wine ok(buf_count == 0, "got buf_count %lu\n", buf_count);
+        ok(hr == S_FALSE, "got hr %#lx\n", hr);
+        ok(!!henum, "got henum %p\n", henum);
+        ok(buf_count == 0, "got buf_count %lu\n", buf_count);
         buf_len = 0;
         hr = IMetaDataImport_CountEnum(md_import, henum, &buf_len);
-        todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
-        todo_wine ok(buf_len == fields_len, "got buf_len %lu\n", buf_len);
+        ok(hr == S_OK, "got hr %#lx\n", hr);
+        ok(buf_len == fields_len, "got buf_len %lu\n", buf_len);
         fielddef_tokens = calloc(buf_len, sizeof(*fielddef_tokens));
         ok(!!fielddef_tokens, "got fielddef_tokens %p\n", fielddef_tokens);
         hr = IMetaDataImport_EnumFields(md_import, &henum, typedef1, fielddef_tokens, buf_len, &buf_count);
-        todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
-        todo_wine ok(buf_count == buf_len, "got buf_count %lu != %lu\n", buf_count, buf_len);
+        ok(hr == S_OK, "got hr %#lx\n", hr);
+        ok(buf_count == buf_len, "got buf_count %lu != %lu\n", buf_count, buf_len);
+        IMetaDataImport_CloseEnum(md_import, henum);
+
+        henum = NULL;
+        /* EnumFieldsWithName with a NULL name is the same as EnumFields. */
+        hr = IMetaDataImport_EnumFieldsWithName(md_import, &henum, typedef1, NULL, NULL, 0, NULL);
+        ok(hr == S_FALSE, "got hr %#lx\n", hr);
+        ok(!!henum, "got henum %p\n", henum);
+        buf_len2 = 0;
+        hr = IMetaDataImport_CountEnum(md_import, henum, &buf_len2);
+        ok(hr == S_OK, "got hr %#lx\n", hr);
+        ok(buf_len2 == buf_len, "got buf_len2 %lu != %lu\n", buf_len2, buf_len);
+        IMetaDataImport_CloseEnum(md_import, henum);
+
+        henum = NULL;
+        hr = IMetaDataImport_EnumMembers(md_import, &henum, typedef1, NULL, 0, NULL);
+        todo_wine ok(hr == S_FALSE, "got hr %#lx\n", hr);
+        todo_wine ok(!!henum, "got henum %p\n", henum);
+        buf_len2 = 0;
+        hr = IMetaDataImport_CountEnum(md_import, henum, &buf_len2);
+        ok(hr == S_OK, "got hr %#lx\n", hr);
+        todo_wine ok(buf_len2 == buf_len, "got buf_len2 %lu != %lu\n", buf_len2, buf_len);
+        IMetaDataImport_CloseEnum(md_import, henum);
+
+        henum = NULL;
+        hr = IMetaDataImport_EnumMembersWithName(md_import, &henum, typedef1, NULL, NULL, 0, NULL);
+        todo_wine ok(hr == S_FALSE, "got hr %#lx\n", hr);
+        todo_wine ok(!!henum, "got henum %p\n", henum);
+        buf_len2 = 0;
+        hr = IMetaDataImport_CountEnum(md_import, henum, &buf_len2);
+        ok(hr == S_OK, "got hr %#lx\n", hr);
+        todo_wine ok(buf_len2 == buf_len, "got buf_len2 %lu != %lu\n", buf_len2, buf_len);
         IMetaDataImport_CloseEnum(md_import, henum);
 
         for (field_idx = 0; field_idx < buf_len; field_idx++)
@@ -1193,25 +1337,76 @@ static void test_IMetaDataImport(void)
 
             winetest_push_context("field_idx=%lu", field_idx);
 
-            test_token(md_import, fielddef_tokens[i], mdtFieldDef, FALSE);
+            test_token(md_import, fielddef_tokens[field_idx], mdtFieldDef, FALSE);
             name[0] = L'\0';
             typedef2 = 0;
             hr = IMetaDataImport_GetFieldProps(md_import, fielddef_tokens[field_idx], &typedef2, name, ARRAY_SIZE(name), NULL,
                                                &flags, &sig_blob, &sig_len, &value_type, &value, &value_len);
-            todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
-            todo_wine ok(typedef2 == typedef1, "got typedef2 %s != %s\n", debugstr_mdToken(typedef2), debugstr_mdToken(typedef1));
-            todo_wine ok(!wcscmp(name, props->exp_name), "got name %s != %s\n", debugstr_w(name), debugstr_w(props->exp_name));
-            todo_wine ok(flags == props->exp_flags, "got flags %#lx != %#x\n", flags, props->exp_flags);
-            todo_wine ok(value_type == props->exp_value_type, "got value_type %#lx != %#x\n", value_type, props->exp_value_type);
-            todo_wine ok(sig_len == props->exp_sig_len, "got sig_len %lu != %lu\n", sig_len, props->exp_sig_len);
-            todo_wine ok(!!sig_blob, "got sig_blob %p\n", sig_blob);
+            ok(hr == S_OK, "got hr %#lx\n", hr);
+            ok(typedef2 == typedef1, "got typedef2 %s != %s\n", debugstr_mdToken(typedef2), debugstr_mdToken(typedef1));
+            ok(!wcscmp(name, props->exp_name), "got name %s != %s\n", debugstr_w(name), debugstr_w(props->exp_name));
+            ok(flags == props->exp_flags, "got flags %#lx != %#x\n", flags, props->exp_flags);
+            ok(value_type == props->exp_value_type, "got value_type %#lx != %#x\n", value_type, props->exp_value_type);
+            ok(sig_len == props->exp_sig_len, "got sig_len %lu != %lu\n", sig_len, props->exp_sig_len);
+            ok(!!sig_blob, "got sig_blob %p\n", sig_blob);
             if (sig_blob && sig_len == props->exp_sig_len)
                 ok(!memcmp(sig_blob, props->exp_sig_blob, sig_len), "got unexpected sig_blob\n");
-            todo_wine ok(value_len == 0, "got value_len %lu\n", value_len); /* Non-zero only for string types. */
-            todo_wine ok(props->has_value == !!value, "got value %s\n", debugstr_a(value));
+            ok(value_len == 0, "got value_len %lu\n", value_len); /* Non-zero only for string types. */
+            ok(props->has_value == !!value, "got value %s\n", debugstr_a(value));
             if (props->has_value)
-                todo_wine ok(value && !memcmp(value, props->exp_value, props->value_len), "got unexpected value %p\n",
-                             value);
+                ok(value && !memcmp(value, props->exp_value, props->value_len), "got unexpected value %p\n", value);
+
+            henum = NULL;
+            hr = IMetaDataImport_EnumFieldsWithName(md_import, &henum, typedef2, name, &fielddef, 0, NULL);
+            ok(hr == S_FALSE, "got hr %#lx\n", hr);
+            ok(!!henum, "got henum %p\n", henum);
+            buf_len2 = 0;
+            hr = IMetaDataImport_CountEnum(md_import, henum, &buf_len2);
+            ok(hr == S_OK, "got hr %#lx\n", hr);
+            ok(buf_len2 == 1, "got buf_len2 %lu\n", buf_len2);
+            fielddef = mdFieldDefNil;
+            hr = IMetaDataImport_EnumFieldsWithName(md_import, &henum, typedef2, name, &fielddef, 1, NULL);
+            ok(hr == S_OK, "got hr %#lx\n", hr);
+            ok(fielddef == fielddef_tokens[field_idx], "got fielddef %s != %s\n", debugstr_mdToken(fielddef),
+               debugstr_mdToken(fielddef_tokens[field_idx]));
+            IMetaDataImport_CloseEnum(md_import, henum);
+
+            henum = NULL;
+            fielddef = mdFieldDefNil;
+            hr = IMetaDataImport_EnumMembersWithName(md_import, &henum, typedef2, name, &fielddef, 1, NULL);
+            todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
+            todo_wine ok(!!henum, "got henum %p\n", henum);
+            buf_len2 = 0;
+            hr = IMetaDataImport_CountEnum(md_import, henum, &buf_len2);
+            ok(hr == S_OK, "got hr %#lx\n", hr);
+            todo_wine ok(buf_len2 == 1, "got buf_len2 %lu\n", buf_len2);
+            todo_wine ok(fielddef == fielddef_tokens[field_idx], "got fielddef %s != %s\n", debugstr_mdToken(fielddef),
+                         debugstr_mdToken(fielddef_tokens[field_idx]));
+            IMetaDataImport_CloseEnum(md_import, henum);
+
+            fielddef = mdFieldDefNil;
+            hr = IMetaDataImport_FindField(md_import, typedef2, name, sig_blob, sig_len, &fielddef);
+            ok(hr == S_OK, "got hr %#lx\n", hr);
+            ok(fielddef == fielddef_tokens[field_idx], "got fielddef %s != %s\n", debugstr_mdToken(fielddef),
+               debugstr_mdToken(fielddef_tokens[field_idx]));
+            hr = IMetaDataImport_FindField(md_import, typedef2, name, sig_blob, sig_len, &fielddef);
+            ok(hr == S_OK, "got hr %#lx\n", hr);
+            fielddef = mdFieldDefNil;
+            hr = IMetaDataImport_FindField(md_import, typedef2, name, NULL, 0, &fielddef);
+            ok(hr == S_OK, "got hr %#lx\n", hr);
+            ok(fielddef == fielddef_tokens[field_idx], "got fielddef %s != %s\n", debugstr_mdToken(fielddef),
+               debugstr_mdToken(fielddef_tokens[field_idx]));
+
+            token = mdTokenNil;
+            hr = IMetaDataImport_FindMember(md_import, typedef2, name, sig_blob, sig_len, &token);
+            todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
+            todo_wine ok(token == fielddef_tokens[field_idx], "got token %s != %s\n", debugstr_mdToken(token),
+                         debugstr_mdToken(fielddef_tokens[field_idx]));
+            token = mdTokenNil;
+            hr = IMetaDataImport_FindMember(md_import, typedef2, name, NULL, 0, &token);
+            todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
+            todo_wine ok(token == fielddef_tokens[field_idx], "got token %s != %s\n", debugstr_mdToken(token),
+                         debugstr_mdToken(fielddef_tokens[field_idx]));
 
             winetest_pop_context();
         }
@@ -1219,36 +1414,55 @@ static void test_IMetaDataImport(void)
         winetest_pop_context();
     }
 
+    hr = IMetaDataImport_FindField(md_import, typedef2, NULL, NULL, 0, &fielddef);
+    ok(hr == E_INVALIDARG, "got hr %#lx\n", hr);
+    hr = IMetaDataImport_FindField(md_import, typedef2, L"foo", NULL, 0, &fielddef);
+    ok(hr == CLDB_E_RECORD_NOTFOUND, "got hr %#lx\n", hr);
+
+    hr = IMetaDataImport_FindMember(md_import, typedef1, NULL, NULL, 0, &token);
+    todo_wine ok(hr == E_INVALIDARG, "got hr %#lx\n", hr);
+    hr = IMetaDataImport_FindMember(md_import, typedef1, L"foo", NULL, 0, &token);
+    todo_wine ok(hr == CLDB_E_RECORD_NOTFOUND, "got hr %#lx\n", hr);
+
     typedef1 = buf_len = 0;
     data = NULL;
     hr = IMetaDataImport_FindTypeDefByName(md_import, L"Wine.Test.ITest2", 0, &typedef1);
-    todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
-    todo_wine test_token(md_import, typedef1, mdtTypeDef, FALSE);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
+    test_token(md_import, typedef1, mdtTypeDef, FALSE);
     hr = IMetaDataImport_GetCustomAttributeByName(md_import, typedef1, guid_attribute_name, &data, &buf_len);
-    todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
-    todo_wine ok(!!data, "got data %p\n", data);
-    todo_wine ok(buf_len == sizeof(GUID) + 4, "got buf_len %lu\n", buf_len);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
+    ok(!!data, "got data %p\n", data);
+    ok(buf_len == sizeof(GUID) + 4, "got buf_len %lu\n", buf_len);
     if (data && buf_len == sizeof(GUID) + 4)
     {
         guid = (GUID *)&data[2];
         ok(IsEqualGUID(guid, &IID_ITest2), "got guid %s\n", debugstr_guid(guid));
     }
+    hr = IMetaDataImport_GetCustomAttributeByName(md_import, typedef1, guid_attribute_name, NULL, NULL);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
+    hr = IMetaDataImport_GetCustomAttributeByName(md_import, typedef1, NULL, &data, &buf_len);
+    ok(hr == S_FALSE, "got hr %#lx\n", hr);
+    hr = IMetaDataImport_GetCustomAttributeByName(md_import, mdTypeDefNil, L"foo", &data, &buf_len);
+    ok(hr == S_FALSE, "got hr %#lx\n", hr);
+    hr = IMetaDataImport_GetCustomAttributeByName(md_import, TokenFromRid(1, mdtCustomAttribute), L"foo", &data,
+                                                  &buf_len);
+    ok(hr == S_FALSE, "got hr %#lx\n", hr);
 
     typedef1 = buf_len = 0;
     hr = IMetaDataImport_FindTypeDefByName(md_import, L"Wine.Test.ITest3", 0, &typedef1);
-    todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
     henum = NULL;
     hr = IMetaDataImport_EnumProperties(md_import, &henum, typedef1, NULL, 0, NULL);
-    todo_wine ok(hr == S_FALSE, "got hr %#lx\n", hr);
+    ok(hr == S_FALSE, "got hr %#lx\n", hr);
     hr = IMetaDataImport_CountEnum(md_import, henum, &buf_len);
-    todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
-    todo_wine ok(buf_len == ARRAY_SIZE(test3_props), "got buf_len %lu\n", buf_len);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
+    ok(buf_len == ARRAY_SIZE(test3_props), "got buf_len %lu\n", buf_len);
     property_tokens = calloc(buf_len, sizeof(*property_tokens));
     ok(!!property_tokens, "got property_tokens %p\n", property_tokens);
     buf_count = 0xdeadbeef;
     hr = IMetaDataImport_EnumProperties(md_import, &henum, typedef1, property_tokens, buf_len, &buf_count);
-    todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
-    todo_wine ok(buf_count == buf_len, "got buf_count %lu != %lu\n", buf_count, buf_len);
+    ok(hr == S_OK, "got hr %#lx\n", hr);
+    ok(buf_count == buf_len, "got buf_count %lu != %lu\n", buf_count, buf_len);
     IMetaDataImport_CloseEnum(md_import, henum);
     for (i = 0; i < buf_len; i++)
     {
@@ -1266,11 +1480,11 @@ static void test_IMetaDataImport(void)
         hr = IMetaDataImport_GetPropertyProps(md_import, property_tokens[i], &typedef2, name, ARRAY_SIZE(name),
                                               &str_reqd, &val, &sig_blob, &sig_len, &value_type, &value, &value_len,
                                               &set_method, &get_method, NULL, 0, NULL);
-        todo_wine ok(hr == S_OK, "got hr %#lx\n", hr);
-        todo_wine ok(typedef1 == typedef2, "got typedef1 %#x != %#x\n", typedef1, typedef2);
-        todo_wine ok(!wcscmp(name, props->exp_name), "got name %s != %s\n", debugstr_w(name), debugstr_w(props->exp_name));
-        todo_wine ok(!!sig_blob, "got sig_blob %p\n", sig_blob);
-        todo_wine ok(sig_len == props->exp_sig_len, "got sig_len %lu != %lu\n", sig_len, props->exp_sig_len);
+        ok(hr == S_OK, "got hr %#lx\n", hr);
+        ok(typedef1 == typedef2, "got typedef1 %#x != %#x\n", typedef1, typedef2);
+        ok(!wcscmp(name, props->exp_name), "got name %s != %s\n", debugstr_w(name), debugstr_w(props->exp_name));
+        ok(!!sig_blob, "got sig_blob %p\n", sig_blob);
+        ok(sig_len == props->exp_sig_len, "got sig_len %lu != %lu\n", sig_len, props->exp_sig_len);
         if (sig_blob && sig_len == props->exp_sig_len)
             ok(!memcmp(sig_blob, props->exp_sig_blob, sig_len), "got unexpected sig_blob\n");
         ok(!value_len, "got value_len %lu\n", value_len);
@@ -1278,11 +1492,11 @@ static void test_IMetaDataImport(void)
         if (props->has_get)
             test_prop_method_token(md_import, typedef1, props->exp_name, PROP_METHOD_GET, get_method);
         else
-            todo_wine ok(get_method == mdMethodDefNil, "got get_method %#x\n", get_method);
+            ok(get_method == mdMethodDefNil, "got get_method %#x\n", get_method);
         if (props->has_set)
             test_prop_method_token(md_import, typedef1, props->exp_name, PROP_METHOD_SET, set_method);
         else
-            todo_wine ok(set_method == mdMethodDefNil, "got set_method %#x\n", set_method);
+            ok(set_method == mdMethodDefNil, "got set_method %#x\n", set_method);
         winetest_pop_context();
     }
     IMetaDataImport_Release(md_import);

@@ -524,66 +524,7 @@ static BOOL update_surface_shape( struct window_surface *surface, const RECT *re
         return clear_surface_shape( surface );
 }
 
-W32KAPI struct window_surface *window_surface_create( UINT size, const struct window_surface_funcs *funcs, HWND hwnd,
-                                                      const RECT *rect, BITMAPINFO *info, HBITMAP bitmap )
-{
-    struct window_surface *surface;
-
-    if (!(surface = calloc( 1, size ))) return NULL;
-    surface->funcs = funcs;
-    surface->ref = 1;
-    surface->hwnd = hwnd;
-    surface->rect = *rect;
-    surface->color_key = CLR_INVALID;
-    surface->alpha_bits = -1;
-    surface->alpha_mask = 0;
-    reset_bounds( &surface->bounds );
-
-    if (!bitmap) bitmap = NtGdiCreateDIBSection( 0, NULL, 0, info, DIB_RGB_COLORS, 0, 0, 0, NULL );
-    if (!(surface->color_bitmap = bitmap))
-    {
-        free( surface );
-        return NULL;
-    }
-
-    pthread_mutex_init( &surface->mutex, NULL );
-
-    TRACE( "created surface %p for hwnd %p rect %s\n", surface, hwnd, wine_dbgstr_rect( &surface->rect ) );
-    return surface;
-}
-
-W32KAPI void window_surface_add_ref( struct window_surface *surface )
-{
-    InterlockedIncrement( &surface->ref );
-}
-
-W32KAPI void window_surface_release( struct window_surface *surface )
-{
-    ULONG ret = InterlockedDecrement( &surface->ref );
-    if (!ret)
-    {
-        if (surface != &dummy_surface) pthread_mutex_destroy( &surface->mutex );
-        if (surface->clip_region) NtGdiDeleteObjectApp( surface->clip_region );
-        if (surface->color_bitmap) NtGdiDeleteObjectApp( surface->color_bitmap );
-        if (surface->shape_bitmap) NtGdiDeleteObjectApp( surface->shape_bitmap );
-        surface->funcs->destroy( surface );
-        if (surface != &dummy_surface) free( surface );
-    }
-}
-
-W32KAPI void window_surface_lock( struct window_surface *surface )
-{
-    if (surface == &dummy_surface) return;
-    pthread_mutex_lock( &surface->mutex );
-}
-
-W32KAPI void window_surface_unlock( struct window_surface *surface )
-{
-    if (surface == &dummy_surface) return;
-    pthread_mutex_unlock( &surface->mutex );
-}
-
-void *window_surface_get_color( struct window_surface *surface, BITMAPINFO *info )
+static void *window_surface_get_color( struct window_surface *surface, BITMAPINFO *info )
 {
     struct bitblt_coords coords = {0};
     struct gdi_image_bits gdi_bits;
@@ -606,7 +547,68 @@ void *window_surface_get_color( struct window_surface *surface, BITMAPINFO *info
     return gdi_bits.ptr;
 }
 
-W32KAPI void window_surface_flush( struct window_surface *surface )
+struct window_surface *window_surface_create( UINT size, const struct window_surface_funcs *funcs, HWND hwnd,
+                                              const RECT *rect, BITMAPINFO *info, HBITMAP bitmap )
+{
+    struct window_surface *surface;
+
+    if (!(surface = calloc( 1, size ))) return NULL;
+    surface->funcs = funcs;
+    surface->ref = 1;
+    surface->hwnd = hwnd;
+    surface->rect = *rect;
+    surface->color_key = CLR_INVALID;
+    surface->alpha_bits = -1;
+    surface->alpha_mask = 0;
+    reset_bounds( &surface->bounds );
+
+    if (!bitmap) bitmap = NtGdiCreateDIBSection( 0, NULL, 0, info, DIB_RGB_COLORS, 0, 0, 0, NULL );
+    if (!(surface->color_bitmap = bitmap))
+    {
+        free( surface );
+        return NULL;
+    }
+
+    pthread_mutex_init( &surface->mutex, NULL );
+
+    memset( window_surface_get_color( surface, info ), 0xff, info->bmiHeader.biSizeImage );
+
+    TRACE( "created surface %p for hwnd %p rect %s\n", surface, hwnd, wine_dbgstr_rect( &surface->rect ) );
+    return surface;
+}
+
+void window_surface_add_ref( struct window_surface *surface )
+{
+    InterlockedIncrement( &surface->ref );
+}
+
+void window_surface_release( struct window_surface *surface )
+{
+    ULONG ret = InterlockedDecrement( &surface->ref );
+    if (!ret)
+    {
+        if (surface != &dummy_surface) pthread_mutex_destroy( &surface->mutex );
+        if (surface->clip_region) NtGdiDeleteObjectApp( surface->clip_region );
+        if (surface->color_bitmap) NtGdiDeleteObjectApp( surface->color_bitmap );
+        if (surface->shape_bitmap) NtGdiDeleteObjectApp( surface->shape_bitmap );
+        surface->funcs->destroy( surface );
+        if (surface != &dummy_surface) free( surface );
+    }
+}
+
+void window_surface_lock( struct window_surface *surface )
+{
+    if (surface == &dummy_surface) return;
+    pthread_mutex_lock( &surface->mutex );
+}
+
+void window_surface_unlock( struct window_surface *surface )
+{
+    if (surface == &dummy_surface) return;
+    pthread_mutex_unlock( &surface->mutex );
+}
+
+void window_surface_flush( struct window_surface *surface )
 {
     char color_buf[FIELD_OFFSET( BITMAPINFO, bmiColors[256] )];
     char shape_buf[FIELD_OFFSET( BITMAPINFO, bmiColors[256] )];
@@ -641,7 +643,7 @@ W32KAPI void window_surface_flush( struct window_surface *surface )
     window_surface_unlock( surface );
 }
 
-W32KAPI void window_surface_set_layered( struct window_surface *surface, COLORREF color_key, UINT alpha_bits, UINT alpha_mask )
+void window_surface_set_layered( struct window_surface *surface, COLORREF color_key, UINT alpha_bits, UINT alpha_mask )
 {
     char color_buf[FIELD_OFFSET( BITMAPINFO, bmiColors[256] )];
     BITMAPINFO *color_info = (BITMAPINFO *)color_buf;
@@ -670,7 +672,7 @@ W32KAPI void window_surface_set_layered( struct window_surface *surface, COLORRE
     window_surface_unlock( surface );
 }
 
-W32KAPI void window_surface_set_clip( struct window_surface *surface, HRGN clip_region )
+void window_surface_set_clip( struct window_surface *surface, HRGN clip_region )
 {
     window_surface_lock( surface );
 
@@ -703,7 +705,7 @@ W32KAPI void window_surface_set_clip( struct window_surface *surface, HRGN clip_
     window_surface_unlock( surface );
 }
 
-W32KAPI void window_surface_set_shape( struct window_surface *surface, HRGN shape_region )
+void window_surface_set_shape( struct window_surface *surface, HRGN shape_region )
 {
     window_surface_lock( surface );
 
@@ -861,7 +863,7 @@ static void update_visible_region( struct dce *dce )
                                         (flags & DCX_INTERSECTRGN) ? RGN_AND : RGN_DIFF );
 
     /* don't use a surface to paint the client area of OpenGL windows */
-    if (!(paint_flags & SET_WINPOS_PIXEL_FORMAT) || (flags & DCX_WINDOW))
+    if (!(paint_flags & SET_WINPOS_PIXEL_FORMAT && user_driver->dc_funcs.pPutImage) || (flags & DCX_WINDOW))
     {
         win = get_win_ptr( top_win );
         if (win && win != WND_DESKTOP && win != WND_OTHER_PROCESS)
@@ -1068,9 +1070,8 @@ static struct dce *get_window_dce( HWND hwnd )
  *
  * Free a class or window DCE.
  */
-void free_dce( struct dce *dce, HWND hwnd )
+void free_dce( struct dce *dce, HWND hwnd, struct list *drawables )
 {
-    struct opengl_drawable *drawable = NULL;
     struct dce *dce_to_free = NULL;
 
     user_lock();
@@ -1103,7 +1104,7 @@ void free_dce( struct dce *dce, HWND hwnd )
             {
                 WARN( "GetDC() without ReleaseDC() for window %p\n", hwnd );
                 dce->count = 0;
-                set_dc_pixel_format_internal( dce->hdc, 0, &drawable );
+                set_dc_pixel_format_internal( dce->hdc, 0, drawables );
                 set_dce_flags( dce->hdc, DCHF_DISABLEDC );
             }
         }
@@ -1117,8 +1118,6 @@ void free_dce( struct dce *dce, HWND hwnd )
         NtGdiDeleteObjectApp( dce_to_free->hdc );
         free( dce_to_free );
     }
-
-    if (drawable) opengl_drawable_release( drawable );
 }
 
 BOOL is_cache_dc( HDC hdc )
@@ -1226,7 +1225,7 @@ void invalidate_dce( WND *win, const RECT *old_rect )
  */
 static INT release_dc( HWND hwnd, HDC hdc, BOOL end_paint )
 {
-    struct opengl_drawable *drawable = NULL;
+    struct list drawables = LIST_INIT( drawables );
     struct dce *dce;
     BOOL ret = FALSE;
 
@@ -1241,14 +1240,14 @@ static INT release_dc( HWND hwnd, HDC hdc, BOOL end_paint )
         if (dce->flags & DCX_CACHE)
         {
             dce->count = 0;
-            set_dc_pixel_format_internal( hdc, 0, &drawable );
+            set_dc_pixel_format_internal( hdc, 0, &drawables );
             set_dce_flags( dce->hdc, DCHF_DISABLEDC );
         }
         ret = TRUE;
     }
     user_unlock();
 
-    if (drawable) opengl_drawable_release( drawable );
+    release_opengl_drawables( &drawables );
     return ret;
 }
 

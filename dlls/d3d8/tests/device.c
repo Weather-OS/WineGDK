@@ -9973,6 +9973,15 @@ static void test_resource_access(void)
                     break;
 
                 case SURFACE_DS:
+                    if (tests[j].format == FORMAT_ATI2 && broken(1))
+                    {
+                        /* The Nvidia Windows driver crashes when attempting to create a ATI2N
+                         * depth stencil surface.
+                         *
+                         * Interestingly this crash does not happen in the d3d9 version of this
+                         * test. */
+                        continue;
+                    }
                     hr = IDirect3DDevice8_CreateDepthStencilSurface(device,
                             16, 16, format, D3DMULTISAMPLE_NONE, &surface);
                     todo_wine_if(tests[j].format == FORMAT_ATI2)
@@ -10087,7 +10096,7 @@ static void test_resource_access(void)
         {
             if (!skip_ati2n_once)
             {
-                skip("ATI2N texture not supported.\n");
+                skip("ATI2N volume texture not supported.\n");
                 skip_ati2n_once = TRUE;
             }
             continue;

@@ -394,6 +394,12 @@ static inline BOOL is_conversion_to_supported(const struct pixel_format_desc *fo
         && !is_unknown_format(format);
 }
 
+/* Returns TRUE if num is a power of 2, FALSE if not, or if 0 */
+static inline BOOL is_pow2(UINT num)
+{
+    return !(num & (num - 1));
+}
+
 HRESULT d3dx_validate_filter(uint32_t filter);
 
 const struct pixel_format_desc *get_d3dx_pixel_format_info(enum d3dx_pixel_format_id format);
@@ -451,6 +457,16 @@ struct d3dx_subresource_data
 HRESULT d3dx_create_subresource_data_for_texture(uint32_t width, uint32_t height, uint32_t depth,
         uint32_t mip_levels, uint32_t layer_count, const struct pixel_format_desc *fmt_desc,
         struct d3dx_subresource_data **out_sub_rsrc_data);
+
+/*
+ * File/resource loading helper functions.
+ */
+HRESULT d3dx_load_file(const WCHAR *path, void **data, uint32_t *size);
+HRESULT d3dx_load_resource_init_a(HMODULE module, const char *resource, HRSRC *rsrc);
+HRESULT d3dx_load_resource_init_w(HMODULE module, const WCHAR *resource, HRSRC *rsrc);
+HRESULT d3dx_load_resource(HMODULE module, HRSRC rsrc, void **data, uint32_t *size);
+HRESULT d3dx_load_resource_a(HMODULE module, const char *resource, void **data, uint32_t *size);
+HRESULT d3dx_load_resource_w(HMODULE module, const WCHAR *resource, void **data, uint32_t *size);
 
 /* debug helpers */
 const char *debug_d3dx_image_file_format(enum d3dx_image_file_format format);

@@ -112,6 +112,7 @@ static PFN_glFlushMappedBufferRange pglFlushMappedBufferRange;
 static PFN_glFlushMappedNamedBufferRange pglFlushMappedNamedBufferRange;
 static PFN_glGenBuffers pglGenBuffers;
 static PFN_glIsSync pglIsSync;
+static PFN_glFenceSync pglFenceSync;
 static PFN_glMapBuffer pglMapBuffer;
 static PFN_glMapBufferRange pglMapBufferRange;
 static PFN_glMapNamedBuffer pglMapNamedBuffer;
@@ -198,6 +199,7 @@ static void init_functions(void)
     GET_PROC(glFlushMappedNamedBufferRange)
     GET_PROC(glGenBuffers)
     GET_PROC(glIsSync)
+    GET_PROC(glFenceSync)
     GET_PROC(glMapBuffer)
     GET_PROC(glMapBufferRange)
     GET_PROC(glMapNamedBuffer)
@@ -2197,6 +2199,7 @@ static void test_getprocaddress(HDC hdc)
     const char *extensions = (const char*)glGetString(GL_EXTENSIONS);
     PROC func = NULL;
     HGLRC ctx = wglGetCurrentContext();
+    BOOL expect;
 
     if (!extensions)
     {
@@ -2235,6 +2238,43 @@ static void test_getprocaddress(HDC hdc)
     func = wglGetProcAddress("glActiveTextureARB");
     ok(func == NULL, "Function lookup without a context passed, expected a failure; last error %#lx\n", GetLastError());
     wglMakeCurrent(hdc, ctx);
+
+    /* functions aren't automatically aliased */
+    func = wglGetProcAddress("glBlendFuncSeparate");
+    ok(func != NULL, "got glBlendFuncSeparate %p\n", func);
+    func = wglGetProcAddress("glBlendFuncSeparateINGR");
+    expect = gl_extension_supported(extensions, "GL_INGR_blend_func_separate");
+    ok(expect ? func != NULL : func == NULL, "got glBlendFuncSeparateINGR %p\n", func);
+
+    /* needed by RuneScape */
+    expect = gl_extension_supported(extensions, "GL_EXT_copy_texture");
+    ok(expect || broken(!expect) /* NVIDIA */, "GL_EXT_copy_texture missing\n");
+    func = wglGetProcAddress("glCopyTexImage1DEXT");
+    ok(func != NULL, "got glCopyTexImage1DEXT %p\n", func);
+    func = wglGetProcAddress("glCopyTexImage2DEXT");
+    ok(func != NULL, "got glCopyTexImage2DEXT %p\n", func);
+    func = wglGetProcAddress("glCopyTexSubImage1DEXT");
+    ok(func != NULL, "got glCopyTexSubImage1DEXT %p\n", func);
+    func = wglGetProcAddress("glCopyTexSubImage2DEXT");
+    ok(func != NULL, "got glCopyTexSubImage2DEXT %p\n", func);
+    func = wglGetProcAddress("glCopyTexSubImage3DEXT");
+    ok(func != NULL, "got glCopyTexSubImage3DEXT %p\n", func);
+
+    /* needed by Grim Fandango Remastered */
+    expect = gl_extension_supported(extensions, "GL_ARB_texture_compression");
+    ok(expect, "GL_ARB_texture_compression missing\n");
+    func = wglGetProcAddress("glCompressedTexImage2DARB");
+    ok(func != NULL, "got glCompressedTexImage2DARB %p\n", func);
+
+    func = wglGetProcAddress("glBlendBarrier");
+    expect = gl_extension_supported(extensions, "GL_ARB_ES3_2_compatibility");
+    ok(expect ? func != NULL : func == NULL, "got glBlendBarrier %p\n", func);
+    func = wglGetProcAddress("glBlendBarrierNV");
+    expect = gl_extension_supported(extensions, "GL_NV_blend_equation_advanced");
+    ok(expect ? func != NULL : func == NULL, "got glBlendBarrierNV %p\n", func);
+    func = wglGetProcAddress("glBlendBarrierKHR");
+    expect = gl_extension_supported(extensions, "GL_KHR_blend_equation_advanced");
+    ok(expect ? func != NULL : func == NULL, "got glBlendBarrierKHR %p\n", func);
 }
 
 static void test_make_current_read(HDC hdc)
@@ -3500,6 +3540,7 @@ static void test_gl_error( HDC hdc )
     HGLRC rc, old_rc;
     int i;
     BOOL ret;
+    GLsync sync;
 
     if (!pglDeleteSync)
     {
@@ -3534,6 +3575,17 @@ static void test_gl_error( HDC hdc )
 
     ret = pglIsSync( (GLsync)0xdeadbeef );
     ok( !ret, "glIsSync returned %x\n", ret );
+    check_gl_error( GL_NO_ERROR );
+
+    sync = pglFenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
+    ok( !!sync, "got %p\n", sync );
+    check_gl_error( GL_NO_ERROR );
+
+    ret = pglIsSync( sync );
+    ok( !!ret, "glIsSync returned %x\n", ret );
+    check_gl_error( GL_NO_ERROR );
+
+    pglDeleteSync( sync );
     check_gl_error( GL_NO_ERROR );
 
     wglMakeCurrent( hdc, old_rc );

@@ -322,7 +322,7 @@ static HRESULT update_external_prop(jsdisp_t *obj, const WCHAR *name, dispex_pro
 
 static HRESULT find_external_prop(jsdisp_t *This, const WCHAR *name, BOOL case_insens, dispex_prop_t *prop, dispex_prop_t **ret)
 {
-    if(This->builtin_info->lookup_prop) {
+    if(This->has_volatile_props || (!prop && This->builtin_info->lookup_prop)) {
         struct property_info desc;
         HRESULT hres;
 
@@ -461,7 +461,7 @@ static HRESULT ensure_prop_name(jsdisp_t *This, const WCHAR *name, DWORD create_
                 return E_OUTOFMEMORY;
         }
 
-        if(This->builtin_info->lookup_prop) {
+        if(This->has_volatile_props) {
             struct property_info desc;
             hres = This->builtin_info->lookup_prop(This, name, fdexNameEnsure, &desc);
             if(hres == S_OK)
@@ -2136,10 +2136,10 @@ static HRESULT WINAPI DispatchEx_InvokeEx(IWineJSDispatch *iface, DISPID id, LCI
     if(pspCaller)
         IServiceProvider_AddRef(pspCaller);
 
+    if(wFlags == (DISPATCH_METHOD | DISPATCH_PROPERTYGET))
+        wFlags = (This->ctx->version < SCRIPTLANGUAGEVERSION_ES5) ? DISPATCH_METHOD : DISPATCH_PROPERTYGET;
+
     switch(wFlags) {
-    case DISPATCH_METHOD|DISPATCH_PROPERTYGET:
-        wFlags = DISPATCH_METHOD;
-        /* fall through */
     case DISPATCH_METHOD:
     case DISPATCH_CONSTRUCT: {
         jsval_t *argv, buf[6], r;
@@ -2712,7 +2712,7 @@ HRESULT disp_call(script_ctx_t *ctx, IDispatch *disp, DISPID id, WORD flags, uns
         jsdisp_release(jsdisp);
 
     flags &= ~DISPATCH_JSCRIPT_INTERNAL_MASK;
-    if(ret && argc)
+    if(ret && argc && (!jsdisp || ctx->version < SCRIPTLANGUAGEVERSION_ES5))
         flags |= DISPATCH_PROPERTYGET;
 
     dp.cArgs = argc;
@@ -3658,6 +3658,8 @@ HRESULT init_host_object(script_ctx_t *ctx, IWineJSDispatchHost *host_iface, IWi
     host_obj->host_iface = host_iface;
     if(flags & HOSTOBJ_CONSTRUCTOR)
         host_obj->jsdisp.is_constructor = TRUE;
+    if(flags & HOSTOBJ_VOLATILE_PROPS)
+        host_obj->jsdisp.has_volatile_props = TRUE;
     *ret = &host_obj->jsdisp.IWineJSDispatch_iface;
     return S_OK;
 }

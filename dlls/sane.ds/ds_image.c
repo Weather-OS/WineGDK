@@ -23,8 +23,29 @@
 #include "wingdi.h"
 #include "winuser.h"
 #include "wine/debug.h"
+#include "resource.h"
+
+#include <winnls.h>
 
 WINE_DEFAULT_DEBUG_CHANNEL(twain);
+
+/* Sane result codes from sane.h */
+typedef enum
+{
+    SANE_STATUS_GOOD = 0,       /* everything A-OK */
+    SANE_STATUS_UNSUPPORTED,    /* operation is not supported */
+    SANE_STATUS_CANCELLED,      /* operation was cancelled */
+    SANE_STATUS_DEVICE_BUSY,    /* device is busy; try again later */
+    SANE_STATUS_INVAL,          /* data is invalid (includes no dev at open) */
+    SANE_STATUS_EOF,            /* no more data available (end-of-file) */
+    SANE_STATUS_JAMMED,         /* document feeder jammed */
+    SANE_STATUS_NO_DOCS,        /* document feeder out of documents */
+    SANE_STATUS_COVER_OPEN,     /* scanner cover is open */
+    SANE_STATUS_IO_ERROR,       /* error during device I/O */
+    SANE_STATUS_NO_MEM,         /* out of memory */
+    SANE_STATUS_ACCESS_DENIED   /* access to resource has been denied */
+}
+SANE_Status;
 
 
 /* transition from state 6 to state 7.
@@ -41,6 +62,8 @@ WINE_DEFAULT_DEBUG_CHANNEL(twain);
 TW_UINT16 SANE_Start(void)
 {
   TW_UINT16 twRC = TWRC_SUCCESS;
+  SANE_Status status;
+
   TRACE("SANE_Start currentState:%d\n", activeDS.currentState);
   if (activeDS.currentState != 6)
   {
@@ -52,9 +75,59 @@ TW_UINT16 SANE_Start(void)
       /* Open progress dialog */
       activeDS.progressWnd = ScanningDialogBox(activeDS.progressWnd,0);
 
-      /* Start the scan process in sane */
-      if (SANE_CALL( start_device, NULL ))
+      do
       {
+          /* Start the scan process in sane */
+          status = SANE_CALL( start_device, NULL );
+
+          if (status == SANE_STATUS_GOOD)
+          {
+              twRC = TWRC_SUCCESS;
+          }
+          else if (!activeDS.capIndicators && !activeDS.ShowUI)
+          {
+              twRC = TWRC_FAILURE;
+          }
+          else
+          {
+              WCHAR szCaption[256];
+              WCHAR szMessage[1024];
+
+              LoadStringW( SANE_instance, IDS_CAPTION, szCaption, ARRAY_SIZE( szCaption ) );
+              switch (status)
+              {
+                case SANE_STATUS_NO_DOCS:
+                  LoadStringW( SANE_instance, IDS_NO_DOCS, szMessage, ARRAY_SIZE( szMessage ) );
+                  twRC =
+                    activeDS.scannedImages!=0 ? TWRC_FAILURE :
+                    MessageBoxW(activeDS.progressWnd, szMessage, szCaption, MB_ICONWARNING | MB_RETRYCANCEL)==IDCANCEL ? TWRC_FAILURE :TWRC_CHECKSTATUS;
+                  break;
+                case SANE_STATUS_JAMMED:
+                  LoadStringW( SANE_instance, IDS_JAMMED, szMessage, ARRAY_SIZE( szMessage ) );
+                  twRC =
+                    MessageBoxW(activeDS.progressWnd, szMessage, szCaption, MB_ICONWARNING | MB_RETRYCANCEL)==IDCANCEL ? TWRC_FAILURE :TWRC_CHECKSTATUS;
+                  break;
+                case SANE_STATUS_COVER_OPEN:
+                  LoadStringW( SANE_instance, IDS_COVER_OPEN, szMessage, ARRAY_SIZE( szMessage ) );
+                  twRC =
+                    MessageBoxW(activeDS.progressWnd, szMessage, szCaption, MB_ICONWARNING | MB_RETRYCANCEL)==IDCANCEL ? TWRC_FAILURE :TWRC_CHECKSTATUS;
+                  break;
+                case SANE_STATUS_DEVICE_BUSY:
+                  LoadStringW( SANE_instance, IDS_DEVICE_BUSY, szMessage, ARRAY_SIZE( szMessage ) );
+                  twRC =
+                    MessageBoxW(activeDS.progressWnd, szMessage, szCaption, MB_ICONWARNING | MB_RETRYCANCEL)==IDCANCEL ? TWRC_FAILURE :TWRC_CHECKSTATUS;
+                  break;
+                default:
+                  twRC = TWRC_FAILURE;
+              }
+          }
+      }
+      while (twRC == TWRC_CHECKSTATUS);
+
+      /* If starting the scan failed, cancel scan job */
+      if (twRC != TWRC_SUCCESS)
+      {
+          UI_Enable(TRUE);
           activeDS.progressWnd = ScanningDialogBox(activeDS.progressWnd, -1);
           activeDS.twCC = TWCC_OPERATIONERROR;
           return TWRC_FAILURE;
@@ -64,9 +137,50 @@ TW_UINT16 SANE_Start(void)
       {
           WARN("sane_get_parameters failed\n");
           SANE_CALL( cancel_device, NULL );
+          UI_Enable(TRUE);
           activeDS.progressWnd = ScanningDialogBox(activeDS.progressWnd, -1);
           activeDS.twCC = TWCC_OPERATIONERROR;
           return TWRC_FAILURE;
+      }
+
+      if (activeDS.progressWnd)
+      {
+          WCHAR szLocaleBuffer[4];
+          WCHAR szResolution[200];
+          WCHAR szFormat[20];
+          int sid_format;
+
+          switch (activeDS.frame_params.format)
+          {
+          case FMT_RGB:  sid_format=IDS_COLOUR; break;
+          case FMT_GRAY: sid_format=activeDS.frame_params.depth==1 ? IDS_LINEART : IDS_GRAY; break;
+          default:       sid_format=IDS_UNKNOWN;
+          }
+
+          LoadStringW( SANE_instance, sid_format, szFormat, ARRAY_SIZE( szFormat ) );
+
+          if (activeDS.XResolution.Whole && activeDS.YResolution.Whole)
+          {
+              const double xresolution = activeDS.XResolution.Whole + activeDS.XResolution.Frac / 65536.0;
+              const double yresolution = activeDS.YResolution.Whole + activeDS.YResolution.Frac / 65536.0;
+
+              GetLocaleInfoEx(LOCALE_NAME_USER_DEFAULT, LOCALE_IMEASURE, szLocaleBuffer, ARRAY_SIZE(szLocaleBuffer));
+              if (szLocaleBuffer[0]=='1')
+              {
+                  swprintf(szResolution, ARRAY_SIZE(szResolution), L"%d DPI %s %.2f x %.2f \"",
+                           activeDS.XResolution.Whole, szFormat,
+                           activeDS.frame_params.pixels_per_line / xresolution ,
+                           activeDS.frame_params.lines           / yresolution );
+              }
+              else
+              {
+                  swprintf(szResolution, ARRAY_SIZE(szResolution), L"%d DPI %s %.1f x %.1f mm",
+                           activeDS.XResolution.Whole, szFormat,
+                           activeDS.frame_params.pixels_per_line * 25.4 / xresolution ,
+                           activeDS.frame_params.lines           * 25.4 / yresolution );
+              }
+              SetDlgItemTextW(activeDS.progressWnd, IDC_RESOLUTION, szResolution);
+          }
       }
 
       TRACE("Acquiring image %dx%dx%d bits (format=%d last=%d) from sane...\n"
@@ -90,6 +204,7 @@ TW_UINT16 SANE_Start(void)
 void SANE_Cancel(void)
 {
   SANE_CALL( cancel_device, NULL );
+  UI_Enable(TRUE);
   activeDS.progressWnd = ScanningDialogBox(activeDS.progressWnd, -1);
   activeDS.currentState = 5;
 }
@@ -102,7 +217,6 @@ TW_UINT16 SANE_ImageInfoGet (pTW_IDENTITY pOrigin,
 {
     TW_UINT16 twRC = TWRC_SUCCESS;
     pTW_IMAGEINFO pImageInfo = (pTW_IMAGEINFO) pData;
-    int resolution;
 
     TRACE("DG_IMAGE/DAT_IMAGEINFO/MSG_GET\n");
 
@@ -123,12 +237,8 @@ TW_UINT16 SANE_ImageInfoGet (pTW_IDENTITY pOrigin,
             }
         }
 
-        if (sane_option_get_int("resolution", &resolution) == TWCC_SUCCESS)
-            pImageInfo->XResolution.Whole = pImageInfo->YResolution.Whole = resolution;
-        else
-            pImageInfo->XResolution.Whole = pImageInfo->YResolution.Whole = -1;
-        pImageInfo->XResolution.Frac = 0;
-        pImageInfo->YResolution.Frac = 0;
+        pImageInfo->XResolution = activeDS.XResolution;
+        pImageInfo->YResolution = activeDS.YResolution;
         pImageInfo->ImageWidth = activeDS.frame_params.pixels_per_line;
         pImageInfo->ImageLength = activeDS.frame_params.lines;
 
@@ -309,7 +419,7 @@ TW_UINT16 SANE_ImageMemXferGet (pTW_IDENTITY pOrigin,
             pImageMemXfer->BytesWritten = retlen;
             activeDS.YOffset += rows;
 
-            ScanningDialogBox(activeDS.progressWnd, retlen);
+            ScanningDialogBox(activeDS.progressWnd, MulDiv(activeDS.YOffset, 100, activeDS.frame_params.lines));
 
             if (retlen < activeDS.frame_params.bytes_per_line * rows)
             {
@@ -329,6 +439,13 @@ TW_UINT16 SANE_ImageMemXferGet (pTW_IDENTITY pOrigin,
 
     if (pImageMemXfer->Memory.Flags & TWMF_HANDLE)
         GlobalUnlock(pImageMemXfer->Memory.TheMem);
+
+    if (activeDS.userCancelled)
+    {
+        SANE_Cancel();
+        activeDS.twCC = TWCC_OPERATIONERROR;
+        twRC = TWRC_FAILURE;
+    }
     
     return twRC;
 }
@@ -386,6 +503,14 @@ TW_UINT16 SANE_ImageNativeXferGet (pTW_IDENTITY pOrigin,
             }
             break;
         case FMT_RGB:
+            if (activeDS.frame_params.depth != 8)
+            {
+                FIXME("For NATIVE, we support only 8 bit per color channel, not %d\n", activeDS.frame_params.depth);
+                SANE_Cancel();
+                activeDS.twCC = TWCC_OPERATIONERROR;
+                activeDS.currentState = 6;
+                return TWRC_FAILURE;
+            }
             break;
         case FMT_OTHER:
             FIXME("For NATIVE, we support only GRAY and RGB\n");
@@ -514,13 +639,14 @@ TW_UINT16 SANE_ImageNativeXferGet (pTW_IDENTITY pOrigin,
                 }
             }
         }
-        while (!eof);
+        while (!eof && !activeDS.userCancelled);
 
-        if (twRC != TWCC_SUCCESS || y==0)
+        if (twRC != TWCC_SUCCESS || y==0 || activeDS.userCancelled)
         {
             WARN("sane_read: %u, reading line %d\n", twRC, y);
             SANE_Cancel();
             activeDS.twCC = TWCC_OPERATIONERROR;
+            GlobalUnlock(hDIB);
             GlobalFree(hDIB);
             return TWRC_FAILURE;
         }

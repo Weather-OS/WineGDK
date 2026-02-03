@@ -800,7 +800,7 @@ SHORT WINAPI NtUserGetAsyncKeyState( INT key )
 
     if (key < 0 || key >= 256) return 0;
 
-    check_for_events( QS_INPUT );
+    check_for_events( QS_ALLINPUT );
 
     while ((status = get_shared_desktop( &lock, &desktop_shm )) == STATUS_PENDING)
         state = desktop_shm->keystate[key];
@@ -1995,6 +1995,9 @@ BOOL set_active_window( HWND hwnd, HWND *prev, BOOL mouse, BOOL focus, DWORD new
     DWORD old_thread, new_thread;
     CBTACTIVATESTRUCT cbt;
 
+    TRACE( "hwnd %p, previous %p, mouse %u, focus %u, new_active_thread_id %04x\n",
+           hwnd, previous, mouse, focus, new_active_thread_id );
+
     if (previous == hwnd)
     {
         if (prev) *prev = hwnd;
@@ -2168,7 +2171,7 @@ HWND WINAPI NtUserSetFocus( HWND hwnd )
         if (call_hooks( WH_CBT, HCBT_SETFOCUS, (WPARAM)hwnd, (LPARAM)previous, 0 )) return 0;
 
         /* activate hwndTop if needed. */
-        if (!(active = get_active_window()) && !set_foreground_window( hwndTop, FALSE )) return 0;
+        if (!(active = get_active_window()) && !set_foreground_window( hwndTop, FALSE, FALSE )) return 0;
         if (hwndTop != active)
         {
             if (!set_active_window( hwndTop, NULL, FALSE, FALSE, 0 )) return 0;
@@ -2193,13 +2196,13 @@ HWND WINAPI NtUserSetFocus( HWND hwnd )
  */
 BOOL WINAPI NtUserSetForegroundWindow( HWND hwnd )
 {
-    return set_foreground_window( hwnd, FALSE );
+    return set_foreground_window( hwnd, FALSE, FALSE );
 }
 
 /*******************************************************************
  *		set_foreground_window
  */
-BOOL set_foreground_window( HWND hwnd, BOOL mouse )
+BOOL set_foreground_window( HWND hwnd, BOOL mouse, BOOL internal )
 {
     BOOL ret, send_msg_old = FALSE, send_msg_new = FALSE;
     DWORD new_thread_id;
@@ -2211,6 +2214,7 @@ BOOL set_foreground_window( HWND hwnd, BOOL mouse )
     SERVER_START_REQ( set_foreground_window )
     {
         req->handle = wine_server_user_handle( hwnd );
+        req->internal = internal;
         if ((ret = !wine_server_call_err( req )))
         {
             previous = wine_server_ptr_handle( reply->previous );
@@ -2219,6 +2223,8 @@ BOOL set_foreground_window( HWND hwnd, BOOL mouse )
         }
     }
     SERVER_END_REQ;
+
+    TRACE( "hwnd %p, mouse %u, internal %u -> ret %u, previous %p\n", hwnd, mouse, internal, ret, previous );
 
     if (ret && previous != hwnd)
     {
@@ -2670,7 +2676,8 @@ BOOL clip_fullscreen_window( HWND hwnd, BOOL reset )
     if ((style & WS_MAXIMIZE) && (style & WS_CAPTION) == WS_CAPTION) return FALSE;
 
     ctx = set_thread_dpi_awareness_context( NTUSER_DPI_PER_MONITOR_AWARE );
-    ret = get_window_rect( hwnd, &window_rect, get_thread_dpi() );
+    if (!(ret = get_present_rect( hwnd, &window_rect, get_thread_dpi() )))
+        ret = get_window_rect( hwnd, &window_rect, get_thread_dpi() );
     monitor_info = monitor_info_from_window( hwnd, MONITOR_DEFAULTTONEAREST );
     virtual_rect = get_virtual_screen_rect( get_thread_dpi(), MDT_DEFAULT );
     monitor_rect = map_rect_virt_to_raw( monitor_info.rcMonitor, get_thread_dpi() );
@@ -2776,6 +2783,7 @@ BOOL WINAPI NtUserGetClipCursor( RECT *rect )
  */
 BOOL WINAPI NtUserClipCursor( const RECT *rect )
 {
+    UINT dpi = get_thread_dpi();
     RECT new_rect;
     BOOL ret;
 
@@ -2783,8 +2791,14 @@ BOOL WINAPI NtUserClipCursor( const RECT *rect )
 
     if (rect)
     {
+        HWND foreground = NtUserGetForegroundWindow();
+        if (IsRectEmpty( rect ) && get_present_rect( foreground, &new_rect, dpi ))
+        {
+            WARN( "Fullscreen clipping fixup to %s\n", wine_dbgstr_rect(&new_rect) );
+            rect = &new_rect;
+        }
         if (rect->left > rect->right || rect->top > rect->bottom) return FALSE;
-        new_rect = map_rect_virt_to_raw( *rect, get_thread_dpi() );
+        new_rect = map_rect_virt_to_raw( *rect, dpi );
         rect = &new_rect;
     }
 

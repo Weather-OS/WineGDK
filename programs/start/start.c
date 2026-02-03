@@ -458,6 +458,17 @@ static void parse_command_line( int argc, WCHAR *argv[] )
                 usage();
             } else
                 opts.sei.lpDirectory = argv[++i];
+
+            if (opts.sei.lpDirectory[0] == '\"')
+            {
+                int len = wcslen(opts.sei.lpDirectory);
+                if (len > 1 && opts.sei.lpDirectory[len - 1] == '\"')
+                {
+                    WCHAR* lpDirectory = wcsdup(opts.sei.lpDirectory);
+                    lpDirectory[len - 1] = 0;
+                    opts.sei.lpDirectory = lpDirectory + 1;
+                }
+            }
         }
         else if (is_option(argv[i], L"/b"))
             opts.creation_flags &= ~CREATE_NEW_CONSOLE;
@@ -599,6 +610,7 @@ int __cdecl wmain (int argc, WCHAR *argv[])
             const WCHAR *filename = opts.sei.lpFile;
             DWORD size, filename_len;
             WCHAR *name, *env;
+            DWORD error = HandleToULong(opts.sei.hInstApp);
 
             size = GetEnvironmentVariableW(L"PATHEXT", NULL, 0);
             if (size)
@@ -635,7 +647,7 @@ int __cdecl wmain (int argc, WCHAR *argv[])
 
             }
 
-            fatal_string_error(STRING_EXECFAIL, GetLastError(), filename);
+            fatal_string_error(STRING_EXECFAIL, error, filename);
         }
 
 done:

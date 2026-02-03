@@ -44,7 +44,7 @@ WINE_DEFAULT_DEBUG_CHANNEL(dmsynth);
 #define CONN_TRN_BIPOLAR (1<<4)
 #define CONN_TRN_INVERT  (1<<5)
 
-#define CONN_TRANSFORM(src, ctrl, dst) (((src) & 0x3f) << 10) | (((ctrl) & 0x3f) << 4) | ((dst) & 0xf)
+#define CONN_TRANSFORM(src, ctrl, dst) ((((src) & 0x3f) << 10) | (((ctrl) & 0x3f) << 4) | ((dst) & 0xf))
 
 #define BASE_GAIN 60.
 #define CENTER_PAN_GAIN -30.10
@@ -164,7 +164,7 @@ static void dump_dmus_region(DMUS_REGION *region)
     TRACE("   - cbSize        = %lu\n", region->WSMP.cbSize);
     TRACE("   - usUnityNote   = %u\n", region->WSMP.usUnityNote);
     TRACE("   - sFineTune     = %u\n", region->WSMP.sFineTune);
-    TRACE("   - lAttenuation  = %lu\n", region->WSMP.lAttenuation);
+    TRACE("   - lAttenuation  = %ld\n", region->WSMP.lAttenuation);
     TRACE("   - fulOptions    = %#lx\n", region->WSMP.fulOptions);
     TRACE("   - cSampleLoops  = %lu\n", region->WSMP.cSampleLoops);
     for (i = 0; i < region->WSMP.cSampleLoops; i++)
@@ -1519,48 +1519,6 @@ static int synth_preset_get_num(fluid_preset_t *fluid_preset)
     return preset->patch;
 }
 
-static void find_region_no_fallback(struct synth *synth, int patch, int key, int vel,
-        struct instrument **out_instrument, struct region **out_region)
-{
-    struct instrument *instrument;
-    struct region *region;
-
-    *out_instrument = NULL;
-    *out_region = NULL;
-
-    LIST_FOR_EACH_ENTRY(instrument, &synth->instruments, struct instrument, entry)
-    {
-        if (instrument->patch == patch)
-            break;
-    }
-
-    if (&instrument->entry == &synth->instruments)
-        return;
-
-    *out_instrument = instrument;
-
-    LIST_FOR_EACH_ENTRY(region, &instrument->regions, struct region, entry)
-    {
-        if (key < region->key_range.usLow || key > region->key_range.usHigh) continue;
-        if (vel < region->vel_range.usLow || vel > region->vel_range.usHigh) continue;
-        *out_region = region;
-        break;
-    }
-}
-
-static void find_region(struct synth *synth, int patch, int key, int vel,
-        struct instrument **out_instrument, struct region **out_region)
-{
-    find_region_no_fallback(synth, patch, key, vel, out_instrument, out_region);
-    if (!*out_region && (patch & F_INSTRUMENT_DRUMS))
-        find_region_no_fallback(synth, F_INSTRUMENT_DRUMS, key, vel, out_instrument, out_region);
-
-    if (!*out_instrument)
-        WARN("Could not find instrument with patch %#x\n", patch);
-    else if (!*out_region)
-        WARN("Failed to find instrument matching note / velocity\n");
-}
-
 static BOOL gen_from_connection(const CONNECTION *conn, UINT *gen)
 {
     switch (conn->usDestination)
@@ -1586,6 +1544,7 @@ static BOOL gen_from_connection(const CONNECTION *conn, UINT *gen)
     case CONN_DST_EG1_DECAYTIME: *gen = GEN_VOLENVDECAY; return TRUE;
     case CONN_DST_EG1_SUSTAINLEVEL: *gen = GEN_VOLENVSUSTAIN; return TRUE;
     case CONN_DST_EG1_RELEASETIME: *gen = GEN_VOLENVRELEASE; return TRUE;
+    case CONN_DST_EG1_SHUTDOWNTIME: return FALSE;
     case CONN_DST_GAIN: *gen = GEN_ATTENUATION; return TRUE;
     case CONN_DST_PITCH: *gen = GEN_PITCH; return TRUE;
     default: FIXME("Unsupported connection %s\n", debugstr_connection(conn)); return FALSE;
@@ -1598,7 +1557,11 @@ static BOOL set_gen_from_connection(fluid_voice_t *fluid_voice, const CONNECTION
     UINT gen;
 
     if (conn->usControl != CONN_SRC_NONE) return FALSE;
-    if (conn->usTransform != CONN_TRN_NONE) return FALSE;
+    if (conn->usTransform != CONN_TRN_NONE)
+    {
+        if (conn->usTransform != CONN_TRANSFORM(CONN_TRN_BIPOLAR, CONN_TRN_NONE, CONN_TRN_NONE)) return FALSE;
+        if (conn->usSource != CONN_SRC_LFO && conn->usSource != CONN_SRC_VIBRATO) return FALSE;
+    }
 
     if (conn->usSource == CONN_SRC_NONE)
     {
@@ -1773,7 +1736,7 @@ static void set_default_voice_connections(fluid_voice_t *fluid_voice)
         {.usDestination = CONN_DST_EG1_DECAYTIME, .lScale = ABS_TIME_MS(0)},
         {.usDestination = CONN_DST_EG1_SUSTAINLEVEL, .lScale = 1000 * 65536},
         {.usDestination = CONN_DST_EG1_RELEASETIME, .lScale = ABS_TIME_MS(0)},
-        /* FIXME: {.usDestination = CONN_DST_EG1_SHUTDOWNTIME, .lScale = ABS_TIME_MS(15)}, */
+        {.usDestination = CONN_DST_EG1_SHUTDOWNTIME, .lScale = ABS_TIME_MS(15)},
         {.usSource = CONN_SRC_KEYONVELOCITY, .usDestination = CONN_DST_EG1_ATTACKTIME, .lScale = 0},
         {.usSource = CONN_SRC_KEYNUMBER, .usDestination = CONN_DST_EG1_DECAYTIME, .lScale = 0},
         {.usSource = CONN_SRC_KEYNUMBER, .usDestination = CONN_DST_EG1_HOLDTIME, .lScale = 0},
@@ -1905,41 +1868,19 @@ static void set_default_voice_connections(fluid_voice_t *fluid_voice)
     add_voice_connections(fluid_voice, &list, connections);
 }
 
-static int synth_preset_noteon(fluid_preset_t *fluid_preset, fluid_synth_t *fluid_synth, int chan, int key, int vel)
+static int play_region(struct synth *synth, struct instrument *instrument, struct region *region,
+        int chan, int key, int vel)
 {
-    struct preset *preset = fluid_preset_get_data(fluid_preset);
-    struct synth *synth = preset->synth;
     struct articulation *articulation;
-    struct instrument *instrument;
     fluid_voice_t *fluid_voice;
-    struct region *region;
     struct voice *voice;
     struct wave *wave;
-    UINT patch;
-
-    TRACE("(%p, %p, %u, %u, %u)\n", fluid_preset, fluid_synth, chan, key, vel);
-
-    EnterCriticalSection(&synth->cs);
-
-    patch = preset->patch;
-    patch |= (preset->bank << 8) & 0x007f00;
-    patch |= (preset->bank << 9) & 0x7f0000;
-    if (chan == 9)
-        patch |= F_INSTRUMENT_DRUMS;
-
-    find_region(synth, patch, key, vel, &instrument, &region);
-    if (!region)
-    {
-        LeaveCriticalSection(&synth->cs);
-        return FLUID_FAILED;
-    }
 
     wave = region->wave;
 
     if (!(fluid_voice = fluid_synth_alloc_voice(synth->fluid_synth, wave->fluid_sample, chan, key, vel)))
     {
         WARN("Failed to allocate FluidSynth voice\n");
-        LeaveCriticalSection(&synth->cs);
         return FLUID_FAILED;
     }
 
@@ -1959,10 +1900,7 @@ static int synth_preset_noteon(fluid_preset_t *fluid_preset, fluid_synth_t *flui
     if (&voice->entry == &synth->voices)
     {
         if (!(voice = calloc(1, sizeof(struct voice))))
-        {
-            LeaveCriticalSection(&synth->cs);
             return FLUID_FAILED;
-        }
         voice->fluid_voice = fluid_voice;
         list_add_tail(&synth->voices, &voice->entry);
     }
@@ -1991,11 +1929,92 @@ static int synth_preset_noteon(fluid_preset_t *fluid_preset, fluid_synth_t *flui
         add_voice_connections(fluid_voice, &articulation->list, articulation->connections);
     LIST_FOR_EACH_ENTRY(articulation, &region->articulations, struct articulation, entry)
         add_voice_connections(fluid_voice, &articulation->list, articulation->connections);
+    fluid_voice_gen_incr(voice->fluid_voice, GEN_ATTENUATION,
+            region->wave_sample.lAttenuation / -65536.);
     /* Unlike FluidSynth, native applies the gain limit after the panning. At
      * least for the center pan we can replicate this by applying a panning
      * attenuation here. */
     fluid_voice_gen_incr(voice->fluid_voice, GEN_ATTENUATION, -CENTER_PAN_GAIN);
+    fluid_voice_gen_set(voice->fluid_voice, GEN_EXCLUSIVECLASS, region->group);
     fluid_synth_start_voice(synth->fluid_synth, fluid_voice);
+
+    return FLUID_OK;
+}
+
+static int play_instrument_no_fallback(struct synth *synth, int chan, int patch, int key, int vel,
+        struct instrument **out_instrument, struct region **out_region)
+{
+    struct instrument *instrument;
+    struct region *region;
+
+    *out_instrument = NULL;
+    *out_region = NULL;
+
+    LIST_FOR_EACH_ENTRY(instrument, &synth->instruments, struct instrument, entry)
+    {
+        if (instrument->patch == patch)
+            break;
+    }
+
+    if (&instrument->entry == &synth->instruments)
+        return FLUID_FAILED;
+
+    *out_instrument = instrument;
+
+    LIST_FOR_EACH_ENTRY(region, &instrument->regions, struct region, entry)
+    {
+        if (key < region->key_range.usLow || key > region->key_range.usHigh) continue;
+        if (vel < region->vel_range.usLow || vel > region->vel_range.usHigh) continue;
+        *out_region = region;
+        if (FLUID_OK != play_region(synth, instrument, region, chan, key, vel))
+            return FLUID_FAILED;
+    }
+
+    if (&region->entry == &instrument->regions)
+        return FLUID_FAILED;
+
+    return FLUID_OK;
+}
+
+static int play_instrument(struct synth *synth, int chan, int patch, int key, int vel)
+{
+    struct instrument *instrument;
+    struct region *region;
+    int result;
+
+    result = play_instrument_no_fallback(synth, chan, patch, key, vel, &instrument, &region);
+    if (!region && (patch & F_INSTRUMENT_DRUMS))
+        result = play_instrument_no_fallback(synth, chan, F_INSTRUMENT_DRUMS, key, vel, &instrument, &region);
+
+    if (!instrument)
+        WARN("Could not find instrument with patch %#x\n", patch);
+    else if (!region)
+        WARN("Failed to find instrument matching note / velocity\n");
+
+    return result;
+}
+
+static int synth_preset_noteon(fluid_preset_t *fluid_preset, fluid_synth_t *fluid_synth, int chan, int key, int vel)
+{
+    struct preset *preset = fluid_preset_get_data(fluid_preset);
+    struct synth *synth = preset->synth;
+    UINT patch;
+
+    TRACE("(%p, %p, %u, %u, %u)\n", fluid_preset, fluid_synth, chan, key, vel);
+
+    EnterCriticalSection(&synth->cs);
+
+    patch = preset->patch;
+    patch |= (preset->bank << 8) & 0x007f00;
+    patch |= (preset->bank << 9) & 0x7f0000;
+    if (chan == 9)
+        patch |= F_INSTRUMENT_DRUMS;
+
+    if (FLUID_OK != play_instrument(synth, chan, patch, key, vel))
+    {
+        LeaveCriticalSection(&synth->cs);
+        return FLUID_FAILED;
+    }
 
     LeaveCriticalSection(&synth->cs);
 

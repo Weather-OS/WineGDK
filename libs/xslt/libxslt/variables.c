@@ -1038,6 +1038,7 @@ xsltEvalGlobalVariable(xsltStackElemPtr elem, xsltTransformContextPtr ctxt)
     xmlXPathObjectPtr result = NULL;
     xmlNodePtr oldInst;
     const xmlChar* oldVarName;
+    xsltStackElemPtr oldCtxtVar = ctxt->contextVariable;
 
 #ifdef XSLT_REFACTORED
     xsltStyleBasicItemVariablePtr comp;
@@ -1070,6 +1071,14 @@ xsltEvalGlobalVariable(xsltStackElemPtr elem, xsltTransformContextPtr ctxt)
 #endif
     oldVarName = elem->name;
     elem->name = xsltComputingGlobalVarMarker;
+
+    /*
+     * The "context variable" isn't used for globals, so we must
+     * make sure to set it to NULL.
+     */
+    oldCtxtVar = ctxt->contextVariable;
+    ctxt->contextVariable = NULL;
+
     /*
     * OPTIMIZE TODO: We should consider instantiating global vars/params
     *  on-demand. The vars/params don't need to be evaluated if never
@@ -1239,6 +1248,8 @@ xsltEvalGlobalVariable(xsltStackElemPtr elem, xsltTransformContextPtr ctxt)
     }
 
 error:
+    ctxt->contextVariable = oldCtxtVar;
+
     elem->name = oldVarName;
     ctxt->inst = oldInst;
     if (result != NULL) {

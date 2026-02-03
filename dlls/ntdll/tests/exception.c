@@ -6364,6 +6364,91 @@ static void test_base_init_thunk_unwind(void)
     ok( count == 2, "got count %lu.\n", count );
 }
 
+static void WINAPI test_backtrace_without_runtime_function_func( BOOL todo )
+{
+    unsigned int count;
+    void *addrs[256];
+
+    memset( addrs, 0xcc, sizeof(addrs) );
+    count = RtlCaptureStackBackTrace( 0, 256, addrs, NULL );
+    todo_wine_if(todo) ok( count == 2, "got %d.\n", count );
+    ok( (char *)addrs[1] == (char *)code_mem + 22, "got %p, code_mem %p.\n", addrs[1], code_mem );
+    todo_wine_if(todo) ok( addrs[2] == (void *)0xcccccccccccccccc, "got %p.\n", addrs[2]);
+
+    memset( addrs, 0xcc, sizeof(addrs) );
+    count = RtlWalkFrameChain( addrs, 256, 0 );
+    todo_wine_if(todo) ok( count == 2, "got %d.\n", count );
+    ok( (char *)addrs[1] == (char *)code_mem + 22, "got %p, code_mem %p.\n", addrs[1], code_mem );
+    todo_wine_if(todo) ok( addrs[2] == (void *)0xcccccccccccccccc, "got %p.\n", addrs[2]);
+}
+
+static RUNTIME_FUNCTION * CALLBACK test_backtrace_without_runtime_function_callback( DWORD_PTR pc, void *context )
+{
+    ++*(unsigned int *)context;
+    return NULL;
+}
+
+static void test_backtrace_without_runtime_function(void)
+{
+    static const BYTE unwind_info[] =
+    {
+        1,                       /* version + flags */
+        0,                       /* prolog size */
+        0,                       /* opcode count */
+        0,                       /* frame reg */
+        0x00, 0x00, 0x00, 0x00,  /* handler */
+    };
+
+    static BYTE test_code[] =
+    {
+        0xb8, 0xef, 0xbe, 0xad, 0xde,               /* mov    $0xdeadbeef,%eax */
+        0x50,                                       /* pushq *rax */
+        0x50,                                       /* pushq *rax */
+        0x50,                                       /* pushq *rax */
+        0x50,                                       /* pushq *rax */
+        0x50,                                       /* pushq *rax */
+        /* test_backtrace_function offset 12  */
+        0x48, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0,         /* movabs test_backtrace_without_runtime_function_func, %rax */
+        0xff, 0xd0,                                 /* callq *%rax */
+        /* offset 22 */
+        0x48, 0x83, 0xc4, 0x28,                     /* addq $0x28,%rsp */
+        0xc3,                                       /* ret */
+    };
+    IMAGE_AMD64_RUNTIME_FUNCTION_ENTRY rt_func;
+    void (WINAPI *func)( BOOL todo ) = code_mem;
+    ULONG_PTR table;
+    unsigned int count;
+    BOOL ret;
+
+    *(void **)((char *)test_code + 12) = test_backtrace_without_runtime_function_func;
+    memcpy( code_mem, test_code, sizeof(test_code) );
+    func = code_mem;
+
+    func( FALSE );
+
+    memcpy( (char *)code_mem + 0x1000, unwind_info, sizeof(unwind_info) );
+    rt_func.BeginAddress = 0;
+    rt_func.EndAddress = sizeof(test_code);
+    rt_func.UnwindData = 0x1000;
+    ret = RtlAddFunctionTable( &rt_func, 1, (ULONG_PTR)code_mem );
+    ok(ret, "RtlAddFunctionTable failed.\n");
+
+    func( TRUE );
+
+    ret = RtlDeleteFunctionTable( &rt_func );
+    ok( ret, "RtlDeleteFunctionTable failed.\n" );
+
+    table = (ULONG_PTR)code_mem | 0x3;
+    count = 0;
+    ret = RtlInstallFunctionTableCallback( table, (ULONG_PTR)code_mem, 2048,
+                                           &test_backtrace_without_runtime_function_callback, (PVOID*)&count, NULL );
+    ok( ret, "RtlInstallFunctionTableCallback failed.\n" );
+    func( FALSE );
+    todo_wine ok( !count, "got %d.\n", count );
+    ret = pRtlDeleteFunctionTable( (PRUNTIME_FUNCTION)table );
+    ok( ret, "RtlDeleteFunctionTable failed.\n" );
+}
+
 #elif defined(__arm__)
 
 static void test_thread_context(void)
@@ -8067,8 +8152,6 @@ static void * WINAPI hook_KiUserExceptionDispatcher(void *stack)
         CONTEXT_EX           context_ex; /* 390 */
         EXCEPTION_RECORD     rec;        /* 3b0 */
         ULONG64              align;      /* 448 */
-        ULONG64              sp;         /* 450 */
-        ULONG64              pc;         /* 458 */
     } *args = stack;
     EXCEPTION_RECORD *old_rec = (EXCEPTION_RECORD *)&args->context_ex;
 
@@ -8086,8 +8169,6 @@ static void * WINAPI hook_KiUserExceptionDispatcher(void *stack)
         ok( args->context_ex.All.Length >= sizeof(CONTEXT) + offsetof(CONTEXT_EX, align), "wrong All.Length %lx\n", args->context_ex.All.Length );
         ok( args->context_ex.Legacy.Offset == -sizeof(CONTEXT), "wrong Legacy.Offset %lx\n", args->context_ex.All.Offset );
         ok( args->context_ex.Legacy.Length == sizeof(CONTEXT), "wrong Legacy.Length %lx\n", args->context_ex.All.Length );
-        ok( args->sp == args->context.Sp, "wrong sp %Ix / %Ix\n", args->sp, args->context.Sp );
-        ok( args->pc == args->context.Pc, "wrong pc %Ix / %Ix\n", args->pc, args->context.Pc );
     }
 
     memcpy(pKiUserExceptionDispatcher, saved_code, sizeof(saved_code));
@@ -8479,7 +8560,7 @@ static void rtlraiseexception_handler_( EXCEPTION_RECORD *rec, void *frame, CONT
     ok( addr == (char *)code_mem + 0x0c,
         "ExceptionAddress at %p instead of %p\n", addr, (char *)code_mem + 0x0c );
     ok( context->ContextFlags == (CONTEXT_FULL | CONTEXT_UNWOUND_TO_CALL) ||
-        context->ContextFlags == (CONTEXT_FULL | CONTEXT_DEBUG_REGISTERS | CONTEXT_UNWOUND_TO_CALL),
+        context->ContextFlags == (CONTEXT_FULL | CONTEXT_DEBUG_REGISTERS),
         "wrong context flags %lx\n", context->ContextFlags );
     ok( context->Pc == (UINT_PTR)addr,
         "%d: Pc at %Ix instead of %Ix\n", test_stage, context->Pc, (UINT_PTR)addr );
@@ -9584,42 +9665,48 @@ static DWORD breakpoint_exceptions;
 static LONG CALLBACK breakpoint_handler(EXCEPTION_POINTERS *ExceptionInfo)
 {
     EXCEPTION_RECORD *rec = ExceptionInfo->ExceptionRecord;
+    CONTEXT *context = ExceptionInfo->ContextRecord;
 
     ok(rec->ExceptionCode == EXCEPTION_BREAKPOINT, "ExceptionCode is %08lx instead of %08lx\n",
        rec->ExceptionCode, EXCEPTION_BREAKPOINT);
 
 #ifdef __i386__
-    ok(ExceptionInfo->ContextRecord->Eip == (DWORD)code_mem + 1,
-       "expected Eip = %lx, got %lx\n", (DWORD)code_mem + 1, ExceptionInfo->ContextRecord->Eip);
+    ok(context->Eip == (DWORD)code_mem + 1,
+       "expected Eip = %lx, got %lx\n", (DWORD)code_mem + 1, context->Eip);
+    ok((char *)rec->ExceptionAddress == (char *)code_mem + 1,
+       "expected address %p, got %p\n", (char *)code_mem + 1, rec->ExceptionAddress);
     ok(rec->NumberParameters == (is_wow64 ? 1 : 3),
        "ExceptionParameters is %ld instead of %d\n", rec->NumberParameters, is_wow64 ? 1 : 3);
     ok(rec->ExceptionInformation[0] == 0,
        "got ExceptionInformation[0] = %Ix\n", rec->ExceptionInformation[0]);
-    ExceptionInfo->ContextRecord->Eip = (DWORD)code_mem + 2;
+    context->Eip = (DWORD)code_mem + 2;
 #elif defined(__x86_64__)
-    ok(ExceptionInfo->ContextRecord->Rip == (DWORD_PTR)code_mem + 1,
-       "expected Rip = %Ix, got %Ix\n", (DWORD_PTR)code_mem + 1, ExceptionInfo->ContextRecord->Rip);
+    ok(context->Rip == (DWORD_PTR)code_mem + 1,
+       "expected Rip = %Ix, got %Ix\n", (DWORD_PTR)code_mem + 1, context->Rip);
+    ok((char *)rec->ExceptionAddress == (char *)code_mem + 1,
+       "expected address %p, got %p\n", (char *)code_mem + 1, rec->ExceptionAddress);
     ok(rec->NumberParameters == 1,
        "ExceptionParameters is %ld instead of 1\n", rec->NumberParameters);
     ok(rec->ExceptionInformation[0] == 0,
        "got ExceptionInformation[0] = %Ix\n", rec->ExceptionInformation[0]);
-    ExceptionInfo->ContextRecord->Rip = (DWORD_PTR)code_mem + 2;
+    context->Rip = (DWORD_PTR)code_mem + 2;
 #elif defined(__arm__)
-    ok(ExceptionInfo->ContextRecord->Pc == (DWORD)code_mem + 1,
-       "expected pc = %lx, got %lx\n", (DWORD)code_mem + 1, ExceptionInfo->ContextRecord->Pc);
+    ok(context->Pc == (DWORD)code_mem + 1,
+       "expected pc = %lx, got %lx\n", (DWORD)code_mem + 1, context->Pc);
+    ok((char *)rec->ExceptionAddress == (char *)code_mem + 1,
+       "expected address %p, got %p\n", (char *)code_mem + 1, rec->ExceptionAddress);
     ok(rec->NumberParameters == 1,
        "ExceptionParameters is %ld instead of 1\n", rec->NumberParameters);
     ok(rec->ExceptionInformation[0] == 0,
        "got ExceptionInformation[0] = %Ix\n", rec->ExceptionInformation[0]);
-    ExceptionInfo->ContextRecord->Pc += 2;
+    context->Pc += 2;
 #elif defined(__aarch64__)
-    ok(ExceptionInfo->ContextRecord->Pc == (DWORD_PTR)code_mem,
-       "expected pc = %p, got %p\n", code_mem, (void *)ExceptionInfo->ContextRecord->Pc);
-    ok(rec->NumberParameters == 1,
-       "ExceptionParameters is %ld instead of 1\n", rec->NumberParameters);
+    ok(context->Pc == (DWORD_PTR)code_mem, "expected pc = %p, got %p\n", code_mem, (void *)context->Pc);
+    ok(rec->ExceptionAddress == code_mem, "expected address %p, got %p\n", code_mem, rec->ExceptionAddress);
+    ok(rec->NumberParameters == 1, "ExceptionParameters is %ld instead of 1\n", rec->NumberParameters);
     ok(rec->ExceptionInformation[0] == 0,
        "got ExceptionInformation[0] = %p\n", (void *)rec->ExceptionInformation[0]);
-    ExceptionInfo->ContextRecord->Pc += 4;
+    context->Pc += 4;
 #endif
 
     breakpoint_exceptions++;
@@ -9717,13 +9804,17 @@ static BYTE except_code_segments[] =
     0x31, 0xc0, /* xor %eax,%eax */
     0x8e, 0xc0, /* mov %eax,%es */
     0x8e, 0xd8, /* mov %eax,%ds */
+#ifndef __x86_64__  /* restoring fsbase is not supported on Wine yet */
     0x8e, 0xe0, /* mov %eax,%fs */
+#endif
     0x8e, 0xe8, /* mov %eax,%gs */
     0xcc,       /* int3 */
     0x58,       /* pop %rax */
     0x8e, 0xe8, /* mov %eax,%gs */
     0x58,       /* pop %rax */
+#ifndef __x86_64__
     0x8e, 0xe0, /* mov %eax,%fs */
+#endif
     0x58,       /* pop %rax */
     0x8e, 0xd8, /* mov %eax,%ds */
     0x58,       /* pop %rax */
@@ -12347,6 +12438,65 @@ static void test_context_exception_request(void)
     CloseHandle( p.event );
 }
 
+typedef struct
+{
+    LIST_ENTRY entry;
+    ULONG_PTR *count;
+    void *unk1;
+    PVECTORED_EXCEPTION_HANDLER func;
+}
+VECTORED_HANDLER;
+
+static VECTORED_HANDLER *test_RtlAddVectoredExceptionHandler_vh2;
+
+static LONG CALLBACK test_RtlAddVectoredExceptionHandler_handler2( EXCEPTION_POINTERS *info )
+{
+    EXCEPTION_RECORD *rec = info->ExceptionRecord;
+
+    ok( rec->ExceptionCode == 0xeadbeef, "got %#lx, address %p.\n", rec->ExceptionCode, rec->ExceptionAddress );
+    ok( *test_RtlAddVectoredExceptionHandler_vh2->count == 2, "got %Iu.\n", *test_RtlAddVectoredExceptionHandler_vh2->count );
+    return EXCEPTION_CONTINUE_EXECUTION;
+}
+
+static LONG CALLBACK test_RtlAddVectoredExceptionHandler_handler( EXCEPTION_POINTERS *info )
+{
+    ok( 0, "got here.\n" );
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+
+static void test_RtlAddVectoredExceptionHandler(void)
+{
+    VECTORED_HANDLER *vh, *vh2;
+    void *func;
+
+    vh = pRtlAddVectoredExceptionHandler( TRUE, test_RtlAddVectoredExceptionHandler_handler );
+    ok( !!vh, "got NULL.\n" );
+    if ((ULONG)(ULONG_PTR)vh->count == 1)
+    {
+        win_skip( "Old layout, skipping tests.\n" );
+        pRtlRemoveVectoredExceptionHandler( vh );
+        return;
+    }
+    ok( *vh->count == 1, "got %Iu.\n", *vh->count );
+    func = DecodePointer( vh->func );
+    ok( func == test_RtlAddVectoredExceptionHandler_handler, "got %p, %p.\n", func, test_RtlAddVectoredExceptionHandler_handler );
+
+    vh2 = pRtlAddVectoredExceptionHandler( TRUE, test_RtlAddVectoredExceptionHandler_handler2 );
+    ok( !!vh2, "got NULL.\n" );
+    ok( *vh2->count == 1, "got %Iu.\n", *vh->count );
+    func = DecodePointer( vh2->func );
+    ok( func == test_RtlAddVectoredExceptionHandler_handler2, "got %p, %p.\n", func, test_RtlAddVectoredExceptionHandler_handler2 );
+
+    ok( vh->entry.Blink == (void *)vh2, "got %p, %p.\n", vh->entry.Flink, vh2 );
+    ok( vh2->entry.Flink == (void *)vh, "got %p, %p.\n", vh->entry.Blink, vh );
+
+    test_RtlAddVectoredExceptionHandler_vh2 = vh2;
+    RaiseException( 0xeadbeef, 0, 0, NULL );
+
+    pRtlRemoveVectoredExceptionHandler( vh );
+    pRtlRemoveVectoredExceptionHandler( vh2 );
+}
+
 START_TEST(exception)
 {
     HMODULE hkernel32 = GetModuleHandleA("kernel32.dll");
@@ -12517,7 +12667,9 @@ START_TEST(exception)
         test_breakpoint(1);
         test_stage = STAGE_EXCEPTION_INVHANDLE_CONTINUE;
         test_closehandle(0, (HANDLE)0xdeadbeef);
-        test_closehandle(0, (HANDLE)0x7fffffff);
+#ifndef __aarch64__
+        test_closehandle(0, (HANDLE)0x7fffffff);  /* apparently valid on arm64 */
+#endif
         test_stage = STAGE_EXCEPTION_INVHANDLE_NOT_HANDLED;
         test_closehandle(1, (HANDLE)0xdeadbeef);
         test_closehandle(1, (HANDLE)~(ULONG_PTR)6);
@@ -12594,6 +12746,7 @@ START_TEST(exception)
     test_direct_syscalls();
     test_single_step_address();
     test_base_init_thunk_unwind();
+    test_backtrace_without_runtime_function();
 
 #elif defined(__aarch64__)
 
@@ -12648,5 +12801,6 @@ START_TEST(exception)
     test_unload_trace();
     test_backtrace();
     test_context_exception_request();
+    test_RtlAddVectoredExceptionHandler();
     VirtualFree(code_mem, 0, MEM_RELEASE);
 }

@@ -88,6 +88,7 @@ SOURCES = \
 	commctrl.h \
 	commctrl.rh \
 	commdlg.h \
+	common.ver \
 	commoncontrols.idl \
 	compobj.h \
 	comsvcs.idl \
@@ -381,6 +382,7 @@ SOURCES = \
 	icm.h \
 	icmpapi.h \
 	icodecapi.idl \
+	icu.h \
 	idispids.h \
 	ieautomation.idl \
 	iextag.idl \
@@ -499,6 +501,7 @@ SOURCES = \
 	msdasc.idl \
 	msdasql.h \
 	msdelta.h \
+	msdshape.h \
 	mshtmcid.h \
 	mshtmdid.h \
 	mshtmhst.idl \
@@ -619,6 +622,7 @@ SOURCES = \
 	ntsecpkg.h \
 	ntstatus.h \
 	ntuser.h \
+	ntverp.h.in \
 	oaidl.idl \
 	objbase.h \
 	objectarray.idl \
@@ -647,6 +651,7 @@ SOURCES = \
 	pathcch.h \
 	pdh.h \
 	pdhmsg.h \
+	peninputpanel.idl \
 	perflib.h \
 	perhist.idl \
 	physicalmonitorenumerationapi.h \
@@ -706,13 +711,16 @@ SOURCES = \
 	rpcsal.h \
 	rstbas.idl \
 	rstchg.idl \
+	rstcridx.idl \
 	rstfnd.idl \
 	rstidn.idl \
+	rstind.idl \
 	rstinf.idl \
 	rstloc.idl \
 	rstnot.idl \
 	rstscr.idl \
 	rstupd.idl \
+	rstvw.idl \
 	rstxsc.idl \
 	rtlsupportapi.h \
 	rtutils.h \
@@ -834,6 +842,8 @@ SOURCES = \
 	vsstyle.h \
 	vssym32.h \
 	vswriter.idl \
+	vwchp.idl \
+	vwflt.idl \
 	wbemcli.idl \
 	wbemdisp.idl \
 	wbemprov.idl \
@@ -993,7 +1003,6 @@ SOURCES = \
 	wine/wgl.h \
 	wine/winbase16.h \
 	wine/windef16.h \
-	wine/wine_common_ver.rc \
 	wine/winebth.h \
 	wine/wined3d.h \
 	wine/winedmo.h \

@@ -589,6 +589,8 @@ static DWORD create_serviceW(
         return err;
     }
 
+    if (lpDisplayName && !*lpDisplayName) lpDisplayName = NULL;
+
     entry->is_wow64 = is_wow64;
     entry->config.dwServiceType = entry->status.dwServiceType = dwServiceType;
     entry->config.dwStartType = dwStartType;
@@ -985,6 +987,10 @@ DWORD __cdecl svcctl_ChangeServiceConfig2W( SC_RPC_HANDLE hService, SC_RPC_CONFI
         service->service_entry->delayed_autostart = config.delayedstart->fDelayedAutostart;
         save_service_config( service->service_entry );
         service_unlock( service->service_entry );
+        break;
+    case SERVICE_CONFIG_SERVICE_SID_INFO:
+        WINE_FIXME( "SERVICE_CONFIG_SERVICE_SID_INFO not implemented: type %lu\n",
+                    config.sid->dwServiceSidType );
         break;
     default:
         WINE_FIXME("level %lu not implemented\n", config.dwInfoLevel);
