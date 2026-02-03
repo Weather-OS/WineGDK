@@ -22,8 +22,143 @@
  */
 
 #include "XUser.h"
+#include "winhttp.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(gdkc);
+
+static BOOLEAN HttpRequest(LPCWSTR method, LPCWSTR domain, LPCWSTR object, LPSTR data, LPCWSTR headers, LPCWSTR* accept, LPSTR* buffer, SIZE_T* bufferSize)
+{
+    HINTERNET session = NULL;
+    HINTERNET connection = NULL;
+    HINTERNET request = NULL;
+    BOOLEAN response = FALSE;
+    LPSTR chunkBuffer;
+    DWORD size;
+    BOOLEAN result = TRUE;
+    SIZE_T allocated;
+
+    session = WinHttpOpen(
+        L"WineGDK/1.0",
+        WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
+        WINHTTP_NO_PROXY_NAME,
+        WINHTTP_NO_PROXY_BYPASS,
+        0
+    );
+
+    if (session)
+        connection = WinHttpConnect(
+            session,
+            domain,
+            INTERNET_DEFAULT_HTTPS_PORT,
+            0
+        );
+
+    if (connection)
+        request = WinHttpOpenRequest(
+            connection,
+            method,
+            object,
+            NULL,
+            WINHTTP_NO_REFERER,
+            accept,
+            WINHTTP_FLAG_SECURE
+        );
+
+    if (request)
+        response = WinHttpSendRequest(
+            request,
+            headers,
+            -1,
+            data,
+            strlen(data),
+            strlen(data),
+            0
+        );
+
+    if (response)
+        response = WinHttpReceiveResponse(request, NULL);
+
+    /* buffer response data */
+    if (response)
+    {
+        allocated = 0x1000;
+        *buffer = calloc(1, allocated);
+        *bufferSize = 0;
+        do
+        {
+            size = 0;
+            chunkBuffer = *buffer + *bufferSize;
+            if (!WinHttpQueryDataAvailable(request, &size))
+            {
+                free(*buffer);
+                result = FALSE;
+                break;
+            }
+
+            if (*bufferSize + size >= allocated)
+            {
+                allocated = (*bufferSize + size + 0xFFF) & ~0xFFF;
+                *buffer = realloc(*buffer, allocated);
+                if (!*buffer)
+                {
+                    result = FALSE;
+                    break;
+                }
+            }
+
+            *bufferSize += size;
+            if (!WinHttpReadData(request, chunkBuffer, size, NULL))
+            {
+                free(*buffer);
+                result = FALSE;
+                break;
+            }
+        }
+        while (size > 0);
+    }
+    else result = FALSE;
+
+    if (request) WinHttpCloseHandle(request);
+    if (connection) WinHttpCloseHandle(connection);
+    if (session) WinHttpCloseHandle(session);
+
+    return result;
+}
+
+static BOOLEAN RequestOAuthToken(LPCSTR clientId)
+{
+    LPCSTR template = "scope=service%3a%3auser.auth.xboxlive.com%3a%3aMBI_SSL&response_type=device_code&client_id=";
+    LPCWSTR accept[] = {L"application/json", NULL};
+    BOOLEAN result;
+    LPSTR data;
+    LPSTR buffer;
+    SIZE_T size;
+
+    /* request a device code */
+
+    data = calloc(strlen(template) + strlen(clientId) + 1, sizeof(CHAR));
+    strcpy(data, template);
+    strcat(data, clientId);
+    result = HttpRequest(
+        L"POST",
+        L"login.live.com",
+        L"/oauth20_connect.srf",
+        data,
+        L"content-type: application/x-www-form-urlencoded",
+        accept,
+        &buffer,
+        &size
+    );
+    free(data);
+
+    if (!result)
+        return result;
+
+    TRACE("%s\n", buffer);
+
+    free(buffer);
+    return result;
+}
 
 static inline struct x_user *impl_from_IXUserImpl(IXUserImpl *iface)
 {
