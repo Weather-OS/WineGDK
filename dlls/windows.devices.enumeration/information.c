@@ -354,7 +354,7 @@ HRESULT device_information_create( const DEV_OBJECT *obj, IDeviceInformation **i
     return S_OK;
 }
 
-HRESULT async( IUnknown *invoker, IUnknown *param, PROPVARIANT *result )
+HRESULT async( IUnknown *invoker, IUnknown *param, PROPVARIANT *result, BOOL called_async )
 {
     HRESULT hr;
 

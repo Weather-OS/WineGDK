@@ -67,7 +67,7 @@ extern HRESULT async_action_create( IUnknown *invoker, async_operation_callback 
 
 extern HRESULT vector_create( const struct vector_iids *iids, void **out );
 extern HRESULT device_information_create( const DEV_OBJECT *obj, IDeviceInformation **info );
-extern HRESULT async( IUnknown *invoker, IUnknown *param, PROPVARIANT *result );
+extern HRESULT async( IUnknown *invoker, IUnknown *param, PROPVARIANT *result, BOOL called_async );
 
 #define DEFINE_IINSPECTABLE_( pfx, iface_type, impl_type, impl_from, iface_mem, expr )             \
     static inline impl_type *impl_from( iface_type *iface )                                        \
