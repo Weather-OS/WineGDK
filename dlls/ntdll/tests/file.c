@@ -1425,14 +1425,17 @@ static void test_file_full_size_information(void)
         "[ffsie] TotalAllocationUnits error ffsi:0x%s, ffsie:0x%s\n",
         wine_dbgstr_longlong(ffsi.TotalAllocationUnits.QuadPart),
         wine_dbgstr_longlong(ffsie.ActualTotalAllocationUnits));
-    ok(ffsie.CallerAvailableAllocationUnits == ffsi.CallerAvailableAllocationUnits.QuadPart,
-        "[ffsie] CallerAvailableAllocationUnits error ffsi:0x%s, ffsie:0x%s\n",
-        wine_dbgstr_longlong(ffsi.CallerAvailableAllocationUnits.QuadPart),
-        wine_dbgstr_longlong(ffsie.CallerAvailableAllocationUnits));
-    ok(ffsie.ActualAvailableAllocationUnits == ffsi.ActualAvailableAllocationUnits.QuadPart,
-        "[ffsie] ActualAvailableAllocationUnits error ffsi:0x%s, ffsie:0x%s\n",
-        wine_dbgstr_longlong(ffsi.ActualAvailableAllocationUnits.QuadPart),
-        wine_dbgstr_longlong(ffsie.ActualAvailableAllocationUnits));
+    flaky  /* available disk space can change outside of our control */
+    {
+        ok(ffsie.CallerAvailableAllocationUnits == ffsi.CallerAvailableAllocationUnits.QuadPart,
+           "[ffsie] CallerAvailableAllocationUnits error ffsi:0x%s, ffsie:0x%s\n",
+           wine_dbgstr_longlong(ffsi.CallerAvailableAllocationUnits.QuadPart),
+           wine_dbgstr_longlong(ffsie.CallerAvailableAllocationUnits));
+        ok(ffsie.ActualAvailableAllocationUnits == ffsi.ActualAvailableAllocationUnits.QuadPart,
+           "[ffsie] ActualAvailableAllocationUnits error ffsi:0x%s, ffsie:0x%s\n",
+           wine_dbgstr_longlong(ffsi.ActualAvailableAllocationUnits.QuadPart),
+           wine_dbgstr_longlong(ffsie.ActualAvailableAllocationUnits));
+    }
 
     /* Assume file system is NTFS */
     ok(ffsie.BytesPerSector == 512, "[ffsie] BytesPerSector expected 512, got %ld\n",ffsie.BytesPerSector);
@@ -4963,7 +4966,8 @@ static void test_NtCreateFile(void)
 
     status = pNtCreateFile( &handle, GENERIC_READ, &attr, &io, NULL,
                             0, FILE_SHARE_READ|FILE_SHARE_WRITE, FILE_CREATE, 0, NULL, 0);
-    ok( status == STATUS_OBJECT_NAME_INVALID, "failed %s %lx\n", debugstr_w(nameW.Buffer), status );
+    ok( status == STATUS_OBJECT_NAME_INVALID || status == STATUS_NOT_A_DIRECTORY,
+        "failed %s %lx\n", debugstr_w(nameW.Buffer), status );
     status = pNtCreateFile( &handle, GENERIC_READ, &attr, &io, NULL,
                             0, FILE_SHARE_READ|FILE_SHARE_WRITE, FILE_CREATE,
                             FILE_DIRECTORY_FILE, NULL, 0);
@@ -5024,17 +5028,17 @@ static void test_read_write(void)
     iob.Information = -1;
     status = pNtWriteFile(hfile, 0, NULL, NULL, &iob, NULL, sizeof(contents), NULL, NULL);
     ok(status == STATUS_INVALID_USER_BUFFER, "expected STATUS_INVALID_USER_BUFFER, got %#lx\n", status);
-    ok(iob.Status == -1, "expected -1, got %#lx\n", iob.Status);
-    ok(iob.Information == -1, "expected -1, got %Iu\n", iob.Information);
+    ok(iob.Status == -1 || iob.Status == STATUS_INVALID_USER_BUFFER, "got %#lx\n", iob.Status);
+    ok(iob.Information == (iob.Status == -1 ? -1 : 0), "got %Iu\n", iob.Information);
 
     iob.Status = -1;
     iob.Information = -1;
     SetEvent(event);
     status = pNtWriteFile(hfile, event, NULL, NULL, &iob, NULL, sizeof(contents), NULL, NULL);
     ok(status == STATUS_INVALID_USER_BUFFER, "expected STATUS_INVALID_USER_BUFFER, got %#lx\n", status);
-    ok(iob.Status == -1, "expected -1, got %#lx\n", iob.Status);
-    ok(iob.Information == -1, "expected -1, got %Iu\n", iob.Information);
-    ok(!is_signaled(event), "event is not signaled\n");
+    ok(iob.Status == -1 || iob.Status == STATUS_INVALID_USER_BUFFER, "got %#lx\n", iob.Status);
+    ok(iob.Information == (iob.Status == -1 ? -1 : 0), "got %Iu\n", iob.Information);
+    ok(!is_signaled(event) == !(iob.Status == STATUS_INVALID_USER_BUFFER), "event is not signaled\n");
 
     iob.Status = -1;
     iob.Information = -1;
@@ -6151,7 +6155,7 @@ static void test_reparse_points(void)
 
     status = GetVolumeInformationW( L"C:\\", NULL, 0, NULL, NULL, &flags, NULL, 0 );
     ok( status == TRUE, "got error %lu\n", GetLastError() );
-    todo_wine ok( flags & FILE_SUPPORTS_REPARSE_POINTS, "C: drive does not support reparse points\n" );
+    ok( flags & FILE_SUPPORTS_REPARSE_POINTS, "C: drive does not support reparse points\n" );
 
     swprintf( path, ARRAY_SIZE(path), L"\\??\\%s", temp_path );
     RtlInitUnicodeString( &nameW, path );
@@ -6378,7 +6382,7 @@ static void test_reparse_points(void)
     ok( find_handle != INVALID_HANDLE_VALUE, "got error %lu\n", GetLastError() );
     ok( find_data.dwFileAttributes == (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT),
         "got attributes %#lx\n", find_data.dwFileAttributes );
-    todo_wine ok( find_data.dwReserved0 == IO_REPARSE_TAG_MOUNT_POINT, "got tag %#lx\n", find_data.dwReserved0 );
+    ok( find_data.dwReserved0 == IO_REPARSE_TAG_MOUNT_POINT, "got tag %#lx\n", find_data.dwReserved0 );
     FindClose( find_handle );
 
     /* Test using the reparse point as a parent.

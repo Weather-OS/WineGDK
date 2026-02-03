@@ -19144,39 +19144,77 @@ static void add_dirty_rect_test(void)
     ok(color_match(color, 0x000000ff, 1) || broken(color_match(color, 0x00000000, 1)),
             "Got unexpected color 0x%08x.\n", color);
 
-    /* Tests with managed textures. */
-    fill_surface(surface_managed0, 0x00ff0000, 0);
-    fill_surface(surface_managed1, 0x00ff0000, 0);
+    /* Tests with managed textures. They are initially dirty.*/
+    fill_surface(surface_managed0, 0x00ffff00, D3DLOCK_READONLY);
+    fill_surface(surface_managed1, 0x00ff00ff, D3DLOCK_READONLY);
     hr = IDirect3DDevice9_SetTexture(device, 0, (IDirect3DBaseTexture9 *)tex_managed);
     ok(SUCCEEDED(hr), "Failed to set texture, hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_SetSamplerState(device, 0, D3DSAMP_MAXMIPLEVEL, 0);
+    ok(SUCCEEDED(hr), "Failed to set sampler state, hr %#lx.\n", hr);
     add_dirty_rect_test_draw(device);
     color = getPixelColor(device, 320, 240);
-    ok(color_match(color, 0x00ff0000, 1),
-            "Expected color 0x00ff0000, got 0x%08x.\n", color);
+    ok(color_match(color, 0x00ffff00, 1), "Got unexpected color 0x%08x.\n", color);
     hr = IDirect3DDevice9_Present(device, NULL, NULL, NULL, NULL);
     ok(SUCCEEDED(hr), "Failed to present, hr %#lx.\n", hr);
     hr = IDirect3DDevice9_SetSamplerState(device, 0, D3DSAMP_MAXMIPLEVEL, 1);
     ok(SUCCEEDED(hr), "Failed to set sampler state, hr %#lx.\n", hr);
     add_dirty_rect_test_draw(device);
     color = getPixelColor(device, 320, 240);
-    ok(color_match(color, 0x00ff0000, 1), "Got unexpected color 0x%08x.\n", color);
+    ok(color_match(color, 0x00ff00ff, 1), "Got unexpected color 0x%08x.\n", color);
+    hr = IDirect3DDevice9_Present(device, NULL, NULL, NULL, NULL);
+    ok(SUCCEEDED(hr), "Failed to present, hr %#lx.\n", hr);
+
+    /* Read-write map, this is uploaded. */
+    fill_surface(surface_managed0, 0x00ff0080, 0);
+    fill_surface(surface_managed1, 0x00ff8000, 0);
+    hr = IDirect3DDevice9_SetSamplerState(device, 0, D3DSAMP_MAXMIPLEVEL, 0);
+    ok(SUCCEEDED(hr), "Failed to set sampler state, hr %#lx.\n", hr);
+    add_dirty_rect_test_draw(device);
+    color = getPixelColor(device, 320, 240);
+    ok(color_match(color, 0x00ff0080, 1), "Got unexpected color 0x%08x.\n", color);
+    hr = IDirect3DDevice9_Present(device, NULL, NULL, NULL, NULL);
+    ok(SUCCEEDED(hr), "Failed to present, hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_SetSamplerState(device, 0, D3DSAMP_MAXMIPLEVEL, 1);
+    ok(SUCCEEDED(hr), "Failed to set sampler state, hr %#lx.\n", hr);
+    add_dirty_rect_test_draw(device);
+    color = getPixelColor(device, 320, 240);
+    ok(color_match(color, 0x00ff8000, 1), "Got unexpected color 0x%08x.\n", color);
+    hr = IDirect3DDevice9_Present(device, NULL, NULL, NULL, NULL);
+    ok(SUCCEEDED(hr), "Failed to present, hr %#lx.\n", hr);
+
+    /* D3DLOCK_READONLY is honored, so this data does not get uploaded. */
+    fill_surface(surface_managed0, 0x00008000, D3DLOCK_READONLY);
+    fill_surface(surface_managed1, 0x00000080, D3DLOCK_READONLY);
+    hr = IDirect3DDevice9_SetSamplerState(device, 0, D3DSAMP_MAXMIPLEVEL, 0);
+    ok(SUCCEEDED(hr), "Failed to set sampler state, hr %#lx.\n", hr);
+    add_dirty_rect_test_draw(device);
+    color = getPixelColor(device, 320, 240);
+    ok(color_match(color, 0x00ff0080, 1), "Got unexpected color 0x%08x.\n", color);
+    hr = IDirect3DDevice9_Present(device, NULL, NULL, NULL, NULL);
+    ok(SUCCEEDED(hr), "Failed to present, hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_SetSamplerState(device, 0, D3DSAMP_MAXMIPLEVEL, 1);
+    ok(SUCCEEDED(hr), "Failed to set sampler state, hr %#lx.\n", hr);
+    add_dirty_rect_test_draw(device);
+    color = getPixelColor(device, 320, 240);
+    ok(color_match(color, 0x00ff8000, 1), "Got unexpected color 0x%08x.\n", color);
     hr = IDirect3DDevice9_Present(device, NULL, NULL, NULL, NULL);
     ok(SUCCEEDED(hr), "Failed to present, hr %#lx.\n", hr);
 
     /* Managed textures also honor D3DLOCK_NO_DIRTY_UPDATE. */
     fill_surface(surface_managed0, 0x0000ff00, D3DLOCK_NO_DIRTY_UPDATE);
     fill_surface(surface_managed1, 0x000000ff, D3DLOCK_NO_DIRTY_UPDATE);
-    add_dirty_rect_test_draw(device);
-    color = getPixelColor(device, 320, 240);
-    ok(color_match(color, 0x00ff0000, 1),
-            "Expected color 0x00ff0000, got 0x%08x.\n", color);
-    hr = IDirect3DDevice9_Present(device, NULL, NULL, NULL, NULL);
-    ok(SUCCEEDED(hr), "Failed to present, hr %#lx.\n", hr);
     hr = IDirect3DDevice9_SetSamplerState(device, 0, D3DSAMP_MAXMIPLEVEL, 0);
     ok(SUCCEEDED(hr), "Failed to set sampler state, hr %#lx.\n", hr);
     add_dirty_rect_test_draw(device);
     color = getPixelColor(device, 320, 240);
-    ok(color_match(color, 0x00ff0000, 1), "Got unexpected color 0x%08x.\n", color);
+    ok(color_match(color, 0x00ff0080, 1), "Got unexpected color 0x%08x.\n", color);
+    hr = IDirect3DDevice9_Present(device, NULL, NULL, NULL, NULL);
+    ok(SUCCEEDED(hr), "Failed to present, hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_SetSamplerState(device, 0, D3DSAMP_MAXMIPLEVEL, 1);
+    ok(SUCCEEDED(hr), "Failed to set sampler state, hr %#lx.\n", hr);
+    add_dirty_rect_test_draw(device);
+    color = getPixelColor(device, 320, 240);
+    ok(color_match(color, 0x00ff8000, 1), "Got unexpected color 0x%08x.\n", color);
     hr = IDirect3DDevice9_Present(device, NULL, NULL, NULL, NULL);
     ok(SUCCEEDED(hr), "Failed to present, hr %#lx.\n", hr);
 
@@ -19185,11 +19223,13 @@ static void add_dirty_rect_test(void)
      * tracked individually. Tested on Nvidia Kepler, other drivers untested. */
     hr = IDirect3DTexture9_AddDirtyRect(tex_managed, &part_rect);
     ok(hr == S_OK, "Failed to add dirty rect, hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_SetSamplerState(device, 0, D3DSAMP_MAXMIPLEVEL, 0);
+    ok(SUCCEEDED(hr), "Failed to set sampler state, hr %#lx.\n", hr);
     add_dirty_rect_test_draw(device);
     color = getPixelColor(device, 320, 240);
     ok(color_match(color, 0x0000ff00, 1), "Got unexpected color 0x%08x.\n", color);
     color = getPixelColor(device, 1, 1);
-    ok(color_match(color, 0x00ff0000, 1), "Got unexpected color 0x%08x.\n", color);
+    ok(color_match(color, 0x00ff0080, 1), "Got unexpected color 0x%08x.\n", color);
     hr = IDirect3DDevice9_Present(device, NULL, NULL, NULL, NULL);
     ok(SUCCEEDED(hr), "Failed to present, hr %#lx.\n", hr);
 
@@ -28428,7 +28468,7 @@ static void test_fog(void)
                     {
                         colour = get_readback_vec4(&rb, points[i].x, points[i].y);
 
-todo_wine_if ((fog_mode_tests[pixel_mode] != D3DFOG_NONE && !ortho_fog && (vs_mode == VS_MODE_FFP || vs_mode == VS_MODE_RHW))
+todo_wine_if ((fog_mode_tests[pixel_mode] != D3DFOG_NONE && (vs_mode == VS_MODE_FFP || (!ortho_fog && vs_mode == VS_MODE_RHW)))
         || (fog_mode_tests[pixel_mode] == D3DFOG_NONE && fog_mode_tests[vertex_mode] != D3DFOG_NONE && vs_mode == VS_MODE_FFP))
 {
                         if (fog_mode_tests[pixel_mode] != D3DFOG_NONE && ortho_fog)
@@ -28826,6 +28866,7 @@ static void test_texture_transform_flags(void)
                     colour = get_readback_vec4(&rb, 0, 0);
                     /* We use point filtering, but we might have sampled the
                      * neighbouring texel. */
+                    todo_wine_if (attrib_count == 1 && vs_mode == VS_MODE_FFP && ps_mode <= 1 && i == 7)
                     ok(fabsf(colour->x - expect[0]) <= 0.006f && fabsf(colour->y - expect[1]) <= 0.006f
                             && colour->z == expect[2] && colour->w == expect[3],
                             "Expected colour {%.8e, %.8e, %.8e, %.8e}; got {%.8e, %.8e, %.8e, %.8e}.\n",
@@ -28847,6 +28888,226 @@ static void test_texture_transform_flags(void)
     IDirect3DPixelShader9_Release(ps2);
     IDirect3DPixelShader9_Release(ps_texcoord);
     IDirect3DSurface9_Release(rt);
+    release_test_context(&context);
+}
+
+/* A test to show that lights are affected by the view matrix but not the world
+ * matrix, and to make sure that lighting is invalidated when the view matrix
+ * (and nothing else) changes. */
+static void test_lighting_matrices(void)
+{
+    struct d3d9_test_context context;
+    struct surface_readback rb;
+    IDirect3DDevice9 *device;
+    unsigned int color;
+    HRESULT hr;
+
+    static const D3DMATERIAL9 material = {.Power = 1.0f};
+
+    static const D3DLIGHT9 light =
+    {
+        .Type = D3DLIGHT_SPOT,
+        .Diffuse = {1.0f, 1.0f, 1.0f, 1.0f},
+        .Specular = {1.0f, 1.0f, 1.0f, 1.0f},
+        .Position = {2.0f, -2.0f, 2.0f},
+        .Direction = {1.0f, 1.0f, -0.5f},
+        .Range = 1000.0f,
+        .Falloff = 1.0f,
+        .Attenuation1 = 0.1f,
+        .Theta = 1.0f,
+        .Phi = 3.0f,
+    };
+
+    static const D3DMATRIX world_matrix =
+    {{{
+        0.5f, 0.0f, 0.0f, 0.0f,
+        0.0f, 0.5f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.5f, 0.0f,
+        0.0f, 0.2f, 0.0f, 1.0f,
+    }}};
+
+    static const D3DMATRIX view_matrix =
+    {{{
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.5f, 0.5f, 0.0f, 1.0f,
+    }}};
+
+    static const struct
+    {
+        struct vec3 position;
+        struct vec3 normal;
+        unsigned int diffuse;
+        unsigned int specular;
+    }
+    tri[] =
+    {
+        {{ 2.0f, -2.0f, 0.5f}, {-0.3f, -0.4f, 0.4f}, 0x00ff0000, 0x0000ff00},
+        {{-2.0f, -2.0f, 0.5f}, {-1.0f,  0.4f, 0.4f}, 0x00ff0000, 0x0000ff00},
+        {{ 0.0f,  2.0f, 0.5f}, { 0.0f, -0.4f, 0.4f}, 0x00ff0000, 0x0000ff00},
+    },
+    tri2[] =
+    {
+        {{ 1.0f, -3.0f, 0.5f}, {-0.3f, -0.4f, 0.4f}, 0x00ff0000, 0x0000ff00},
+        {{-3.0f, -3.0f, 0.5f}, {-1.0f,  0.4f, 0.4f}, 0x00ff0000, 0x0000ff00},
+        {{-1.0f,  1.0f, 0.5f}, { 0.0f, -0.4f, 0.4f}, 0x00ff0000, 0x0000ff00},
+    };
+
+    if (!init_test_context(&context))
+        return;
+    device = context.device;
+
+    hr = IDirect3DDevice9_SetFVF(device, D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_SPECULAR);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_SetMaterial(device, &material);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_SetLight(device, 123, &light);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_LightEnable(device, 123, TRUE);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_SetRenderState(device, D3DRS_SPECULARENABLE, TRUE);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_SetTransform(device, D3DTS_WORLD, &world_matrix);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+
+    hr = IDirect3DDevice9_Clear(device, 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0x00000000, 1.0f, 0);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_BeginScene(device);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_DrawPrimitiveUP(device, D3DPT_TRIANGLESTRIP, 1, tri, sizeof(*tri));
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_EndScene(device);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+
+    get_rt_readback(context.backbuffer, &rb);
+    color = get_readback_color(&rb, 320, 240);
+    ok(color_match(color, 0x939100, 1), "Got color %08x.\n", color);
+    color = get_readback_color(&rb, 10, 430);
+    ok(color_match(color, 0x040400, 1), "Got color %08x.\n", color);
+    color = get_readback_color(&rb, 320, 10);
+    ok(color_match(color, 0xb5a600, 1), "Got color %08x.\n", color);
+    color = get_readback_color(&rb, 630, 430);
+    ok(color_match(color, 0xeafb00, 1), "Got color %08x.\n", color);
+    release_surface_readback(&rb);
+
+    hr = IDirect3DDevice9_Clear(device, 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0x00000000, 1.0f, 0);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_SetTransform(device, D3DTS_VIEW, &view_matrix);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_BeginScene(device);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_DrawPrimitiveUP(device, D3DPT_TRIANGLESTRIP, 1, tri2, sizeof(*tri2));
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_EndScene(device);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+
+    get_rt_readback(context.backbuffer, &rb);
+    color = get_readback_color(&rb, 320, 240);
+    ok(color_match(color, 0x1d1c00, 1), "Got color %08x.\n", color);
+    color = get_readback_color(&rb, 10, 430);
+    ok(color_match(color, 0x000000, 1), "Got color %08x.\n", color);
+    color = get_readback_color(&rb, 320, 10);
+    ok(color_match(color, 0x3f3d00, 1), "Got color %08x.\n", color);
+    color = get_readback_color(&rb, 630, 430);
+    ok(color_match(color, 0x000000, 1), "Got color %08x.\n", color);
+    release_surface_readback(&rb);
+
+    release_test_context(&context);
+}
+
+static void test_generated_texcoords(void)
+{
+    struct d3d9_test_context context;
+    IDirect3DPixelShader9 *ps;
+    IDirect3DDevice9 *device;
+    unsigned int color;
+    HRESULT hr;
+
+    static const DWORD ps_code[] =
+    {
+        0xffff0101,                         /* ps_1_1      */
+        0x00000040, 0xb00f0000,             /* texcoord t0 */
+        0x00000001, 0x800f0000, 0xb0e40000, /* mov r0, t0  */
+        0x0000ffff
+    };
+
+    /* Shift a little to show that we're using camera space coordinates. */
+    static const D3DMATRIX transform =
+    {{{
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.2f, 0.2f, 0.0f, 1.0f,
+    }}};
+
+    static const struct
+    {
+        struct vec3 position;
+        struct vec3 normal;
+    }
+    tri[] =
+    {
+        {{ 2.0f, -2.0f, 0.1f}, {0.8f, 0.0f, 0.7f}},
+        {{-2.0f, -2.0f, 0.1f}, {0.8f, 0.0f, 0.7f}},
+        {{ 0.0f,  2.0f, 0.1f}, {0.8f, 0.0f, 0.7f}},
+    };
+
+    static const struct
+    {
+        unsigned int tci;
+        unsigned int color;
+    }
+    tests[] =
+    {
+        {D3DTSS_TCI_CAMERASPACEPOSITION,            0x0000001a},
+        {D3DTSS_TCI_CAMERASPACENORMAL,              0x00cc00b2},
+        {D3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR,    0x0000000f},
+        {D3DTSS_TCI_SPHEREMAP,                      0x00836900},
+    };
+
+    if (!init_test_context(&context))
+        return;
+    device = context.device;
+
+    hr = IDirect3DDevice9_CreatePixelShader(device, ps_code, &ps);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_SetPixelShader(device, ps);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+
+    hr = IDirect3DDevice9_SetFVF(device, D3DFVF_XYZ | D3DFVF_NORMAL);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_SetRenderState(device, D3DRS_ZENABLE, FALSE);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_SetRenderState(device, D3DRS_LIGHTING, FALSE);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_SetTransform(device, D3DTS_WORLD, &transform);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_SetTransform(device, D3DTS_VIEW, &transform);
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
+
+    for (unsigned int i = 0; i < ARRAY_SIZE(tests); ++i)
+    {
+        winetest_push_context("TCI %#x", tests[i].tci);
+
+        hr = IDirect3DDevice9_SetTextureStageState(device, 0, D3DTSS_TEXCOORDINDEX, tests[i].tci);
+        ok(hr == S_OK, "Got hr %#lx.\n", hr);
+        hr = IDirect3DDevice9_Clear(device, 0, NULL, D3DCLEAR_TARGET, 0xffffffff, 0.0f, 0);
+        ok(hr == S_OK, "Got hr %#lx.\n", hr);
+        hr = IDirect3DDevice9_BeginScene(device);
+        ok(hr == S_OK, "Got hr %#lx.\n", hr);
+        hr = IDirect3DDevice9_DrawPrimitiveUP(device, D3DPT_TRIANGLESTRIP, 1, tri, sizeof(*tri));
+        ok(hr == S_OK, "Got hr %#lx.\n", hr);
+        hr = IDirect3DDevice9_EndScene(device);
+        ok(hr == S_OK, "Got hr %#lx.\n", hr);
+
+        color = getPixelColor(device, 320, 240);
+        ok(color_match(color, tests[i].color, 1), "Got color %08x.\n", color);
+
+        winetest_pop_context();
+    }
+
+    IDirect3DPixelShader9_Release(ps);
     release_test_context(&context);
 }
 
@@ -29009,4 +29270,6 @@ START_TEST(visual)
     test_ffp_w();
     test_fog();
     test_texture_transform_flags();
+    test_lighting_matrices();
+    test_generated_texcoords();
 }

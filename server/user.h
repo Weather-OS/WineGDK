@@ -79,6 +79,7 @@ struct desktop
     struct list          pointers;         /* list of active pointers */
     struct timeout_user *close_timeout;    /* timeout before closing the desktop */
     struct thread_input *foreground_input; /* thread input of foreground thread */
+    process_id_t         foreground_pid;   /* id of the foreground process */
     unsigned int         users;            /* processes and threads using this desktop */
     unsigned char        keystate[256];    /* asynchronous key state */
     unsigned char        alt_pressed;      /* last key press was Alt (used to determine msg on release) */
@@ -174,7 +175,8 @@ extern void post_desktop_message( struct desktop *desktop, unsigned int message,
 extern void free_window_handle( struct window *win );
 extern void destroy_thread_windows( struct thread *thread );
 extern int is_child_window( user_handle_t parent, user_handle_t child );
-extern int is_valid_foreground_window( user_handle_t window );
+extern struct thread *make_window_foreground( struct desktop *desktop, user_handle_t window,
+                                              int *is_desktop, int *set_foreground );
 extern int is_window_visible( user_handle_t window );
 extern int is_window_transparent( user_handle_t window );
 extern int make_window_active( user_handle_t window );

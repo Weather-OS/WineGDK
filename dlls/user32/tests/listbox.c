@@ -90,10 +90,10 @@ struct listbox_stat {
 };
 
 struct listbox_test {
-  struct listbox_stat  init,  init_todo;
-  struct listbox_stat click, click_todo;
-  struct listbox_stat  step,  step_todo;
-  struct listbox_stat   sel,   sel_todo;
+  struct listbox_stat  init;
+  struct listbox_stat click;
+  struct listbox_stat  step;
+  struct listbox_stat   sel;
 };
 
 static void
@@ -131,14 +131,11 @@ keypress (HWND handle, WPARAM keycode, BYTE scancode, BOOL extended)
   ok (t.s.f==got.f, "style %#lx, step " #s ", field " #f \
       ": expected %d, got %d\n", style, t.s.f, got.f)
 
-#define listbox_todo_field_ok(t, s, f, got) \
-  todo_wine_if (t.s##_todo.f) { listbox_field_ok(t, s, f, got); }
-
 #define listbox_ok(t, s, got) \
-  listbox_todo_field_ok(t, s, selected, got); \
-  listbox_todo_field_ok(t, s, anchor, got); \
-  listbox_todo_field_ok(t, s, caret, got); \
-  listbox_todo_field_ok(t, s, selcount, got)
+  listbox_field_ok(t, s, selected, got); \
+  listbox_field_ok(t, s, anchor, got); \
+  listbox_field_ok(t, s, caret, got); \
+  listbox_field_ok(t, s, selcount, got)
 
 static void
 check (DWORD style, const struct listbox_test test)
@@ -1521,12 +1518,20 @@ static void test_listbox_dlgdir(void)
     int itemCount_justFiles;
     int itemCount_justDrives;
     int i;
+    char curdir[MAX_PATH];
+    char path[MAX_PATH];
     char pathBuffer[MAX_PATH];
     char itemBuffer[MAX_PATH];
     char tempBuffer[MAX_PATH];
     char * p;
     char driveletter;
     HANDLE file;
+
+    GetCurrentDirectoryA(ARRAY_SIZE(curdir), curdir);
+
+    GetTempPathA(ARRAY_SIZE(path), path);
+    res = SetCurrentDirectoryA(path);
+    ok(res, "Failed to set current directory.\n");
 
     file = CreateFileA( "wtest1.tmp.c", GENERIC_READ|GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL );
     ok(file != INVALID_HANDLE_VALUE, "Error creating the test file: %ld\n", GetLastError());
@@ -1950,6 +1955,7 @@ static void test_listbox_dlgdir(void)
        "GetLastError should return 0x589, got 0x%lX\n",GetLastError());
 
     DestroyWindow(hWnd);
+    SetCurrentDirectoryA(curdir);
 }
 
 static void test_set_count( void )
@@ -2577,46 +2583,46 @@ START_TEST(listbox)
 {
   const struct listbox_test SS =
 /*   {add_style} */
-    {{LB_ERR, LB_ERR,      0, LB_ERR}, {0,0,0,0},
-     {     1,      1,      1, LB_ERR}, {0,0,0,0},
-     {     2,      2,      2, LB_ERR}, {0,0,0,0},
-     {LB_ERR, LB_ERR,      0, LB_ERR}, {0,0,0,0}};
-/* {selected, anchor,  caret, selcount}{TODO fields} */
+    {{LB_ERR, LB_ERR,      0, LB_ERR},
+     {     1,      1,      1, LB_ERR},
+     {     2,      2,      2, LB_ERR},
+     {LB_ERR, LB_ERR,      0, LB_ERR}};
+/* {selected, anchor,  caret, selcount} */
   const struct listbox_test SS_NS =
-    {{LB_ERR, LB_ERR,      0, LB_ERR}, {0,0,0,0},
-     {     1,      1,      1, LB_ERR}, {0,0,0,0},
-     {     2,      2,      2, LB_ERR}, {0,0,0,0},
-     {LB_ERR, LB_ERR,      0, LB_ERR}, {0,0,0,0}};
+    {{LB_ERR, LB_ERR,      0, LB_ERR},
+     {     1,      1,      1, LB_ERR},
+     {     2,      2,      2, LB_ERR},
+     {LB_ERR, LB_ERR,      0, LB_ERR}};
   const struct listbox_test MS =
-    {{     0, LB_ERR,      0,      0}, {0,0,0,0},
-     {     1,      1,      1,      1}, {0,0,0,0},
-     {     2,      1,      2,      1}, {0,0,0,0},
-     {     0, LB_ERR,      0,      2}, {0,0,0,0}};
+    {{     0, LB_ERR,      0,      0},
+     {     1,      1,      1,      1},
+     {     2,      1,      2,      1},
+     {     0, LB_ERR,      0,      2}};
   const struct listbox_test MS_NS =
-    {{LB_ERR, LB_ERR,      0, LB_ERR}, {0,0,0,0},
-     {     1,      1,      1, LB_ERR}, {0,0,0,0},
-     {     2,      2,      2, LB_ERR}, {0,0,0,0},
-     {LB_ERR, LB_ERR,      0, LB_ERR}, {0,0,0,0}};
+    {{LB_ERR, LB_ERR,      0, LB_ERR},
+     {     1,      1,      1, LB_ERR},
+     {     2,      2,      2, LB_ERR},
+     {LB_ERR, LB_ERR,      0, LB_ERR}};
   const struct listbox_test ES =
-    {{     0, LB_ERR,      0,      0}, {0,0,0,0},
-     {     1,      1,      1,      1}, {0,0,0,0},
-     {     2,      2,      2,      1}, {0,0,0,0},
-     {     0, LB_ERR,      0,      2}, {0,0,0,0}};
+    {{     0, LB_ERR,      0,      0},
+     {     1,      1,      1,      1},
+     {     2,      2,      2,      1},
+     {     0, LB_ERR,      0,      2}};
   const struct listbox_test ES_NS =
-    {{LB_ERR, LB_ERR,      0, LB_ERR}, {0,0,0,0},
-     {     1,      1,      1, LB_ERR}, {0,0,0,0},
-     {     2,      2,      2, LB_ERR}, {0,0,0,0},
-     {LB_ERR, LB_ERR,      0, LB_ERR}, {0,0,0,0}};
+    {{LB_ERR, LB_ERR,      0, LB_ERR},
+     {     1,      1,      1, LB_ERR},
+     {     2,      2,      2, LB_ERR},
+     {LB_ERR, LB_ERR,      0, LB_ERR}};
   const struct listbox_test EMS =
-    {{     0, LB_ERR,      0,      0}, {0,0,0,0},
-     {     1,      1,      1,      1}, {0,0,0,0},
-     {     2,      2,      2,      1}, {0,0,0,0},
-     {     0, LB_ERR,      0,      2}, {0,0,0,0}};
+    {{     0, LB_ERR,      0,      0},
+     {     1,      1,      1,      1},
+     {     2,      2,      2,      1},
+     {     0, LB_ERR,      0,      2}};
   const struct listbox_test EMS_NS =
-    {{LB_ERR, LB_ERR,      0, LB_ERR}, {0,0,0,0},
-     {     1,      1,      1, LB_ERR}, {0,0,0,0},
-     {     2,      2,      2, LB_ERR}, {0,0,0,0},
-     {LB_ERR, LB_ERR,      0, LB_ERR}, {0,0,0,0}};
+    {{LB_ERR, LB_ERR,      0, LB_ERR},
+     {     1,      1,      1, LB_ERR},
+     {     2,      2,      2, LB_ERR},
+     {LB_ERR, LB_ERR,      0, LB_ERR}};
 
   trace (" Testing single selection...\n");
   check (0, SS);

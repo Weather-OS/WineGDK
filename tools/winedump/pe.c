@@ -653,6 +653,24 @@ static void dump_section_apiset(void)
     }
 }
 
+static UINT get_export_rva( const char *name )
+{
+    UINT i;
+    const UINT *funcs;
+    const UINT *names;
+    const WORD *ordinals;
+    const IMAGE_EXPORT_DIRECTORY *dir;
+
+    if (!(dir = get_dir( IMAGE_FILE_EXPORT_DIRECTORY ))) return 0;
+    if (!(funcs = RVA( dir->AddressOfFunctions, dir->NumberOfFunctions * sizeof(DWORD) ))) return 0;
+    names = RVA( dir->AddressOfNames, dir->NumberOfNames * sizeof(DWORD) );
+    ordinals = RVA( dir->AddressOfNameOrdinals, dir->NumberOfNames * sizeof(WORD) );
+    for (i = 0; i < dir->NumberOfNames; i++)
+        if (!strcmp( name, RVA( names[i], 1 )))
+            return funcs[ordinals[i]];
+    return 0;
+}
+
 static const char *find_export_from_rva( UINT rva )
 {
     UINT i, *func_names;
@@ -2116,12 +2134,19 @@ static void dump_arm64_codes( const BYTE *ptr, unsigned int count )
 static void dump_arm64_packed_info( const struct runtime_function_arm64 *func )
 {
     int i, pos = 0, intsz = func->RegI * 8, fpsz = func->RegF * 8, savesz, locsz;
+    int homing = func->H;
 
     if (func->CR == 1) intsz += 8;
     if (func->RegF) fpsz += 8;
 
     savesz = ((intsz + fpsz + 8 * 8 * func->H) + 0xf) & ~0xf;
     locsz = func->FrameSize * 16 - savesz;
+
+    if (func->H && func->RegI == 0 && func->RegF == 0 && func->CR != 1)
+    {
+        locsz += savesz;
+        homing = 0;
+    }
 
     switch (func->CR)
     {
@@ -2148,7 +2173,7 @@ static void dump_arm64_packed_info( const struct runtime_function_arm64 *func )
         break;
     }
 
-    if (func->H)
+    if (homing)
     {
         printf( "    %04x:  stp x6,x7,[sp,#%#x]\n", pos++, intsz + fpsz + 48 );
         printf( "    %04x:  stp x4,x5,[sp,#%#x]\n", pos++, intsz + fpsz + 32 );
@@ -2176,9 +2201,10 @@ static void dump_arm64_packed_info( const struct runtime_function_arm64 *func )
             printf( "    %04x:  str lr,[sp,-#%#x]!\n", pos++, savesz );
         break;
     case 1:
-        if (func->CR == 1)
-            printf( "    %04x:  stp x19,lr,[sp,-#%#x]!\n", pos++, savesz );
-        else
+        if (func->CR == 1) {
+            printf( "    %04x:  sub sp, sp, %#x\n", pos++, savesz );
+            printf( "    %04x:  stp x19,lr,[sp]\n", pos++ );
+        } else
             printf( "    %04x:  str x19,[sp,-#%#x]!\n", pos++, savesz );
         break;
     default:
@@ -2884,7 +2910,6 @@ static void print_clr( const char *str )
 static void print_clr_strings( const BYTE *data, UINT data_size )
 {
     const char *beg = (const char *)data, *end;
-    UINT count = 0;
 
     if (!data_size) return;
     clr_indent += 4;
@@ -2892,9 +2917,8 @@ static void print_clr_strings( const BYTE *data, UINT data_size )
     {
         if (!(end = memchr( beg, '\0', data_size - (beg - (const char *)data) ))) break;
         print_clr_indent();
-        printf( "%-10u\"%s\"\n", count, beg );
+        printf( "%-10u\"%s\"\n", (UINT)(beg - (const char *)data), beg );
         beg = end + 1;
-        count++;
     }
     clr_indent -= 4;
 }
@@ -4622,89 +4646,6 @@ static const char *get_resource_type( unsigned int id )
     return NULL;
 }
 
-/* dump an ASCII string with proper escaping */
-static int dump_strA( const unsigned char *str, size_t len )
-{
-    static const char escapes[32] = ".......abtnvfr.............e....";
-    char buffer[256];
-    char *pos = buffer;
-    int count = 0;
-
-    for (; len; str++, len--)
-    {
-        if (pos > buffer + sizeof(buffer) - 8)
-        {
-            fwrite( buffer, pos - buffer, 1, stdout );
-            count += pos - buffer;
-            pos = buffer;
-        }
-        if (*str > 127)  /* hex escape */
-        {
-            pos += sprintf( pos, "\\x%02x", *str );
-            continue;
-        }
-        if (*str < 32)  /* octal or C escape */
-        {
-            if (!*str && len == 1) continue;  /* do not output terminating NULL */
-            if (escapes[*str] != '.')
-                pos += sprintf( pos, "\\%c", escapes[*str] );
-            else if (len > 1 && str[1] >= '0' && str[1] <= '7')
-                pos += sprintf( pos, "\\%03o", *str );
-            else
-                pos += sprintf( pos, "\\%o", *str );
-            continue;
-        }
-        if (*str == '\\') *pos++ = '\\';
-        *pos++ = *str;
-    }
-    fwrite( buffer, pos - buffer, 1, stdout );
-    count += pos - buffer;
-    return count;
-}
-
-/* dump a Unicode string with proper escaping */
-static int dump_strW( const WCHAR *str, size_t len )
-{
-    static const char escapes[32] = ".......abtnvfr.............e....";
-    char buffer[256];
-    char *pos = buffer;
-    int count = 0;
-
-    for (; len; str++, len--)
-    {
-        if (pos > buffer + sizeof(buffer) - 8)
-        {
-            fwrite( buffer, pos - buffer, 1, stdout );
-            count += pos - buffer;
-            pos = buffer;
-        }
-        if (*str > 127)  /* hex escape */
-        {
-            if (len > 1 && str[1] < 128 && isxdigit((char)str[1]))
-                pos += sprintf( pos, "\\x%04x", *str );
-            else
-                pos += sprintf( pos, "\\x%x", *str );
-            continue;
-        }
-        if (*str < 32)  /* octal or C escape */
-        {
-            if (!*str && len == 1) continue;  /* do not output terminating NULL */
-            if (escapes[*str] != '.')
-                pos += sprintf( pos, "\\%c", escapes[*str] );
-            else if (len > 1 && str[1] >= '0' && str[1] <= '7')
-                pos += sprintf( pos, "\\%03o", *str );
-            else
-                pos += sprintf( pos, "\\%o", *str );
-            continue;
-        }
-        if (*str == '\\') *pos++ = '\\';
-        *pos++ = *str;
-    }
-    fwrite( buffer, pos - buffer, 1, stdout );
-    count += pos - buffer;
-    return count;
-}
-
 /* dump data for a STRING resource */
 static void dump_string_data( const WCHAR *ptr, unsigned int size, unsigned int id, const char *prefix )
 {
@@ -4756,7 +4697,7 @@ static void dump_msgtable_data( const void *ptr, unsigned int size, const char *
             {
                 const char *str = (const char *) entry->Text;
                 printf( "%s%08x \"", prefix, j );
-                dump_strA( entry->Text, strlen(str) );
+                dump_strA( str, strlen(str) );
                 printf( "\"\n" );
             }
             entry = (const MESSAGE_RESOURCE_ENTRY *)((const char *)entry + entry->Length);
@@ -5068,7 +5009,7 @@ static void dump_dir_resource(void)
                 if (e1->NameIsString)
                 {
                     string = (const IMAGE_RESOURCE_DIR_STRING_U*)((const char *)root + e1->NameOffset);
-                    dump_unicode_str( string->NameString, string->Length );
+                    dump_strW( string->NameString, string->Length );
                 }
                 else
                 {
@@ -5081,7 +5022,7 @@ static void dump_dir_resource(void)
                 if (e2->NameIsString)
                 {
                     string = (const IMAGE_RESOURCE_DIR_STRING_U*) ((const char *)root + e2->NameOffset);
-                    dump_unicode_str( string->NameString, string->Length );
+                    dump_strW( string->NameString, string->Length );
                 }
                 else
                     printf( "%04x", e2->Id );
@@ -5095,7 +5036,8 @@ static void dump_dir_resource(void)
                         tlb_dump_resource( (void *)RVA( data->OffsetToData, data->Size ), data->Size, "  |  " );
                     else if (!cmp_resource_name( string, "MUI" ))
                         dump_mui_data( RVA( data->OffsetToData, data->Size ), data->Size, "  |  " );
-                    else if (!cmp_resource_name( string, "WINE_REGISTRY" ))
+                    else if (!cmp_resource_name( string, "REGISTRY" ) ||
+                             !cmp_resource_name( string, "WINE_REGISTRY" ))
                         dump_text_data( RVA( data->OffsetToData, data->Size ), data->Size, "  |  " );
                     else
                         dump_data( RVA( data->OffsetToData, data->Size ), data->Size, "    " );
@@ -5168,6 +5110,19 @@ static void dump_symbol_table(void)
     dump_coff_symbol_table(sym, numsym, IMAGE_FIRST_SECTION(PE_nt_headers));
 }
 
+static void dump_embedded_ne_module( UINT rva )
+{
+    const void *ne_module = RVA( rva, 1 );
+    void *new_base;
+
+    dump_total_len -= (char *)ne_module - (char *)dump_base;
+    new_base = xmalloc( dump_total_len );
+    memcpy( new_base, ne_module, dump_total_len );
+    free( dump_base );
+    dump_base = new_base;
+    ne_dump();
+}
+
 enum FileSig get_kind_exec(void)
 {
     const WORD*                pw;
@@ -5197,6 +5152,7 @@ enum FileSig get_kind_exec(void)
 void pe_dump(void)
 {
     int alt = 0;
+    UINT rva;
 
     PE_nt_headers = get_nt_header();
     print_fake_dll();
@@ -5253,6 +5209,13 @@ void pe_dump(void)
             dump_symbol_table();
         if (globals.do_debug)
             dump_debug();
+        if (PE_nt_headers->FileHeader.Machine == IMAGE_FILE_MACHINE_I386 &&
+            (rva = get_export_rva( "__wine_spec_dos_header" )))
+        {
+            printf( "\n*** 16-bit Wine dll, dumping embedded NE module ***\n\n" );
+            dump_embedded_ne_module( rva );
+            break;
+        }
         if (alt++) break;
         if (!get_alt_header()) break;
     }

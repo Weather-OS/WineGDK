@@ -252,7 +252,7 @@ struct client_surface_funcs
     void (*destroy)( struct client_surface *surface );
     /* detach the surface from its window, called from window owner thread */
     void (*detach)( struct client_surface *surface );
-    /* update the surface to match its window state, called from window owner thread */
+    /* update the surface to match its window state */
     void (*update)( struct client_surface *surface );
     /* present the client surface if necessary, hdc != NULL when offscreen, called from render thread */
     void (*present)( struct client_surface *surface, HDC hdc );
@@ -272,6 +272,7 @@ W32KAPI void *client_surface_create( UINT size, const struct client_surface_func
 W32KAPI void client_surface_add_ref( struct client_surface *surface );
 W32KAPI void client_surface_release( struct client_surface *surface );
 W32KAPI void client_surface_present( struct client_surface *surface );
+W32KAPI void client_surface_update( struct client_surface *surface );
 W32KAPI void detach_client_surfaces( HWND hwnd );
 
 static inline const char *debugstr_client_surface( struct client_surface *surface )
@@ -318,13 +319,7 @@ W32KAPI struct window_surface *window_surface_create( UINT size, const struct wi
                                                       const RECT *rect, BITMAPINFO *info, HBITMAP bitmap );
 W32KAPI void window_surface_add_ref( struct window_surface *surface );
 W32KAPI void window_surface_release( struct window_surface *surface );
-W32KAPI void window_surface_lock( struct window_surface *surface );
-W32KAPI void window_surface_unlock( struct window_surface *surface );
-W32KAPI void window_surface_set_layered( struct window_surface *surface, COLORREF color_key, UINT alpha_bits, UINT alpha_mask );
-W32KAPI void window_surface_flush( struct window_surface *surface );
-W32KAPI void window_surface_set_clip( struct window_surface *surface, HRGN clip_region );
 W32KAPI void window_surface_set_shape( struct window_surface *surface, HRGN shape_region );
-W32KAPI void window_surface_set_layered( struct window_surface *surface, COLORREF color_key, UINT alpha_bits, UINT alpha_mask );
 
 /* display manager interface, used to initialize display device registry data */
 
@@ -342,6 +337,7 @@ struct gdi_monitor
     RECT rc_work;         /* RcWork in MONITORINFO struct */
     unsigned char *edid;  /* Extended Device Identification Data */
     UINT edid_len;
+    BOOL hdr_enabled;
 };
 
 struct gdi_device_manager

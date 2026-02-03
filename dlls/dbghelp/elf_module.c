@@ -946,7 +946,7 @@ static int elf_new_wine_thunks(struct module* module, const struct hash_table* h
             ULONG64     ref_addr;
             struct location loc;
 
-            symt = symt_find_nearest(module, addr);
+            symt = (struct symt_ht*)SYMT_SYMREF_TO_PTR(symt_find_nearest(module, addr));
             if (symt && !symt_get_address(&symt->symt, &ref_addr))
                 ref_addr = addr;
             if (!symt || addr != ref_addr)
@@ -1247,7 +1247,7 @@ static BOOL elf_load_file_from_fmap(struct process* pcs, const WCHAR* filename,
         if (!modfmt) return FALSE;
         elf_info->module = module_new(pcs, filename, DMT_ELF,
                                       module_is_wine_host(filename, L".so"), FALSE, modbase,
-                                      fmap->u.elf.elf_size, 0, calc_crc32(fmap->u.elf.handle),
+                                      fmap->u.elf.elf_size, 0, 0,
                                       elf_get_machine(fmap->u.elf.elfhdr.e_machine));
         if (!elf_info->module)
         {

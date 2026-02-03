@@ -118,7 +118,7 @@ static BOOL WINAPI init_trash_dirs( INIT_ONCE *once, void *param, void **context
         swprintf( files, len, fmt, home );
         files[1] = '\\';  /* change \??\ to \\?\ */
         for (p = files; *p; p++) if (*p == '/') *p = '\\';
-        CreateDirectoryW( files, NULL );
+        SHCreateDirectoryExW( NULL, files, NULL );
         info = malloc( len * sizeof(WCHAR) );
         lstrcpyW( info, files );
         lstrcatW( files, L"\\files" );

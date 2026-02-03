@@ -491,9 +491,11 @@ static const struct column col_sid[] =
 };
 static const struct column col_softwarelicensingproduct[] =
 {
-    { L"LicenseIsAddon", CIM_BOOLEAN },
-    { L"LicenseStatus",  CIM_UINT32 },
-};
+    { L"ApplicationId",     CIM_STRING },
+    { L"LicenseIsAddon",    CIM_BOOLEAN },
+    { L"LicenseStatus",     CIM_UINT32 },
+    { L"PartialProductKey", CIM_STRING },
+ };
 static const struct column col_sounddevice[] =
 {
     { L"Caption",      CIM_STRING },
@@ -524,7 +526,8 @@ static const struct column col_systemenclosure[] =
     { L"LockPresent",  CIM_BOOLEAN },
     { L"Manufacturer", CIM_STRING|COL_FLAG_DYNAMIC },
     { L"Name",         CIM_STRING },
-    { L"Tag",          CIM_STRING },
+    { L"SerialNumber", CIM_STRING|COL_FLAG_DYNAMIC },
+    { L"Tag",          CIM_STRING|COL_FLAG_KEY },
 };
 static const struct column col_systemsecurity[] =
 {
@@ -1068,8 +1071,10 @@ struct record_sid
 };
 struct record_softwarelicensingproduct
 {
-    int    license_is_addon;
-    UINT32 license_status;
+    const WCHAR *application_id;
+    int         license_is_addon;
+    UINT32      license_status;
+    const WCHAR *partial_product_key;
 };
 struct record_sounddevice
 {
@@ -1119,6 +1124,7 @@ struct record_systemenclosure
     int                 lockpresent;
     const WCHAR        *manufacturer;
     const WCHAR        *name;
+    const WCHAR        *serial_number;
     const WCHAR        *tag;
 };
 struct record_videocontroller
@@ -1291,7 +1297,7 @@ static const struct record_quickfixengineering data_quickfixengineering[] =
 
 static const struct record_softwarelicensingproduct data_softwarelicensingproduct[] =
 {
-    { 0, 1 },
+    { L"55c92734-d682-4d71-983e-d6ec3f16059f", 0, 1, L"BEEF0" },
 };
 
 static const struct record_stdregprov data_stdregprov[] =
@@ -4568,6 +4574,13 @@ done:
     return ret;
 }
 
+static WCHAR *get_systemenclosure_serialnumber( const char *buf, UINT len )
+{
+    WCHAR *ret = get_smbios_string( SMBIOS_TYPE_CHASSIS, 0, offsetof(struct smbios_chassis, serial), buf, len );
+    if (!ret) return wcsdup( L"0" );
+    return ret;
+}
+
 static enum fill_status fill_systemenclosure( struct table *table, const struct expr *cond )
 {
     struct record_systemenclosure *rec;
@@ -4588,6 +4601,7 @@ static enum fill_status fill_systemenclosure( struct table *table, const struct 
     rec->lockpresent  = get_systemenclosure_lockpresent( buf, len );
     rec->manufacturer = get_systemenclosure_manufacturer( buf, len );
     rec->name         = L"System Enclosure";
+    rec->serial_number = get_systemenclosure_serialnumber( buf, len );
     rec->tag          = L"System Enclosure 0";
     if (!match_row( table, row, cond, &status )) free_row_values( table, row );
     else row++;

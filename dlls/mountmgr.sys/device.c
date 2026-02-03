@@ -1619,6 +1619,30 @@ static NTSTATUS query_property( struct disk_device *device, IRP *irp )
         }
         break;
     }
+    case StorageDeviceTrimProperty:
+    {
+        DEVICE_TRIM_DESCRIPTOR *d = irp->AssociatedIrp.SystemBuffer;
+
+        if (irpsp->Parameters.DeviceIoControl.OutputBufferLength < sizeof(STORAGE_DESCRIPTOR_HEADER))
+            status = STATUS_INVALID_PARAMETER;
+        else
+        {
+            if (irpsp->Parameters.DeviceIoControl.OutputBufferLength < sizeof(*d))
+            {
+                d->Version = d->Size = sizeof(*d);
+                irp->IoStatus.Information = sizeof(STORAGE_DESCRIPTOR_HEADER);
+            }
+            else
+            {
+                FIXME( "Returning TRUE for StorageDeviceTrimProperty.\n" );
+                d->Version = d->Size = sizeof(*d);
+                d->TrimEnabled = TRUE;
+                irp->IoStatus.Information = sizeof(*d);
+            }
+            status = STATUS_SUCCESS;
+        }
+        break;
+    }
 
     default:
         FIXME( "Unsupported property %#x\n", query->PropertyId );
@@ -1732,7 +1756,7 @@ static NTSTATUS WINAPI harddisk_query_volume( DEVICE_OBJECT *device, IRP *irp )
             break;
         default:
             fsname = L"NTFS";
-            info->FileSystemAttributes = FILE_CASE_PRESERVED_NAMES | FILE_PERSISTENT_ACLS;
+            info->FileSystemAttributes = FILE_CASE_PRESERVED_NAMES | FILE_PERSISTENT_ACLS | FILE_SUPPORTS_REPARSE_POINTS;
             info->MaximumComponentNameLength = 255;
             break;
         }
@@ -1759,6 +1783,40 @@ static NTSTATUS WINAPI harddisk_query_volume( DEVICE_OBJECT *device, IRP *irp )
             info->TotalAllocationUnits.QuadPart = size_info.total_allocation_units;
             info->CallerAvailableAllocationUnits.QuadPart = size_info.caller_available_allocation_units;
             info->ActualAvailableAllocationUnits.QuadPart = size_info.actual_available_allocation_units;
+            info->SectorsPerAllocationUnit = size_info.sectors_per_allocation_unit;
+            info->BytesPerSector = size_info.bytes_per_sector;
+            io->Information = sizeof(*info);
+            status = STATUS_SUCCESS;
+        }
+
+        break;
+    }
+
+    case FileFsFullSizeInformationEx:
+    {
+        FILE_FS_FULL_SIZE_INFORMATION_EX *info = irp->AssociatedIrp.SystemBuffer;
+        struct size_info size_info;
+        struct get_volume_size_info_params params = { dev->unix_mount, &size_info };
+
+        if (length < sizeof(FILE_FS_FULL_SIZE_INFORMATION_EX))
+        {
+            status = STATUS_BUFFER_TOO_SMALL;
+            break;
+        }
+
+        if ((status = MOUNTMGR_CALL( get_volume_size_info, &params )) == STATUS_SUCCESS)
+        {
+            info->ActualTotalAllocationUnits = size_info.total_allocation_units;
+            info->ActualAvailableAllocationUnits = size_info.actual_available_allocation_units;
+            info->ActualPoolUnavailableAllocationUnits = 0;
+            info->CallerAvailableAllocationUnits = size_info.caller_available_allocation_units;
+            info->CallerPoolUnavailableAllocationUnits = 0;
+            info->UsedAllocationUnits = info->ActualTotalAllocationUnits - info->ActualAvailableAllocationUnits;
+            info->CallerTotalAllocationUnits = info->CallerAvailableAllocationUnits + info->UsedAllocationUnits;
+            info->TotalReservedAllocationUnits = 0;
+            info->VolumeStorageReserveAllocationUnits = 0;
+            info->AvailableCommittedAllocationUnits = 0;
+            info->PoolAvailableAllocationUnits = 0;
             info->SectorsPerAllocationUnit = size_info.sectors_per_allocation_unit;
             info->BytesPerSector = size_info.bytes_per_sector;
             io->Information = sizeof(*info);

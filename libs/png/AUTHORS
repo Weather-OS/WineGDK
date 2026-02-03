@@ -5,6 +5,7 @@ This is the list of PNG Reference Library ("libpng") Contributing
 Authors, for copyright and licensing purposes.
 
  * Adam Richter
+ * Alexander Smorkalov
  * Andreas Dilger
  * Chris Blume
  * Cosmin Truta
@@ -26,12 +27,14 @@ Authors, for copyright and licensing purposes.
  * Mike Klein
  * Pascal Massimino
  * Paul Schmidt
+ * Petr Simecek
  * Philippe Antoine
  * Qiang Zhou
  * Sam Bushell
  * Samuel Williams
  * Simon-Pierre Cadieux
  * Tim Wegner
+ * Tobias Stoeckmann
  * Tom Lane
  * Tom Tanner
  * Vadim Barkov
@@ -55,6 +58,8 @@ Authors, for copyright and licensing purposes.
     - ZhangLixia (张利霞)
  * Samsung Group
     - Filip Wasil
+ * SpacemiT Hangzhou Technology, Co.
+    - Liang Junzhao (梁俊钊)
 
 The build projects, the build scripts, the test scripts, and other
 files in the "projects", "scripts" and "tests" directories, have

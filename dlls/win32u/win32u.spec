@@ -874,7 +874,7 @@
 @ stdcall -syscall NtUserCreatePopupMenu()
 @ stub -syscall NtUserCreateSyntheticPointerDevice2
 @ stub -syscall NtUserCreateSystemThreads
-@ stdcall -syscall NtUserCreateWindowEx(long ptr ptr ptr long long long long long long long long ptr long long ptr long)
+@ stdcall -syscall NtUserCreateWindowEx(long ptr ptr ptr long long long long long ptr ptr ptr ptr long ptr ptr long)
 @ stub -syscall NtUserCreateWindowGroup
 @ stdcall -syscall NtUserCreateWindowStation(ptr long long long long long long)
 @ stub -syscall NtUserCsDdeUninitialize
@@ -1207,7 +1207,7 @@
 @ stdcall -syscall NtUserMessageCall(long long long long long long long)
 @ stub -syscall NtUserMinInitialize
 @ stub -syscall NtUserMinMaximize
-@ stub -syscall NtUserModifyUserStartupInfoFlags
+@ stdcall -syscall NtUserModifyUserStartupInfoFlags(long long)
 @ stub -syscall NtUserModifyWindowTouchCapability
 @ stdcall -syscall NtUserMoveWindow(long long long long long long)
 @ stdcall -syscall NtUserMsgWaitForMultipleObjectsEx(long ptr long long long)

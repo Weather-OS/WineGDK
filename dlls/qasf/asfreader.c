@@ -327,7 +327,8 @@ static HRESULT WINAPI media_seeking_ChangeCurrent(IMediaSeeking *iface)
     struct asf_stream *stream = impl_from_IMediaSeeking(iface);
     struct asf_reader *filter = asf_reader_from_asf_stream(stream);
     struct SourceSeeking *seek = &stream->seek;
-    HRESULT hr;
+    WMT_STATUS filter_status = filter->status;
+    HRESULT hr = S_OK;
     UINT i;
 
     TRACE("iface %p.\n", iface);
@@ -335,22 +336,23 @@ static HRESULT WINAPI media_seeking_ChangeCurrent(IMediaSeeking *iface)
     /* Send begin flush commands downstream. */
     for (i = 0; i < filter->stream_count; ++i)
     {
-        if (FAILED(IPin_BeginFlush(stream->source.pin.peer)))
+        if (stream->source.pin.peer && FAILED(IPin_BeginFlush(stream->source.pin.peer)))
             WARN("Failed to BeginFlush for stream %u.\n", i);
     }
 
     /* Stop the reader. */
-    hr = asf_reader_stop_stream(filter);
+    if (filter_status == WMT_STARTED && FAILED(hr = asf_reader_stop_stream(filter)))
+        return hr;
 
     /* Send end flush commands downstream. */
     for (i = 0; i < filter->stream_count; ++i)
     {
-        if (FAILED(IPin_EndFlush(stream->source.pin.peer)))
+        if (stream->source.pin.peer && FAILED(IPin_EndFlush(stream->source.pin.peer)))
             WARN("Failed to EndFlush for stream %u.\n", i);
     }
 
-    /* Start the reader. */
-    if (hr == S_OK)
+    /* Start the reader again if it was started. */
+    if (filter_status == WMT_STARTED)
         hr = asf_reader_start_stream(filter, seek->llCurrent, seek->llDuration, seek->dRate);
 
     return hr;
@@ -444,6 +446,8 @@ static void asf_reader_destroy(struct strmbase_filter *iface)
     struct asf_reader *filter = impl_from_strmbase_filter(iface);
     struct strmbase_source *source;
 
+    IWMReader_Release(filter->reader);
+
     while (filter->stream_count--)
     {
         source = &filter->streams[filter->stream_count].source;
@@ -454,7 +458,6 @@ static void asf_reader_destroy(struct strmbase_filter *iface)
 
     free(filter->file_name);
     IWMReaderCallback_Release(filter->callback);
-    IWMReader_Release(filter->reader);
 
     strmbase_filter_cleanup(&filter->filter);
 

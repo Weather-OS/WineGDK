@@ -1570,6 +1570,240 @@ static HRESULT __stdcall arithmetic_composite_factory(IUnknown **effect)
     return d2d_effect_create_impl(effect, &properties, sizeof(properties));
 }
 
+static const WCHAR blend_description[] =
+L"<?xml version='1.0'?>                                                   \
+  <Effect>                                                                \
+    <Property name='DisplayName' type='string' value='Blend'/>            \
+    <Property name='Author'      type='string' value='The Wine Project'/> \
+    <Property name='Category'    type='string' value='Stub'/>             \
+    <Property name='Description' type='string' value='Blend'/>            \
+    <Inputs minimum='2' maximum='2' >                                     \
+      <Input name='Source1'/>                                             \
+      <Input name='Source2'/>                                             \
+    </Inputs>                                                             \
+    <Property name='Mode' type='enum' />                                  \
+  </Effect>";
+
+struct blend_properties
+{
+    D2D1_BLEND_MODE mode;
+};
+
+EFFECT_PROPERTY_RW(blend, mode, ENUM)
+
+static const D2D1_PROPERTY_BINDING blend_bindings[] =
+{
+    { L"Mode", BINDING_RW(blend, mode) },
+};
+
+static HRESULT __stdcall blend_factory(IUnknown **effect)
+{
+    static const struct blend_properties properties = {};
+    return d2d_effect_create_impl(effect, &properties, sizeof(properties));
+}
+
+static const WCHAR brightness_description[] =
+L"<?xml version='1.0'?>                                                   \
+  <Effect>                                                                \
+    <Property name='DisplayName' type='string' value='Brightness'/>       \
+    <Property name='Author'      type='string' value='The Wine Project'/> \
+    <Property name='Category'    type='string' value='Stub'/>             \
+    <Property name='Description' type='string' value='Brightness'/>       \
+    <Inputs>                                                              \
+      <Input name='Source'/>                                              \
+    </Inputs>                                                             \
+    <Property name='WhitePoint' type='vector2' />                         \
+    <Property name='BlackPoint' type='vector2' />                         \
+  </Effect>";
+
+struct brightness_properties
+{
+    D2D_VECTOR_2F white_point;
+    D2D_VECTOR_2F black_point;
+};
+
+EFFECT_PROPERTY_RW(brightness, white_point, VECTOR2)
+EFFECT_PROPERTY_RW(brightness, black_point, VECTOR2)
+
+static const D2D1_PROPERTY_BINDING brightness_bindings[] =
+{
+    { L"WhitePoint", BINDING_RW(brightness, white_point) },
+    { L"BlackPoint", BINDING_RW(brightness, black_point) },
+};
+
+static HRESULT __stdcall brightness_factory(IUnknown **effect)
+{
+    static const struct brightness_properties properties =
+    {
+        .white_point = { 1.0f, 1.0f },
+    };
+    return d2d_effect_create_impl(effect, &properties, sizeof(properties));
+}
+
+static const WCHAR directional_blur_description[] =
+L"<?xml version='1.0'?>                                                   \
+  <Effect>                                                                \
+    <Property name='DisplayName' type='string' value='Directional Blur'/> \
+    <Property name='Author'      type='string' value='The Wine Project'/> \
+    <Property name='Category'    type='string' value='Stub'/>             \
+    <Property name='Description' type='string' value='Directional Blur'/> \
+    <Inputs>                                                              \
+      <Input name='Source'/>                                              \
+    </Inputs>                                                             \
+    <Property name='StandardDeviation' type='float' />                    \
+    <Property name='Angle' type='float' />                                \
+    <Property name='Optimization' type='enum' />                          \
+    <Property name='BorderMode' type='enum' />                            \
+  </Effect>";
+
+struct directional_blur_properties
+{
+    float standard_deviation;
+    float angle;
+    D2D1_DIRECTIONALBLUR_OPTIMIZATION optimization;
+    D2D1_BORDER_MODE border_mode;
+};
+
+EFFECT_PROPERTY_RW(directional_blur, standard_deviation, FLOAT)
+EFFECT_PROPERTY_RW(directional_blur, angle, FLOAT)
+EFFECT_PROPERTY_RW(directional_blur, optimization, ENUM)
+EFFECT_PROPERTY_RW(directional_blur, border_mode, ENUM)
+
+static const D2D1_PROPERTY_BINDING directional_blur_bindings[] =
+{
+    { L"StandardDeviation", BINDING_RW(directional_blur, standard_deviation) },
+    { L"Angle", BINDING_RW(directional_blur, angle) },
+    { L"Optimization", BINDING_RW(directional_blur, optimization) },
+    { L"BorderMode", BINDING_RW(directional_blur, border_mode) },
+};
+
+static HRESULT __stdcall directional_blur_factory(IUnknown **effect)
+{
+    static const struct directional_blur_properties properties =
+    {
+        .standard_deviation = 3.0f,
+        .optimization = D2D1_DIRECTIONALBLUR_OPTIMIZATION_BALANCED,
+    };
+    return d2d_effect_create_impl(effect, &properties, sizeof(properties));
+}
+
+static const WCHAR hue_rotation_description[] =
+L"<?xml version='1.0'?>                                                   \
+  <Effect>                                                                \
+    <Property name='DisplayName' type='string' value='Hue Rotation'/>     \
+    <Property name='Author'      type='string' value='The Wine Project'/> \
+    <Property name='Category'    type='string' value='Stub'/>             \
+    <Property name='Description' type='string' value='Hue Rotation'/>     \
+    <Inputs>                                                              \
+      <Input name='Source'/>                                              \
+    </Inputs>                                                             \
+    <Property name='Angle' type='float' />                                \
+  </Effect>";
+
+struct hue_rotation_properties
+{
+    float angle;
+};
+
+EFFECT_PROPERTY_RW(hue_rotation, angle, FLOAT)
+
+static const D2D1_PROPERTY_BINDING hue_rotation_bindings[] =
+{
+    { L"Angle", BINDING_RW(hue_rotation, angle) },
+};
+
+static HRESULT __stdcall hue_rotation_factory(IUnknown **effect)
+{
+    static const struct hue_rotation_properties properties = {};
+    return d2d_effect_create_impl(effect, &properties, sizeof(properties));
+}
+
+static const WCHAR saturation_description[] =
+L"<?xml version='1.0'?>                                                   \
+  <Effect>                                                                \
+    <Property name='DisplayName' type='string' value='Saturation'/>       \
+    <Property name='Author'      type='string' value='The Wine Project'/> \
+    <Property name='Category'    type='string' value='Stub'/>             \
+    <Property name='Description' type='string' value='Saturation'/>       \
+    <Inputs>                                                              \
+      <Input name='Source'/>                                              \
+    </Inputs>                                                             \
+    <Property name='Saturation' type='float' />                           \
+  </Effect>";
+
+struct saturation_properties
+{
+    float saturation;
+};
+
+EFFECT_PROPERTY_RW(saturation, saturation, FLOAT)
+
+static const D2D1_PROPERTY_BINDING saturation_bindings[] =
+{
+    { L"Saturation", BINDING_RW(saturation, saturation) },
+};
+
+static HRESULT __stdcall saturation_factory(IUnknown **effect)
+{
+    static const struct saturation_properties properties =
+    {
+        .saturation = 0.5f,
+    };
+    return d2d_effect_create_impl(effect, &properties, sizeof(properties));
+}
+
+static const WCHAR scale_description[] =
+L"<?xml version='1.0'?>                                                   \
+  <Effect>                                                                \
+    <Property name='DisplayName' type='string' value='Scale'/>            \
+    <Property name='Author'      type='string' value='The Wine Project'/> \
+    <Property name='Category'    type='string' value='Stub'/>             \
+    <Property name='Description' type='string' value='Scale'/>            \
+    <Inputs>                                                              \
+      <Input name='Source'/>                                              \
+    </Inputs>                                                             \
+    <Property name='Scale' type='vector2' />                              \
+    <Property name='CenterPoint' type='vector2' />                        \
+    <Property name='InterpolationMode' type='enum' />                     \
+    <Property name='BorderMode' type='enum' />                            \
+    <Property name='Sharpness' type='float' />                            \
+  </Effect>";
+
+struct scale_properties
+{
+    D2D_VECTOR_2F scale;
+    D2D_VECTOR_2F center_point;
+    D2D1_BORDER_MODE border_mode;
+    float sharpness;
+    D2D1_SCALE_INTERPOLATION_MODE interpolation_mode;
+};
+
+EFFECT_PROPERTY_RW(scale, scale, VECTOR2)
+EFFECT_PROPERTY_RW(scale, center_point, VECTOR2)
+EFFECT_PROPERTY_RW(scale, border_mode, ENUM)
+EFFECT_PROPERTY_RW(scale, sharpness, FLOAT)
+EFFECT_PROPERTY_RW(scale, interpolation_mode, ENUM)
+
+static const D2D1_PROPERTY_BINDING scale_bindings[] =
+{
+    { L"Scale", BINDING_RW(scale, scale) },
+    { L"CenterPoint", BINDING_RW(scale, center_point) },
+    { L"BorderMode", BINDING_RW(scale, border_mode) },
+    { L"Sharpness", BINDING_RW(scale, sharpness) },
+    { L"InterpolationMode", BINDING_RW(scale, interpolation_mode) },
+};
+
+static HRESULT __stdcall scale_factory(IUnknown **effect)
+{
+    static const struct scale_properties properties =
+    {
+        .scale = { 1.0f, 1.0f },
+        .border_mode = D2D1_BORDER_MODE_SOFT,
+        .interpolation_mode = D2D1_SCALE_INTERPOLATION_MODE_LINEAR,
+    };
+    return d2d_effect_create_impl(effect, &properties, sizeof(properties));
+}
+
 void d2d_effects_init_builtins(struct d2d_factory *factory)
 {
     static const struct builtin_description
@@ -1595,6 +1829,12 @@ void d2d_effects_init_builtins(struct d2d_factory *factory)
         { &CLSID_D2D1GaussianBlur, X2(gaussian_blur) },
         { &CLSID_D2D1PointSpecular, X2(point_specular) },
         { &CLSID_D2D1ArithmeticComposite, X2(arithmetic_composite) },
+        { &CLSID_D2D1Blend, X2(blend) },
+        { &CLSID_D2D1Brightness, X2(brightness) },
+        { &CLSID_D2D1DirectionalBlur, X2(directional_blur) },
+        { &CLSID_D2D1HueRotation, X2(hue_rotation) },
+        { &CLSID_D2D1Saturation, X2(saturation) },
+        { &CLSID_D2D1Scale, X2(scale) },
 #undef X2
 #undef X
     };

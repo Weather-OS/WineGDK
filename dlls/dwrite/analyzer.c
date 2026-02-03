@@ -236,6 +236,9 @@ system_fallback_config[] =
     { "0000-007F, 0080-00FF, 0100-017F, 0180-024F, "
       "0250-02AF, 02B0-02FF, 0300-036F", L"Tahoma" },
 
+    /* Cyrillic, Cyrillic Supplement */
+    { "0400-052F",              L"Tahoma" },
+
     { "0530-058F, FB10-FB1C",   L"Noto Sans Armenian" },
 
     { "0590-05FF, FB1D-FB4F",   L"Noto Sans Hebrew" },
@@ -306,7 +309,7 @@ system_fallback_config[] =
     { "1C50-1C7F",              L"Noto Sans Ol Chiki" },
 
     /* Dingbats - 2700-27BF */
-    { "2700-27BF",              L"Noto Sans Symbols2"},
+    { "2700-27BF",              L"Noto Sans Symbols2, Noto Sans Symbols 2" },
 
     { "2C80-2CFF",              L"Noto Sans Coptic" },
     { "2D30-2D7F",              L"Noto Sans Tifinagh" },
@@ -373,6 +376,8 @@ system_fallback_config[] =
     { "FF00-FFEF",              L"Noto Sans CJK TC", L"zh-Hant" },
     { "FF00-FFEF",              L"Noto Sans CJK KR", L"ko" },
     { "FF00-FFEF",              L"Noto Sans CJK JP" },
+
+    { "1F800-1F8FF",            L"Noto Sans Symbols2, Noto Sans Symbols 2" },
 };
 
 struct text_source_context

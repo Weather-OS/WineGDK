@@ -1837,20 +1837,12 @@ static void init_peb( RTL_USER_PROCESS_PARAMETERS *params, void *module )
     peb->ImageSubSystemMinorVersion = main_image_info.MinorSubsystemVersion;
 
 #ifdef _WIN64
-    switch (main_image_info.Machine)
+    if (!is_machine_64bit( main_image_info.Machine ))
     {
-    case IMAGE_FILE_MACHINE_I386:
-    case IMAGE_FILE_MACHINE_ARMNT:
         NtCurrentTeb()->WowTebOffset = teb_offset;
         NtCurrentTeb()->Tib.ExceptionList = (void *)((char *)NtCurrentTeb() + teb_offset);
         wow_peb = (PEB32 *)((char *)peb + page_size);
         set_thread_id( NtCurrentTeb(), GetCurrentProcessId(), GetCurrentThreadId() );
-        ERR( "starting %s in experimental wow64 mode\n", debugstr_us(&params->ImagePathName) );
-        break;
-    case IMAGE_FILE_MACHINE_AMD64:
-        if (main_image_info.Machine == current_machine) break;
-        ERR( "starting %s in experimental ARM64EC mode\n", debugstr_us(&params->ImagePathName) );
-        break;
     }
 #endif
 
@@ -2126,11 +2118,9 @@ void init_startup_info(void)
 /* helper for create_startup_info */
 static BOOL is_console_handle( HANDLE handle )
 {
-    IO_STATUS_BLOCK io;
     DWORD mode;
 
-    return NtDeviceIoControlFile( handle, NULL, NULL, NULL, &io, IOCTL_CONDRV_GET_MODE, NULL, 0,
-                                  &mode, sizeof(mode) ) == STATUS_SUCCESS;
+    return sync_ioctl( handle, IOCTL_CONDRV_GET_MODE, NULL, 0, &mode, sizeof(mode) ) == STATUS_SUCCESS;
 }
 
 /***********************************************************************

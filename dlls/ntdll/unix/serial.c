@@ -376,14 +376,15 @@ static NTSTATUS get_properties(int fd, SERIAL_COMMPROP *prop)
     prop->ServiceMask       = SP_SERIALCOMM;
     prop->MaxTxQueue        = 4096;
     prop->MaxRxQueue        = 4096;
-    prop->MaxBaud           = BAUD_115200;
+    prop->MaxBaud           = BAUD_USER;
     prop->ProvSubType       = PST_RS232;
     prop->ProvCapabilities  = PCF_DTRDSR | PCF_PARITY_CHECK | PCF_RTSCTS | PCF_TOTALTIMEOUTS | PCF_INTTIMEOUTS;
     prop->SettableParams    = SP_BAUD | SP_DATABITS | SP_HANDSHAKING |
                               SP_PARITY | SP_PARITY_CHECK | SP_STOPBITS ;
     prop->SettableBaud      = BAUD_075 | BAUD_110 | BAUD_134_5 | BAUD_150 |
                               BAUD_300 | BAUD_600 | BAUD_1200 | BAUD_1800 | BAUD_2400 | BAUD_4800 |
-                              BAUD_9600 | BAUD_19200 | BAUD_38400 | BAUD_57600 | BAUD_115200 ;
+                              BAUD_7200 | BAUD_9600 | BAUD_14400 | BAUD_19200 | BAUD_38400 |
+                              BAUD_56K | BAUD_57600 | BAUD_115200 | BAUD_128K | BAUD_USER ;
     prop->SettableData       = DATABITS_5 | DATABITS_6 | DATABITS_7 | DATABITS_8 ;
     prop->SettableStopParity = STOPBITS_10 | STOPBITS_15 | STOPBITS_20 |
                 PARITY_NONE | PARITY_ODD |PARITY_EVEN | PARITY_MARK | PARITY_SPACE;

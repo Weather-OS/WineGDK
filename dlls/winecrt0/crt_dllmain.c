@@ -22,12 +22,45 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <process.h>
 #include "windef.h"
 #include "winbase.h"
 
+extern _PIFV __xi_a[];
+extern _PIFV __xi_z[];
+extern _PVFV __xc_a[];
+extern _PVFV __xc_z[];
+extern _PVFV __xt_a[];
+extern _PVFV __xt_z[];
+
+static void fallback_initterm( _PVFV *table,_PVFV *end )
+{
+    for ( ; table < end; table++)
+        if (*table) (*table)();
+}
+
+static int fallback_initterm_e( _PIFV *table, _PIFV *end )
+{
+    int res;
+    for (res = 0; !res && table < end; table++)
+        if (*table) res = (*table)();
+    return res;
+}
+
 BOOL WINAPI DllMainCRTStartup( HINSTANCE inst, DWORD reason, void *reserved )
 {
-    return DllMain( inst, reason, reserved );
+    BOOL ret;
+
+    if (reason == DLL_PROCESS_ATTACH)
+    {
+        if (fallback_initterm_e( __xi_a, __xi_z ) != 0) return FALSE;
+        fallback_initterm( __xc_a, __xc_z );
+    }
+
+    ret = DllMain( inst, reason, reserved );
+
+    if (reason == DLL_PROCESS_DETACH) fallback_initterm( __xt_a, __xt_z );
+    return ret;
 }
 
 #endif

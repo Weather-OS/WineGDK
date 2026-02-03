@@ -95,7 +95,7 @@ msgstr ""
 #: dlls/serialui/serialui.rc:41 dlls/setupapi/setupapi.rc:59
 #: dlls/shell32/shell32.rc:278 dlls/shell32/shell32.rc:302
 #: dlls/shell32/shell32.rc:324 dlls/shell32/shell32.rc:343
-#: dlls/shlwapi/shlwapi.rc:44 dlls/twain_32/twain.rc:32
+#: dlls/shlwapi/shlwapi.rc:44 dlls/twaindsm/twain.rc:32
 #: dlls/user32/user32.rc:94 dlls/user32/user32.rc:109 dlls/user32/user32.rc:73
 #: dlls/wininet/wininet.rc:62 dlls/wininet/wininet.rc:82
 #: dlls/winspool.drv/winspool.rc:42 programs/net/net.rc:48
@@ -193,12 +193,12 @@ msgstr ""
 #: dlls/inetcpl.cpl/inetcpl.rc:81 dlls/localui/localui.rc:45
 #: dlls/localui/localui.rc:58 dlls/mpr/mpr.rc:50 dlls/msacm32/msacm32.rc:54
 #: dlls/mshtml/mshtml.rc:48 dlls/mshtml/mshtml.rc:58 dlls/msvfw32/msvfw32.rc:37
-#: dlls/oledlg/oledlg.rc:63 dlls/oledlg/oledlg.rc:95
+#: dlls/oledlg/oledlg.rc:63 dlls/oledlg/oledlg.rc:95 dlls/sane.ds/sane.rc:70
 #: dlls/serialui/serialui.rc:42 dlls/setupapi/setupapi.rc:42
 #: dlls/setupapi/setupapi.rc:60 dlls/shell32/shell32.rc:279
 #: dlls/shell32/shell32.rc:303 dlls/shell32/shell32.rc:314
 #: dlls/shell32/shell32.rc:344 dlls/shlwapi/shlwapi.rc:45
-#: dlls/twain_32/twain.rc:33 dlls/user32/user32.rc:95 dlls/user32/user32.rc:110
+#: dlls/twaindsm/twain.rc:33 dlls/user32/user32.rc:95 dlls/user32/user32.rc:110
 #: dlls/user32/user32.rc:74 dlls/wininet/wininet.rc:63
 #: dlls/wininet/wininet.rc:83 dlls/winspool.drv/winspool.rc:43
 #: programs/notepad/notepad.rc:126 programs/notepad/notepad.rc:139
@@ -260,7 +260,7 @@ msgstr ""
 msgid "Not specified"
 msgstr ""
 
-#: dlls/appwiz.cpl/appwiz.rc:38 dlls/oledb32/version.rc:35
+#: dlls/appwiz.cpl/appwiz.rc:38 dlls/oledb32/oledb32.rc:30
 #: dlls/shell32/shell32.rc:141 dlls/shell32/shell32.rc:243
 #: programs/regedit/regedit.rc:150 programs/winefile/winefile.rc:106
 msgid "Name"
@@ -432,7 +432,7 @@ msgstr "Βοηθός"
 msgid "< &Back"
 msgstr "< &Προηγούμενο"
 
-#: dlls/comctl32/comctl32.rc:85 dlls/oledb32/version.rc:58
+#: dlls/comctl32/comctl32.rc:85 dlls/oledb32/oledb32.rc:53
 msgid "&Next >"
 msgstr "&Επόμενο >"
 
@@ -730,7 +730,7 @@ msgid "Scr&ipt:"
 msgstr "Σκρ&ιπτ:"
 
 #: dlls/comdlg32/comdlg32.rc:283 dlls/comdlg32/comdlg32.rc:288
-#: dlls/compstui/compstui.rc:33
+#: dlls/compstui/compstui.rc:33 dlls/sane.ds/sane.rc:42
 msgid "Color"
 msgstr "Χρώμα"
 
@@ -1089,7 +1089,8 @@ msgstr "Μωβ"
 msgid "Teal"
 msgstr ""
 
-#: dlls/comdlg32/comdlg32.rc:129 programs/wordpad/wordpad.rc:132
+#: dlls/comdlg32/comdlg32.rc:129 dlls/sane.ds/sane.rc:41
+#: programs/wordpad/wordpad.rc:132
 msgid "Gray"
 msgstr "Γκρι"
 
@@ -1394,7 +1395,7 @@ msgid "&User name:"
 msgstr ""
 
 #: dlls/credui/credui.rc:48 dlls/cryptui/cryptui.rc:402
-#: dlls/oledb32/version.rc:78
+#: dlls/oledb32/oledb32.rc:73
 msgid "&Password:"
 msgstr ""
 
@@ -2703,7 +2704,7 @@ msgstr ""
 msgid "Field"
 msgstr ""
 
-#: dlls/cryptui/cryptui.rc:48 dlls/oledb32/version.rc:36
+#: dlls/cryptui/cryptui.rc:48 dlls/oledb32/oledb32.rc:31
 msgid "Value"
 msgstr ""
 
@@ -3286,7 +3287,7 @@ msgstr ""
 msgid "OEM/DOS"
 msgstr ""
 
-#: dlls/gdi32/gdi32.rc:45 dlls/oledb32/version.rc:97
+#: dlls/gdi32/gdi32.rc:45 dlls/oledb32/oledb32.rc:92
 #: dlls/wldap32/wldap32.rc:112
 msgid "Other"
 msgstr ""
@@ -3357,7 +3358,7 @@ msgid "&Stop"
 msgstr "Τερματισμός"
 
 #: dlls/hhctrl.ocx/hhctrl.rc:66 dlls/hhctrl.ocx/hhctrl.rc:83
-#: dlls/oledb32/version.rc:70 dlls/shdoclc/shdoclc.rc:59
+#: dlls/oledb32/oledb32.rc:65 dlls/shdoclc/shdoclc.rc:59
 #, fuzzy
 msgid "&Refresh"
 msgstr "Ανανέωση"
@@ -4181,13 +4182,8 @@ msgstr ""
 msgid "Property cannot have both accessors and a value"
 msgstr ""
 
-#: include/wine/wine_common_ver.rc:123
+#: include/common.ver:77
 msgid "Wine kernel DLL"
-msgstr ""
-
-#: include/wine/wine_common_ver.rc:128 dlls/winemac.drv/winemac.rc:32
-#: programs/wineboot/wineboot.rc:42 programs/winecfg/winecfg.rc:143
-msgid "Wine"
 msgstr ""
 
 #: dlls/kernelbase/kernelbase.rc:29
@@ -9401,172 +9397,172 @@ msgstr "Ενεργό"
 msgid "Off"
 msgstr "Ανενεργό"
 
-#: dlls/oledb32/version.rc:53
+#: dlls/oledb32/oledb32.rc:48
 msgid "Provider"
 msgstr ""
 
-#: dlls/oledb32/version.rc:56
+#: dlls/oledb32/oledb32.rc:51
 msgid "Select the data you want to connect to:"
 msgstr ""
 
-#: dlls/oledb32/version.rc:63
+#: dlls/oledb32/oledb32.rc:58
 #, fuzzy
 msgid "Connection"
 msgstr "Επιλογές"
 
-#: dlls/oledb32/version.rc:66
+#: dlls/oledb32/oledb32.rc:61
 msgid "Specify the following to connect to ODBC data:"
 msgstr ""
 
-#: dlls/oledb32/version.rc:67
+#: dlls/oledb32/oledb32.rc:62
 msgid "1. Specify the source of data:"
 msgstr ""
 
-#: dlls/oledb32/version.rc:68
+#: dlls/oledb32/oledb32.rc:63
 msgid "Use &data source name"
 msgstr ""
 
-#: dlls/oledb32/version.rc:71
+#: dlls/oledb32/oledb32.rc:66
 #, fuzzy
 msgid "Use c&onnection string"
 msgstr "Επιλογές"
 
-#: dlls/oledb32/version.rc:72
+#: dlls/oledb32/oledb32.rc:67
 #, fuzzy
 msgid "&Connection string:"
 msgstr "Επιλογές"
 
-#: dlls/oledb32/version.rc:74
+#: dlls/oledb32/oledb32.rc:69
 msgid "B&uild..."
 msgstr ""
 
-#: dlls/oledb32/version.rc:75
+#: dlls/oledb32/oledb32.rc:70
 msgid "2. Enter information to log on to the server"
 msgstr ""
 
-#: dlls/oledb32/version.rc:76
+#: dlls/oledb32/oledb32.rc:71
 #, fuzzy
 #| msgid "File &name:"
 msgid "User &name:"
 msgstr "Όνομα &αρχείου:"
 
-#: dlls/oledb32/version.rc:80
+#: dlls/oledb32/oledb32.rc:75
 msgid "&Blank password"
 msgstr ""
 
-#: dlls/oledb32/version.rc:81
+#: dlls/oledb32/oledb32.rc:76
 msgid "Allow &saving password"
 msgstr ""
 
-#: dlls/oledb32/version.rc:82
+#: dlls/oledb32/oledb32.rc:77
 msgid "3. Enter the &initial catalog to use:"
 msgstr ""
 
-#: dlls/oledb32/version.rc:84
+#: dlls/oledb32/oledb32.rc:79
 #, fuzzy
 msgid "&Test Connection"
 msgstr "Επιλογές"
 
-#: dlls/oledb32/version.rc:89
+#: dlls/oledb32/oledb32.rc:84
 msgid "Advanced"
 msgstr ""
 
-#: dlls/oledb32/version.rc:92
+#: dlls/oledb32/oledb32.rc:87
 #, fuzzy
 msgid "Network settings"
 msgstr "Επιλογές"
 
-#: dlls/oledb32/version.rc:93
+#: dlls/oledb32/oledb32.rc:88
 msgid "&Impersonation level:"
 msgstr ""
 
-#: dlls/oledb32/version.rc:95
+#: dlls/oledb32/oledb32.rc:90
 msgid "P&rotection level:"
 msgstr ""
 
-#: dlls/oledb32/version.rc:98
+#: dlls/oledb32/oledb32.rc:93
 #, fuzzy
 msgid "Connect:"
 msgstr "Το αρχείο δε βρέθηκε"
 
-#: dlls/oledb32/version.rc:100
+#: dlls/oledb32/oledb32.rc:95
 msgid "seconds."
 msgstr ""
 
-#: dlls/oledb32/version.rc:101
+#: dlls/oledb32/oledb32.rc:96
 #, fuzzy
 msgid "A&ccess:"
 msgstr "Τοπικοί Σκληροί Δίσκοι"
 
-#: dlls/oledb32/version.rc:107
+#: dlls/oledb32/oledb32.rc:102
 #, fuzzy
 #| msgid "&All"
 msgid "All"
 msgstr "&Όλα"
 
-#: dlls/oledb32/version.rc:111
+#: dlls/oledb32/oledb32.rc:106
 msgid ""
 "These are the initialization properties for this type of data. To edit a "
 "value, select a property, then choose Edit Value below."
 msgstr ""
 
-#: dlls/oledb32/version.rc:112
+#: dlls/oledb32/oledb32.rc:107
 #, fuzzy
 msgid "&Edit Value..."
 msgstr "Εκτύπωση"
 
-#: dlls/oledb32/version.rc:46
+#: dlls/oledb32/oledb32.rc:41
 #, fuzzy
 msgid "Data Link Error"
 msgstr "Επιλογές"
 
-#: dlls/oledb32/version.rc:47
+#: dlls/oledb32/oledb32.rc:42
 msgid "Please select a provider."
 msgstr ""
 
-#: dlls/oledb32/version.rc:48
+#: dlls/oledb32/oledb32.rc:43
 msgid ""
 "Provider is no longer available. Ensure that the provider is installed "
 "properly."
 msgstr ""
 
-#: dlls/oledb32/version.rc:33
+#: dlls/oledb32/oledb32.rc:28
 #, fuzzy
 msgid "Data Link Properties"
 msgstr "Επιλογές"
 
-#: dlls/oledb32/version.rc:34
+#: dlls/oledb32/oledb32.rc:29
 msgid "OLE DB Provider(s)"
 msgstr ""
 
-#: dlls/oledb32/version.rc:38
+#: dlls/oledb32/oledb32.rc:33
 #, fuzzy
 #| msgid "Ready"
 msgid "Read"
 msgstr "Έτοιμο"
 
-#: dlls/oledb32/version.rc:39
+#: dlls/oledb32/oledb32.rc:34
 #, fuzzy
 msgid "ReadWrite"
 msgstr "Έτοιμο"
 
-#: dlls/oledb32/version.rc:40
+#: dlls/oledb32/oledb32.rc:35
 msgid "Share Deny None"
 msgstr ""
 
-#: dlls/oledb32/version.rc:41
+#: dlls/oledb32/oledb32.rc:36
 msgid "Share Deny Read"
 msgstr ""
 
-#: dlls/oledb32/version.rc:42
+#: dlls/oledb32/oledb32.rc:37
 msgid "Share Deny Write"
 msgstr ""
 
-#: dlls/oledb32/version.rc:43
+#: dlls/oledb32/oledb32.rc:38
 msgid "Share Exclusive"
 msgstr ""
 
-#: dlls/oledb32/version.rc:44
+#: dlls/oledb32/oledb32.rc:39
 msgid "Write"
 msgstr ""
 
@@ -9742,11 +9738,32 @@ msgstr ""
 msgid "the program which created it"
 msgstr ""
 
-#: dlls/sane.ds/sane.rc:41
+#: dlls/sane.ds/sane.rc:55 dlls/sane.ds/sane.rc:45
 msgid "Scanning"
 msgstr ""
 
-#: dlls/sane.ds/sane.rc:44
+#: dlls/sane.ds/sane.rc:58
+msgid "Manufacturer:"
+msgstr ""
+
+#: dlls/sane.ds/sane.rc:60
+msgid "Product family:"
+msgstr ""
+
+#: dlls/sane.ds/sane.rc:62
+msgid "Product name:"
+msgstr ""
+
+#: dlls/sane.ds/sane.rc:64
+#, fuzzy
+msgid "Resolution:"
+msgstr "Επιλογές"
+
+#: dlls/sane.ds/sane.rc:66 programs/wordpad/wordpad.rc:181
+msgid "Page"
+msgstr ""
+
+#: dlls/sane.ds/sane.rc:68
 msgid "SCANNING... Please Wait"
 msgstr ""
 
@@ -9774,6 +9791,35 @@ msgstr ""
 #: dlls/sane.ds/sane.rc:36
 msgctxt "unit: microseconds"
 msgid "us"
+msgstr ""
+
+#: dlls/sane.ds/sane.rc:43
+msgid "LineArt"
+msgstr ""
+
+#: dlls/sane.ds/sane.rc:44 dlls/setupapi/setupapi.rc:32
+#: programs/ipconfig/ipconfig.rc:34
+msgid "Unknown"
+msgstr ""
+
+#: dlls/sane.ds/sane.rc:46
+msgid ""
+"The Automatic Document Feeder (ADF) is empty. Please insert the sheets to be "
+"scanned."
+msgstr ""
+
+#: dlls/sane.ds/sane.rc:47
+msgid ""
+"The scanner reports a paper jam. Check for additional information on device "
+"display."
+msgstr ""
+
+#: dlls/sane.ds/sane.rc:48
+msgid "The scanner cover is open. Please close the scanner."
+msgstr ""
+
+#: dlls/sane.ds/sane.rc:49
+msgid "The scanner is busy. Try again later."
 msgstr ""
 
 #: dlls/serialui/serialui.rc:28
@@ -9828,10 +9874,6 @@ msgstr ""
 
 #: dlls/setupapi/setupapi.rc:31
 msgid "The file '%1' on %2 is needed"
-msgstr ""
-
-#: dlls/setupapi/setupapi.rc:32 programs/ipconfig/ipconfig.rc:34
-msgid "Unknown"
 msgstr ""
 
 #: dlls/setupapi/setupapi.rc:33
@@ -10721,7 +10763,7 @@ msgctxt "time unit: seconds"
 msgid " sec"
 msgstr ""
 
-#: dlls/twain_32/twain.rc:29
+#: dlls/twaindsm/twain.rc:29
 #, fuzzy
 msgid "Select Source"
 msgstr "Δημιουργία νέου καταλόγου"
@@ -12687,7 +12729,7 @@ msgid ""
 msgstr ""
 
 #: dlls/urlmon/urlmon.rc:63
-msgid "This zone contains all Web sites you haven't placed in other zones"
+msgid "This zone contains all Web sites you haven't placed in other zones."
 msgstr ""
 
 #: dlls/urlmon/urlmon.rc:65
@@ -12878,6 +12920,11 @@ msgstr ""
 
 #: dlls/vbscript/vbscript.rc:63
 msgid "Microsoft VBScript runtime error"
+msgstr ""
+
+#: dlls/winemac.drv/winemac.rc:32 programs/wineboot/wineboot.rc:42
+#: programs/winecfg/winecfg.rc:143
+msgid "Wine"
 msgstr ""
 
 #: dlls/winemac.drv/winemac.rc:33
@@ -14502,6 +14549,10 @@ msgstr "Α&γαπημένα.\n"
 
 #: programs/cmd/cmd.rc:410
 msgid "%t%1!u! file(s) copied\n"
+msgstr ""
+
+#: programs/cmd/cmd.rc:411 programs/xcopy/xcopy.rc:83
+msgid "File cannot be copied onto itself.\n"
 msgstr ""
 
 #: programs/conhost/conhost.rc:54
@@ -17071,10 +17122,6 @@ msgid ""
 "Sent termination signal to process with PID %1!u!, child of PID %2!u!.\n"
 msgstr ""
 
-#: include/wine/wine_common_ver.rc:123
-msgid "Wine tasklist"
-msgstr ""
-
 #: programs/tasklist/tasklist.rc:29
 msgid "Usage: tasklist [/?]\n"
 msgstr ""
@@ -19382,10 +19429,6 @@ msgstr ""
 
 #: programs/wordpad/wordpad.rc:179
 msgid "Zoom out"
-msgstr ""
-
-#: programs/wordpad/wordpad.rc:181
-msgid "Page"
 msgstr ""
 
 #: programs/wordpad/wordpad.rc:182

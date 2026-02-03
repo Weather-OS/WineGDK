@@ -5767,6 +5767,23 @@ static void test_WinHttpGetProxyForUrl(int port)
         GlobalFree( info.lpszProxy );
     }
 
+    memset( &info, 0, sizeof(info) );
+    options.dwFlags = WINHTTP_AUTOPROXY_ALLOW_STATIC|WINHTTP_AUTOPROXY_AUTO_DETECT;
+    options.dwAutoDetectFlags = WINHTTP_AUTO_DETECT_TYPE_DHCP|WINHTTP_AUTO_DETECT_TYPE_DNS_A;
+    ret = WinHttpGetProxyForUrl( session, L"http://winehq.com/", &options, &info);
+    ok(ret || broken(GetLastError() == ERROR_INVALID_PARAMETER) /* <= Win10 1607 */, "expected success\n" );
+    if (!ret)
+    {
+        win_skip("WINHTTP_AUTOPROXY_ALLOW_STATIC not supported\n");
+        WinHttpCloseHandle( session );
+        return;
+    }
+    ok(info.dwAccessType == WINHTTP_ACCESS_TYPE_NO_PROXY,
+            "info.dwAccessType = %lu\n", info.dwAccessType);
+    ok(!info.lpszProxy, "info.Proxy = %s\n", wine_dbgstr_w(info.lpszProxy));
+    ok(!info.lpszProxyBypass, "info.ProxyBypass = %s\n",
+            wine_dbgstr_w(info.lpszProxyBypass));
+
     WinHttpCloseHandle( session );
 }
 

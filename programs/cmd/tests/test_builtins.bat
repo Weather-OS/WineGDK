@@ -92,6 +92,11 @@ rem call :setError 666 & (start /B I\dont\exist.exe &&echo SUCCESS !errorlevel!|
 rem can't run this test, generates a nice popup under windows
 call :setError 666 & (start "" /B /WAIT cmd.exe /c "echo foo & exit /b 1024" &&echo SUCCESS !errorlevel!||echo FAILURE !errorlevel!)
 call :setError 666 & (start "" /B cmd.exe /c "(choice /C:YN /T:3 /D:Y > NUL) & exit /b 1024" &&echo SUCCESS !errorlevel!||echo FAILURE !errorlevel!)
+mkdir foo & cd foo
+set "FOO_PATH=%cd%" > NUL
+cd ..
+call :setError 666 & (start /B /WAIT /d "%FOO_PATH%" cmd /s /c "if /I \"%%cd%%\"==\"%FOO_PATH%\" (exit 0) else (exit 1)" >nul &&echo !errorlevel!)
+rd /q /s foo
 echo --- success/failure for TYPE command
 mkdir foo & cd foo
 echo a > fileA
@@ -114,6 +119,12 @@ call :setError 666 & (copy fileA fileZ /-Y >NUL <NUL &&echo SUCCESS !errorlevel!
 call :setError 666 & (copy fileA+fileD fileZ /-Y >NUL <NUL &&echo SUCCESS !errorlevel!||echo FAILURE !errorlevel!)
 call :setError 666 & (copy fileD+fileA fileZ /-Y >NUL <NUL &&echo SUCCESS !errorlevel!||echo FAILURE !errorlevel!)
 if exist fileD echo Unexpected fileD
+call :setError 666 & (copy /b fileA fileA /Y >NUL &&echo SUCCESS !errorlevel!||echo FAILURE !errorlevel!)
+call :setError 666 & (copy /b fileA+fileB fileA >NUL &&echo SUCCESS !errorlevel!||echo FAILURE !errorlevel!)
+type fileA
+echo a > fileA
+call :setError 666 & (copy /b fileA+fileB /Y fileB >NUL &&echo SUCCESS !errorlevel!||echo FAILURE !errorlevel!)
+type fileB
 cd .. && rd /q /s foo
 
 echo --- success/failure for MOVE command
@@ -184,6 +195,7 @@ call :setError 666 & (pushd abc &&echo SUCCESS !errorlevel!||echo FAILURE !error
 call :setError 666 & (pushd abc &&echo SUCCESS !errorlevel!||echo FAILURE !errorlevel!)
 call :setError 666 & (popd abc &&echo SUCCESS !errorlevel!||echo FAILURE !errorlevel!)
 call :setError 666 & (popd &&echo SUCCESS !errorlevel!||echo FAILURE !errorlevel!)
+call :setError 666 & (pushd "abc/"&&echo SUCCESS !errorlevel!||echo FAILURE !errorlevel!)
 call :setError 666 & popd & echo ERRORLEVEL !errorlevel!
 cd .. && rd /q /s foo
 
@@ -230,6 +242,9 @@ call :setError 666 & (mklink &&echo SUCCESS !errorlevel!||echo FAILURE !errorlev
 call :setError 666 & (mklink /h foo &&echo SUCCESS !errorlevel!||echo FAILURE !errorlevel!)
 call :setError 666 & (mklink /h foo foo &&echo SUCCESS !errorlevel!||echo FAILURE !errorlevel!)
 call :setError 666 & (mklink /z foo foo &&echo SUCCESS !errorlevel!||echo FAILURE !errorlevel!)
+call :setError 666 & (mklink /j foo foo >NUL &&echo SUCCESS !errorlevel!||echo FAILURE !errorlevel!)
+call :setError 666 & (mklink /j foo foo &&echo SUCCESS !errorlevel!||echo FAILURE !errorlevel!)
+rmdir foo
 echo bar > foo
 call :setError 666 & (mklink /h foo foo &&echo SUCCESS !errorlevel!||echo FAILURE !errorlevel!)
 call :setError 666 & (mklink /h bar foo >NUL &&echo SUCCESS !errorlevel!||echo FAILURE !errorlevel!)

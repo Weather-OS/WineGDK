@@ -111,6 +111,15 @@ static BOOL console_ioctl( HANDLE handle, DWORD code, void *in_buff, DWORD in_co
     return set_ntstatus( status );
 }
 
+BOOL is_console_handle( HANDLE handle )
+{
+    IO_STATUS_BLOCK io;
+    DWORD mode;
+
+    return NtDeviceIoControlFile( handle, NULL, NULL, NULL, &io, IOCTL_CONDRV_GET_MODE,
+                                  NULL, 0, &mode, sizeof(mode) ) == STATUS_SUCCESS;
+}
+
 /* map input records to ASCII */
 static void input_records_WtoA( INPUT_RECORD *buffer, int count )
 {
@@ -2331,8 +2340,8 @@ void WINAPI ClosePseudoConsole( HPCON handle )
  */
 HRESULT WINAPI ResizePseudoConsole( HPCON handle, COORD size )
 {
-    FIXME( "%p (%u,%u)\n", handle, size.X, size.Y );
-    return E_NOTIMPL;
+    FIXME( "%p (%u,%u) stub, faking success\n", handle, size.X, size.Y );
+    return S_OK;
 }
 
 static BOOL is_tty_handle( HANDLE handle )
@@ -2390,5 +2399,12 @@ void init_console( void )
             alloc_console( no_window );
     }
     else if (params->ConsoleHandle && params->ConsoleHandle != CONSOLE_HANDLE_SHELL_NO_WINDOW)
+    {
         create_console_connection( params->ConsoleHandle );
+        if (params->ConsoleFlags & 2)
+        {
+            init_console_std_handles( FALSE );
+            params->ConsoleFlags &= ~2;
+        }
+    }
 }

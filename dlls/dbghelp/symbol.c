@@ -264,7 +264,7 @@ struct symt_public* symt_new_public(struct module* module,
     TRACE_(dbghelp_symt)("Adding public symbol %s:%s @%Ix\n",
                          debugstr_w(module->modulename), debugstr_a(name), address);
     if ((dbghelp_options & SYMOPT_AUTO_PUBLICS) &&
-        symt_find_nearest(module, address) != NULL)
+        symt_find_nearest(module, address))
         return NULL;
     if ((sym = pool_alloc(&module->pool, sizeof(*sym))))
     {
@@ -789,7 +789,7 @@ static BOOL symt_fill_sym_info(struct module_pair* pair,
                 {
                 case loc_tlsrel:
                     sym_info->Flags |= SYMFLAG_TLSREL;
-                    /* fall through */
+                    break;
                 case loc_absolute:
                     symt_get_address(sym, &sym_info->Address);
                     break;
@@ -871,6 +871,69 @@ static BOOL symt_fill_sym_info(struct module_pair* pair,
     return TRUE;
 }
 
+static BOOL symt_fill_sym_info_from_symref(struct module_pair* pair, const struct symt_function* func, symref_t symref, SYMBOL_INFO* sym_info)
+{
+    DWORD tag;
+    DWORD64 size;
+    WCHAR *name;
+
+    if (!symt_get_info_from_symref(pair->effective, symref, TI_GET_SYMTAG, &tag))
+        return FALSE;
+
+    sym_info->Tag = tag;
+    if (symt_is_symref_ptr(symref))
+        return symt_fill_sym_info(pair, func, SYMT_SYMREF_TO_PTR(symref), sym_info);
+
+    /* FIXME this isn't optimal; perhaps implement SymGetInfoTypeEx to support multiple
+     * queries at once!
+     */
+    if (!symt_get_info_from_symref(pair->effective, symref, TI_GET_TYPE, &sym_info->TypeIndex))
+        sym_info->TypeIndex = 0;
+    sym_info->Index = symt_symref_to_index(pair->effective, symref);
+    sym_info->Reserved[0] = sym_info->Reserved[1] = 0;
+    if (!symt_get_info_from_symref(pair->effective, symref, TI_GET_ADDRESS, &sym_info->Address))
+        sym_info->Address = 0;
+    if (!symt_get_info_from_symref(pair->effective, symref, TI_GET_LENGTH, &size) &&
+        (!sym_info->TypeIndex ||
+         !symt_get_info_from_index(pair->effective, sym_info->TypeIndex, TI_GET_LENGTH, &size)))
+        size = 0;
+    sym_info->Size = (DWORD)size;
+    sym_info->ModBase = pair->requested->module.BaseOfImage;
+    sym_info->Flags = 0;
+    sym_info->Value = 0;
+    sym_info->Register = 0;
+    sym_info->Scope = 0; /* FIXME */
+
+    /* FIXME we're swinging back & forth between ANSI & UNICODE... */
+    if (symt_get_info_from_symref(pair->effective, symref, TI_GET_SYMNAME, &name) && name)
+    {
+        SIZE_T len = WideCharToMultiByte(CP_ACP, 0, name, -1, NULL, 0, NULL, NULL);
+        char *buffer;
+        char *tmp;
+
+        if (sym_info->MaxNameLen && (buffer = malloc(len)))
+        {
+            WideCharToMultiByte(CP_ACP, 0, name, -1, buffer, len, NULL, NULL);
+            if (sym_info->Tag == SymTagPublicSymbol && (dbghelp_options & SYMOPT_UNDNAME) &&
+                (tmp = __unDName(NULL, buffer, 0, malloc, free, UNDNAME_NAME_ONLY)) != NULL)
+            {
+                symbol_setname(sym_info, tmp);
+                free(tmp);
+            }
+            else
+                symbol_setname(sym_info, buffer);
+            free(buffer);
+        }
+        else symbol_setname(sym_info, "");
+        LocalFree(name);
+    }
+    else symbol_setname(sym_info, "");
+
+    TRACE_(dbghelp_symt)("%Ix => %s %lu %I64x\n",
+                         symref, debugstr_a(sym_info->Name), sym_info->Size, sym_info->Address);
+    return TRUE;
+}
+
 struct sym_enum
 {
     PSYM_ENUMERATESYMBOLS_CALLBACK      cb;
@@ -883,9 +946,9 @@ struct sym_enum
 };
 
 static BOOL send_symbol(const struct sym_enum* se, struct module_pair* pair,
-                        const struct symt_function* func, const struct symt* sym)
+                        const struct symt_function* func, symref_t symref)
 {
-    if (!symt_fill_sym_info(pair, func, sym, se->sym_info)) return FALSE;
+    if (!symt_fill_sym_info_from_symref(pair, func, symref, se->sym_info)) return FALSE;
     if (se->index && se->sym_info->Index != se->index) return FALSE;
     if (se->tag && se->sym_info->Tag != se->tag) return FALSE;
     if (se->addr && !(se->addr >= se->sym_info->Address && se->addr < se->sym_info->Address + se->sym_info->Size)) return FALSE;
@@ -905,11 +968,7 @@ static BOOL symbol_enum_method_cb(symref_t symref, const char *name, void *user)
     sem->se->sym_info->SizeOfStruct = sizeof(SYMBOL_INFO);
     sem->se->sym_info->MaxNameLen = sizeof(sem->se->buffer) - sizeof(SYMBOL_INFO);
 
-    if (symt_is_symref_ptr(symref))
-    {
-        if (send_symbol(sem->se, sem->pair, NULL, (struct symt*)symref)) return TRUE;
-    }
-    else FIXME("No support for this case yet %Ix\n", symref);
+    send_symbol(sem->se, sem->pair, NULL, symref);
     return TRUE;
 }
 
@@ -945,7 +1004,7 @@ static BOOL symt_enum_module(struct module_pair* pair, const WCHAR* match,
         {
             se->sym_info->SizeOfStruct = sizeof(SYMBOL_INFO);
             se->sym_info->MaxNameLen = sizeof(se->buffer) - sizeof(SYMBOL_INFO);
-            if (send_symbol(se, pair, NULL, &sym->symt)) return TRUE;
+            if (send_symbol(se, pair, NULL, symt_ptr_to_symref(&sym->symt))) return TRUE;
         }
     }
     return FALSE;
@@ -1113,7 +1172,7 @@ static struct symt_ht* symt_find_nearest_internal(struct module* module, DWORD_P
     return module->addr_sorttab[low];
 }
 
-struct symt_ht *symt_find_nearest(struct module *module, DWORD_PTR addr)
+symref_t symt_find_nearest(struct module *module, DWORD_PTR addr)
 {
     static int recursive;
     struct module_format_vtable_iterator iter = {};
@@ -1129,29 +1188,43 @@ struct symt_ht *symt_find_nearest(struct module *module, DWORD_PTR addr)
             if (result == MR_SUCCESS)
             {
                 recursive--;
-                if (symt_is_symref_ptr(symref)) return (struct symt_ht*)SYMT_SYMREF_TO_PTR(symref);
-                FIXME("No support for this case yet\n");
-                return NULL;
+                if (!symt_is_symref_ptr(symref)) FIXME("No support for this case yet\n");
+                return symref;
             }
             /* fall back in all the other cases */
         }
     }
     recursive--;
-    return symt_find_nearest_internal(module, addr);
+    return symt_ptr_to_symref(&symt_find_nearest_internal(module, addr)->symt);
+}
+
+static symref_t symt_find_symref_at(struct module* module, DWORD_PTR addr)
+{
+    symref_t nearest = symt_find_nearest(module, addr);
+    if (nearest)
+    {
+        ULONG64 symaddr, symsize;
+        if (symt_get_info_from_symref(module, nearest, TI_GET_ADDRESS, &symaddr))
+        {
+            /* some symbols are defined without size, so grab size for their type (if any) */
+            if (!symt_get_info_from_symref(module, nearest, TI_GET_LENGTH, &symsize) || !symsize)
+            {
+                DWORD symtype;
+                if (!symt_get_info_from_symref(module, nearest, TI_GET_TYPE, &symtype) ||
+                    !symt_get_info_from_index(module, symtype, TI_GET_LENGTH, &symsize))
+                    symsize = 1;
+            }
+        }
+        if (addr < symaddr || addr >= symaddr + symsize)
+            nearest = 0;
+    }
+    return nearest;
 }
 
 struct symt_ht* symt_find_symbol_at(struct module* module, DWORD_PTR addr)
 {
-    struct symt_ht* nearest = symt_find_nearest(module, addr);
-    if (nearest)
-    {
-        ULONG64     symaddr, symsize;
-        symt_get_address(&nearest->symt, &symaddr);
-        symt_get_length(module, &nearest->symt, &symsize);
-        if (addr < symaddr || addr >= symaddr + symsize)
-            nearest = NULL;
-    }
-    return nearest;
+    symref_t nearest = symt_find_symref_at(module, addr);
+    return (struct symt_ht*)SYMT_SYMREF_TO_PTR(nearest);
 }
 
 static BOOL symt_enum_locals_helper(struct module_pair* pair,
@@ -1191,7 +1264,7 @@ static BOOL symt_enum_locals_helper(struct module_pair* pair,
             HeapFree(GetProcessHeap(), 0, nameW);
             if (ret)
             {
-                if (send_symbol(se, pair, func, lsym)) return FALSE;
+                if (send_symbol(se, pair, func, symt_ptr_to_symref(lsym))) return FALSE;
             }
             break;
         case SymTagLabel:
@@ -1546,16 +1619,16 @@ BOOL WINAPI SymEnumerateSymbols64(HANDLE hProcess, DWORD64 BaseOfDll,
  *		SymFromAddr (DBGHELP.@)
  *
  */
-BOOL WINAPI SymFromAddr(HANDLE hProcess, DWORD64 Address, 
+BOOL WINAPI SymFromAddr(HANDLE hProcess, DWORD64 Address,
                         DWORD64* Displacement, PSYMBOL_INFO Symbol)
 {
     struct module_pair  pair;
-    struct symt_ht*     sym;
+    symref_t symref;
 
     if (!module_init_pair(&pair, hProcess, Address)) return FALSE;
-    if ((sym = symt_find_symbol_at(pair.effective, Address)) == NULL) return FALSE;
+    if (!(symref = symt_find_symref_at(pair.effective, Address))) return FALSE;
 
-    symt_fill_sym_info(&pair, NULL, &sym->symt, Symbol);
+    symt_fill_sym_info_from_symref(&pair, NULL, symref, Symbol);
     if (Displacement)
         *Displacement = (Address >= Symbol->Address) ? (Address - Symbol->Address) : (DWORD64)-1;
     return TRUE;
@@ -1662,13 +1735,8 @@ static BOOL find_name(struct process* pcs, struct module* module, const char* na
         enum method_result result = iter.modfmt->vtable->lookup_by_name(iter.modfmt, name, &symref);
         if (result == MR_SUCCESS)
         {
-            if (symt_is_symref_ptr(symref))
-            {
-                symt_fill_sym_info(&pair, NULL, SYMT_SYMREF_TO_PTR(symref), symbol);
-                return TRUE;
-            }
-            FIXME("Not expected case\n");
-            return FALSE;
+            symt_fill_sym_info_from_symref(&pair, NULL, symref, symbol);
+            return TRUE;
         }
         if (result != MR_NOT_FOUND) return FALSE;
     }
@@ -2761,9 +2829,7 @@ BOOL WINAPI SymFromIndex(HANDLE hProcess, ULONG64 BaseOfDll, DWORD index, PSYMBO
 
     if (!module_init_pair(&pair, hProcess, BaseOfDll)) return FALSE;
     if ((symref = symt_index_to_symref(pair.effective, index)) == 0) return FALSE;
-    if (!symt_is_symref_ptr(symref)) return FALSE;
-    symt_fill_sym_info(&pair, NULL, (struct symt*)symref, symbol);
-    return TRUE;
+    return symt_fill_sym_info_from_symref(&pair, NULL, symref, symbol);
 }
 
 /******************************************************************

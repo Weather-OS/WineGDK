@@ -131,12 +131,10 @@ struct exc_stack_layout
     CONTEXT_EX           context_ex;     /* 390 */
     EXCEPTION_RECORD     rec;            /* 3b0 */
     ULONG64              align;          /* 448 */
-    ULONG64              sp;             /* 450 */
-    ULONG64              pc;             /* 458 */
-    ULONG64              redzone[2];     /* 460 */
+    ULONG64              redzone[2];     /* 450 */
 };
 C_ASSERT( offsetof(struct exc_stack_layout, rec) == 0x3b0 );
-C_ASSERT( sizeof(struct exc_stack_layout) == 0x470 );
+C_ASSERT( sizeof(struct exc_stack_layout) == 0x460 );
 
 /* stack layout when calling KiUserApcDispatcher */
 struct apc_stack_layout
@@ -720,8 +718,6 @@ static void setup_raise_exception( ucontext_t *sigcontext, EXCEPTION_RECORD *rec
     stack->rec = *rec;
     stack->context = *context;
     context_init_empty_xstate( &stack->context, stack->redzone );
-    stack->sp = stack->context.Sp;
-    stack->pc = stack->context.Pc;
 
     SP_sig(sigcontext) = (ULONG_PTR)stack;
     PC_sig(sigcontext) = (ULONG_PTR)pKiUserExceptionDispatcher;
@@ -806,8 +802,6 @@ NTSTATUS call_user_exception_dispatcher( EXCEPTION_RECORD *rec, CONTEXT *context
     memmove( &stack->context, context, sizeof(*context) );
     memmove( &stack->rec, rec, sizeof(*rec) );
     context_init_empty_xstate( &stack->context, stack->redzone );
-    stack->sp = stack->context.Sp;
-    stack->pc = stack->context.Pc;
 
     frame->pc = (ULONG64)pKiUserExceptionDispatcher;
     frame->sp = (ULONG64)stack;
@@ -1544,6 +1538,7 @@ __ASM_GLOBAL_FUNC( signal_start_thread,
  *           __wine_syscall_dispatcher
  */
 __ASM_GLOBAL_FUNC( __wine_syscall_dispatcher,
+                   "hint 34\n\t" /* bti c */
                    "ldr x10, [x18, #0x378]\n\t" /* thread_data->syscall_frame */
                    "stp x18, x19, [x10, #0x90]\n\t"
                    "stp x20, x21, [x10, #0xa0]\n\t"
@@ -1709,6 +1704,7 @@ __ASM_GLOBAL_FUNC( __wine_syscall_dispatcher_return,
  *           __wine_unix_call_dispatcher
  */
 __ASM_GLOBAL_FUNC( __wine_unix_call_dispatcher,
+                   "hint 34\n\t" /* bti c */
                    "ldr x10, [x18, #0x378]\n\t" /* thread_data->syscall_frame */
                    "stp x18, x19, [x10, #0x90]\n\t"
                    "stp x20, x21, [x10, #0xa0]\n\t"

@@ -2090,10 +2090,6 @@ static void test_virtual_unwind_arm64(void)
         UWOP_NOP                  /* padding */
     };
 
-    /* Windows seems to only save one register for UWOP_SAVE_NEXT for
-     * float registers, contrary to what the documentation says. The tests
-     * for those cases are commented out; they succeed in wine but fail
-     * on native windows. */
     static const struct results_arm64 results_5[] =
     {
       /* offset  fp    handler  pc      frame offset  registers */
@@ -2105,11 +2101,9 @@ static void test_virtual_unwind_arm64(void)
         { 0x14,  0x00,  0,     ORIG_LR, 0x00060, TRUE, { {x19, 0x40}, {x20, 0x48}, {x21, 0x50}, {x22, 0x58}, {x23, 0x00}, {x24, 0x08}, {x25, 0x10}, {x26, 0x18}, {x27, 0x20}, {x28, 0x28}, {-1,-1} }},
         { 0x18,  0x00,  0,     0x38,    0x00060, TRUE, { {x19, 0x40}, {x20, 0x48}, {x21, 0x50}, {x22, 0x58}, {x23, 0x00}, {x24, 0x08}, {x25, 0x10}, {x26, 0x18}, {x27, 0x20}, {x28, 0x28}, {x29, 0x30}, {lr, 0x38}, {-1,-1} }},
         { 0x1c,  0x00,  0,     0x78,    0x000a0, TRUE, { {x19, 0x80}, {x20, 0x88}, {x21, 0x90}, {x22, 0x98}, {x23, 0x40}, {x24, 0x48}, {x25, 0x50}, {x26, 0x58}, {x27, 0x60}, {x28, 0x68}, {x29, 0x70}, {lr, 0x78}, {d8, 0x00}, {d9, 0x08}, {-1,-1} }},
-#if 0
         { 0x20,  0x00,  0,     0x78,    0x000a0, TRUE, { {x19, 0x80}, {x20, 0x88}, {x21, 0x90}, {x22, 0x98}, {x23, 0x40}, {x24, 0x48}, {x25, 0x50}, {x26, 0x58}, {x27, 0x60}, {x28, 0x68}, {x29, 0x70}, {lr, 0x78}, {d8, 0x00}, {d9, 0x08}, {d10, 0x10}, {d11, 0x18}, {-1,-1} }},
         { 0x24,  0x00,  0,     0x78,    0x000a0, TRUE, { {x19, 0x80}, {x20, 0x88}, {x21, 0x90}, {x22, 0x98}, {x23, 0x40}, {x24, 0x48}, {x25, 0x50}, {x26, 0x58}, {x27, 0x60}, {x28, 0x68}, {x29, 0x70}, {lr, 0x78}, {d8, 0x00}, {d9, 0x08}, {d10, 0x10}, {d11, 0x18}, {d12, 0x20}, {d13, 0x28}, {-1,-1} }},
         { 0x28,  0x00,  0,     0x78,    0x000a0, TRUE, { {x19, 0x80}, {x20, 0x88}, {x21, 0x90}, {x22, 0x98}, {x23, 0x40}, {x24, 0x48}, {x25, 0x50}, {x26, 0x58}, {x27, 0x60}, {x28, 0x68}, {x29, 0x70}, {lr, 0x78}, {d8, 0x00}, {d9, 0x08}, {d10, 0x10}, {d11, 0x18}, {d12, 0x20}, {d13, 0x28}, {d14, 0x30}, {d15, 0x38}, {-1,-1} }},
-#endif
     };
 
     static const BYTE function_6[] =
@@ -2237,11 +2231,11 @@ static void test_virtual_unwind_arm64(void)
         0xe6, 0x9f, 0x03, 0xa9,   /* 10: stp x6,  x7,  [sp, #56] */
         0xff, 0x83, 0x00, 0xd1,   /* 14: sub sp,  sp,  #32 */
         0x1f, 0x20, 0x03, 0xd5,   /* 18: nop */
-        0xff, 0x83, 0x00, 0x91,   /* 1c: add sp,  sp,  #32 */
+        0x1f, 0x20, 0x03, 0xd5,   /* 1c: nop */
         0x1f, 0x20, 0x03, 0xd5,   /* 20: nop */
         0x1f, 0x20, 0x03, 0xd5,   /* 24: nop */
         0x1f, 0x20, 0x03, 0xd5,   /* 28: nop */
-        0x1f, 0x20, 0x03, 0xd5,   /* 2c: nop */
+        0xff, 0x83, 0x00, 0x91,   /* 2c: add sp,  sp,  #32 */
         0xf3, 0x0f, 0x1b, 0xf8,   /* 30: ldr x19,      [sp], #80 */
         0xc0, 0x03, 0x5f, 0xd6,   /* 34: ret */
     };
@@ -2599,6 +2593,198 @@ static void test_virtual_unwind_arm64(void)
         { 0x0c,  0x00,  -2,     0, 0xdeadbeef, FALSE, { {-1,-1} }},
     };
 
+    static const BYTE function_19[] =
+    {
+        0xff, 0x43, 0x00, 0xd1,   /* 00: sub sp, sp, #16 */
+        0xf3, 0x7b, 0x00, 0xa9,   /* 04: stp x19, x30, [sp] */
+        0xff, 0x03, 0x01, 0xd1,   /* 08: sub sp, sp, #64 */
+        0x1f, 0x20, 0x03, 0xd5,   /* 0c: nop */
+        0xff, 0x03, 0x01, 0x91,   /* 10: add sp, sp, #64 */
+        0xf3, 0x7b, 0x40, 0xa9,   /* 14: ldp x19, x30, [sp] */
+        0xff, 0x43, 0x00, 0x91,   /* 18: add sp, sp, #16 */
+        0xc0, 0x03, 0x5f, 0xd6,   /* 1c: ret */
+    };
+
+    static const DWORD unwind_info_19_packed =
+        (1 << 0)  | /* Flag */
+        (sizeof(function_19)/4 << 2) | /* FunctionLength */
+        (0 << 13) | /* RegF */
+        (1 << 16) | /* RegI */
+        (0 << 20) | /* H */
+        (1 << 21) | /* CR */
+        (5 << 23);  /* FrameSize */
+
+    static const BYTE unwind_info_19[] = { DW(unwind_info_19_packed) };
+
+    static const struct results_arm64 results_19[] =
+    {
+      /* offset  fp    handler  pc      frame offset  registers */
+        { 0x00,  0x00,  0,     ORIG_LR, 0x000, TRUE, { {-1,-1} }},
+        { 0x04,  0x00,  0,     ORIG_LR, 0x010, TRUE, { {-1,-1} }},
+        { 0x08,  0x00,  0,     0x08,    0x010, TRUE, { {x19,0x00}, {lr,0x08}, {-1,-1} }},
+        { 0x0c,  0x00,  0,     0x48,    0x050, TRUE, { {x19,0x40}, {lr,0x48}, {-1,-1} }},
+        { 0x10,  0x00,  0,     0x48,    0x050, TRUE, { {x19,0x40}, {lr,0x48}, {-1,-1} }},
+        { 0x14,  0x00,  0,     0x08,    0x010, TRUE, { {x19,0x00}, {lr,0x08}, {-1,-1} }},
+        { 0x18,  0x00,  0,     ORIG_LR, 0x010, TRUE, { {-1,-1} }},
+        { 0x1c,  0x00,  0,     ORIG_LR, 0x000, TRUE, { {-1,-1} }},
+    };
+
+    static const BYTE function_20[] =
+    {
+        0xff, 0xc3, 0x00, 0xd1,   /* 00: sub sp, sp, #48 */
+        0xf3, 0x7b, 0x00, 0xa9,   /* 04: stp x19, x30, [sp] */
+        0xe8, 0x27, 0x01, 0x6d,   /* 08: stp d8,  d9,  [sp, #16] */
+        0xea, 0x13, 0x00, 0xfd,   /* 0c: str d10,      [sp, #32] */
+        0xff, 0x03, 0x01, 0xd1,   /* 10: sub sp, sp, #64 */
+        0x1f, 0x20, 0x03, 0xd5,   /* 14: nop */
+        0xff, 0x03, 0x01, 0x91,   /* 18: add sp, sp, #64 */
+        0xea, 0x13, 0x40, 0xfd,   /* 1c: ldr d10,      [sp, #32] */
+        0xe8, 0x27, 0x41, 0x6d,   /* 20: ldp d8,  d9,  [sp, #16] */
+        0xf3, 0x7b, 0x40, 0xa9,   /* 24: ldp x19, x30, [sp] */
+        0xff, 0xc3, 0x00, 0x91,   /* 28: add sp, sp, #48 */
+        0xc0, 0x03, 0x5f, 0xd6,   /* 2c: ret */
+    };
+
+    static const DWORD unwind_info_20_packed =
+        (1 << 0)  | /* Flag */
+        (sizeof(function_20)/4 << 2) | /* FunctionLength */
+        (2 << 13) | /* RegF */
+        (1 << 16) | /* RegI */
+        (0 << 20) | /* H */
+        (1 << 21) | /* CR */
+        (7 << 23);  /* FrameSize */
+
+    static const BYTE unwind_info_20[] = { DW(unwind_info_20_packed) };
+
+    static const struct results_arm64 results_20[] =
+    {
+      /* offset  fp    handler  pc      frame offset  registers */
+        { 0x00,  0x00,  0,     ORIG_LR, 0x000, TRUE, { {-1,-1} }},
+        { 0x04,  0x00,  0,     ORIG_LR, 0x030, TRUE, { {-1,-1} }},
+        { 0x08,  0x00,  0,     0x08,    0x030, TRUE, { {x19,0x00}, {lr,0x08}, {-1,-1} }},
+        { 0x0c,  0x00,  0,     0x08,    0x030, TRUE, { {x19,0x00}, {lr,0x08}, {d8,0x10}, {d9,0x18}, {-1,-1} }},
+        { 0x10,  0x00,  0,     0x08,    0x030, TRUE, { {x19,0x00}, {lr,0x08}, {d8,0x10}, {d9,0x18}, {d10,0x20}, {-1,-1} }},
+        { 0x14,  0x00,  0,     0x48,    0x070, TRUE, { {x19,0x40}, {lr,0x48}, {d8,0x50}, {d9,0x58}, {d10,0x60}, {-1,-1} }},
+        { 0x18,  0x00,  0,     0x48,    0x070, TRUE, { {x19,0x40}, {lr,0x48}, {d8,0x50}, {d9,0x58}, {d10,0x60}, {-1,-1} }},
+        { 0x1c,  0x00,  0,     0x08,    0x030, TRUE, { {x19,0x00}, {lr,0x08}, {d8,0x10}, {d9,0x18}, {d10,0x20}, {-1,-1} }},
+        { 0x20,  0x00,  0,     0x08,    0x030, TRUE, { {x19,0x00}, {lr,0x08}, {d8,0x10}, {d9,0x18}, {-1,-1} }},
+        { 0x24,  0x00,  0,     0x08,    0x030, TRUE, { {x19,0x00}, {lr,0x08}, {-1,-1} }},
+        { 0x28,  0x00,  0,     ORIG_LR, 0x030, TRUE, { {-1,-1} }},
+        { 0x2c,  0x00,  0,     ORIG_LR, 0x000, TRUE, { {-1,-1} }},
+    };
+
+    static const BYTE function_21[] =
+    {
+        0xf3, 0x53, 0xbe, 0xa9,   /* 00: stp x19, x20, [sp, #-32]! */
+        0xf5, 0x5b, 0x01, 0xa9,   /* 04: stp x21, x22, [sp, #16] */
+        0x1f, 0x20, 0x03, 0xd5,   /* 08: nop */
+        0xf5, 0x5b, 0x41, 0xa9,   /* 0c: ldp x21, x22, [sp, #16] */
+        0xf3, 0x53, 0xc2, 0xa8,   /* 10: ldp x19, x20, [sp], #32 */
+        0xc0, 0x03, 0x5f, 0xd6,   /* 14: ret */
+    };
+
+    static const DWORD unwind_info_21_packed =
+        (1 << 0)  | /* Flag */
+        (sizeof(function_21)/4 << 2) | /* FunctionLength */
+        (0 << 13) | /* RegF */
+        (4 << 16) | /* RegI */
+        (0 << 20) | /* H */
+        (0 << 21) | /* CR */
+        (2 << 23);  /* FrameSize */
+
+    static const BYTE unwind_info_21[] = { DW(unwind_info_21_packed) };
+
+    static const struct results_arm64 results_21[] =
+    {
+      /* offset  fp    handler  pc      frame offset  registers */
+        { 0x00,  0x00,  0,     ORIG_LR, 0x000, TRUE, { {-1,-1} }},
+        { 0x04,  0x00,  0,     ORIG_LR, 0x020, TRUE, { {x19,0x00}, {x20,0x08}, {-1,-1} }},
+        { 0x08,  0x00,  0,     ORIG_LR, 0x020, TRUE, { {x19,0x00}, {x20,0x08}, {x21, 0x10}, {x22, 0x18}, {-1,-1} }},
+        { 0x0c,  0x00,  0,     ORIG_LR, 0x020, TRUE, { {x19,0x00}, {x20,0x08}, {x21, 0x10}, {x22, 0x18}, {-1,-1} }},
+        { 0x10,  0x00,  0,     ORIG_LR, 0x020, TRUE, { {x19,0x00}, {x20,0x08}, {-1,-1} }},
+        { 0x14,  0x00,  0,     ORIG_LR, 0x000, TRUE, { {-1,-1} }},
+    };
+
+    static const BYTE function_22[] =
+    {
+        0xfd, 0x7b, 0xba, 0xa9,   /* 00: stp x29, lr,  [sp, #-96]! */
+        0xfd, 0x03, 0x00, 0x91,   /* 04: mov x29, sp */
+        0xe0, 0x07, 0x02, 0xa9,   /* 08: stp x0,  x1,  [sp, #32] */
+        0xe2, 0x0f, 0x03, 0xa9,   /* 0c: stp x2,  x3,  [sp, #48] */
+        0xe4, 0x17, 0x04, 0xa9,   /* 10: stp x4,  x5,  [sp, #64] */
+        0xe6, 0x1f, 0x05, 0xa9,   /* 14: stp x6,  x7,  [sp, #80] */
+        0x1f, 0x20, 0x03, 0xd5,   /* 18: nop */
+        0x1f, 0x20, 0x03, 0xd5,   /* 1c: nop */
+        0xbf, 0x03, 0x00, 0x91,   /* 20: mov sp,  x29 */
+        0xfd, 0x7b, 0xc6, 0xa8,   /* 24: ldp x29, lr,  [sp], #96 */
+        0xc0, 0x03, 0x5f, 0xd6,   /* 28: ret */
+    };
+
+    static const DWORD unwind_info_22_packed =
+        (1 << 0)  | /* Flag */
+        (sizeof(function_22)/4 << 2) | /* FunctionLength */
+        (0 << 13) | /* RegF */
+        (0 << 16) | /* RegI */
+        (1 << 20) | /* H */
+        (3 << 21) | /* CR */
+        (6 << 23);  /* FrameSize */
+
+    static const BYTE unwind_info_22[] = { DW(unwind_info_22_packed) };
+
+    static const struct results_arm64 results_22[] =
+    {
+      /* offset  fp    handler  pc      frame offset  registers */
+        { 0x00,  0x10,  0,     ORIG_LR, 0x000, TRUE, { {-1,-1} }},
+        { 0x04,  0x10,  0,     0x08,    0x060, TRUE, { {x29, 0x00}, {lr, 0x08}, {-1,-1} }},
+        { 0x08,  0x10,  0,     0x18,    0x070, TRUE, { {x29, 0x10}, {lr, 0x18}, {-1,-1} }},
+        { 0x0c,  0x10,  0,     0x18,    0x070, TRUE, { {x29, 0x10}, {lr, 0x18}, {-1,-1} }},
+        { 0x10,  0x10,  0,     0x18,    0x070, TRUE, { {x29, 0x10}, {lr, 0x18}, {-1,-1} }},
+        { 0x14,  0x10,  0,     0x18,    0x070, TRUE, { {x29, 0x10}, {lr, 0x18}, {-1,-1} }},
+        { 0x18,  0x10,  0,     0x18,    0x070, TRUE, { {x29, 0x10}, {lr, 0x18}, {-1,-1} }},
+        { 0x1c,  0x10,  0,     0x18,    0x070, TRUE, { {x29, 0x10}, {lr, 0x18}, {-1,-1} }},
+        { 0x20,  0x10,  0,     0x18,    0x070, TRUE, { {x29, 0x10}, {lr, 0x18}, {-1,-1} }},
+        { 0x24,  0x10,  0,     0x08,    0x060, TRUE, { {x29, 0x00}, {lr, 0x08}, {-1,-1} }},
+        { 0x28,  0x10,  0,     ORIG_LR, 0x000, TRUE, { {-1,-1} }},
+    };
+
+    static const BYTE function_23[] =
+    {
+        0xff, 0x83, 0x01, 0xd1,   /* 00: sub sp, sp, #96 */
+        0xe0, 0x07, 0x02, 0xa9,   /* 04: stp x0,  x1,  [sp, #32] */
+        0xe2, 0x0f, 0x03, 0xa9,   /* 08: stp x2,  x3,  [sp, #48] */
+        0xe4, 0x17, 0x04, 0xa9,   /* 0c: stp x4,  x5,  [sp, #64] */
+        0xe6, 0x1f, 0x05, 0xa9,   /* 10: stp x6,  x7,  [sp, #80] */
+        0x1f, 0x20, 0x03, 0xd5,   /* 14: nop */
+        0x1f, 0x20, 0x03, 0xd5,   /* 18: nop */
+        0xff, 0x83, 0x01, 0x91,   /* 1c: add sp, sp, #96 */
+        0xc0, 0x03, 0x5f, 0xd6,   /* 20: ret */
+    };
+
+    static const DWORD unwind_info_23_packed =
+        (1 << 0)  | /* Flag */
+        (sizeof(function_23)/4 << 2) | /* FunctionLength */
+        (0 << 13) | /* RegF */
+        (0 << 16) | /* RegI */
+        (1 << 20) | /* H */
+        (0 << 21) | /* CR */
+        (6 << 23);  /* FrameSize */
+
+    static const BYTE unwind_info_23[] = { DW(unwind_info_23_packed) };
+
+    static const struct results_arm64 results_23[] =
+    {
+      /* offset  fp    handler  pc      frame offset  registers */
+        { 0x00,  0x00,  0,     ORIG_LR, 0x000, TRUE, { {-1,-1} }},
+        { 0x04,  0x00,  0,     ORIG_LR, 0x060, TRUE, { {-1,-1} }},
+        { 0x08,  0x00,  0,     ORIG_LR, 0x060, TRUE, { {-1,-1} }},
+        { 0x0c,  0x00,  0,     ORIG_LR, 0x060, TRUE, { {-1,-1} }},
+        { 0x10,  0x00,  0,     ORIG_LR, 0x060, TRUE, { {-1,-1} }},
+        { 0x14,  0x00,  0,     ORIG_LR, 0x060, TRUE, { {-1,-1} }},
+        { 0x18,  0x00,  0,     ORIG_LR, 0x060, TRUE, { {-1,-1} }},
+        { 0x1c,  0x00,  0,     ORIG_LR, 0x060, TRUE, { {-1,-1} }},
+        { 0x20,  0x00,  0,     ORIG_LR, 0x000, TRUE, { {-1,-1} }},
+    };
+
     static const struct unwind_test_arm64 tests[] =
     {
 #define TEST(func, unwind, size, results, unwound_clear, last_ptr, stack_value_index, stack_value) \
@@ -2622,6 +2808,11 @@ static void test_virtual_unwind_arm64(void)
         TEST(function_16, unwind_info_16, sizeof(unwind_info_16), results_16, 2, x18, 6, CONTEXT_ARM64_UNWOUND_TO_CALL),
         TEST(function_17, unwind_info_17, sizeof(unwind_info_17), results_17, 2, 0, -1, 0),
         TEST(function_18, NULL, 0, results_18, 0, 0, -1, 0),
+        TEST(function_19, unwind_info_19, 0, results_19, 0, 0, -1, 0),
+        TEST(function_20, unwind_info_20, 0, results_20, 0, 0, -1, 0),
+        TEST(function_21, unwind_info_21, 0, results_21, 0, 0, -1, 0),
+        TEST(function_22, unwind_info_22, 0, results_22, 0, 0, -1, 0),
+        TEST(function_23, unwind_info_23, 0, results_23, 0, 0, -1, 0),
 #undef TEST
     };
     unsigned int i;
@@ -3161,6 +3352,10 @@ static void test_virtual_unwind_x86(void)
         0,                             /* frame reg */
 
         0x01, UWOP(PUSH_NONVOL, rbp),  /* 02: push %rbp */
+
+        0x00, 0x00,                    /* align */
+        0x00, 0x00, 0x00, 0x00,        /* handler */
+        0x00, 0x00, 0x00, 0x00,        /* data */
     };
 
     static const struct results_x86 results_6_epilogue[] =

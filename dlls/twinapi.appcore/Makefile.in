@@ -9,4 +9,5 @@ SOURCES = \
 	classes.idl \
 	client_device_information.c \
 	data_transfer.c \
+	core_application.c \
 	main.c
