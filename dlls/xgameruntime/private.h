@@ -44,9 +44,9 @@
 #define WIDL_using_Windows_System_Profile
 #include "windows.system.profile.h"
 
-// April 2025 Release of GDK
-#define GDKC_VERSION 10001L
-#define GAMING_SERVICES_VERSION 3181L
+// October 2025 Release of GDK
+#define GDKC_VERSION 10002L
+#define GAMING_SERVICES_VERSION 4084L
 
 extern IXSystemImpl *x_system_impl;
 extern IXSystemAnalyticsImpl *x_system_analytics_impl;
