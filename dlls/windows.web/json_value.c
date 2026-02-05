@@ -1,6 +1,7 @@
 /* WinRT Windows.Data.Json.JsonValue Implementation
  *
  * Copyright (C) 2024 Mohamad Al-Jaf
+ * Copyright (C) 2026 Olivia Ryan
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -124,7 +125,8 @@ struct json_value
     HSTRING parsed_string;
     double parsed_number;
     boolean parsed_boolean;
-    HSTRING string_value;
+    IJsonArray *parsed_array;
+    IJsonObject *parsed_object;
 };
 
 static inline struct json_value *impl_from_IJsonValue( IJsonValue *iface )
@@ -171,7 +173,6 @@ static ULONG WINAPI json_value_Release( IJsonValue *iface )
     if (!ref)
     {
         WindowsDeleteString( impl->parsed_string );
-        WindowsDeleteString( impl->string_value );
         free( impl );
     }
     return ref;
@@ -255,24 +256,28 @@ static HRESULT WINAPI json_value_GetArray( IJsonValue *iface, IJsonArray **value
 {
     struct json_value *impl = impl_from_IJsonValue( iface );
 
-    FIXME( "iface %p, value %p stub!\n", iface, value );
+    TRACE( "iface %p, value %p\n", iface, value );
 
     if (!value) return E_POINTER;
     if (impl->json_value_type != JsonValueType_Array) return E_ILLEGAL_METHOD_CALL;
 
-    return E_NOTIMPL;
+    IJsonArray_AddRef( impl->parsed_array );
+    *value = impl->parsed_array;
+    return S_OK;
 }
 
 static HRESULT WINAPI json_value_GetObject( IJsonValue *iface, IJsonObject **value )
 {
     struct json_value *impl = impl_from_IJsonValue( iface );
 
-    FIXME( "iface %p, value %p stub!\n", iface, value );
+    TRACE( "iface %p, value %p\n", iface, value );
 
     if (!value) return E_POINTER;
     if (impl->json_value_type != JsonValueType_Object) return E_ILLEGAL_METHOD_CALL;
 
-    return E_NOTIMPL;
+    IJsonObject_AddRef( impl->parsed_object );
+    *value = impl->parsed_object;
+    return S_OK;
 }
 
 static const struct IJsonValueVtbl json_value_vtbl =
@@ -424,14 +429,40 @@ static HRESULT WINAPI json_value_statics_TryParse( IJsonValueStatics *iface, HST
 
 static HRESULT WINAPI json_value_statics_CreateBooleanValue( IJsonValueStatics *iface, boolean input, IJsonValue **value )
 {
-    FIXME( "iface %p, input %d, value %p stub!\n", iface, input, value );
-    return E_NOTIMPL;
+    struct json_value *impl;
+
+    TRACE( "iface %p, input %d, value %p\n", iface, input, value );
+
+    if (!value) return E_POINTER;
+    if (!(impl = calloc( 1, sizeof(*impl) ))) return E_OUTOFMEMORY;
+
+    impl->IJsonValue_iface.lpVtbl = &json_value_vtbl;
+    impl->ref = 1;
+    impl->json_value_type = JsonValueType_Boolean;
+    impl->parsed_boolean = input != FALSE;
+
+    *value = &impl->IJsonValue_iface;
+    TRACE( "created IJsonValue %p.\n", *value );
+    return S_OK;
 }
 
 static HRESULT WINAPI json_value_statics_CreateNumberValue( IJsonValueStatics *iface, DOUBLE input, IJsonValue **value )
 {
-    FIXME( "iface %p, input %f, value %p stub!\n", iface, input, value );
-    return E_NOTIMPL;
+    struct json_value *impl;
+
+    TRACE( "iface %p, input %f, value %p\n", iface, input, value );
+
+    if (!value) return E_POINTER;
+    if (!(impl = calloc( 1, sizeof(*impl) ))) return E_OUTOFMEMORY;
+
+    impl->IJsonValue_iface.lpVtbl = &json_value_vtbl;
+    impl->ref = 1;
+    impl->json_value_type = JsonValueType_Number;
+    impl->parsed_number = input;
+
+    *value = &impl->IJsonValue_iface;
+    TRACE( "created IJsonValue %p.\n", *value );
+    return S_OK;
 }
 
 static HRESULT WINAPI json_value_statics_CreateStringValue( IJsonValueStatics *iface, HSTRING input, IJsonValue **value )
@@ -447,7 +478,7 @@ static HRESULT WINAPI json_value_statics_CreateStringValue( IJsonValueStatics *i
     impl->IJsonValue_iface.lpVtbl = &json_value_vtbl;
     impl->ref = 1;
     impl->json_value_type = JsonValueType_String;
-    if (FAILED(hr = WindowsDuplicateString( input, &impl->string_value )))
+    if (FAILED(hr = WindowsDuplicateString( input, &impl->parsed_string )))
     {
          free( impl );
          return hr;
