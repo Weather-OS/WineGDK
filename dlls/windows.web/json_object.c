@@ -313,7 +313,7 @@ static HRESULT WINAPI factory_ActivateInstance( IActivationFactory *iface, IInsp
         return hr;
     }
     hr = IPropertySet_QueryInterface( property_set,
-                                      &IID_IMap_HSTRING_IInspectable, (void**)impl->members );
+                                      &IID_IMap_HSTRING_IInspectable, (void**)&impl->members );
     if (FAILED(hr))
     {
         free( impl );
