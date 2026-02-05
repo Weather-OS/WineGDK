@@ -173,6 +173,8 @@ static ULONG WINAPI json_value_Release( IJsonValue *iface )
     if (!ref)
     {
         WindowsDeleteString( impl->parsed_string );
+        if ( impl->parsed_array ) IJsonArray_Release( impl->parsed_array );
+        if ( impl->parsed_object ) IJsonObject_Release( impl->parsed_object );
         free( impl );
     }
     return ref;
@@ -361,11 +363,17 @@ static HRESULT parse_json_value( HSTRING input, struct json_value *impl )
     else if (json[0] == '[' && json[len - 1] == ']')
     {
         FIXME( "Array parsing not implemented!\n" );
+        if (FAILED(hr = IActivationFactory_ActivateInstance(
+            json_array_factory, (IInspectable**)&impl->parsed_array ))) return hr;
+
         impl->json_value_type = JsonValueType_Array;
     }
     else if (json[0] == '{' && json[len - 1] == '}')
     {
         FIXME( "Object parsing not implemented!\n" );
+        if (FAILED(hr = IActivationFactory_ActivateInstance(
+            json_object_factory, (IInspectable**)&impl->parsed_object ))) return hr;
+
         impl->json_value_type = JsonValueType_Object;
     }
     else

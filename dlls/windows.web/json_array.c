@@ -137,32 +137,62 @@ static HRESULT WINAPI json_array_statics_GetTrustLevel( IJsonArray *iface, Trust
 
 static HRESULT WINAPI json_array_statics_GetObjectAt( IJsonArray *iface, UINT32 index, IJsonObject **value )
 {
-    FIXME( "iface %p, index %u, value %p stub!\n", iface, index, value );
-    return E_NOTIMPL;
+    struct json_array *impl = impl_from_IJsonArray( iface );
+
+    TRACE( "iface %p, index %u, value %p stub!\n", iface, index, value );
+
+    if (!value) return E_POINTER;
+    if (index >= impl->length) return WEB_E_JSON_VALUE_NOT_FOUND;
+
+    return IJsonValue_GetObject( impl->elements[index], value );
 }
 
 static HRESULT WINAPI json_array_statics_GetArrayAt( IJsonArray *iface, UINT32 index, IJsonArray **value )
 {
-    FIXME( "iface %p, index %u, value %p stub!\n", iface, index, value );
-    return E_NOTIMPL;
+    struct json_array *impl = impl_from_IJsonArray( iface );
+
+    TRACE( "iface %p, index %u, value %p stub!\n", iface, index, value );
+
+    if (!value) return E_POINTER;
+    if (index >= impl->length) return WEB_E_JSON_VALUE_NOT_FOUND;
+
+    return IJsonValue_GetArray( impl->elements[index], value );
 }
 
 static HRESULT WINAPI json_array_statics_GetStringAt( IJsonArray *iface, UINT32 index, HSTRING *value )
 {
-    FIXME( "iface %p, index %u, value %p stub!\n", iface, index, value );
-    return E_NOTIMPL;
+    struct json_array *impl = impl_from_IJsonArray( iface );
+
+    TRACE( "iface %p, index %u, value %p stub!\n", iface, index, value );
+
+    if (!value) return E_POINTER;
+    if (index >= impl->length) return WEB_E_JSON_VALUE_NOT_FOUND;
+
+    return IJsonValue_GetString( impl->elements[index], value );
 }
 
 static HRESULT WINAPI json_array_statics_GetNumberAt( IJsonArray *iface, UINT32 index, double *value )
 {
-    FIXME( "iface %p, index %u, value %p stub!\n", iface, index, value );
-    return E_NOTIMPL;
+    struct json_array *impl = impl_from_IJsonArray( iface );
+
+    TRACE( "iface %p, index %u, value %p stub!\n", iface, index, value );
+
+    if (!value) return E_POINTER;
+    if (index >= impl->length) return WEB_E_JSON_VALUE_NOT_FOUND;
+
+    return IJsonValue_GetNumber( impl->elements[index], value );
 }
 
 static HRESULT WINAPI json_array_statics_GetBooleanAt( IJsonArray *iface, UINT32 index, boolean *value )
 {
-    FIXME( "iface %p, index %u, value %p stub!\n", iface, index, value );
-    return E_NOTIMPL;
+    struct json_array *impl = impl_from_IJsonArray( iface );
+
+    TRACE( "iface %p, index %u, value %p stub!\n", iface, index, value );
+
+    if (!value) return E_POINTER;
+    if (index >= impl->length) return WEB_E_JSON_VALUE_NOT_FOUND;
+
+    return IJsonValue_GetBoolean( impl->elements[index], value );
 }
 
 static const struct IJsonArrayVtbl json_array_statics_vtbl =
