@@ -50,6 +50,7 @@ typedef struct XTaskQueueRegistrationToken XTaskQueueRegistrationToken;
 typedef struct XUserGetTokenAndSignatureData XUserGetTokenAndSignatureData;
 typedef struct XUserGetTokenAndSignatureUtf16Data XUserGetTokenAndSignatureUtf16Data;
 typedef struct XUserGetTokenAndSignatureHttpHeader XUserGetTokenAndSignatureHttpHeader;
+typedef struct XUserGetTokenAndSignatureUtf16HttpHeader XUserGetTokenAndSignatureUtf16HttpHeader;
 typedef struct XUserLocalId XUserLocalId;
 
 typedef void XAsyncCompletionRoutine(struct XAsyncBlock* asyncBlock);
@@ -231,6 +232,12 @@ struct XUserGetTokenAndSignatureHttpHeader
     LPCSTR value;
 };
 
+struct XUserGetTokenAndSignatureUtf16HttpHeader
+{
+    LPCWSTR name;
+    LPCWSTR value;
+};
+
 struct XUserLocalId
 {
     UINT64 value;
@@ -313,7 +320,7 @@ interface IXUserImpl : IUnknown
     HRESULT XUserGetTokenAndSignatureAsync( [in] XUserHandle user, [in] XUserGetTokenAndSignatureOptions options, [in] LPCSTR method, [in] LPCSTR url, [in] SIZE_T count, [in] const XUserGetTokenAndSignatureHttpHeader* headers, [in] SIZE_T size, [in] const void* buffer, [in,out] XAsyncBlock* asyncBlock );
     HRESULT XUserGetTokenAndSignatureResultSize( [in,out] XAsyncBlock* asyncBlock, [out] SIZE_T* size );
     HRESULT XUserGetTokenAndSignatureResult( [in,out] XAsyncBlock* asyncBlock, [in] SIZE_T size, [out] void* buffer, [out] XUserGetTokenAndSignatureData** ptr, [out] SIZE_T* used );
-    HRESULT XUserGetTokenAndSignatureUtf16Async( [in] XUserHandle user, [in] XUserGetTokenAndSignatureOptions options, [in] LPCWSTR method, [in] LPCWSTR url, [in] SIZE_T count, [in] const XUserGetTokenAndSignatureHttpHeader* headers, [in] SIZE_T size, [in] const void* buffer, [in,out] XAsyncBlock* asyncBlock );
+    HRESULT XUserGetTokenAndSignatureUtf16Async( [in] XUserHandle user, [in] XUserGetTokenAndSignatureOptions options, [in] LPCWSTR method, [in] LPCWSTR url, [in] SIZE_T count, [in] const XUserGetTokenAndSignatureUtf16HttpHeader* headers, [in] SIZE_T size, [in] const void* buffer, [in,out] XAsyncBlock* asyncBlock );
     HRESULT XUserGetTokenAndSignatureUtf16ResultSize( [in,out] XAsyncBlock* asyncBlock, [out] SIZE_T* size );
     HRESULT XUserGetTokenAndSignatureUtf16Result( [in,out] XAsyncBlock* asyncBlock, [in] SIZE_T size, [out] void* buffer, [out] XUserGetTokenAndSignatureUtf16Data** ptr, [out] SIZE_T* used );
     HRESULT XUserResolveIssueWithUiAsync( [in] XUserHandle user, [in] LPCSTR url, [in,out] XAsyncBlock* asyncBlock );

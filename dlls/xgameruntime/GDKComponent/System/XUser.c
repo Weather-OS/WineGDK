@@ -389,7 +389,7 @@ static HRESULT WINAPI x_user_XUserGetTokenAndSignatureResult(IXUserImpl* iface, 
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_user_XUserGetTokenAndSignatureUtf16Async(IXUserImpl* iface, XUserHandle user, XUserGetTokenAndSignatureOptions options, LPCWSTR method, LPCWSTR url, SIZE_T count, const XUserGetTokenAndSignatureHttpHeader* headers, SIZE_T size, const void* buffer, XAsyncBlock* asyncBlock)
+static HRESULT WINAPI x_user_XUserGetTokenAndSignatureUtf16Async(IXUserImpl* iface, XUserHandle user, XUserGetTokenAndSignatureOptions options, LPCWSTR method, LPCWSTR url, SIZE_T count, const XUserGetTokenAndSignatureUtf16HttpHeader* headers, SIZE_T size, const void* buffer, XAsyncBlock* asyncBlock)
 {
     FIXME("iface %p, user %p, options %d, method %hs, url %hs, count %llu, headers %p, size %llu, buffer %p, asyncBlock %p stub!\n", iface, user, options, method, url, count, headers, size, buffer, asyncBlock);
     return E_NOTIMPL;
