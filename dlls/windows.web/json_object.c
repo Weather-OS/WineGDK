@@ -127,9 +127,10 @@ static HRESULT WINAPI json_object_statics_GetNamedObject( IJsonObject *iface, HS
 
     TRACE( "iface %p, name %s, value %p.\n", iface, debugstr_hstring( name ), value );
 
-    if (FAILED(hr = iface->lpVtbl->GetNamedValue( iface, name, &internal_value )))
+    if (FAILED(hr = IJsonObject_GetNamedValue( iface, name, &internal_value )))
         return hr;
 
+    IJsonValue_Release( internal_value );
     IJsonValue_get_ValueType( internal_value, &value_type );
     if (value_type != JsonValueType_Object) return E_ILLEGAL_METHOD_CALL;
 
@@ -144,9 +145,10 @@ static HRESULT WINAPI json_object_statics_GetNamedArray( IJsonObject *iface, HST
 
     TRACE( "iface %p, name %s, value %p.\n", iface, debugstr_hstring( name ), value );
 
-    if (FAILED(hr = iface->lpVtbl->GetNamedValue( iface, name, &internal_value )))
+    if (FAILED(hr = IJsonObject_GetNamedValue( iface, name, &internal_value )))
         return hr;
 
+    IJsonValue_Release( internal_value );
     IJsonValue_get_ValueType( internal_value, &value_type );
     if (value_type != JsonValueType_Array) return E_ILLEGAL_METHOD_CALL;
 
@@ -161,9 +163,10 @@ static HRESULT WINAPI json_object_statics_GetNamedString( IJsonObject *iface, HS
 
     TRACE( "iface %p, name %s, value %p.\n", iface, debugstr_hstring( name ), value );
 
-    if (FAILED(hr = iface->lpVtbl->GetNamedValue( iface, name, &internal_value )))
+    if (FAILED(hr = IJsonObject_GetNamedValue( iface, name, &internal_value )))
         return hr;
 
+    IJsonValue_Release( internal_value );
     IJsonValue_get_ValueType( internal_value, &value_type );
     if (value_type != JsonValueType_String) return E_ILLEGAL_METHOD_CALL;
 
@@ -178,9 +181,10 @@ static HRESULT WINAPI json_object_statics_GetNamedNumber( IJsonObject *iface, HS
 
     TRACE( "iface %p, name %s, value %p.\n", iface, debugstr_hstring( name ), value );
 
-    if (FAILED(hr = iface->lpVtbl->GetNamedValue( iface, name, &internal_value )))
+    if (FAILED(hr = IJsonObject_GetNamedValue( iface, name, &internal_value )))
         return hr;
 
+    IJsonValue_Release( internal_value );
     IJsonValue_get_ValueType( internal_value, &value_type );
     if (value_type != JsonValueType_Number) return E_ILLEGAL_METHOD_CALL;
 
@@ -195,9 +199,10 @@ static HRESULT WINAPI json_object_statics_GetNamedBoolean( IJsonObject *iface, H
 
     TRACE( "iface %p, name %s, value %p.\n", iface, debugstr_hstring( name ), value );
 
-    if (FAILED(hr = iface->lpVtbl->GetNamedValue( iface, name, &internal_value )))
+    if (FAILED(hr = IJsonObject_GetNamedValue( iface, name, &internal_value )))
         return hr;
 
+    IJsonValue_Release( internal_value );
     IJsonValue_get_ValueType( internal_value, &value_type );
     if (value_type != JsonValueType_Boolean) return E_ILLEGAL_METHOD_CALL;
 
@@ -315,6 +320,7 @@ static HRESULT WINAPI factory_ActivateInstance( IActivationFactory *iface, IInsp
     }
     hr = IPropertySet_QueryInterface( property_set,
                                       &IID_IMap_HSTRING_IInspectable, (void**)&impl->members );
+    IPropertySet_Release( property_set );
     if (FAILED(hr))
     {
         free( impl );

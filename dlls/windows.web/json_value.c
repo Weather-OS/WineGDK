@@ -512,10 +512,10 @@ static HRESULT parse_json_object( const WCHAR **json, UINT32 *len, struct json_v
             return hr;
         }
 
-        if (FAILED(hr = IJsonObject_SetNamedValue(
-            impl->parsed_object, name, &child->IJsonValue_iface )))
+        hr = IJsonObject_SetNamedValue( impl->parsed_object, name, &child->IJsonValue_iface );
+        IJsonValue_Release( &child->IJsonValue_iface );
+        if (FAILED(hr))
         {
-            IJsonValue_Release( &child->IJsonValue_iface );
             IJsonObject_Release( impl->parsed_object );
             WindowsDeleteString( name );
             return hr;
