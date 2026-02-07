@@ -113,9 +113,10 @@ static HRESULT WINAPI json_object_statics_GetNamedValue( IJsonObject *iface, HST
 
 static HRESULT WINAPI json_object_statics_SetNamedValue( IJsonObject *iface, HSTRING name, IJsonValue *value )
 {
+    boolean dummy;
     struct json_object *impl = impl_from_IJsonObject( iface );
     TRACE( "iface %p, name %s, value %p.\n", iface, debugstr_hstring( name ), value );
-    return IMap_HSTRING_IInspectable_Insert( impl->members, name, (IInspectable*)value, NULL );
+    return IMap_HSTRING_IInspectable_Insert( impl->members, name, (IInspectable*)value, &dummy );
 }
 
 static HRESULT WINAPI json_object_statics_GetNamedObject( IJsonObject *iface, HSTRING name, IJsonObject **value )

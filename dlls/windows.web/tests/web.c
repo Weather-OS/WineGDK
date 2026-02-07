@@ -112,7 +112,6 @@ static void check_json_( unsigned int line, IJsonValueStatics *json_value_static
         if (expected_json_value_type == JsonValueType_Number)
             ok_(__FILE__, line)( hr == WEB_E_INVALID_JSON_NUMBER, "got hr %#lx.\n", hr );
         else
-            todo_wine
             ok_(__FILE__, line)( hr == WEB_E_INVALID_JSON_STRING, "got hr %#lx.\n", hr );
 
         WindowsDeleteString( str );
@@ -187,13 +186,11 @@ static void check_json_( unsigned int line, IJsonValueStatics *json_value_static
             break;
         case JsonValueType_Array:
             hr = IJsonValue_GetArray( json_value, &json_array );
-            todo_wine
             ok_(__FILE__, line)( hr == S_OK, "got hr %#lx.\n", hr );
             if (hr == S_OK) IJsonArray_Release( json_array );
             break;
         case JsonValueType_Object:
             hr = IJsonValue_GetObject( json_value, &json_object );
-            todo_wine
             ok_(__FILE__, line)( hr == S_OK, "got hr %#lx.\n", hr );
             if (hr == S_OK) IJsonObject_Release( json_object );
             break;
@@ -289,7 +286,6 @@ static void test_JsonValueStatics(void)
     hr = IJsonValueStatics_Parse( json_value_statics, str, NULL );
     ok( hr == E_POINTER, "got hr %#lx.\n", hr );
     hr = IJsonValueStatics_Parse( json_value_statics, str, &json_value );
-    todo_wine
     ok( hr == WEB_E_INVALID_JSON_STRING, "got hr %#lx.\n", hr );
     WindowsDeleteString( str );
 
