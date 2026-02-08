@@ -26,16 +26,17 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(gdkc);
 
+static const struct IXUserImplVtbl x_user_vtbl;
+
 static BOOLEAN HttpRequest(LPCWSTR method, LPCWSTR domain, LPCWSTR object, LPSTR data, LPCWSTR headers, LPCWSTR* accept, LPSTR* buffer, SIZE_T* bufferSize)
 {
-    HINTERNET session = NULL;
     HINTERNET connection = NULL;
+    DWORD size = sizeof(DWORD);
+    HINTERNET session = NULL;
     HINTERNET request = NULL;
     BOOLEAN response = FALSE;
-    LPSTR chunkBuffer;
-    DWORD size;
     BOOLEAN result = TRUE;
-    SIZE_T allocated;
+    DWORD status;
 
     session = WinHttpOpen(
         L"WineGDK/1.0",
@@ -78,85 +79,252 @@ static BOOLEAN HttpRequest(LPCWSTR method, LPCWSTR domain, LPCWSTR object, LPSTR
     if (response)
         response = WinHttpReceiveResponse(request, NULL);
 
+    if (response)
+        response = WinHttpQueryHeaders(
+            request,
+            WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+            WINHTTP_HEADER_NAME_BY_INDEX,
+            &status,
+            &size,
+            WINHTTP_NO_HEADER_INDEX
+        );
+
+    if (response && status / 100 != 2) response = FALSE;
+
     /* buffer response data */
+    *buffer = NULL;
+    *bufferSize = 0;
     if (response)
     {
-        allocated = 0x1000;
-        *buffer = calloc(1, allocated);
-        *bufferSize = 0;
         do
         {
-            size = 0;
-            chunkBuffer = *buffer + *bufferSize;
-            if (!WinHttpQueryDataAvailable(request, &size))
+            if (!(result = WinHttpQueryDataAvailable(request, &size))) break;
+            if (!size) break;
+
+            if (!(*buffer = realloc(*buffer, *bufferSize + size)))
             {
-                free(*buffer);
                 result = FALSE;
                 break;
             }
 
-            if (*bufferSize + size >= allocated)
-            {
-                allocated = (*bufferSize + size + 0xFFF) & ~0xFFF;
-                *buffer = realloc(*buffer, allocated);
-                if (!*buffer)
-                {
-                    result = FALSE;
-                    break;
-                }
-            }
+            if (!(result = WinHttpReadData(request, *buffer + *bufferSize, size, &size)))
+                break;
 
             *bufferSize += size;
-            if (!WinHttpReadData(request, chunkBuffer, size, NULL))
-            {
-                free(*buffer);
-                result = FALSE;
-                break;
-            }
         }
-        while (size > 0);
+        while (size);
     }
     else result = FALSE;
 
-    if (request) WinHttpCloseHandle(request);
     if (connection) WinHttpCloseHandle(connection);
+    if (request) WinHttpCloseHandle(request);
     if (session) WinHttpCloseHandle(session);
+    if (!result && *buffer) free(*buffer);
 
     return result;
 }
 
-static BOOLEAN RequestOAuthToken(LPCSTR clientId)
+static BOOLEAN RefreshOAuth(LPCSTR client_id, LPCSTR refresh_token, time_t *new_expiry, HSTRING *new_refresh_token, HSTRING *new_oauth_token)
 {
-    LPCSTR template = "scope=service%3a%3auser.auth.xboxlive.com%3a%3aMBI_SSL&response_type=device_code&client_id=";
+    LPCSTR template = "grant_type=refresh_token&scope=service::user.auth.xboxlive.com::MBI_SSL&client_id=";
+    LPCWSTR class_str = RuntimeClass_Windows_Data_Json_JsonValue;
     LPCWSTR accept[] = {L"application/json", NULL};
+    IJsonValueStatics *statics;
+    HSTRING_HEADER content_hdr;
+    HSTRING_HEADER expires_hdr;
+    HSTRING_HEADER refresh_hdr;
+    HSTRING_HEADER class_hdr;
+    HSTRING_HEADER oauth_hdr;
+    IJsonObject *object;
+    IJsonValue *value;
+    HSTRING content;
+    HSTRING expires;
+    HSTRING refresh;
+    LPWSTR w_buffer;
     BOOLEAN result;
-    LPSTR data;
+    HSTRING class;
+    HSTRING oauth;
     LPSTR buffer;
+    DOUBLE delta;
     SIZE_T size;
+    HRESULT hr;
+    LPSTR data;
+    INT w_size;
+    time_t tmp;
 
-    /* request a device code */
+    if (!(data = calloc(1, strlen(template) + strlen(client_id) +
+        strlen("&refresh_token=") + strlen(refresh_token) + 1))) return FALSE;
 
-    data = calloc(strlen(template) + strlen(clientId) + 1, sizeof(CHAR));
     strcpy(data, template);
-    strcat(data, clientId);
+    strcat(data, client_id);
+    strcat(data, "&refresh_token=");
+    strcat(data, refresh_token);
+
+    TRACE("%s\n",data);
+
     result = HttpRequest(
         L"POST",
         L"login.live.com",
-        L"/oauth20_connect.srf",
+        L"/oauth20_token.srf",
         data,
         L"content-type: application/x-www-form-urlencoded",
         accept,
         &buffer,
         &size
     );
-    free(data);
 
-    if (!result)
-        return result;
+    if (!result) return FALSE;
 
-    TRACE("%s\n", buffer);
+    TRACE("%s\n",debugstr_an(buffer,size));
 
+    if (!(w_size = MultiByteToWideChar(CP_UTF8, 0, buffer, size, NULL, 0)))
+    {
+        free(buffer);
+        return FALSE;
+    }
+
+    if (!(w_buffer = calloc(w_size, sizeof(WCHAR))))
+    {
+        free(buffer);
+        return FALSE;
+    }
+
+    w_size = MultiByteToWideChar(CP_UTF8, 0, buffer, size, w_buffer, w_size);
     free(buffer);
+    if (!w_size)
+    {
+        free(w_buffer);
+        return FALSE;
+    }
+
+    hr = WindowsCreateStringReference(w_buffer, w_size, &content_hdr, &content);
+    if (FAILED(hr))
+    {
+        free(w_buffer);
+        return FALSE;
+    }
+
+    if (FAILED(WindowsCreateStringReference(
+        L"access_token", wcslen(L"access_token"), &oauth_hdr, &oauth)))
+    {
+        free(w_buffer);
+        return FALSE;
+    }
+
+    if (FAILED(WindowsCreateStringReference(
+        L"refresh_token", wcslen(L"refresh_token"), &refresh_hdr, &refresh)))
+    {
+        free(w_buffer);
+        return FALSE;
+    }
+
+    if (FAILED(WindowsCreateStringReference(
+        L"expires_in", wcslen(L"expires_in"), &expires_hdr, &expires)))
+    {
+        free(w_buffer);
+        return FALSE;
+    }
+
+    if (FAILED(WindowsCreateStringReference(class_str, wcslen(class_str), &class_hdr, &class)))
+    {
+        free(w_buffer);
+        return FALSE;
+    }
+
+    if (FAILED(RoGetActivationFactory(class, &IID_IJsonValueStatics, (void**)&statics)))
+    {
+        free(w_buffer);
+        return FALSE;
+    }
+
+    hr = IJsonValueStatics_Parse(statics, content, &value);
+    free(w_buffer);
+    IJsonValueStatics_Release(statics);
+    if (FAILED(hr))
+    {
+        IJsonValue_Release(value);
+        return FALSE;
+    }
+
+    hr = IJsonValue_GetObject(value, &object);
+    IJsonValue_Release(value);
+    if (FAILED(hr))
+    {
+        IJsonObject_Release(object);
+        return FALSE;
+    }
+
+    if (FAILED(IJsonObject_GetNamedString(object, refresh, new_refresh_token)))
+    {
+        IJsonObject_Release(object);
+        return FALSE;
+    }
+
+    if (FAILED(IJsonObject_GetNamedString(object, oauth, new_oauth_token)))
+    {
+        IJsonObject_Release(object);
+        return FALSE;
+    }
+
+    hr = IJsonObject_GetNamedNumber(object, expires, &delta);
+    IJsonObject_Release(object);
+    if (FAILED(hr)) return FALSE;
+
+    if ((tmp = time(NULL)) == -1) return FALSE;
+    *new_expiry = tmp + delta;
+
+    return TRUE;
+}
+
+static BOOLEAN LoadDefaultUser(XUserHandle *user, LPCSTR client_id)
+{
+    struct x_user *impl;
+    BOOLEAN result;
+    LSTATUS status;
+    LPSTR buffer;
+    DWORD size;
+
+    TRACE("user %p\n", *user);
+
+    if (ERROR_SUCCESS != (status = RegGetValueA(
+        HKEY_LOCAL_MACHINE,
+        "Software\\Wine\\WineGDK",
+        "RefreshToken",
+        RRF_RT_REG_SZ,
+        NULL,
+        NULL,
+        &size
+    ))) return FALSE;
+
+    TRACE("%lu\n", size);
+
+    if (!(buffer = calloc(1, size))) return FALSE;
+
+    if (ERROR_SUCCESS != (status = RegGetValueA(
+        HKEY_LOCAL_MACHINE,
+        "Software\\Wine\\WineGDK",
+        "RefreshToken",
+        RRF_RT_REG_SZ,
+        NULL,
+        buffer,
+        &size
+    )))
+    {
+        free(buffer);
+        return FALSE;
+    }
+
+    if (!(impl = calloc(1, sizeof(*impl)))) return FALSE;
+    impl->IXUserImpl_iface.lpVtbl = &x_user_vtbl;
+    impl->ref = 1;
+
+    result = RefreshOAuth(
+        client_id, buffer, &impl->oauth_token_expiry, &impl->refresh_token, &impl->oauth_token);
+
+        free(buffer);
+    if (result) *user = (XUserHandle)impl;
+    else IXUserImpl_Release(&impl->IXUserImpl_iface);
+
     return result;
 }
 
@@ -198,18 +366,27 @@ static ULONG WINAPI x_user_Release(IXUserImpl *iface)
     struct x_user *impl = impl_from_IXUserImpl(iface);
     ULONG ref = InterlockedDecrement(&impl-> ref);
     TRACE("iface %p decreasing refcount to %lu\n", iface, ref);
+    if (!ref)
+    {
+        WindowsDeleteString(impl->refresh_token);
+        WindowsDeleteString(impl->oauth_token);
+        free(impl);
+    }
     return ref;
 }
 
 static HRESULT WINAPI x_user_XUserDuplicateHandle(IXUserImpl* iface, XUserHandle user, XUserHandle* duplicated)
 {
-    FIXME("iface %p, user %p, duplicated %p stub!\n", iface, user, duplicated);
-    return E_NOTIMPL;
+    TRACE("iface %p, user %p, duplicated %p\n", iface, user, duplicated);
+    IXUserImpl_AddRef(&((struct x_user*)user)->IXUserImpl_iface);
+    *duplicated = user;
+    return S_OK;
 }
 
 static void WINAPI x_user_XUserCloseHandle(IXUserImpl* iface, XUserHandle user)
 {
-    FIXME("iface %p, user %p stub!\n", iface, user);
+    TRACE("iface %p, user %p\n", iface, user);
+    IXUserImpl_Release(&((struct x_user*)user)->IXUserImpl_iface);
 }
 
 static INT32 WINAPI x_user_XUserCompare(IXUserImpl* iface, XUserHandle user1, XUserHandle user2)
@@ -227,12 +404,14 @@ static HRESULT WINAPI x_user_XUserGetMaxUsers(IXUserImpl* iface, UINT32* maxUser
 struct XUserAddContext {
     XUserAddOptions options;
     XUserHandle user;
+    LPCSTR client_id;
 };
 
 HRESULT XUserAddProvider(XAsyncOp operation, const XAsyncProviderData* providerData)
 {
     struct XUserAddContext* context;
     IXThreadingImpl* impl;
+    HRESULT hr;
 
     TRACE("operation %d, providerData %p\n", operation, providerData);
 
@@ -249,8 +428,19 @@ HRESULT XUserAddProvider(XAsyncOp operation, const XAsyncProviderData* providerD
             break;
 
         case DoWork:
-            // TODO
-            impl->lpVtbl->XAsyncComplete(impl, providerData->async, S_OK, sizeof(XUserHandle));
+            if (context->options & XUserAddOptions_AddDefaultUserAllowingUI)
+            {
+                if (LoadDefaultUser(&context->user, context->client_id)) hr = S_OK;
+                else hr = E_ABORT;
+            }
+            else if (context->options & XUserAddOptions_AddDefaultUserSilently)
+            {
+                if (LoadDefaultUser(&context->user, context->client_id)) hr = S_OK;
+                else hr = E_GAMEUSER_NO_DEFAULT_USER;
+            }
+            else hr = E_ABORT;
+
+            impl->lpVtbl->XAsyncComplete(impl, providerData->async, hr, sizeof(XUserHandle));
             break;
 
         case Cleanup:

@@ -25,11 +25,16 @@
 #define XUSER_H
 
 #include "../../private.h"
+#include <time.h>
 
 struct x_user
 {
     IXUserImpl IXUserImpl_iface;
     LONG ref;
+
+    time_t oauth_token_expiry;
+    HSTRING refresh_token;
+    HSTRING oauth_token;
 };
 
 #endif
