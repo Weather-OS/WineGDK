@@ -26,6 +26,7 @@
 WINE_DEFAULT_DEBUG_CHANNEL(xgameruntime);
 
 static HMODULE xgameruntime;
+static HMODULE xgameruntime_threading;
 
 static VOID LoadOtherRuntime( DWORD *asked )
 {
@@ -109,10 +110,12 @@ BOOL WINAPI DllMain( HINSTANCE hinst, DWORD reason, void *reserved )
     {
         case DLL_PROCESS_ATTACH:
             DisableThreadLibraryCalls(hinst);
+            xgameruntime_threading = LoadLibraryA("xgameruntime.dll.threading");
             break;
         case DLL_PROCESS_DETACH:
             if (reserved) break;
             if (xgameruntime) FreeLibrary(xgameruntime);
+            if (xgameruntime_threading) FreeLibrary(xgameruntime_threading);
         break;
     }
     return TRUE;
@@ -170,8 +173,7 @@ HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, voi
     //  IXSystemImpl_XSystemAllowFullDownloadBandwidth  (offset 64)
     //
 
-    HMODULE hMod = LoadLibraryA("xgameruntime.dll.threading");
-    QueryApiImpl_ext func = (QueryApiImpl_ext)GetProcAddress( hMod, "QueryApiImpl" );
+    QueryApiImpl_ext func = (QueryApiImpl_ext)GetProcAddress( xgameruntime_threading, "QueryApiImpl" );
     DWORD asked;
 
     TRACE("runtimeClassId %s, interfaceId %s, out %p\n", debugstr_guid(runtimeClassId), debugstr_guid(interfaceId), out);

@@ -23,9 +23,9 @@
 
 typedef enum XNetworkingThumbprintType
 {  
-    Leaf = 0,  
-    Issuer = 1,  
-    Root = 2,  
+    ThumbprintType_Leaf = 0,  
+    ThumbprintType_Issuer = 1,  
+    ThumbprintType_Root = 2,  
 } XNetworkingThumbprintType;
 
 typedef enum XNetworkingConnectivityLevelHint
