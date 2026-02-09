@@ -36,6 +36,7 @@ struct x_user
     HSTRING refresh_token;
     HSTRING oauth_token;
     HSTRING user_token;
+    HSTRING xsts_token;
 };
 
 #endif

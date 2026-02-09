@@ -124,6 +124,25 @@ static BOOLEAN HttpRequest(LPCWSTR method, LPCWSTR domain, LPCWSTR object, LPSTR
     return result;
 }
 
+static BOOLEAN HSTRINGToMultiByte(HSTRING hstr, LPSTR *str, UINT32 *str_len)
+{
+    UINT32 wstr_len;
+    LPCWSTR wstr = WindowsGetStringRawBuffer(hstr, &wstr_len);
+
+    if (!(*str_len = WideCharToMultiByte(CP_UTF8, 0, wstr, wstr_len, NULL, 0, NULL, NULL)))
+        return FALSE;
+
+    if (!(*str = calloc(1, *str_len))) return FALSE;
+
+    if (!(*str_len = WideCharToMultiByte(CP_UTF8, 0, wstr, wstr_len, *str, *str_len, NULL, NULL)))
+    {
+        free(*str);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
 static BOOLEAN RefreshOAuth(LPCSTR client_id, LPCSTR refresh_token, time_t *new_expiry, HSTRING *new_refresh_token, HSTRING *new_oauth_token)
 {
     LPCSTR template = "grant_type=refresh_token&scope=service::user.auth.xboxlive.com::MBI_SSL&client_id=";
@@ -273,57 +292,30 @@ static BOOLEAN RefreshOAuth(LPCSTR client_id, LPCSTR refresh_token, time_t *new_
     return TRUE;
 }
 
-static BOOLEAN RequestUserToken(HSTRING oauth_token, HSTRING *new_user_token)
+static BOOLEAN RequestXToken(LPCWSTR domain, LPCWSTR path, LPSTR data, HSTRING *token)
 {
-    LPCSTR template = "{\"RelyingParty\":\"http://auth.xboxlive.com\",\"TokenType\":\"JWT\",\"Properties\":{\"AuthMethod\":\"RPS\",\"SiteName\":\"user.auth.xboxlive.com\",\"RpsTicket\":\"";
     LPCWSTR class_str = RuntimeClass_Windows_Data_Json_JsonValue;
     LPCWSTR accept[] = {L"application/json", NULL};
+    HSTRING_HEADER token_key_hdr;
     IJsonValueStatics *statics;
     HSTRING_HEADER content_hdr;
     HSTRING_HEADER class_hdr;
-    HSTRING_HEADER user_hdr;
     IJsonObject *object;
     IJsonValue *value;
+    HSTRING token_key;
     LPWSTR w_buffer;
     HSTRING content;
     BOOLEAN result;
     HSTRING class;
-    HSTRING user;
     LPSTR buffer;
     SIZE_T size;
-    LPSTR data;
     HRESULT hr;
     INT w_size;
 
-    LPSTR oauth_token_str;
-    UINT32 oauth_token_str_len;
-    UINT32 oauth_token_wstr_len;
-    LPCWSTR oauth_token_wstr = WindowsGetStringRawBuffer(oauth_token, &oauth_token_wstr_len);
-
-    if (!(oauth_token_str_len = WideCharToMultiByte(
-        CP_UTF8, 0, oauth_token_wstr, oauth_token_wstr_len, NULL, 0, NULL, NULL))) return FALSE;
-
-    if (!(oauth_token_str = calloc(1, oauth_token_str_len))) return FALSE;
-
-    if (!(oauth_token_str_len = WideCharToMultiByte(CP_UTF8, 0, oauth_token_wstr,
-        oauth_token_wstr_len, oauth_token_str, oauth_token_str_len, NULL, NULL)))
-    {
-        free(oauth_token_str);
-        return FALSE;
-    }
-
-    if (!(data = calloc(1, strlen(template) + strlen(oauth_token_str) + strlen("\"}}"))))
-        return FALSE;
-
-    strcpy(data, template);
-    strncat(data, oauth_token_str, oauth_token_str_len);
-    free(oauth_token_str);
-    strcat(data, "\"}}");
-
     result = HttpRequest(
         L"POST",
-        L"user.auth.xboxlive.com",
-        L"/user/authenticate",
+        domain,
+        path,
         data,
         L"content-type: application/json",
         accept,
@@ -331,7 +323,6 @@ static BOOLEAN RequestUserToken(HSTRING oauth_token, HSTRING *new_user_token)
         &size
     );
 
-    free(data);
     if (!result) return FALSE;
 
     if (!(w_size = MultiByteToWideChar(CP_UTF8, 0, buffer, size, NULL, 0)))
@@ -362,7 +353,7 @@ static BOOLEAN RequestUserToken(HSTRING oauth_token, HSTRING *new_user_token)
     }
 
     if (FAILED(WindowsCreateStringReference(
-        L"Token", wcslen(L"Token"), &user_hdr, &user)))
+        L"Token", wcslen(L"Token"), &token_key_hdr, &token_key)))
     {
         free(w_buffer);
         return FALSE;
@@ -397,7 +388,7 @@ static BOOLEAN RequestUserToken(HSTRING oauth_token, HSTRING *new_user_token)
         return FALSE;
     }
 
-    if (FAILED(hr = IJsonObject_GetNamedString(object, user, new_user_token)))
+    if (FAILED(hr = IJsonObject_GetNamedString(object, token_key, token)))
     {
         IJsonObject_Release(object);
         return FALSE;
@@ -408,10 +399,15 @@ static BOOLEAN RequestUserToken(HSTRING oauth_token, HSTRING *new_user_token)
 
 static BOOLEAN LoadDefaultUser(XUserHandle *user, LPCSTR client_id)
 {
+    LPCSTR user_template = "{\"RelyingParty\":\"http://auth.xboxlive.com\",\"TokenType\":\"JWT\",\"Properties\":{\"AuthMethod\":\"RPS\",\"SiteName\":\"user.auth.xboxlive.com\",\"RpsTicket\":\"";
+    LPCSTR xsts_template = "{\"RelyingParty\":\"http://xboxlive.com\",\"TokenType\":\"JWT\",\"Properties\":{\"SandboxId\":\"RETAIL\",\"UserTokens\":[\"";
+    UINT32 token_str_len;
     struct x_user *impl;
+    LPSTR token_str;
     BOOLEAN result;
     LSTATUS status;
     LPSTR buffer;
+    LPSTR data;
     DWORD size;
 
     if (ERROR_SUCCESS != (status = RegGetValueA(
@@ -448,9 +444,56 @@ static BOOLEAN LoadDefaultUser(XUserHandle *user, LPCSTR client_id)
         client_id, buffer, &impl->oauth_token_expiry, &impl->refresh_token, &impl->oauth_token);
 
     free(buffer);
-    if (result)
-        result = RequestUserToken(impl->oauth_token, &impl->user_token);
+    if (!result)
+    {
+        IXUserImpl_Release(&impl->IXUserImpl_iface);
+        return result;
+    }
 
+    if (!(result = HSTRINGToMultiByte(impl->oauth_token, &token_str, &token_str_len)))
+    {
+        IXUserImpl_Release(&impl->IXUserImpl_iface);
+        return result;
+    }
+
+    if (!(data = calloc(1, strlen(user_template) + strlen(token_str) + strlen("\"}}"))))
+    {
+        IXUserImpl_Release(&impl->IXUserImpl_iface);
+        free(token_str);
+        return FALSE;
+    }
+
+    strcpy(data, user_template);
+    strncat(data, token_str, token_str_len);
+    free(token_str);
+    strcat(data, "\"}}");
+    result = RequestXToken(L"user.auth.xboxlive.com", L"/user/authenticate", data, &impl->user_token);
+    free(data);
+    if (!result)
+    {
+        IXUserImpl_Release(&impl->IXUserImpl_iface);
+        return result;
+    }
+
+    if (!(result = HSTRINGToMultiByte(impl->user_token, &token_str, &token_str_len)))
+    {
+        IXUserImpl_Release(&impl->IXUserImpl_iface);
+        return result;
+    }
+
+    if (!(data = calloc(1, strlen(xsts_template) + strlen(token_str) + strlen("\"]}}"))))
+    {
+        IXUserImpl_Release(&impl->IXUserImpl_iface);
+        free(token_str);
+        return FALSE;
+    }
+
+    strcpy(data, xsts_template);
+    strncat(data, token_str, token_str_len);
+    free(token_str);
+    strcat(data, "\"]}}");
+    result = RequestXToken(L"xsts.auth.xboxlive.com", L"/xsts/authorize", data, &impl->xsts_token);
+    free(data);
     if (result) *user = (XUserHandle)impl;
     else IXUserImpl_Release(&impl->IXUserImpl_iface);
 
