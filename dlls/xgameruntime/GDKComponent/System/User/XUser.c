@@ -28,385 +28,35 @@ WINE_DEFAULT_DEBUG_CHANNEL(gdkc);
 
 static const struct IXUserImplVtbl x_user_vtbl;
 
-static BOOLEAN HttpRequest(LPCWSTR method, LPCWSTR domain, LPCWSTR object, LPSTR data, LPCWSTR headers, LPCWSTR* accept, LPSTR* buffer, SIZE_T* bufferSize)
-{
-    HINTERNET connection = NULL;
-    DWORD size = sizeof(DWORD);
-    HINTERNET session = NULL;
-    HINTERNET request = NULL;
-    BOOLEAN response = FALSE;
-    BOOLEAN result = TRUE;
-    DWORD status;
-
-    session = WinHttpOpen(
-        L"WineGDK/1.0",
-        WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
-        WINHTTP_NO_PROXY_NAME,
-        WINHTTP_NO_PROXY_BYPASS,
-        0
-    );
-
-    if (session)
-        connection = WinHttpConnect(
-            session,
-            domain,
-            INTERNET_DEFAULT_HTTPS_PORT,
-            0
-        );
-
-    if (connection)
-        request = WinHttpOpenRequest(
-            connection,
-            method,
-            object,
-            NULL,
-            WINHTTP_NO_REFERER,
-            accept,
-            WINHTTP_FLAG_SECURE
-        );
-
-    if (request)
-        response = WinHttpSendRequest(
-            request,
-            headers,
-            -1,
-            data,
-            strlen(data),
-            strlen(data),
-            0
-        );
-
-    if (response)
-        response = WinHttpReceiveResponse(request, NULL);
-
-    if (response)
-        response = WinHttpQueryHeaders(
-            request,
-            WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
-            WINHTTP_HEADER_NAME_BY_INDEX,
-            &status,
-            &size,
-            WINHTTP_NO_HEADER_INDEX
-        );
-
-    if (response && status / 100 != 2) response = FALSE;
-
-    /* buffer response data */
-    *buffer = NULL;
-    *bufferSize = 0;
-    if (response)
-    {
-        do
-        {
-            if (!(result = WinHttpQueryDataAvailable(request, &size))) break;
-            if (!size) break;
-
-            if (!(*buffer = realloc(*buffer, *bufferSize + size)))
-            {
-                result = FALSE;
-                break;
-            }
-
-            if (!(result = WinHttpReadData(request, *buffer + *bufferSize, size, &size)))
-                break;
-
-            *bufferSize += size;
-        }
-        while (size);
-    }
-    else result = FALSE;
-
-    if (connection) WinHttpCloseHandle(connection);
-    if (request) WinHttpCloseHandle(request);
-    if (session) WinHttpCloseHandle(session);
-    if (!result && *buffer) free(*buffer);
-
-    return result;
-}
-
-static BOOLEAN HSTRINGToMultiByte(HSTRING hstr, LPSTR *str, UINT32 *str_len)
+static HRESULT HSTRINGToMultiByte(HSTRING hstr, LPSTR *str, UINT32 *str_len)
 {
     UINT32 wstr_len;
     LPCWSTR wstr = WindowsGetStringRawBuffer(hstr, &wstr_len);
 
     if (!(*str_len = WideCharToMultiByte(CP_UTF8, 0, wstr, wstr_len, NULL, 0, NULL, NULL)))
-        return FALSE;
+        return HRESULT_FROM_WIN32(GetLastError());
 
-    if (!(*str = calloc(1, *str_len))) return FALSE;
+    if (!(*str = calloc(1, *str_len))) return E_OUTOFMEMORY;
 
     if (!(*str_len = WideCharToMultiByte(CP_UTF8, 0, wstr, wstr_len, *str, *str_len, NULL, NULL)))
     {
         free(*str);
-        return FALSE;
+        return HRESULT_FROM_WIN32(GetLastError());
     }
 
-    return TRUE;
+    return S_OK;
 }
 
-static BOOLEAN RefreshOAuth(LPCSTR client_id, LPCSTR refresh_token, time_t *new_expiry, HSTRING *new_refresh_token, HSTRING *new_oauth_token)
-{
-    LPCSTR template = "grant_type=refresh_token&scope=service::user.auth.xboxlive.com::MBI_SSL&client_id=";
-    LPCWSTR class_str = RuntimeClass_Windows_Data_Json_JsonValue;
-    LPCWSTR accept[] = {L"application/json", NULL};
-    IJsonValueStatics *statics;
-    HSTRING_HEADER content_hdr;
-    HSTRING_HEADER expires_hdr;
-    HSTRING_HEADER refresh_hdr;
-    HSTRING_HEADER class_hdr;
-    HSTRING_HEADER oauth_hdr;
-    IJsonObject *object;
-    IJsonValue *value;
-    HSTRING content;
-    HSTRING expires;
-    HSTRING refresh;
-    LPWSTR w_buffer;
-    BOOLEAN result;
-    HSTRING class;
-    HSTRING oauth;
-    LPSTR buffer;
-    DOUBLE delta;
-    SIZE_T size;
-    HRESULT hr;
-    LPSTR data;
-    INT w_size;
-    time_t tmp;
-
-    if (!(data = calloc(1, strlen(template) + strlen(client_id) +
-        strlen("&refresh_token=") + strlen(refresh_token) + 1))) return FALSE;
-
-    strcpy(data, template);
-    strcat(data, client_id);
-    strcat(data, "&refresh_token=");
-    strcat(data, refresh_token);
-
-    result = HttpRequest(
-        L"POST",
-        L"login.live.com",
-        L"/oauth20_token.srf",
-        data,
-        L"content-type: application/x-www-form-urlencoded",
-        accept,
-        &buffer,
-        &size
-    );
-
-    free(data);
-    if (!result) return FALSE;
-
-    if (!(w_size = MultiByteToWideChar(CP_UTF8, 0, buffer, size, NULL, 0)))
-    {
-        free(buffer);
-        return FALSE;
-    }
-
-    if (!(w_buffer = calloc(w_size, sizeof(WCHAR))))
-    {
-        free(buffer);
-        return FALSE;
-    }
-
-    w_size = MultiByteToWideChar(CP_UTF8, 0, buffer, size, w_buffer, w_size);
-    free(buffer);
-    if (!w_size)
-    {
-        free(w_buffer);
-        return FALSE;
-    }
-
-    hr = WindowsCreateStringReference(w_buffer, w_size, &content_hdr, &content);
-    if (FAILED(hr))
-    {
-        free(w_buffer);
-        return FALSE;
-    }
-
-    if (FAILED(WindowsCreateStringReference(
-        L"access_token", wcslen(L"access_token"), &oauth_hdr, &oauth)))
-    {
-        free(w_buffer);
-        return FALSE;
-    }
-
-    if (FAILED(WindowsCreateStringReference(
-        L"refresh_token", wcslen(L"refresh_token"), &refresh_hdr, &refresh)))
-    {
-        free(w_buffer);
-        return FALSE;
-    }
-
-    if (FAILED(WindowsCreateStringReference(
-        L"expires_in", wcslen(L"expires_in"), &expires_hdr, &expires)))
-    {
-        free(w_buffer);
-        return FALSE;
-    }
-
-    if (FAILED(WindowsCreateStringReference(class_str, wcslen(class_str), &class_hdr, &class)))
-    {
-        free(w_buffer);
-        return FALSE;
-    }
-
-    if (FAILED(RoGetActivationFactory(class, &IID_IJsonValueStatics, (void**)&statics)))
-    {
-        free(w_buffer);
-        return FALSE;
-    }
-
-    hr = IJsonValueStatics_Parse(statics, content, &value);
-    free(w_buffer);
-    IJsonValueStatics_Release(statics);
-    if (FAILED(hr))
-    {
-        IJsonValue_Release(value);
-        return FALSE;
-    }
-
-    hr = IJsonValue_GetObject(value, &object);
-    IJsonValue_Release(value);
-    if (FAILED(hr))
-    {
-        IJsonObject_Release(object);
-        return FALSE;
-    }
-
-    if (FAILED(IJsonObject_GetNamedString(object, refresh, new_refresh_token)))
-    {
-        IJsonObject_Release(object);
-        return FALSE;
-    }
-
-    if (FAILED(IJsonObject_GetNamedString(object, oauth, new_oauth_token)))
-    {
-        IJsonObject_Release(object);
-        return FALSE;
-    }
-
-    hr = IJsonObject_GetNamedNumber(object, expires, &delta);
-    IJsonObject_Release(object);
-    if (FAILED(hr)) return FALSE;
-
-    if ((tmp = time(NULL)) == -1) return FALSE;
-    *new_expiry = tmp + delta;
-
-    return TRUE;
-}
-
-static BOOLEAN RequestXToken(LPCWSTR domain, LPCWSTR path, LPSTR data, HSTRING *token)
-{
-    LPCWSTR class_str = RuntimeClass_Windows_Data_Json_JsonValue;
-    LPCWSTR accept[] = {L"application/json", NULL};
-    HSTRING_HEADER token_key_hdr;
-    IJsonValueStatics *statics;
-    HSTRING_HEADER content_hdr;
-    HSTRING_HEADER class_hdr;
-    IJsonObject *object;
-    IJsonValue *value;
-    HSTRING token_key;
-    LPWSTR w_buffer;
-    HSTRING content;
-    BOOLEAN result;
-    HSTRING class;
-    LPSTR buffer;
-    SIZE_T size;
-    HRESULT hr;
-    INT w_size;
-
-    result = HttpRequest(
-        L"POST",
-        domain,
-        path,
-        data,
-        L"content-type: application/json",
-        accept,
-        &buffer,
-        &size
-    );
-
-    if (!result) return FALSE;
-
-    if (!(w_size = MultiByteToWideChar(CP_UTF8, 0, buffer, size, NULL, 0)))
-    {
-        free(buffer);
-        return FALSE;
-    }
-
-    if (!(w_buffer = calloc(w_size, sizeof(WCHAR))))
-    {
-        free(buffer);
-        return FALSE;
-    }
-
-    w_size = MultiByteToWideChar(CP_UTF8, 0, buffer, size, w_buffer, w_size);
-    free(buffer);
-    if (!w_size)
-    {
-        free(w_buffer);
-        return FALSE;
-    }
-
-    hr = WindowsCreateStringReference(w_buffer, w_size, &content_hdr, &content);
-    if (FAILED(hr))
-    {
-        free(w_buffer);
-        return FALSE;
-    }
-
-    if (FAILED(WindowsCreateStringReference(
-        L"Token", wcslen(L"Token"), &token_key_hdr, &token_key)))
-    {
-        free(w_buffer);
-        return FALSE;
-    }
-
-    if (FAILED(WindowsCreateStringReference(class_str, wcslen(class_str), &class_hdr, &class)))
-    {
-        free(w_buffer);
-        return FALSE;
-    }
-
-    if (FAILED(RoGetActivationFactory(class, &IID_IJsonValueStatics, (void**)&statics)))
-    {
-        free(w_buffer);
-        return FALSE;
-    }
-
-    hr = IJsonValueStatics_Parse(statics, content, &value);
-    free(w_buffer);
-    IJsonValueStatics_Release(statics);
-    if (FAILED(hr))
-    {
-        IJsonValue_Release(value);
-        return FALSE;
-    }
-
-    hr = IJsonValue_GetObject(value, &object);
-    IJsonValue_Release(value);
-    if (FAILED(hr))
-    {
-        IJsonObject_Release(object);
-        return FALSE;
-    }
-
-    if (FAILED(hr = IJsonObject_GetNamedString(object, token_key, token)))
-    {
-        IJsonObject_Release(object);
-        return FALSE;
-    }
-
-    return TRUE;
-}
-
-static BOOLEAN LoadDefaultUser(XUserHandle *user, LPCSTR client_id)
+static HRESULT LoadDefaultUser(XUserHandle *user, LPCSTR client_id)
 {
     LPCSTR user_template = "{\"RelyingParty\":\"http://auth.xboxlive.com\",\"TokenType\":\"JWT\",\"Properties\":{\"AuthMethod\":\"RPS\",\"SiteName\":\"user.auth.xboxlive.com\",\"RpsTicket\":\"";
     LPCSTR xsts_template = "{\"RelyingParty\":\"http://xboxlive.com\",\"TokenType\":\"JWT\",\"Properties\":{\"SandboxId\":\"RETAIL\",\"UserTokens\":[\"";
     UINT32 token_str_len;
     struct x_user *impl;
     LPSTR token_str;
-    BOOLEAN result;
     LSTATUS status;
     LPSTR buffer;
+    HRESULT hr;
     LPSTR data;
     DWORD size;
 
@@ -418,9 +68,9 @@ static BOOLEAN LoadDefaultUser(XUserHandle *user, LPCSTR client_id)
         NULL,
         NULL,
         &size
-    ))) return FALSE;
+    ))) return HRESULT_FROM_WIN32(status);
 
-    if (!(buffer = calloc(1, size))) return FALSE;
+    if (!(buffer = calloc(1, size))) return E_OUTOFMEMORY;
 
     if (ERROR_SUCCESS != (status = RegGetValueA(
         HKEY_LOCAL_MACHINE,
@@ -433,71 +83,76 @@ static BOOLEAN LoadDefaultUser(XUserHandle *user, LPCSTR client_id)
     )))
     {
         free(buffer);
-        return FALSE;
+        return HRESULT_FROM_WIN32(status);
     }
 
-    if (!(impl = calloc(1, sizeof(*impl)))) return FALSE;
+    if (!(impl = calloc(1, sizeof(*impl)))) return E_OUTOFMEMORY;
     impl->IXUserImpl_iface.lpVtbl = &x_user_vtbl;
     impl->ref = 1;
 
-    result = RefreshOAuth(
+    hr = RefreshOAuth(
         client_id, buffer, &impl->oauth_token_expiry, &impl->refresh_token, &impl->oauth_token);
 
     free(buffer);
-    if (!result)
+    if (FAILED(hr))
     {
+        TRACE("failed to get oauth token\n");
         IXUserImpl_Release(&impl->IXUserImpl_iface);
-        return result;
+        return hr;
     }
 
-    if (!(result = HSTRINGToMultiByte(impl->oauth_token, &token_str, &token_str_len)))
+    if (FAILED(hr = HSTRINGToMultiByte(impl->oauth_token, &token_str, &token_str_len)))
     {
         IXUserImpl_Release(&impl->IXUserImpl_iface);
-        return result;
+        return hr;
     }
 
     if (!(data = calloc(1, strlen(user_template) + strlen(token_str) + strlen("\"}}"))))
     {
-        IXUserImpl_Release(&impl->IXUserImpl_iface);
         free(token_str);
-        return FALSE;
+        IXUserImpl_Release(&impl->IXUserImpl_iface);
+        return E_OUTOFMEMORY;
     }
 
     strcpy(data, user_template);
     strncat(data, token_str, token_str_len);
     free(token_str);
     strcat(data, "\"}}");
-    result = RequestXToken(L"user.auth.xboxlive.com", L"/user/authenticate", data, &impl->user_token);
+    hr = RequestXToken(L"user.auth.xboxlive.com", L"/user/authenticate", data, &impl->user_token);
     free(data);
-    if (!result)
+    if (FAILED(hr))
     {
+        TRACE("failed to get user token\n");
         IXUserImpl_Release(&impl->IXUserImpl_iface);
-        return result;
+        return hr;
     }
 
-    if (!(result = HSTRINGToMultiByte(impl->user_token, &token_str, &token_str_len)))
+    if (FAILED(hr = HSTRINGToMultiByte(impl->user_token, &token_str, &token_str_len)))
     {
         IXUserImpl_Release(&impl->IXUserImpl_iface);
-        return result;
+        return hr;
     }
 
     if (!(data = calloc(1, strlen(xsts_template) + strlen(token_str) + strlen("\"]}}"))))
     {
         IXUserImpl_Release(&impl->IXUserImpl_iface);
         free(token_str);
-        return FALSE;
+        return E_OUTOFMEMORY;
     }
 
     strcpy(data, xsts_template);
     strncat(data, token_str, token_str_len);
     free(token_str);
     strcat(data, "\"]}}");
-    result = RequestXToken(L"xsts.auth.xboxlive.com", L"/xsts/authorize", data, &impl->xsts_token);
+    hr = RequestXToken(L"xsts.auth.xboxlive.com", L"/xsts/authorize", data, &impl->xsts_token);
     free(data);
-    if (result) *user = (XUserHandle)impl;
-    else IXUserImpl_Release(&impl->IXUserImpl_iface);
+    if (SUCCEEDED(hr)) *user = (XUserHandle)impl;
+    else {
+        TRACE("failed to get xsts token\n");
+        IXUserImpl_Release(&impl->IXUserImpl_iface);
+    }
 
-    return result;
+    return hr;
 }
 
 static inline struct x_user *impl_from_IXUserImpl(IXUserImpl *iface)
@@ -601,15 +256,9 @@ HRESULT XUserAddProvider(XAsyncOp operation, const XAsyncProviderData* providerD
 
         case DoWork:
             if (context->options & XUserAddOptions_AddDefaultUserAllowingUI)
-            {
-                if (LoadDefaultUser(&context->user, context->client_id)) hr = S_OK;
-                else hr = E_ABORT;
-            }
+                hr = LoadDefaultUser(&context->user, context->client_id);
             else if (context->options & XUserAddOptions_AddDefaultUserSilently)
-            {
-                if (LoadDefaultUser(&context->user, context->client_id)) hr = S_OK;
-                else hr = E_GAMEUSER_NO_DEFAULT_USER;
-            }
+                hr = LoadDefaultUser(&context->user, context->client_id);
             else hr = E_ABORT;
 
             impl->lpVtbl->XAsyncComplete(impl, providerData->async, hr, sizeof(XUserHandle));

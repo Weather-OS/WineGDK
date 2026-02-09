@@ -16,27 +16,22 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-/*
- * Xbox Game runtime Library
- * GDK Component: System API -> XUser
- */
+#ifndef TOKEN_H
+#define TOKEN_H
 
-#ifndef XUSER_H
-#define XUSER_H
+#include "../../../private.h"
 
-#include "../../private.h"
-#include <time.h>
+#include <winhttp.h>
+#include "time.h"
 
-struct x_user
+struct token
 {
-    IXUserImpl IXUserImpl_iface;
-    LONG ref;
-
-    time_t oauth_token_expiry;
-    HSTRING refresh_token;
-    HSTRING oauth_token;
-    HSTRING user_token;
-    HSTRING xsts_token;
+    time_t expiry;
+    LPCSTR content;
+    UINT32 size;
 };
+
+HRESULT RefreshOAuth(LPCSTR client_id, LPCSTR refresh_token, time_t *new_expiry, HSTRING *new_refresh_token, HSTRING *new_oauth_token);
+HRESULT RequestXToken(LPCWSTR domain, LPCWSTR path, LPSTR data, HSTRING *token);
 
 #endif
