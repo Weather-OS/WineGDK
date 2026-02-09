@@ -160,8 +160,6 @@ static BOOLEAN RefreshOAuth(LPCSTR client_id, LPCSTR refresh_token, time_t *new_
     strcat(data, "&refresh_token=");
     strcat(data, refresh_token);
 
-    TRACE("%s\n",data);
-
     result = HttpRequest(
         L"POST",
         L"login.live.com",
@@ -173,9 +171,8 @@ static BOOLEAN RefreshOAuth(LPCSTR client_id, LPCSTR refresh_token, time_t *new_
         &size
     );
 
+    free(data);
     if (!result) return FALSE;
-
-    TRACE("%s\n",debugstr_an(buffer,size));
 
     if (!(w_size = MultiByteToWideChar(CP_UTF8, 0, buffer, size, NULL, 0)))
     {
@@ -276,6 +273,139 @@ static BOOLEAN RefreshOAuth(LPCSTR client_id, LPCSTR refresh_token, time_t *new_
     return TRUE;
 }
 
+static BOOLEAN RequestUserToken(HSTRING oauth_token, HSTRING *new_user_token)
+{
+    LPCSTR template = "{\"RelyingParty\":\"http://auth.xboxlive.com\",\"TokenType\":\"JWT\",\"Properties\":{\"AuthMethod\":\"RPS\",\"SiteName\":\"user.auth.xboxlive.com\",\"RpsTicket\":\"";
+    LPCWSTR class_str = RuntimeClass_Windows_Data_Json_JsonValue;
+    LPCWSTR accept[] = {L"application/json", NULL};
+    IJsonValueStatics *statics;
+    HSTRING_HEADER content_hdr;
+    HSTRING_HEADER class_hdr;
+    HSTRING_HEADER user_hdr;
+    IJsonObject *object;
+    IJsonValue *value;
+    LPWSTR w_buffer;
+    HSTRING content;
+    BOOLEAN result;
+    HSTRING class;
+    HSTRING user;
+    LPSTR buffer;
+    SIZE_T size;
+    LPSTR data;
+    HRESULT hr;
+    INT w_size;
+
+    LPSTR oauth_token_str;
+    UINT32 oauth_token_str_len;
+    UINT32 oauth_token_wstr_len;
+    LPCWSTR oauth_token_wstr = WindowsGetStringRawBuffer(oauth_token, &oauth_token_wstr_len);
+
+    if (!(oauth_token_str_len = WideCharToMultiByte(
+        CP_UTF8, 0, oauth_token_wstr, oauth_token_wstr_len, NULL, 0, NULL, NULL))) return FALSE;
+
+    if (!(oauth_token_str = calloc(1, oauth_token_str_len))) return FALSE;
+
+    if (!(oauth_token_str_len = WideCharToMultiByte(CP_UTF8, 0, oauth_token_wstr,
+        oauth_token_wstr_len, oauth_token_str, oauth_token_str_len, NULL, NULL)))
+    {
+        free(oauth_token_str);
+        return FALSE;
+    }
+
+    if (!(data = calloc(1, strlen(template) + strlen(oauth_token_str) + strlen("\"}}"))))
+        return FALSE;
+
+    strcpy(data, template);
+    strncat(data, oauth_token_str, oauth_token_str_len);
+    free(oauth_token_str);
+    strcat(data, "\"}}");
+
+    result = HttpRequest(
+        L"POST",
+        L"user.auth.xboxlive.com",
+        L"/user/authenticate",
+        data,
+        L"content-type: application/json",
+        accept,
+        &buffer,
+        &size
+    );
+
+    free(data);
+    if (!result) return FALSE;
+
+    if (!(w_size = MultiByteToWideChar(CP_UTF8, 0, buffer, size, NULL, 0)))
+    {
+        free(buffer);
+        return FALSE;
+    }
+
+    if (!(w_buffer = calloc(w_size, sizeof(WCHAR))))
+    {
+        free(buffer);
+        return FALSE;
+    }
+
+    w_size = MultiByteToWideChar(CP_UTF8, 0, buffer, size, w_buffer, w_size);
+    free(buffer);
+    if (!w_size)
+    {
+        free(w_buffer);
+        return FALSE;
+    }
+
+    hr = WindowsCreateStringReference(w_buffer, w_size, &content_hdr, &content);
+    if (FAILED(hr))
+    {
+        free(w_buffer);
+        return FALSE;
+    }
+
+    if (FAILED(WindowsCreateStringReference(
+        L"Token", wcslen(L"Token"), &user_hdr, &user)))
+    {
+        free(w_buffer);
+        return FALSE;
+    }
+
+    if (FAILED(WindowsCreateStringReference(class_str, wcslen(class_str), &class_hdr, &class)))
+    {
+        free(w_buffer);
+        return FALSE;
+    }
+
+    if (FAILED(RoGetActivationFactory(class, &IID_IJsonValueStatics, (void**)&statics)))
+    {
+        free(w_buffer);
+        return FALSE;
+    }
+
+    hr = IJsonValueStatics_Parse(statics, content, &value);
+    free(w_buffer);
+    IJsonValueStatics_Release(statics);
+    if (FAILED(hr))
+    {
+        IJsonValue_Release(value);
+        return FALSE;
+    }
+
+    hr = IJsonValue_GetObject(value, &object);
+    IJsonValue_Release(value);
+    if (FAILED(hr))
+    {
+        IJsonObject_Release(object);
+        return FALSE;
+    }
+
+    if (FAILED(hr = IJsonObject_GetNamedString(object, user, new_user_token)))
+    {
+        IJsonObject_Release(object);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
 static BOOLEAN LoadDefaultUser(XUserHandle *user, LPCSTR client_id)
 {
     struct x_user *impl;
@@ -283,8 +413,6 @@ static BOOLEAN LoadDefaultUser(XUserHandle *user, LPCSTR client_id)
     LSTATUS status;
     LPSTR buffer;
     DWORD size;
-
-    TRACE("user %p\n", *user);
 
     if (ERROR_SUCCESS != (status = RegGetValueA(
         HKEY_LOCAL_MACHINE,
@@ -295,8 +423,6 @@ static BOOLEAN LoadDefaultUser(XUserHandle *user, LPCSTR client_id)
         NULL,
         &size
     ))) return FALSE;
-
-    TRACE("%lu\n", size);
 
     if (!(buffer = calloc(1, size))) return FALSE;
 
@@ -321,7 +447,10 @@ static BOOLEAN LoadDefaultUser(XUserHandle *user, LPCSTR client_id)
     result = RefreshOAuth(
         client_id, buffer, &impl->oauth_token_expiry, &impl->refresh_token, &impl->oauth_token);
 
-        free(buffer);
+    free(buffer);
+    if (result)
+        result = RequestUserToken(impl->oauth_token, &impl->user_token);
+
     if (result) *user = (XUserHandle)impl;
     else IXUserImpl_Release(&impl->IXUserImpl_iface);
 

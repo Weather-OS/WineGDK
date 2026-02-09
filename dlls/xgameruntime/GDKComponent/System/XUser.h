@@ -35,6 +35,7 @@ struct x_user
     time_t oauth_token_expiry;
     HSTRING refresh_token;
     HSTRING oauth_token;
+    HSTRING user_token;
 };
 
 #endif
