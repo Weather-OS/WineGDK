@@ -1,4 +1,4 @@
-IMPORTS   = user32 advapi32 combase
+IMPORTS   = user32 advapi32 crypt32 combase winhttp
 MODULE    = xgameruntime.dll
 
 SOURCES = \
@@ -16,5 +16,6 @@ SOURCES = \
 	GDKComponent/System/Threading/ThreadPool.c \
 	GDKComponent/System/XSystemAnalytics.c \
 	GDKComponent/System/XGameRuntimeFeature.c \
-	GDKComponent/System/XNetworking.c
+	GDKComponent/System/Networking/HTTPClient.c \
+	GDKComponent/System/Networking/XNetworking.c
 

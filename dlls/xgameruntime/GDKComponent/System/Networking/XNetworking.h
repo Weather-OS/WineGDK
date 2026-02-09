@@ -22,7 +22,8 @@
 #ifndef XNETWORKING_H
 #define XNETWORKING_H
 
-#include "../../private.h"
+#include "../../../private.h"
+#include "HTTPClient.h"
 
 #include <string.h>
 
@@ -31,5 +32,14 @@ struct x_networking
     IXNetworkingImpl IXNetworkingImpl_iface;
     LONG ref;
 };
+
+struct UrlSecurityInfoContext
+{
+    BYTE *securityInformationBuffer;
+    SIZE_T securityInformationBufferCount;
+    LPCWSTR url;
+    XNetworkingSecurityInformation *securityInformation;
+};
+
 
 #endif

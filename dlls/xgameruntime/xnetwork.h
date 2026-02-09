@@ -38,7 +38,7 @@ typedef struct IXNetworkingImplVtbl {
     HRESULT (STDMETHODCALLTYPE *XNetworkingQuerySecurityInformationForUrlAsync)(IXNetworkingImpl* This, LPCSTR url, XAsyncBlock* asyncBlock);
     HRESULT (STDMETHODCALLTYPE *XNetworkingQuerySecurityInformationForUrlAsyncResultSize)(IXNetworkingImpl *This, XAsyncBlock* asyncBlock, SIZE_T* securityInformationBufferByteCount);
     HRESULT (STDMETHODCALLTYPE *XNetworkingQuerySecurityInformationForUrlAsyncResult)(IXNetworkingImpl *This, XAsyncBlock* asyncBlock, SIZE_T securityInformationBufferByteCount, SIZE_T* securityInformationBufferByteCountUsed, UINT8* securityInformationBuffer, XNetworkingSecurityInformation** securityInformation);
-    HRESULT (STDMETHODCALLTYPE *XNetworkingQuerySecurityInformationForUrlUtf16Async)(IXNetworkingImpl* This, LPCSTR url, XAsyncBlock* asyncBlock);
+    HRESULT (STDMETHODCALLTYPE *XNetworkingQuerySecurityInformationForUrlUtf16Async)(IXNetworkingImpl* This, LPCWSTR url, XAsyncBlock* asyncBlock);
     HRESULT (STDMETHODCALLTYPE *XNetworkingQuerySecurityInformationForUrlUtf16AsyncResultSize)(IXNetworkingImpl *This, XAsyncBlock* asyncBlock, SIZE_T* securityInformationBufferByteCount);
     HRESULT (STDMETHODCALLTYPE *XNetworkingQuerySecurityInformationForUrlUtf16AsyncResult)(IXNetworkingImpl *This, XAsyncBlock* asyncBlock, SIZE_T securityInformationBufferByteCount, SIZE_T* securityInformationBufferByteCountUsed, UINT8* securityInformationBuffer, XNetworkingSecurityInformation** securityInformation);
     HRESULT (STDMETHODCALLTYPE *XNetworkingVerifyServerCertificate)(IXNetworkingImpl *This, PVOID requestHandle, const XNetworkingSecurityInformation* securityInformation);
@@ -115,7 +115,7 @@ static inline HRESULT STDMETHODCALLTYPE IXNetworkingImpl_XNetworkingQuerySecurit
 static inline HRESULT STDMETHODCALLTYPE IXNetworkingImpl_XNetworkingQuerySecurityInformationForUrlAsyncResult(IXNetworkingImpl *This,XAsyncBlock* asyncBlock,SIZE_T securityInformationBufferByteCount,SIZE_T* securityInformationBufferByteCountUsed,UINT8* securityInformationBuffer,XNetworkingSecurityInformation** securityInformation) {
     return This->lpVtbl->XNetworkingQuerySecurityInformationForUrlAsyncResult(This,asyncBlock,securityInformationBufferByteCount,securityInformationBufferByteCountUsed,securityInformationBuffer,securityInformation);
 }
-static inline HRESULT STDMETHODCALLTYPE IXNetworkingImpl_XNetworkingQuerySecurityInformationForUrlUtf16Async(IXNetworkingImpl* This,LPCSTR url,XAsyncBlock* asyncBlock) {
+static inline HRESULT STDMETHODCALLTYPE IXNetworkingImpl_XNetworkingQuerySecurityInformationForUrlUtf16Async(IXNetworkingImpl* This,LPCWSTR url,XAsyncBlock* asyncBlock) {
     return This->lpVtbl->XNetworkingQuerySecurityInformationForUrlUtf16Async(This,url,asyncBlock);
 }
 static inline HRESULT STDMETHODCALLTYPE IXNetworkingImpl_XNetworkingQuerySecurityInformationForUrlUtf16AsyncResultSize(IXNetworkingImpl *This,XAsyncBlock* asyncBlock,SIZE_T* securityInformationBufferByteCount) {
