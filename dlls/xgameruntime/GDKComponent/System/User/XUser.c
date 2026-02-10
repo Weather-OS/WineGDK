@@ -107,7 +107,7 @@ static HRESULT LoadDefaultUser(XUserHandle *user, LPCSTR client_id)
         return hr;
     }
 
-    if (!(data = calloc(1, strlen(user_template) + strlen(token_str) + strlen("\"}}"))))
+    if (!(data = calloc(strlen(user_template) + strlen(token_str) + strlen("\"}}") + 1, sizeof(CHAR))))
     {
         free(token_str);
         IXUserImpl_Release(&impl->IXUserImpl_iface);
@@ -133,7 +133,7 @@ static HRESULT LoadDefaultUser(XUserHandle *user, LPCSTR client_id)
         return hr;
     }
 
-    if (!(data = calloc(1, strlen(xsts_template) + strlen(token_str) + strlen("\"]}}"))))
+    if (!(data = calloc(strlen(xsts_template) + strlen(token_str) + strlen("\"]}}") + 1, sizeof(CHAR))))
     {
         IXUserImpl_Release(&impl->IXUserImpl_iface);
         free(token_str);
@@ -197,6 +197,8 @@ static ULONG WINAPI x_user_Release(IXUserImpl *iface)
     {
         WindowsDeleteString(impl->refresh_token);
         WindowsDeleteString(impl->oauth_token);
+        WindowsDeleteString(impl->user_token);
+        WindowsDeleteString(impl->xsts_token);
         free(impl);
     }
     return ref;

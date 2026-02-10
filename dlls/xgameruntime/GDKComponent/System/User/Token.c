@@ -18,8 +18,6 @@
 
 #include "Token.h"
 
-WINE_DEFAULT_DEBUG_CHANNEL(gdkc);
-
 static HRESULT HttpRequest(LPCWSTR method, LPCWSTR domain, LPCWSTR object, LPSTR data, LPCWSTR headers, LPCWSTR* accept, LPSTR* buffer, SIZE_T* bufferSize)
 {
     HINTERNET connection = NULL;
@@ -132,31 +130,78 @@ static HRESULT GetJsonStringValue(IJsonObject *object, LPCWSTR key, HSTRING *con
     return S_OK;
 }
 
+static HRESULT ParseJsonObject(LPCSTR str, UINT32 str_size, IJsonObject **object)
+{
+    LPCWSTR class_str = RuntimeClass_Windows_Data_Json_JsonValue;
+    IJsonValueStatics *statics;
+    HSTRING_HEADER content_hdr;
+    HSTRING_HEADER class_hdr;
+    IJsonValue *value;
+    UINT32 wstr_size;
+    HSTRING content;
+    HSTRING class;
+    LPWSTR wstr;
+    HRESULT hr;
+
+
+    if (!(wstr_size = MultiByteToWideChar(CP_UTF8, 0, str, str_size, NULL, 0)))
+        return HRESULT_FROM_WIN32(GetLastError());
+
+    if (!(wstr = calloc(wstr_size, sizeof(WCHAR))))
+        return E_OUTOFMEMORY;
+
+    if (!(wstr_size = MultiByteToWideChar(CP_UTF8, 0, str, str_size, wstr, wstr_size)))
+    {
+        free(wstr);
+        return HRESULT_FROM_WIN32(GetLastError());
+    }
+
+    if (FAILED(hr = WindowsCreateStringReference(wstr, wstr_size, &content_hdr, &content)))
+    {
+        free(wstr);
+        return hr;
+    }
+
+    if (FAILED(hr = WindowsCreateStringReference(class_str, wcslen(class_str), &class_hdr, &class)))
+    {
+        free(wstr);
+        return hr;
+    }
+
+    if (FAILED(hr = RoGetActivationFactory(class, &IID_IJsonValueStatics, (void**)&statics)))
+    {
+        free(wstr);
+        return hr;
+    }
+
+    hr = IJsonValueStatics_Parse(statics, content, &value);
+    IJsonValueStatics_Release(statics);
+    free(wstr);
+    if (FAILED(hr)) return hr;
+
+    hr = IJsonValue_GetObject(value, object);
+    IJsonValue_Release(value);
+    if (FAILED(hr)) IJsonObject_Release(*object);
+
+    return hr;
+}
+
 HRESULT RefreshOAuth(LPCSTR client_id, LPCSTR refresh_token, time_t *new_expiry, HSTRING *new_refresh_token, HSTRING *new_oauth_token)
 {
     LPCSTR template = "grant_type=refresh_token&scope=service::user.auth.xboxlive.com::MBI_SSL&client_id=";
-    LPCWSTR class_str = RuntimeClass_Windows_Data_Json_JsonValue;
     LPCWSTR accept[] = {L"application/json", NULL};
-    IJsonValueStatics *statics;
-    HSTRING_HEADER content_hdr;
     HSTRING_HEADER expires_hdr;
-    HSTRING_HEADER class_hdr;
     IJsonObject *object;
-    IJsonValue *value;
-    HSTRING content;
     HSTRING expires;
-    LPWSTR w_buffer;
-    UINT32 w_size;
     time_t expiry;
-    HSTRING class;
     LPSTR buffer;
     DOUBLE delta;
     SIZE_T size;
     HRESULT hr;
     LPSTR data;
 
-    if (!(data = calloc(1, strlen(template) + strlen(client_id) +
-        strlen("&refresh_token=") + strlen(refresh_token) + 1))) return E_OUTOFMEMORY;
+    if (!(data = calloc(strlen(template) + strlen(client_id) + strlen("&refresh_token=") + strlen(refresh_token) + 1, sizeof(CHAR))))
+        return E_OUTOFMEMORY;
 
     strcpy(data, template);
     strcat(data, client_id);
@@ -175,76 +220,19 @@ HRESULT RefreshOAuth(LPCSTR client_id, LPCSTR refresh_token, time_t *new_expiry,
     );
 
     free(data);
-    if (FAILED(hr)) {
-        TRACE("web request failed\n");
-        return hr;
-    }
-
-    if (!(w_size = MultiByteToWideChar(CP_UTF8, 0, buffer, size, NULL, 0)))
-    {
-        free(buffer);
-        return HRESULT_FROM_WIN32(GetLastError());
-    }
-
-    if (!(w_buffer = calloc(w_size, sizeof(WCHAR))))
-    {
-        free(buffer);
-        return E_OUTOFMEMORY;
-    }
-
-    w_size = MultiByteToWideChar(CP_UTF8, 0, buffer, size, w_buffer, w_size);
+    if (FAILED(hr)) return hr;
+    hr = ParseJsonObject(buffer, size, &object);
     free(buffer);
-    if (!w_size)
-    {
-        free(w_buffer);
-        return HRESULT_FROM_WIN32(GetLastError());
-    }
-
-    if (FAILED(hr = WindowsCreateStringReference(w_buffer, w_size, &content_hdr, &content)))
-    {
-        free(w_buffer);
-        return hr;
-    }
-
-    if (FAILED(hr = WindowsCreateStringReference(class_str, wcslen(class_str), &class_hdr, &class)))
-    {
-        free(w_buffer);
-        return hr;
-    }
-
-    if (FAILED(hr = RoGetActivationFactory(class, &IID_IJsonValueStatics, (void**)&statics)))
-    {
-        free(w_buffer);
-        return hr;
-    }
-
-    hr = IJsonValueStatics_Parse(statics, content, &value);
-    free(w_buffer);
-    IJsonValueStatics_Release(statics);
-    if (FAILED(hr))
-    {
-        IJsonValue_Release(value);
-        return hr;
-    }
-
-    hr = IJsonValue_GetObject(value, &object);
-    IJsonValue_Release(value);
-    if (FAILED(hr))
-    {
-        IJsonObject_Release(object);
-        return hr;
-    }
+    if (FAILED(hr)) return hr;
 
     if (FAILED(hr = GetJsonStringValue(object, L"access_token", new_oauth_token)))
     {
-        TRACE("failed to get access_token\n");
         IJsonObject_Release(object);
         return hr;
     }
 
     if (FAILED(hr = GetJsonStringValue(object, L"refresh_token", new_refresh_token)))
     {
-        TRACE("failed to get refresh_token\n");
         IJsonObject_Release(object);
         return hr;
     }    
@@ -258,11 +246,7 @@ HRESULT RefreshOAuth(LPCSTR client_id, LPCSTR refresh_token, time_t *new_expiry,
 
     hr = IJsonObject_GetNamedNumber(object, expires, &delta);
     IJsonObject_Release(object);
-    if (FAILED(hr))
-    {
-        TRACE("failed to get expires_in\n");
-        return hr;
-    }
+    if (FAILED(hr)) return hr;
 
     if ((expiry = time(NULL)) == -1) return E_FAIL;
     *new_expiry = expiry + delta;
@@ -272,22 +256,11 @@ HRESULT RefreshOAuth(LPCSTR client_id, LPCSTR refresh_token, time_t *new_expiry,
 
 HRESULT RequestXToken(LPCWSTR domain, LPCWSTR path, LPSTR data, HSTRING *token)
 {
-    LPCWSTR class_str = RuntimeClass_Windows_Data_Json_JsonValue;
     LPCWSTR accept[] = {L"application/json", NULL};
-    HSTRING_HEADER token_key_hdr;
-    IJsonValueStatics *statics;
-    HSTRING_HEADER content_hdr;
-    HSTRING_HEADER class_hdr;
     IJsonObject *object;
-    IJsonValue *value;
-    HSTRING token_key;
-    LPWSTR w_buffer;
-    HSTRING content;
-    HSTRING class;
     LPSTR buffer;
     SIZE_T size;
     HRESULT hr;
-    INT w_size;
 
     hr = HttpRequest(
         L"POST",
@@ -300,72 +273,13 @@ HRESULT RequestXToken(LPCWSTR domain, LPCWSTR path, LPSTR data, HSTRING *token)
         &size
     );
 
-    if (FAILED(hr)) return FALSE;
-
-    if (!(w_size = MultiByteToWideChar(CP_UTF8, 0, buffer, size, NULL, 0)))
-    {
-        free(buffer);
-        return HRESULT_FROM_WIN32(GetLastError());
-    }
-
-    if (!(w_buffer = calloc(w_size, sizeof(WCHAR))))
-    {
-        free(buffer);
-        return E_OUTOFMEMORY;
-    }
-
-    w_size = MultiByteToWideChar(CP_UTF8, 0, buffer, size, w_buffer, w_size);
+    if (FAILED(hr)) return hr;
+    hr = ParseJsonObject(buffer, size, &object);
     free(buffer);
-    if (!w_size)
-    {
-        free(w_buffer);
-        return HRESULT_FROM_WIN32(GetLastError());
-    }
+    if (FAILED(hr)) return hr;
 
-    if (FAILED(hr = WindowsCreateStringReference(w_buffer, w_size, &content_hdr, &content)))
-    {
-        free(w_buffer);
-        return hr;
-    }
-
-    if (FAILED(hr = WindowsCreateStringReference(
-        L"Token", wcslen(L"Token"), &token_key_hdr, &token_key)))
-    {
-        free(w_buffer);
-        return hr;
-    }
-
-    if (FAILED(hr = WindowsCreateStringReference(class_str, wcslen(class_str), &class_hdr, &class)))
-    {
-        free(w_buffer);
-        return hr;
-    }
-
-    if (FAILED(hr = RoGetActivationFactory(class, &IID_IJsonValueStatics, (void**)&statics)))
-    {
-        free(w_buffer);
-        return hr;
-    }
-
-    hr = IJsonValueStatics_Parse(statics, content, &value);
-    IJsonValueStatics_Release(statics);
-    free(w_buffer);
-    if (FAILED(hr))
-    {
-        IJsonValue_Release(value);
-        return hr;
-    }
-
-    hr = IJsonValue_GetObject(value, &object);
-    IJsonValue_Release(value);
-    if (FAILED(hr))
-    {
-        IJsonObject_Release(object);
-        return hr;
-    }
-
-    if (FAILED(hr = IJsonObject_GetNamedString(object, token_key, token)))
-        IJsonObject_Release(object);
+    hr = GetJsonStringValue(object, L"Token", token);
+    IJsonObject_Release(object);
 
     return hr;
 }
