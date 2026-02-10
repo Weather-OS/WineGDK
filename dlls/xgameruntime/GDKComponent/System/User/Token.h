@@ -34,7 +34,7 @@ struct token
 
 HRESULT RefreshOAuth(LPCSTR client_id, LPCSTR refresh_token, time_t *new_expiry, HSTRING *new_refresh_token, HSTRING *new_oauth_token);
 HRESULT RequestUserToken(HSTRING oauth_token, HSTRING *token, XUserLocalId *localId);
-HRESULT RequestXToken(LPCWSTR domain, LPCWSTR path, LPSTR data, HSTRING *token);
+HRESULT RequestXstsToken(HSTRING user_token, HSTRING *token, UINT64 *xuid);
 HRESULT HSTRINGToMultiByte(HSTRING hstr, LPSTR *str, UINT32 *str_len);
 
 #endif

@@ -30,14 +30,10 @@ static const struct IXUserImplVtbl x_user_vtbl;
 
 static HRESULT LoadDefaultUser(XUserHandle *user, LPCSTR client_id)
 {
-    LPCSTR xsts_template = "{\"RelyingParty\":\"http://xboxlive.com\",\"TokenType\":\"JWT\",\"Properties\":{\"SandboxId\":\"RETAIL\",\"UserTokens\":[\"";
-    UINT32 token_str_len;
     struct x_user *impl;
-    LPSTR token_str;
     LSTATUS status;
     LPSTR buffer;
     HRESULT hr;
-    LPSTR data;
     DWORD size;
 
     if (ERROR_SUCCESS != (status = RegGetValueA(
@@ -66,7 +62,12 @@ static HRESULT LoadDefaultUser(XUserHandle *user, LPCSTR client_id)
         return HRESULT_FROM_WIN32(status);
     }
 
-    if (!(impl = calloc(1, sizeof(*impl)))) return E_OUTOFMEMORY;
+    if (!(impl = calloc(1, sizeof(*impl))))
+    {
+        free(buffer);
+        return E_OUTOFMEMORY;
+    }
+
     impl->IXUserImpl_iface.lpVtbl = &x_user_vtbl;
     impl->ref = 1;
 
@@ -88,30 +89,14 @@ static HRESULT LoadDefaultUser(XUserHandle *user, LPCSTR client_id)
         return hr;
     }
 
-    if (FAILED(hr = HSTRINGToMultiByte(impl->user_token, &token_str, &token_str_len)))
+    if (FAILED(hr = RequestXstsToken(impl->user_token, &impl->xsts_token, &impl->xuid)))
     {
+        TRACE("failed to get xsts token\n");
         IXUserImpl_Release(&impl->IXUserImpl_iface);
         return hr;
     }
 
-    if (!(data = calloc(strlen(xsts_template) + strlen(token_str) + strlen("\"]}}") + 1, sizeof(CHAR))))
-    {
-        IXUserImpl_Release(&impl->IXUserImpl_iface);
-        free(token_str);
-        return E_OUTOFMEMORY;
-    }
-
-    strcpy(data, xsts_template);
-    strncat(data, token_str, token_str_len);
-    free(token_str);
-    strcat(data, "\"]}}");
-    hr = RequestXToken(L"xsts.auth.xboxlive.com", L"/xsts/authorize", data, &impl->xsts_token);
-    free(data);
-    if (SUCCEEDED(hr)) *user = (XUserHandle)impl;
-    else {
-        TRACE("failed to get xsts token\n");
-        IXUserImpl_Release(&impl->IXUserImpl_iface);
-    }
+    *user = (XUserHandle)impl;
 
     return hr;
 }
@@ -132,7 +117,7 @@ static HRESULT WINAPI x_user_QueryInterface(IXUserImpl *iface, REFIID iid, void 
     || IsEqualGUID(iid, &IID_IXUserImpl))
     {
         *out = &impl->IXUserImpl_iface;
-        impl->IXUserImpl_iface.lpVtbl->AddRef(*out);
+        IXUserImpl_AddRef(*out);
         return S_OK;
     }
 
@@ -264,8 +249,10 @@ static HRESULT WINAPI x_user_XUserAddResult(IXUserImpl* iface, XAsyncBlock* asyn
 
 static HRESULT WINAPI x_user_XUserGetLocalId(IXUserImpl* iface, XUserHandle user, XUserLocalId* localId)
 {
-    FIXME("iface %p, user %p, localId %p stub!\n", iface, user, localId);
-    return E_NOTIMPL;
+    TRACE("iface %p, user %p, localId %p\n", iface, user, localId);
+    if (!localId) return E_POINTER;
+    *localId = ((struct x_user*)user)->local_id;
+    return S_OK;
 }
 
 static HRESULT WINAPI x_user_XUserFindUserByLocalId(IXUserImpl* iface, XUserLocalId localId, XUserHandle* user)
@@ -276,8 +263,10 @@ static HRESULT WINAPI x_user_XUserFindUserByLocalId(IXUserImpl* iface, XUserLoca
 
 static HRESULT WINAPI x_user_XUserGetId(IXUserImpl* iface, XUserHandle user, UINT64* userId)
 {
-    FIXME("iface %p, user %p, userId %p stub!\n", iface, user, userId);
-    return E_NOTIMPL;
+    TRACE("iface %p, user %p, userId %p\n", iface, user, userId);
+    if (!userId) return E_POINTER;
+    *userId = ((struct x_user*)user)->xuid;
+    return S_OK;
 }
 
 static HRESULT WINAPI x_user_XUserFindUserById(IXUserImpl* iface, UINT64 userId, XUserHandle* user)

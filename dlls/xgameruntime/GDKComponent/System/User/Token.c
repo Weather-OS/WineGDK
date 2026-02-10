@@ -271,36 +271,6 @@ HRESULT RefreshOAuth(LPCSTR client_id, LPCSTR refresh_token, time_t *new_expiry,
     return S_OK;
 }
 
-HRESULT RequestXToken(LPCWSTR domain, LPCWSTR path, LPSTR data, HSTRING *token)
-{
-    LPCWSTR accept[] = {L"application/json", NULL};
-    IJsonObject *object;
-    LPSTR buffer;
-    SIZE_T size;
-    HRESULT hr;
-
-    hr = HttpRequest(
-        L"POST",
-        domain,
-        path,
-        data,
-        L"content-type: application/json",
-        accept,
-        &buffer,
-        &size
-    );
-
-    if (FAILED(hr)) return hr;
-    hr = ParseJsonObject(buffer, size, &object);
-    free(buffer);
-    if (FAILED(hr)) return hr;
-
-    hr = GetJsonStringValue(object, L"Token", token);
-    IJsonObject_Release(object);
-
-    return hr;
-}
-
 HRESULT RequestUserToken(HSTRING oauth_token, HSTRING *token, XUserLocalId *local_id)
 {
     LPCSTR template = "{\"RelyingParty\":\"http://auth.xboxlive.com\",\"TokenType\":\"JWT\",\"Properties\":{\"AuthMethod\":\"RPS\",\"SiteName\":\"user.auth.xboxlive.com\",\"RpsTicket\":\"";
@@ -397,6 +367,112 @@ HRESULT RequestUserToken(HSTRING oauth_token, HSTRING *token, XUserLocalId *loca
 
     local_id->value = strtoull(uhs_str, NULL, 10);
     free(uhs_str);
+    if (errno == ERANGE)
+    {
+        WindowsDeleteString(*token);
+        errno = 0;
+        return E_FAIL;
+    }
+
+    return hr;
+}
+
+HRESULT RequestXstsToken(HSTRING user_token, HSTRING *token, UINT64 *xuid)
+{
+    LPCSTR template = "{\"RelyingParty\":\"http://xboxlive.com\",\"TokenType\":\"JWT\",\"Properties\":{\"SandboxId\":\"RETAIL\",\"UserTokens\":[\"";
+    LPCWSTR accept[] = {L"application/json", NULL};
+    IJsonObject *display_claims;
+    UINT32 token_str_len;
+    IJsonObject *object;
+    UINT32 xid_str_len;
+    LPSTR token_str;
+    IJsonArray *xui;
+    LPSTR xid_str;
+    LPSTR buffer;
+    SIZE_T size;
+    HSTRING xid;
+    HRESULT hr;
+    LPSTR data;
+
+    if (FAILED(hr = HSTRINGToMultiByte(user_token, &token_str, &token_str_len)))
+        return hr;
+
+    if (!(data = calloc(strlen(template) + token_str_len + strlen("\"]}}") + 1, sizeof(CHAR))))
+    {
+        free(token_str);
+        return E_OUTOFMEMORY;
+    }
+
+    strcpy(data, template);
+    strncat(data, token_str, token_str_len);
+    free(token_str);
+    strcat(data, "\"]}}");
+
+    hr = HttpRequest(
+        L"POST",
+        L"xsts.auth.xboxlive.com",
+        L"/xsts/authorize",
+        data,
+        L"content-type: application/json",
+        accept,
+        &buffer,
+        &size
+    );
+
+    free(data);
+    if (FAILED(hr)) return hr;
+    hr = ParseJsonObject(buffer, size, &object);
+    free(buffer);
+    if (FAILED(hr)) return hr;
+
+    if (FAILED(hr = GetJsonStringValue(object, L"Token", token)))
+    {
+        IJsonObject_Release(object);
+        return hr;
+    }
+
+    hr = GetJsonObjectValue(object, L"DisplayClaims", &display_claims);
+    IJsonObject_Release(object);
+    if (FAILED(hr))
+    {
+        WindowsDeleteString(*token);
+        return hr;
+    }
+
+    hr = GetJsonArrayValue(display_claims, L"xui", &xui);
+    IJsonObject_Release(display_claims);
+    if (FAILED(hr))
+    {
+        WindowsDeleteString(*token);
+        return hr;
+    }
+
+    hr = IJsonArray_GetObjectAt(xui, 0, &object);
+    IJsonArray_Release(xui);
+    if (FAILED(hr))
+    {
+        WindowsDeleteString(*token);
+        return hr;
+    }
+
+    hr = GetJsonStringValue(object, L"xid", &xid);
+    IJsonObject_Release(object);
+    if (FAILED(hr))
+    {
+        WindowsDeleteString(*token);
+        return hr;
+    }
+
+    hr = HSTRINGToMultiByte(xid, &xid_str, &xid_str_len);
+    WindowsDeleteString(xid);
+    if (FAILED(hr))
+    {
+        WindowsDeleteString(*token);
+        return hr;
+    }
+
+    *xuid = strtoull(xid_str, NULL, 10);
+    free(xid_str);
     if (errno == ERANGE)
     {
         WindowsDeleteString(*token);
