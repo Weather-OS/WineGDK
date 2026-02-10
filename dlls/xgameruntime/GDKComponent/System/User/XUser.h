@@ -32,7 +32,7 @@ struct x_user
     IXUserImpl IXUserImpl_iface;
     LONG ref;
 
-    XUserLocalId localId;
+    XUserLocalId local_id;
 
     time_t oauth_token_expiry;
     HSTRING refresh_token;

@@ -18,6 +18,47 @@
 
 #include "Token.h"
 
+#define GetJsonValue(obj_type, ret_type)                                                            \
+static inline HRESULT GetJson##obj_type##Value(IJsonObject *object, LPCWSTR key, ret_type value)    \
+{                                                                                                   \
+    HSTRING_HEADER key_hdr;                                                                         \
+    HSTRING key_hstr;                                                                               \
+    HRESULT hr;                                                                                     \
+                                                                                                    \
+    if (FAILED(hr = WindowsCreateStringReference(key, wcslen(key), &key_hdr, &key_hstr)))           \
+        return hr;                                                                                  \
+                                                                                                    \
+    if (FAILED(hr = IJsonObject_GetNamed##obj_type(object, key_hstr, value)))                       \
+        return hr;                                                                                  \
+                                                                                                    \
+    return S_OK;                                                                                    \
+}
+
+GetJsonValue(Array, IJsonArray**);
+GetJsonValue(Number, DOUBLE*);
+GetJsonValue(Object, IJsonObject**);
+GetJsonValue(String, HSTRING*);
+
+HRESULT HSTRINGToMultiByte(HSTRING hstr, LPSTR *str, UINT32 *str_len)
+{
+    UINT32 wstr_len;
+    LPCWSTR wstr = WindowsGetStringRawBuffer(hstr, &wstr_len);
+
+    if (!(*str_len = WideCharToMultiByte(CP_UTF8, 0, wstr, wstr_len, NULL, 0, NULL, NULL)))
+        return HRESULT_FROM_WIN32(GetLastError());
+
+    if (!(*str = calloc(1, *str_len))) return E_OUTOFMEMORY;
+
+    if (!(*str_len = WideCharToMultiByte(CP_UTF8, 0, wstr, wstr_len, *str, *str_len, NULL, NULL)))
+    {
+        free(*str);
+        *str = NULL;
+        return HRESULT_FROM_WIN32(GetLastError());
+    }
+
+    return S_OK;
+}
+
 static HRESULT HttpRequest(LPCWSTR method, LPCWSTR domain, LPCWSTR object, LPSTR data, LPCWSTR headers, LPCWSTR* accept, LPSTR* buffer, SIZE_T* bufferSize)
 {
     HINTERNET connection = NULL;
@@ -115,21 +156,6 @@ static HRESULT HttpRequest(LPCWSTR method, LPCWSTR domain, LPCWSTR object, LPSTR
     return hr;
 }
 
-static HRESULT GetJsonStringValue(IJsonObject *object, LPCWSTR key, HSTRING *content)
-{
-    HSTRING_HEADER key_hdr;
-    HSTRING key_hstr;
-    HRESULT hr;
-
-    if (FAILED(hr = WindowsCreateStringReference(key, wcslen(key), &key_hdr, &key_hstr)))
-        return hr;
-
-    if (FAILED(hr = IJsonObject_GetNamedString(object, key_hstr, content)))
-        return hr;
-
-    return S_OK;
-}
-
 static HRESULT ParseJsonObject(LPCSTR str, UINT32 str_size, IJsonObject **object)
 {
     LPCWSTR class_str = RuntimeClass_Windows_Data_Json_JsonValue;
@@ -190,9 +216,7 @@ HRESULT RefreshOAuth(LPCSTR client_id, LPCSTR refresh_token, time_t *new_expiry,
 {
     LPCSTR template = "grant_type=refresh_token&scope=service::user.auth.xboxlive.com::MBI_SSL&client_id=";
     LPCWSTR accept[] = {L"application/json", NULL};
-    HSTRING_HEADER expires_hdr;
     IJsonObject *object;
-    HSTRING expires;
     time_t expiry;
     LPSTR buffer;
     DOUBLE delta;
@@ -235,16 +259,9 @@ HRESULT RefreshOAuth(LPCSTR client_id, LPCSTR refresh_token, time_t *new_expiry,
     {
         IJsonObject_Release(object);
         return hr;
-    }    
-
-    if (FAILED(hr = WindowsCreateStringReference(
-        L"expires_in", wcslen(L"expires_in"), &expires_hdr, &expires)))
-    {
-        IJsonObject_Release(object);
-        return hr;
     }
 
-    hr = IJsonObject_GetNamedNumber(object, expires, &delta);
+    if (FAILED(hr = GetJsonNumberValue(object, L"expires_in", &delta)))
     IJsonObject_Release(object);
     if (FAILED(hr)) return hr;
 
@@ -280,6 +297,112 @@ HRESULT RequestXToken(LPCWSTR domain, LPCWSTR path, LPSTR data, HSTRING *token)
 
     hr = GetJsonStringValue(object, L"Token", token);
     IJsonObject_Release(object);
+
+    return hr;
+}
+
+HRESULT RequestUserToken(HSTRING oauth_token, HSTRING *token, XUserLocalId *local_id)
+{
+    LPCSTR template = "{\"RelyingParty\":\"http://auth.xboxlive.com\",\"TokenType\":\"JWT\",\"Properties\":{\"AuthMethod\":\"RPS\",\"SiteName\":\"user.auth.xboxlive.com\",\"RpsTicket\":\"";
+    LPCWSTR accept[] = {L"application/json", NULL};
+    IJsonObject *display_claims;
+    UINT32 token_str_len;
+    IJsonObject *object;
+    UINT32 uhs_str_len;
+    LPSTR token_str;
+    IJsonArray *xui;
+    LPSTR uhs_str;
+    LPSTR buffer;
+    SIZE_T size;
+    HSTRING uhs;
+    LPSTR data;
+    HRESULT hr;
+
+    if (FAILED(hr = HSTRINGToMultiByte(oauth_token, &token_str, &token_str_len)))
+        return hr;
+
+    if (!(data = calloc(strlen(template) + token_str_len + strlen("\"}}") + 1, sizeof(CHAR))))
+    {
+        free(token_str);
+        return E_OUTOFMEMORY;
+    }
+
+    strcpy(data, template);
+    strncat(data, token_str, token_str_len);
+    free(token_str);
+    strcat(data, "\"}}");
+
+    hr = HttpRequest(
+        L"POST",
+        L"user.auth.xboxlive.com",
+        L"/user/authenticate",
+        data,
+        L"content-type: application/json",
+        accept,
+        &buffer,
+        &size
+    );
+
+    free(data);
+    if (FAILED(hr)) return hr;
+    hr = ParseJsonObject(buffer, size, &object);
+    free(buffer);
+    if (FAILED(hr)) return hr;
+
+    if (FAILED(hr = GetJsonStringValue(object, L"Token", token)))
+    {
+        IJsonObject_Release(object);
+        return hr;
+    }
+
+    hr = GetJsonObjectValue(object, L"DisplayClaims", &display_claims);
+    IJsonObject_Release(object);
+    if (FAILED(hr))
+    {
+        WindowsDeleteString(*token);
+        return hr;
+    }
+
+    hr = GetJsonArrayValue(display_claims, L"xui", &xui);
+    IJsonObject_Release(display_claims);
+    if (FAILED(hr))
+    {
+        WindowsDeleteString(*token);
+        return hr;
+    }
+
+    hr = IJsonArray_GetObjectAt(xui, 0, &object);
+    IJsonArray_Release(xui);
+    if (FAILED(hr))
+    {
+        WindowsDeleteString(*token);
+        return hr;
+    }
+
+    hr = GetJsonStringValue(object, L"uhs", &uhs);
+    IJsonObject_Release(object);
+    if (FAILED(hr))
+    {
+        WindowsDeleteString(*token);
+        return hr;
+    }
+
+    hr = HSTRINGToMultiByte(uhs, &uhs_str, &uhs_str_len);
+    WindowsDeleteString(uhs);
+    if (FAILED(hr))
+    {
+        WindowsDeleteString(*token);
+        return hr;
+    }
+
+    local_id->value = strtoull(uhs_str, NULL, 10);
+    free(uhs_str);
+    if (errno == ERANGE)
+    {
+        WindowsDeleteString(*token);
+        errno = 0;
+        return E_FAIL;
+    }
 
     return hr;
 }

@@ -28,28 +28,8 @@ WINE_DEFAULT_DEBUG_CHANNEL(gdkc);
 
 static const struct IXUserImplVtbl x_user_vtbl;
 
-static HRESULT HSTRINGToMultiByte(HSTRING hstr, LPSTR *str, UINT32 *str_len)
-{
-    UINT32 wstr_len;
-    LPCWSTR wstr = WindowsGetStringRawBuffer(hstr, &wstr_len);
-
-    if (!(*str_len = WideCharToMultiByte(CP_UTF8, 0, wstr, wstr_len, NULL, 0, NULL, NULL)))
-        return HRESULT_FROM_WIN32(GetLastError());
-
-    if (!(*str = calloc(1, *str_len))) return E_OUTOFMEMORY;
-
-    if (!(*str_len = WideCharToMultiByte(CP_UTF8, 0, wstr, wstr_len, *str, *str_len, NULL, NULL)))
-    {
-        free(*str);
-        return HRESULT_FROM_WIN32(GetLastError());
-    }
-
-    return S_OK;
-}
-
 static HRESULT LoadDefaultUser(XUserHandle *user, LPCSTR client_id)
 {
-    LPCSTR user_template = "{\"RelyingParty\":\"http://auth.xboxlive.com\",\"TokenType\":\"JWT\",\"Properties\":{\"AuthMethod\":\"RPS\",\"SiteName\":\"user.auth.xboxlive.com\",\"RpsTicket\":\"";
     LPCSTR xsts_template = "{\"RelyingParty\":\"http://xboxlive.com\",\"TokenType\":\"JWT\",\"Properties\":{\"SandboxId\":\"RETAIL\",\"UserTokens\":[\"";
     UINT32 token_str_len;
     struct x_user *impl;
@@ -101,26 +81,7 @@ static HRESULT LoadDefaultUser(XUserHandle *user, LPCSTR client_id)
         return hr;
     }
 
-    if (FAILED(hr = HSTRINGToMultiByte(impl->oauth_token, &token_str, &token_str_len)))
-    {
-        IXUserImpl_Release(&impl->IXUserImpl_iface);
-        return hr;
-    }
-
-    if (!(data = calloc(strlen(user_template) + strlen(token_str) + strlen("\"}}") + 1, sizeof(CHAR))))
-    {
-        free(token_str);
-        IXUserImpl_Release(&impl->IXUserImpl_iface);
-        return E_OUTOFMEMORY;
-    }
-
-    strcpy(data, user_template);
-    strncat(data, token_str, token_str_len);
-    free(token_str);
-    strcat(data, "\"}}");
-    hr = RequestXToken(L"user.auth.xboxlive.com", L"/user/authenticate", data, &impl->user_token);
-    free(data);
-    if (FAILED(hr))
+    if (FAILED(hr = RequestUserToken(impl->oauth_token, &impl->user_token, &impl->local_id)))
     {
         TRACE("failed to get user token\n");
         IXUserImpl_Release(&impl->IXUserImpl_iface);
