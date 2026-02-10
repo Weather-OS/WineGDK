@@ -139,7 +139,7 @@ static HRESULT WINAPI json_array_statics_GetObjectAt( IJsonArray *iface, UINT32 
 {
     struct json_array *impl = impl_from_IJsonArray( iface );
 
-    TRACE( "iface %p, index %u, value %p stub!\n", iface, index, value );
+    TRACE( "iface %p, index %u, value %p\n", iface, index, value );
 
     if (!value) return E_POINTER;
     if (index >= impl->length) return WEB_E_JSON_VALUE_NOT_FOUND;
@@ -151,7 +151,7 @@ static HRESULT WINAPI json_array_statics_GetArrayAt( IJsonArray *iface, UINT32 i
 {
     struct json_array *impl = impl_from_IJsonArray( iface );
 
-    TRACE( "iface %p, index %u, value %p stub!\n", iface, index, value );
+    TRACE( "iface %p, index %u, value %p\n", iface, index, value );
 
     if (!value) return E_POINTER;
     if (index >= impl->length) return WEB_E_JSON_VALUE_NOT_FOUND;
@@ -163,7 +163,7 @@ static HRESULT WINAPI json_array_statics_GetStringAt( IJsonArray *iface, UINT32 
 {
     struct json_array *impl = impl_from_IJsonArray( iface );
 
-    TRACE( "iface %p, index %u, value %p stub!\n", iface, index, value );
+    TRACE( "iface %p, index %u, value %p\n", iface, index, value );
 
     if (!value) return E_POINTER;
     if (index >= impl->length) return WEB_E_JSON_VALUE_NOT_FOUND;
@@ -175,7 +175,7 @@ static HRESULT WINAPI json_array_statics_GetNumberAt( IJsonArray *iface, UINT32 
 {
     struct json_array *impl = impl_from_IJsonArray( iface );
 
-    TRACE( "iface %p, index %u, value %p stub!\n", iface, index, value );
+    TRACE( "iface %p, index %u, value %p\n", iface, index, value );
 
     if (!value) return E_POINTER;
     if (index >= impl->length) return WEB_E_JSON_VALUE_NOT_FOUND;
@@ -187,7 +187,7 @@ static HRESULT WINAPI json_array_statics_GetBooleanAt( IJsonArray *iface, UINT32
 {
     struct json_array *impl = impl_from_IJsonArray( iface );
 
-    TRACE( "iface %p, index %u, value %p stub!\n", iface, index, value );
+    TRACE( "iface %p, index %u, value %p\n", iface, index, value );
 
     if (!value) return E_POINTER;
     if (index >= impl->length) return WEB_E_JSON_VALUE_NOT_FOUND;

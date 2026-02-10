@@ -323,6 +323,8 @@ static HRESULT parse_json_array( const WCHAR **json, UINT32 *len, struct json_va
     IJsonArray *array;
     HRESULT hr;
 
+    TRACE( "json %s, impl %p", debugstr_wn( *json, *len ), impl );
+
     if (FAILED(hr = IActivationFactory_ActivateInstance(
         json_array_factory, (IInspectable**)&array ))) return hr;
 
@@ -348,6 +350,13 @@ static HRESULT parse_json_array( const WCHAR **json, UINT32 *len, struct json_va
             return hr;
         }
 
+        if (FAILED(hr = json_array_push( array, &child->IJsonValue_iface )))
+        {
+            IJsonValue_Release( &child->IJsonValue_iface );
+            IJsonArray_Release( array );
+            return hr;
+        }
+
         trim_string( json, len );
 
         if (**json == ',')
@@ -355,7 +364,11 @@ static HRESULT parse_json_array( const WCHAR **json, UINT32 *len, struct json_va
             (*json)++;
             (*len)--;
         }
-        else if (**json != ']') return WEB_E_INVALID_JSON_STRING;
+        else if (**json != ']')
+        {
+            IJsonArray_Release( array );
+            return WEB_E_INVALID_JSON_STRING;
+        }
 
         trim_string( json, len );
     }
@@ -377,6 +390,8 @@ static HRESULT parse_json_string( const WCHAR **json, UINT32 *len, HSTRING *outp
     UINT32 offset = 0;
     HRESULT hr = S_OK;
     WCHAR *dst;
+
+    TRACE( "json %s, output %p", debugstr_wn( *json, *len ), output );
 
     (*json)++;
     (*len)--;
@@ -538,6 +553,8 @@ static HRESULT parse_json_object( const WCHAR **json, UINT32 *len, struct json_v
 static HRESULT parse_json_value( const WCHAR **json, UINT32 *len, struct json_value *impl )
 {
     HRESULT hr = S_OK;
+
+    TRACE( "json %s, impl %p\n", debugstr_wn( *json, *len ), impl );
 
     if (!*len) return WEB_E_INVALID_JSON_STRING;
 
