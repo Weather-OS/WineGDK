@@ -90,7 +90,11 @@ static HRESULT WINAPI x_networking_QueryInterface( IXNetworkingImpl *iface, REFI
     TRACE( "iface %p, iid %s, out %p.\n", iface, debugstr_guid( iid ), out );
 
     if (IsEqualGUID( iid, &IID_IUnknown ) ||
-        IsEqualGUID( iid, &IID_IXNetworkingImpl ))
+        IsEqualGUID( iid, &IID_IXNetworkingImpl ) ||
+        //  For some strange, unexplainable reason, the xgameruntime.lib library shipped with
+        // PlayFabMultiplayerGDK has the GUID of IXNetworkingImpl of the class Id of XNetworking.
+        // This is for compatibility reasons only.
+        IsEqualGUID( iid, &CLSID_XNetworkingImpl ))
     {
         *out = &impl->IXNetworkingImpl_iface;
         impl->IXNetworkingImpl_iface.lpVtbl->AddRef( *out );
@@ -290,7 +294,7 @@ static const struct IXNetworkingImplVtbl x_networking_vtbl =
 {
     x_networking_QueryInterface,
     x_networking_AddRef,
-    x_networking_Release,
+    x_networking_Release, 
     /* IXNetworkingImpl methods */
     x_networking_XNetworkingQueryPreferredLocalUdpMultiplayerPort,
     x_networking_XNetworkingQueryPreferredLocalUdpMultiplayerPortAsync,
