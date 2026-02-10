@@ -176,13 +176,14 @@ static HRESULT WINAPI x_user_XUserGetMaxUsers(IXUserImpl* iface, UINT32* maxUser
     return E_NOTIMPL;
 }
 
-struct XUserAddContext {
+struct XUserAddContext
+{
     XUserAddOptions options;
     XUserHandle user;
     LPCSTR client_id;
 };
 
-HRESULT XUserAddProvider(XAsyncOp operation, const XAsyncProviderData* providerData)
+static HRESULT XUserAddProvider(XAsyncOp operation, const XAsyncProviderData* providerData)
 {
     struct XUserAddContext* context;
     IXThreadingImpl* impl;
@@ -305,7 +306,7 @@ static HRESULT WINAPI x_user_XUserGetGamerPictureResultSize(IXUserImpl* iface, X
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_user_XUserGetGamerPictureResult(IXUserImpl* iface, XAsyncBlock* asyncBlock, SIZE_T size, void* buffer, SIZE_T* used)
+static HRESULT WINAPI x_user_XUserGetGamerPictureResult(IXUserImpl* iface, XAsyncBlock* asyncBlock, SIZE_T size, PVOID buffer, SIZE_T* used)
 {
     FIXME("iface %p, asyncBlock %p, size %llu, buffer %p, used %p stub!\n", iface, asyncBlock, size, buffer, used);
     return E_NOTIMPL;
@@ -335,18 +336,96 @@ static HRESULT WINAPI x_user_XUserResolvePrivilegeWithUiResult(IXUserImpl* iface
     return E_NOTIMPL;
 }
 
+struct XUserGetTokenAndSignatureContext
+{
+    BOOLEAN utf16;
+    XUserHandle user;
+    XUserGetTokenAndSignatureOptions options;
+    LPCSTR method;
+    LPCWSTR method_utf16;
+    LPCSTR url;
+    LPCWSTR url_utf16;
+    SIZE_T count;
+    XUserGetTokenAndSignatureHttpHeader *headers;
+    XUserGetTokenAndSignatureUtf16HttpHeader *headers_utf16;
+    SIZE_T size;
+    const void *buffer;
+};
+
+static HRESULT XUserGetTokenAndSignatureProvider(XAsyncOp operation, const XAsyncProviderData* providerData)
+{
+    struct XUserGetTokenAndSignatureContext* context;
+    IXThreadingImpl* impl;
+
+    TRACE("operation %d, providerData %p\n", operation, providerData);
+
+    if (FAILED(QueryApiImpl(&CLSID_XThreadingImpl, &IID_IXThreadingImpl, (void**)&impl))) return E_FAIL;
+    context = providerData->context;
+
+    switch (operation)
+    {
+        case Begin:
+            return impl->lpVtbl->XAsyncSchedule(impl, providerData->async, 0);
+
+        case GetResult:
+            break;
+
+        case DoWork:
+            impl->lpVtbl->XAsyncComplete(impl, providerData->async, E_FAIL, sizeof(XUserHandle));
+            break;
+
+        case Cleanup:
+            if (context->count)
+            {
+                if (context->utf16) free(context->headers_utf16);
+                else free(context->headers);
+            }
+            free(context);
+            break;
+
+        case Cancel:
+            break;
+    }
+
+    return S_OK;
+}
+
 static HRESULT WINAPI x_user_XUserGetTokenAndSignatureAsync(IXUserImpl* iface, XUserHandle user, XUserGetTokenAndSignatureOptions options, LPCSTR method, LPCSTR url, SIZE_T count, const XUserGetTokenAndSignatureHttpHeader* headers, SIZE_T size, const void* buffer, XAsyncBlock* asyncBlock)
 {
-    FIXME("iface %p, user %p, options %d, method %s, url %s, count %llu, headers %p, size %llu, buffer %p, asyncBlock %p stub!\n", iface, user, options, method, url, count, headers, size, buffer, asyncBlock);
-    return E_NOTIMPL;
+    struct XUserGetTokenAndSignatureContext* context;
+    IXThreadingImpl* impl;
+
+    TRACE("iface %p, user %p, options %d, method %s, url %s, count %llu, headers %p, size %llu, buffer %p, asyncBlock %p\n", iface, user, options, method, url, count, headers, size, buffer, asyncBlock);
+
+    if (FAILED(QueryApiImpl(&CLSID_XThreadingImpl, &IID_IXThreadingImpl, (void**)&impl))) return E_NOTIMPL;
+    if (!(context = calloc(1, sizeof(*context)))) return E_OUTOFMEMORY;
+    context->options = options;
+    context->buffer = buffer;
+    context->method = method;
+    context->count = count;
+    context->utf16 = FALSE;
+    context->size = size;
+    context->user = user;
+    context->url = url;
+    if (count && !(context->headers = calloc(count, sizeof(*headers))))
+    {
+        free(context);
+        return E_OUTOFMEMORY;
+    }
+
+    for (SIZE_T i = 0; i < count; i++)
+        context->headers[i] = headers[i];
+
+    return impl->lpVtbl->XAsyncBegin(impl, asyncBlock, context, x_user_XUserGetTokenAndSignatureAsync, "XUserGetTokenAndSignatureAsync", XUserGetTokenAndSignatureProvider);
 }
+
 static HRESULT WINAPI x_user_XUserGetTokenAndSignatureResultSize(IXUserImpl* iface, XAsyncBlock* asyncBlock, SIZE_T* size)
 {
     FIXME("iface %p, asyncBlock %p, size %p stub!\n", iface, asyncBlock, size);
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_user_XUserGetTokenAndSignatureResult(IXUserImpl* iface, XAsyncBlock* asyncBlock, SIZE_T size, void* buffer, XUserGetTokenAndSignatureData** ptr, SIZE_T* used)
+static HRESULT WINAPI x_user_XUserGetTokenAndSignatureResult(IXUserImpl* iface, XAsyncBlock* asyncBlock, SIZE_T size, PVOID buffer, XUserGetTokenAndSignatureData** ptr, SIZE_T* used)
 {
     FIXME("iface %p, asyncBlock %p, size %llu, buffer %p, ptr %p, used %p stub!\n", iface, asyncBlock, size, buffer, ptr, used);
     return E_NOTIMPL;
@@ -354,8 +433,31 @@ static HRESULT WINAPI x_user_XUserGetTokenAndSignatureResult(IXUserImpl* iface, 
 
 static HRESULT WINAPI x_user_XUserGetTokenAndSignatureUtf16Async(IXUserImpl* iface, XUserHandle user, XUserGetTokenAndSignatureOptions options, LPCWSTR method, LPCWSTR url, SIZE_T count, const XUserGetTokenAndSignatureUtf16HttpHeader* headers, SIZE_T size, const void* buffer, XAsyncBlock* asyncBlock)
 {
-    FIXME("iface %p, user %p, options %d, method %hs, url %hs, count %llu, headers %p, size %llu, buffer %p, asyncBlock %p stub!\n", iface, user, options, method, url, count, headers, size, buffer, asyncBlock);
-    return E_NOTIMPL;
+    struct XUserGetTokenAndSignatureContext* context;
+    IXThreadingImpl* impl;
+
+    TRACE("iface %p, user %p, options %d, method %hs, url %hs, count %llu, headers %p, size %llu, buffer %p, asyncBlock %p\n", iface, user, options, method, url, count, headers, size, buffer, asyncBlock);
+
+    if (FAILED(QueryApiImpl(&CLSID_XThreadingImpl, &IID_IXThreadingImpl, (void**)&impl))) return E_NOTIMPL;
+    if (!(context = calloc(1, sizeof(*context)))) return E_OUTOFMEMORY;
+    context->method_utf16 = method;
+    context->options = options;
+    context->buffer = buffer;
+    context->url_utf16 = url;
+    context->count = count;
+    context->utf16 = TRUE;
+    context->size = size;
+    context->user = user;
+    if (count && !(context->headers_utf16 = calloc(count, sizeof(*headers))))
+    {
+        free(context);
+        return E_OUTOFMEMORY;
+    }
+
+    for (SIZE_T i = 0; i < count; i++)
+        context->headers_utf16[i] = headers[i];
+
+    return impl->lpVtbl->XAsyncBegin(impl, asyncBlock, context, x_user_XUserGetTokenAndSignatureUtf16Async, "XUserGetTokenAndSignatureUtf16Async", XUserGetTokenAndSignatureProvider);
 }
 
 static HRESULT WINAPI x_user_XUserGetTokenAndSignatureUtf16ResultSize(IXUserImpl* iface, XAsyncBlock* asyncBlock, SIZE_T* size)
@@ -364,7 +466,7 @@ static HRESULT WINAPI x_user_XUserGetTokenAndSignatureUtf16ResultSize(IXUserImpl
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_user_XUserGetTokenAndSignatureUtf16Result(IXUserImpl* iface, XAsyncBlock* asyncBlock, SIZE_T size, void* buffer, XUserGetTokenAndSignatureUtf16Data** ptr, SIZE_T* used)
+static HRESULT WINAPI x_user_XUserGetTokenAndSignatureUtf16Result(IXUserImpl* iface, XAsyncBlock* asyncBlock, SIZE_T size, PVOID buffer, XUserGetTokenAndSignatureUtf16Data** ptr, SIZE_T* used)
 {
     FIXME("iface %p, asyncBlock %p, size %llu, buffer %p, ptr %p, used %p stub!\n", iface, asyncBlock, size, buffer, ptr, used);
     return E_NOTIMPL;
@@ -394,7 +496,7 @@ static HRESULT WINAPI x_user_XUserResolveIssueWithUiUtf16Result(IXUserImpl* ifac
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_user_XUserRegisterForChangeEvent(IXUserImpl* iface, XTaskQueueHandle queue, void* context, XUserChangeEventCallback* callback, XTaskQueueRegistrationToken* token)
+static HRESULT WINAPI x_user_XUserRegisterForChangeEvent(IXUserImpl* iface, XTaskQueueHandle queue, PVOID context, XUserChangeEventCallback* callback, XTaskQueueRegistrationToken* token)
 {
     FIXME("iface %p, context %p, callback %p, token %p stub!\n", iface, context, callback, token);
     return E_NOTIMPL;
