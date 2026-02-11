@@ -210,6 +210,10 @@ HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, voi
     {
         return IXNetworkingImpl_QueryInterface( x_networking_impl, interfaceId, out );
     }
+    else if ( IsEqualGUID( runtimeClassId, &CLSID_XGameProtocolImpl ) )
+    {
+        return IXGameProtocolImpl_QueryInterface( x_gameprotocol_impl, interfaceId, out );
+    }
     
     FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( runtimeClassId ) );
     return E_NOTIMPL;

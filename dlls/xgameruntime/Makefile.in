@@ -17,5 +17,6 @@ SOURCES = \
 	GDKComponent/System/XSystemAnalytics.c \
 	GDKComponent/System/XGameRuntimeFeature.c \
 	GDKComponent/System/Networking/HTTPClient.c \
-	GDKComponent/System/Networking/XNetworking.c
+	GDKComponent/System/Networking/XNetworking.c \
+	GDKComponent/System/XGameProtocol.c
 
