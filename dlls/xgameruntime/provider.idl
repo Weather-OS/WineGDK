@@ -22,6 +22,8 @@
 
 import "propidl.idl";
 
+cpp_quote("#include <xtaskqueue.h>")
+
 // --- xgameruntime --- //
 typedef void* XSystemHandle;
 
@@ -31,15 +33,19 @@ typedef enum XGameRuntimeFeature XGameRuntimeFeature;
 
 typedef struct XVersion XVersion;
 typedef struct XSystemAnalyticsInfo XSystemAnalyticsInfo;
+typedef struct XTaskQueueObject* XTaskQueueHandle;
+typedef struct XTaskQueueRegistrationToken XTaskQueueRegistrationToken;
 
 interface IWineAsyncWorkImpl;
 interface IXSystemImpl;
 interface IXSystemAnalyticsImpl;
 interface IXGameRuntimeFeatureImpl;
+interface IXGameProtocolImpl;
 
 coclass XSystemImpl;
 coclass XSystemAnalyticsImpl;
 coclass XGameRuntimeFeatureImpl;
+coclass XGameProtocolImpl;
 
 enum XSystemHandleType
 {
@@ -163,6 +169,18 @@ interface IXGameRuntimeFeatureImpl : IUnknown
 }
 
 [
+    local,
+    object,
+    uuid(026b010c-06c3-4cdd-bbcb-43f229db1cff)
+]
+interface IXGameProtocolImpl : IUnknown
+{
+    HRESULT XGameProtocolRegisterForActivation( [in] XTaskQueueHandle queue, [in] void *context, [in] void *callback, [out] XTaskQueueRegistrationToken *token );
+    BOOLEAN XGameProtocolUnregisterForActivation( XTaskQueueRegistrationToken *token, boolean wait );
+    void XGameProtocolActivationCallback( [in] void *context, [in] LPSTR protocolUri );
+}
+
+[
     uuid(e349bd1a-fc20-4e40-b99c-4178cc6b409f)
 ]
 coclass XSystemImpl
@@ -184,5 +202,13 @@ coclass XSystemAnalyticsImpl
 coclass XGameRuntimeFeatureImpl
 {
     [default] interface IXGameRuntimeFeatureImpl;
+}
+
+[
+    uuid(95fd18d2-74dd-4d7c-aa1b-0b51827665d6)
+]
+coclass XGameProtocolImpl
+{
+    [default] interface IXGameProtocolImpl;
 }
 

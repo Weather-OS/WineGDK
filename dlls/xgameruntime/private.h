@@ -1,6 +1,6 @@
 /*
  * Xbox Game runtime Library
- * 
+ *
  * Written by Weather
  *
  * This library is free software; you can redistribute it and/or
@@ -53,6 +53,7 @@ extern IXSystemAnalyticsImpl *x_system_analytics_impl;
 extern IXThreadingImpl *x_threading_impl;
 extern IXGameRuntimeFeatureImpl *x_game_runtime_feature_impl;
 extern IXNetworkingImpl *x_networking_impl;
+extern IXGameProtocolImpl *x_gameprotocol_impl;
 
 typedef struct _INITIALIZE_OPTIONS
 {
