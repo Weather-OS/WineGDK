@@ -27,8 +27,9 @@
 WINE_DEFAULT_DEBUG_CHANNEL(gdkc);
 
 static const struct IXUserImplVtbl x_user_vtbl;
+static const struct IXUserGamertagVtbl x_user_gt_vtbl;
 
-static HRESULT LoadDefaultUser(XUserHandle *user, LPCSTR client_id)
+static HRESULT LoadDefaultUser( XUserHandle *user, LPCSTR client_id )
 {
     struct x_user *impl;
     LSTATUS status;
@@ -44,9 +45,9 @@ static HRESULT LoadDefaultUser(XUserHandle *user, LPCSTR client_id)
         NULL,
         NULL,
         &size
-    ))) return HRESULT_FROM_WIN32(status);
+    ))) return HRESULT_FROM_WIN32( status );
 
-    if (!(buffer = calloc(1, size))) return E_OUTOFMEMORY;
+    if (!(buffer = calloc( 1, size ))) return E_OUTOFMEMORY;
 
     if (ERROR_SUCCESS != (status = RegGetValueA(
         HKEY_LOCAL_MACHINE,
@@ -58,41 +59,40 @@ static HRESULT LoadDefaultUser(XUserHandle *user, LPCSTR client_id)
         &size
     )))
     {
-        free(buffer);
-        return HRESULT_FROM_WIN32(status);
+        free( buffer );
+        return HRESULT_FROM_WIN32( status );
     }
 
-    if (!(impl = calloc(1, sizeof(*impl))))
+    if (!(impl = calloc( 1, sizeof( *impl ) )))
     {
-        free(buffer);
+        free( buffer );
         return E_OUTOFMEMORY;
     }
 
     impl->IXUserImpl_iface.lpVtbl = &x_user_vtbl;
+    impl->IXUserGamertag_iface.lpVtbl = &x_user_gt_vtbl;
     impl->ref = 1;
 
-    hr = RefreshOAuth(
-        client_id, buffer, &impl->oauth_token_expiry, &impl->refresh_token, &impl->oauth_token);
-
-    free(buffer);
-    if (FAILED(hr))
+    hr = RefreshOAuth( client_id, buffer, &impl->oauth_token_expiry, &impl->refresh_token, &impl->oauth_token );
+    free( buffer );
+    if (FAILED( hr ))
     {
-        TRACE("failed to get oauth token\n");
-        IXUserImpl_Release(&impl->IXUserImpl_iface);
+        TRACE( "failed to get oauth token\n" );
+        IXUserImpl_Release( &impl->IXUserImpl_iface );
         return hr;
     }
 
-    if (FAILED(hr = RequestUserToken(impl->oauth_token, &impl->user_token, &impl->local_id)))
+    if (FAILED( hr = RequestUserToken( impl->oauth_token, &impl->user_token, &impl->local_id ) ))
     {
-        TRACE("failed to get user token\n");
-        IXUserImpl_Release(&impl->IXUserImpl_iface);
+        TRACE( "failed to get user token\n" );
+        IXUserImpl_Release( &impl->IXUserImpl_iface );
         return hr;
     }
 
-    if (FAILED(hr = RequestXstsToken(impl->user_token, &impl->xsts_token, &impl->xuid)))
+    if (FAILED( hr = RequestXstsToken( impl->user_token, &impl->xsts_token, &impl->xuid ) ))
     {
-        TRACE("failed to get xsts token\n");
-        IXUserImpl_Release(&impl->IXUserImpl_iface);
+        TRACE( "failed to get xsts token\n" );
+        IXUserImpl_Release( &impl->IXUserImpl_iface );
         return hr;
     }
 
@@ -101,78 +101,91 @@ static HRESULT LoadDefaultUser(XUserHandle *user, LPCSTR client_id)
     return hr;
 }
 
-static inline struct x_user *impl_from_IXUserImpl(IXUserImpl *iface)
+static inline struct x_user *impl_from_IXUserImpl( IXUserImpl *iface )
 {
-    return CONTAINING_RECORD(iface, struct x_user, IXUserImpl_iface);
+    return CONTAINING_RECORD( iface, struct x_user, IXUserImpl_iface );
 }
 
-static HRESULT WINAPI x_user_QueryInterface(IXUserImpl *iface, REFIID iid, void **out)
+static HRESULT WINAPI x_user_QueryInterface( IXUserImpl *iface, REFIID iid, void **out )
 {
-    struct x_user *impl = impl_from_IXUserImpl(iface);
+    struct x_user *impl = impl_from_IXUserImpl( iface );
 
-    TRACE("iface %p, iid %s, out %p\n", iface, debugstr_guid(iid), out);
+    TRACE( "iface %p, iid %s, out %p\n", iface, debugstr_guid( iid ), out );
 
-    if (IsEqualGUID(iid, &IID_IUnknown)
-    || IsEqualGUID(iid, &CLSID_XUserImpl)
-    || IsEqualGUID(iid, &IID_IXUserImpl))
+    if (!out) return E_POINTER;
+
+    if (IsEqualGUID( iid, &IID_IUnknown ) ||
+        IsEqualGUID( iid, &IID_IXUserBase ) ||
+        IsEqualGUID( iid, &IID_IXUserAddWithUi ) ||
+        IsEqualGUID( iid, &IID_IXUserMsa ) ||
+        IsEqualGUID( iid, &IID_IXUserStore ) ||
+        IsEqualGUID( iid, &IID_IXUserPlatform ) ||
+        IsEqualGUID( iid, &IID_IXUserSignOut ))
     {
         *out = &impl->IXUserImpl_iface;
-        IXUserImpl_AddRef(*out);
+        IXUserImpl_AddRef( *out );
         return S_OK;
     }
 
-    FIXME("%s not implemented, returning E_NOINTERFACE\n", debugstr_guid(iid));
+    if (IsEqualGUID( iid, &IID_IXUserGamertag ))
+    {
+        *out = &impl->IXUserGamertag_iface;
+        IXUserGamertag_AddRef( *out );
+        return S_OK;
+    }
+
+    FIXME( "%s not implemented, returning E_NOINTERFACE\n", debugstr_guid( iid ) );
     *out = NULL;
     return E_NOINTERFACE;
 }
 
-static ULONG WINAPI x_user_AddRef(IXUserImpl *iface)
+static ULONG WINAPI x_user_AddRef( IXUserImpl *iface )
 {
-    struct x_user *impl = impl_from_IXUserImpl(iface);
-    ULONG ref = InterlockedIncrement(&impl->ref);
-    TRACE("iface %p increasing refcount to %lu\n", iface, ref);
+    struct x_user *impl = impl_from_IXUserImpl( iface );
+    ULONG ref = InterlockedIncrement( &impl->ref );
+    TRACE( "iface %p increasing refcount to %lu\n", iface, ref );
     return ref;
 }
 
-static ULONG WINAPI x_user_Release(IXUserImpl *iface)
+static ULONG WINAPI x_user_Release( IXUserImpl *iface )
 {
-    struct x_user *impl = impl_from_IXUserImpl(iface);
-    ULONG ref = InterlockedDecrement(&impl-> ref);
-    TRACE("iface %p decreasing refcount to %lu\n", iface, ref);
+    struct x_user *impl = impl_from_IXUserImpl( iface );
+    ULONG ref = InterlockedDecrement( &impl->ref );
+    TRACE( "iface %p decreasing refcount to %lu\n", iface, ref );
     if (!ref)
     {
-        WindowsDeleteString(impl->refresh_token);
-        WindowsDeleteString(impl->oauth_token);
-        WindowsDeleteString(impl->user_token);
-        WindowsDeleteString(impl->xsts_token);
-        free(impl);
+        WindowsDeleteString( impl->refresh_token );
+        WindowsDeleteString( impl->oauth_token );
+        WindowsDeleteString( impl->user_token );
+        WindowsDeleteString( impl->xsts_token );
+        free( impl );
     }
     return ref;
 }
 
-static HRESULT WINAPI x_user_XUserDuplicateHandle(IXUserImpl* iface, XUserHandle user, XUserHandle* duplicated)
+static HRESULT WINAPI x_user_XUserDuplicateHandle( IXUserImpl *iface, XUserHandle user, XUserHandle* duplicated )
 {
-    TRACE("iface %p, user %p, duplicated %p\n", iface, user, duplicated);
-    IXUserImpl_AddRef(&((struct x_user*)user)->IXUserImpl_iface);
+    TRACE( "iface %p, user %p, duplicated %p\n", iface, user, duplicated );
+    IXUserImpl_AddRef( &((struct x_user*)user)->IXUserImpl_iface );
     *duplicated = user;
     return S_OK;
 }
 
-static void WINAPI x_user_XUserCloseHandle(IXUserImpl* iface, XUserHandle user)
+static void WINAPI x_user_XUserCloseHandle( IXUserImpl *iface, XUserHandle user )
 {
-    TRACE("iface %p, user %p\n", iface, user);
-    IXUserImpl_Release(&((struct x_user*)user)->IXUserImpl_iface);
+    TRACE( "iface %p, user %p\n", iface, user );
+    IXUserImpl_Release( &((struct x_user*)user)->IXUserImpl_iface );
 }
 
-static INT32 WINAPI x_user_XUserCompare(IXUserImpl* iface, XUserHandle user1, XUserHandle user2)
+static INT32 WINAPI x_user_XUserCompare( IXUserImpl *iface, XUserHandle user1, XUserHandle user2 )
 {
-    FIXME("iface %p, user1 %p, user2 %p stub!\n", iface, user1, user2);
+    FIXME( "iface %p, user1 %p, user2 %p stub!\n", iface, user1, user2 );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_user_XUserGetMaxUsers(IXUserImpl* iface, UINT32* maxUsers)
+static HRESULT WINAPI x_user_XUserGetMaxUsers( IXUserImpl *iface, UINT32* maxUsers )
 {
-    FIXME("iface %p, maxUsers %p stub!\n", iface, maxUsers);
+    FIXME( "iface %p, maxUsers %p stub!\n", iface, maxUsers );
     return E_NOTIMPL;
 }
 
@@ -183,38 +196,38 @@ struct XUserAddContext
     LPCSTR client_id;
 };
 
-static HRESULT XUserAddProvider(XAsyncOp operation, const XAsyncProviderData* providerData)
+static HRESULT XUserAddProvider( XAsyncOp operation, const XAsyncProviderData* providerData )
 {
     struct XUserAddContext* context;
     IXThreadingImpl* impl;
     HRESULT hr;
 
-    TRACE("operation %d, providerData %p\n", operation, providerData);
+    TRACE( "operation %d, providerData %p\n", operation, providerData );
 
-    if (FAILED(QueryApiImpl(&CLSID_XThreadingImpl, &IID_IXThreadingImpl, (void**)&impl))) return E_FAIL;
+    if (FAILED( QueryApiImpl( &CLSID_XThreadingImpl, &IID_IXThreadingImpl, (void**)&impl ) )) return E_FAIL;
     context = providerData->context;
 
     switch (operation)
     {
         case Begin:
-            return impl->lpVtbl->XAsyncSchedule(impl, providerData->async, 0);
+            return impl->lpVtbl->XAsyncSchedule( impl, providerData->async, 0 );
 
         case GetResult:
-            memcpy(providerData->buffer, &context->user, sizeof(XUserHandle));
+            memcpy( providerData->buffer, &context->user, sizeof( XUserHandle ) );
             break;
 
         case DoWork:
             if (context->options & XUserAddOptions_AddDefaultUserAllowingUI)
-                hr = LoadDefaultUser(&context->user, context->client_id);
+                hr = LoadDefaultUser( &context->user, context->client_id );
             else if (context->options & XUserAddOptions_AddDefaultUserSilently)
-                hr = LoadDefaultUser(&context->user, context->client_id);
+                hr = LoadDefaultUser( &context->user, context->client_id );
             else hr = E_ABORT;
 
-            impl->lpVtbl->XAsyncComplete(impl, providerData->async, hr, sizeof(XUserHandle));
+            impl->lpVtbl->XAsyncComplete( impl, providerData->async, hr, sizeof( XUserHandle ) );
             break;
 
         case Cleanup:
-            free(context);
+            free( context );
             break;
 
         case Cancel:
@@ -224,115 +237,115 @@ static HRESULT XUserAddProvider(XAsyncOp operation, const XAsyncProviderData* pr
     return S_OK;
 }
 
-static HRESULT WINAPI x_user_XUserAddAsync(IXUserImpl* iface, XUserAddOptions options, XAsyncBlock* asyncBlock)
+static HRESULT WINAPI x_user_XUserAddAsync( IXUserImpl *iface, XUserAddOptions options, XAsyncBlock* asyncBlock )
 {
     struct XUserAddContext* context;
     IXThreadingImpl* impl;
 
-    TRACE("iface %p, options %d, asyncBlock %p\n", iface, options, asyncBlock);
+    TRACE( "iface %p, options %d, asyncBlock %p\n", iface, options, asyncBlock );
 
-    if (FAILED(QueryApiImpl(&CLSID_XThreadingImpl, &IID_IXThreadingImpl, (void**)&impl))) return E_NOTIMPL;
-    if (!(context = calloc(1, sizeof(struct XUserAddContext)))) return E_OUTOFMEMORY;
+    if (FAILED( QueryApiImpl( &CLSID_XThreadingImpl, &IID_IXThreadingImpl, (void**)&impl ) )) return E_NOTIMPL;
+    if (!(context = calloc( 1, sizeof( struct XUserAddContext ) ))) return E_OUTOFMEMORY;
     context->options = options;
 
-    return impl->lpVtbl->XAsyncBegin(impl, asyncBlock, context, x_user_XUserAddAsync, "XUserAddAsync", XUserAddProvider);
+    return impl->lpVtbl->XAsyncBegin( impl, asyncBlock, context, x_user_XUserAddAsync, "XUserAddAsync", XUserAddProvider );
 }
 
-static HRESULT WINAPI x_user_XUserAddResult(IXUserImpl* iface, XAsyncBlock* asyncBlock, XUserHandle* user)
+static HRESULT WINAPI x_user_XUserAddResult( IXUserImpl *iface, XAsyncBlock* asyncBlock, XUserHandle* user )
 {
     IXThreadingImpl* impl;
 
-    TRACE("iface %p, asyncBlock %p, user %p\n", iface, asyncBlock, *user);
+    TRACE( "iface %p, asyncBlock %p, user %p\n", iface, asyncBlock, *user );
 
-    if (FAILED(QueryApiImpl(&CLSID_XThreadingImpl, &IID_IXThreadingImpl, (void**)&impl))) return E_NOTIMPL;
-    return impl->lpVtbl->XAsyncGetResult(impl, asyncBlock, x_user_XUserAddAsync, sizeof(XUserHandle), user, NULL);
+    if (FAILED( QueryApiImpl( &CLSID_XThreadingImpl, &IID_IXThreadingImpl, (void**)&impl ) )) return E_NOTIMPL;
+    return impl->lpVtbl->XAsyncGetResult( impl, asyncBlock, x_user_XUserAddAsync, sizeof( XUserHandle ), user, NULL );
 }
 
-static HRESULT WINAPI x_user_XUserGetLocalId(IXUserImpl* iface, XUserHandle user, XUserLocalId* localId)
+static HRESULT WINAPI x_user_XUserGetLocalId( IXUserImpl *iface, XUserHandle user, XUserLocalId* localId )
 {
-    TRACE("iface %p, user %p, localId %p\n", iface, user, localId);
+    TRACE( "iface %p, user %p, localId %p\n", iface, user, localId );
     if (!localId) return E_POINTER;
     *localId = ((struct x_user*)user)->local_id;
     return S_OK;
 }
 
-static HRESULT WINAPI x_user_XUserFindUserByLocalId(IXUserImpl* iface, XUserLocalId localId, XUserHandle* user)
+static HRESULT WINAPI x_user_XUserFindUserByLocalId( IXUserImpl *iface, XUserLocalId localId, XUserHandle* user )
 {
-    FIXME("iface %p, localId %p, user %p stub!\n", iface, &localId, user);
+    FIXME( "iface %p, localId %p, user %p stub!\n", iface, &localId, user );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_user_XUserGetId(IXUserImpl* iface, XUserHandle user, UINT64* userId)
+static HRESULT WINAPI x_user_XUserGetId( IXUserImpl *iface, XUserHandle user, UINT64* userId )
 {
-    TRACE("iface %p, user %p, userId %p\n", iface, user, userId);
+    TRACE( "iface %p, user %p, userId %p\n", iface, user, userId );
     if (!userId) return E_POINTER;
     *userId = ((struct x_user*)user)->xuid;
     return S_OK;
 }
 
-static HRESULT WINAPI x_user_XUserFindUserById(IXUserImpl* iface, UINT64 userId, XUserHandle* user)
+static HRESULT WINAPI x_user_XUserFindUserById( IXUserImpl *iface, UINT64 userId, XUserHandle* user )
 {
-    FIXME("iface %p, userId %llu, user %p stub!\n", iface, userId, user);
+    FIXME( "iface %p, userId %llu, user %p stub!\n", iface, userId, user );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_user_XUserGetIsGuest(IXUserImpl* iface, XUserHandle user, BOOLEAN* isGuest)
+static HRESULT WINAPI x_user_XUserGetIsGuest( IXUserImpl *iface, XUserHandle user, BOOLEAN* isGuest )
 {
-    FIXME("iface %p, user %p, isGuest %p stub!\n", iface, user, isGuest);
+    FIXME( "iface %p, user %p, isGuest %p stub!\n", iface, user, isGuest );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_user_XUserGetState(IXUserImpl* iface, XUserHandle user, XUserState* state)
+static HRESULT WINAPI x_user_XUserGetState( IXUserImpl *iface, XUserHandle user, XUserState* state )
 {
-    FIXME("iface %p, user %p, state %p stub!\n", iface, user, state);
+    FIXME( "iface %p, user %p, state %p stub!\n", iface, user, state );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI __PADDING__(IXUserImpl* iface)
+static HRESULT WINAPI __PADDING__( IXUserImpl *iface )
 {
-    WARN("iface %p padding function called! It's unknown what this function does\n", iface);
+    WARN( "iface %p padding function called! It's unknown what this function does\n", iface );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_user_XUserGetGamerPictureAsync(IXUserImpl* iface, XUserHandle user, XUserGamerPictureSize size, XAsyncBlock* asyncBlock)
+static HRESULT WINAPI x_user_XUserGetGamerPictureAsync( IXUserImpl *iface, XUserHandle user, XUserGamerPictureSize size, XAsyncBlock* asyncBlock )
 {
-    FIXME("iface %p, user %p, size %p, asyncBlock %p stub!\n", iface, user, &size, asyncBlock);
+    FIXME( "iface %p, user %p, size %p, asyncBlock %p stub!\n", iface, user, &size, asyncBlock );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_user_XUserGetGamerPictureResultSize(IXUserImpl* iface, XAsyncBlock* asyncBlock, SIZE_T* size)
+static HRESULT WINAPI x_user_XUserGetGamerPictureResultSize( IXUserImpl *iface, XAsyncBlock* asyncBlock, SIZE_T* size )
 {
-    FIXME("iface %p, asyncBlock %p, size %p stub!\n", iface, asyncBlock, size);
+    FIXME( "iface %p, asyncBlock %p, size %p stub!\n", iface, asyncBlock, size );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_user_XUserGetGamerPictureResult(IXUserImpl* iface, XAsyncBlock* asyncBlock, SIZE_T size, PVOID buffer, SIZE_T* used)
+static HRESULT WINAPI x_user_XUserGetGamerPictureResult( IXUserImpl *iface, XAsyncBlock* asyncBlock, SIZE_T size, PVOID buffer, SIZE_T* used )
 {
-    FIXME("iface %p, asyncBlock %p, size %llu, buffer %p, used %p stub!\n", iface, asyncBlock, size, buffer, used);
+    FIXME( "iface %p, asyncBlock %p, size %llu, buffer %p, used %p stub!\n", iface, asyncBlock, size, buffer, used );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_user_XUserGetAgeGroup(IXUserImpl* iface, XUserHandle user, XUserAgeGroup* group)
+static HRESULT WINAPI x_user_XUserGetAgeGroup( IXUserImpl *iface, XUserHandle user, XUserAgeGroup* group )
 {
-    FIXME("user %p, group %p stub!\n", user, group);
+    FIXME( "user %p, group %p stub!\n", user, group );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_user_XUserCheckPrivilege(IXUserImpl* iface, XUserHandle user, XUserPrivilegeOptions options, XUserPrivilege privilege, BOOLEAN* hasPrivilege, XUserPrivilegeDenyReason* reason)
+static HRESULT WINAPI x_user_XUserCheckPrivilege( IXUserImpl *iface, XUserHandle user, XUserPrivilegeOptions options, XUserPrivilege privilege, BOOLEAN* hasPrivilege, XUserPrivilegeDenyReason* reason )
 {
-    FIXME("iface %p, user %p, options %d, privilege %d, hasPrivilege %p, reason %p stub!\n", iface, user, options, privilege, hasPrivilege, reason);
+    FIXME( "iface %p, user %p, options %d, privilege %d, hasPrivilege %p, reason %p stub!\n", iface, user, options, privilege, hasPrivilege, reason );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_user_XUserResolvePrivilegeWithUiAsync(IXUserImpl* iface, XUserHandle user, XUserPrivilegeOptions options, XUserPrivilege privilege, XAsyncBlock* asyncBlock)
+static HRESULT WINAPI x_user_XUserResolvePrivilegeWithUiAsync( IXUserImpl *iface, XUserHandle user, XUserPrivilegeOptions options, XUserPrivilege privilege, XAsyncBlock* asyncBlock )
 {
-    FIXME("iface %p, user %p, options %d, privilege %d, asyncBlock %p stub!\n", iface, user, options, privilege, asyncBlock);
+    FIXME( "iface %p, user %p, options %d, privilege %d, asyncBlock %p stub!\n", iface, user, options, privilege, asyncBlock );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_user_XUserResolvePrivilegeWithUiResult(IXUserImpl* iface, XAsyncBlock* asyncBlock)
+static HRESULT WINAPI x_user_XUserResolvePrivilegeWithUiResult( IXUserImpl *iface, XAsyncBlock* asyncBlock )
 {
-    FIXME("iface %p, asyncBlock %p stub!\n", iface, asyncBlock);
+    FIXME( "iface %p, asyncBlock %p stub!\n", iface, asyncBlock );
     return E_NOTIMPL;
 }
 
@@ -352,35 +365,35 @@ struct XUserGetTokenAndSignatureContext
     const void *buffer;
 };
 
-static HRESULT XUserGetTokenAndSignatureProvider(XAsyncOp operation, const XAsyncProviderData* providerData)
+static HRESULT XUserGetTokenAndSignatureProvider( XAsyncOp operation, const XAsyncProviderData* providerData )
 {
     struct XUserGetTokenAndSignatureContext* context;
     IXThreadingImpl* impl;
 
-    TRACE("operation %d, providerData %p\n", operation, providerData);
+    TRACE( "operation %d, providerData %p\n", operation, providerData );
 
-    if (FAILED(QueryApiImpl(&CLSID_XThreadingImpl, &IID_IXThreadingImpl, (void**)&impl))) return E_FAIL;
+    if (FAILED( QueryApiImpl( &CLSID_XThreadingImpl, &IID_IXThreadingImpl, (void**)&impl ) )) return E_FAIL;
     context = providerData->context;
 
     switch (operation)
     {
         case Begin:
-            return impl->lpVtbl->XAsyncSchedule(impl, providerData->async, 0);
+            return impl->lpVtbl->XAsyncSchedule( impl, providerData->async, 0 );
 
         case GetResult:
             break;
 
         case DoWork:
-            impl->lpVtbl->XAsyncComplete(impl, providerData->async, E_FAIL, sizeof(XUserHandle));
+            impl->lpVtbl->XAsyncComplete( impl, providerData->async, E_FAIL, sizeof( XUserHandle ) );
             break;
 
         case Cleanup:
             if (context->count)
             {
-                if (context->utf16) free(context->headers_utf16);
-                else free(context->headers);
+                if (context->utf16) free( context->headers_utf16 );
+                else free( context->headers );
             }
-            free(context);
+            free( context );
             break;
 
         case Cancel:
@@ -390,15 +403,15 @@ static HRESULT XUserGetTokenAndSignatureProvider(XAsyncOp operation, const XAsyn
     return S_OK;
 }
 
-static HRESULT WINAPI x_user_XUserGetTokenAndSignatureAsync(IXUserImpl* iface, XUserHandle user, XUserGetTokenAndSignatureOptions options, LPCSTR method, LPCSTR url, SIZE_T count, const XUserGetTokenAndSignatureHttpHeader* headers, SIZE_T size, const void* buffer, XAsyncBlock* asyncBlock)
+static HRESULT WINAPI x_user_XUserGetTokenAndSignatureAsync( IXUserImpl *iface, XUserHandle user, XUserGetTokenAndSignatureOptions options, LPCSTR method, LPCSTR url, SIZE_T count, const XUserGetTokenAndSignatureHttpHeader* headers, SIZE_T size, const void* buffer, XAsyncBlock* asyncBlock )
 {
     struct XUserGetTokenAndSignatureContext* context;
     IXThreadingImpl* impl;
 
-    TRACE("iface %p, user %p, options %d, method %s, url %s, count %llu, headers %p, size %llu, buffer %p, asyncBlock %p\n", iface, user, options, method, url, count, headers, size, buffer, asyncBlock);
+    TRACE( "iface %p, user %p, options %d, method %s, url %s, count %llu, headers %p, size %llu, buffer %p, asyncBlock %p\n", iface, user, options, method, url, count, headers, size, buffer, asyncBlock );
 
-    if (FAILED(QueryApiImpl(&CLSID_XThreadingImpl, &IID_IXThreadingImpl, (void**)&impl))) return E_NOTIMPL;
-    if (!(context = calloc(1, sizeof(*context)))) return E_OUTOFMEMORY;
+    if (FAILED( QueryApiImpl( &CLSID_XThreadingImpl, &IID_IXThreadingImpl, (void**)&impl ) )) return E_NOTIMPL;
+    if (!(context = calloc( 1, sizeof( *context ) ))) return E_OUTOFMEMORY;
     context->options = options;
     context->buffer = buffer;
     context->method = method;
@@ -407,39 +420,39 @@ static HRESULT WINAPI x_user_XUserGetTokenAndSignatureAsync(IXUserImpl* iface, X
     context->size = size;
     context->user = user;
     context->url = url;
-    if (count && !(context->headers = calloc(count, sizeof(*headers))))
+    if (count && !(context->headers = calloc( count, sizeof( *headers ) )))
     {
-        free(context);
+        free( context );
         return E_OUTOFMEMORY;
     }
 
     for (SIZE_T i = 0; i < count; i++)
         context->headers[i] = headers[i];
 
-    return impl->lpVtbl->XAsyncBegin(impl, asyncBlock, context, x_user_XUserGetTokenAndSignatureAsync, "XUserGetTokenAndSignatureAsync", XUserGetTokenAndSignatureProvider);
+    return impl->lpVtbl->XAsyncBegin( impl, asyncBlock, context, x_user_XUserGetTokenAndSignatureAsync, "XUserGetTokenAndSignatureAsync", XUserGetTokenAndSignatureProvider );
 }
 
-static HRESULT WINAPI x_user_XUserGetTokenAndSignatureResultSize(IXUserImpl* iface, XAsyncBlock* asyncBlock, SIZE_T* size)
+static HRESULT WINAPI x_user_XUserGetTokenAndSignatureResultSize( IXUserImpl *iface, XAsyncBlock* asyncBlock, SIZE_T* size )
 {
-    FIXME("iface %p, asyncBlock %p, size %p stub!\n", iface, asyncBlock, size);
+    FIXME( "iface %p, asyncBlock %p, size %p stub!\n", iface, asyncBlock, size );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_user_XUserGetTokenAndSignatureResult(IXUserImpl* iface, XAsyncBlock* asyncBlock, SIZE_T size, PVOID buffer, XUserGetTokenAndSignatureData** ptr, SIZE_T* used)
+static HRESULT WINAPI x_user_XUserGetTokenAndSignatureResult( IXUserImpl *iface, XAsyncBlock* asyncBlock, SIZE_T size, PVOID buffer, XUserGetTokenAndSignatureData** ptr, SIZE_T* used )
 {
-    FIXME("iface %p, asyncBlock %p, size %llu, buffer %p, ptr %p, used %p stub!\n", iface, asyncBlock, size, buffer, ptr, used);
+    FIXME( "iface %p, asyncBlock %p, size %llu, buffer %p, ptr %p, used %p stub!\n", iface, asyncBlock, size, buffer, ptr, used );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_user_XUserGetTokenAndSignatureUtf16Async(IXUserImpl* iface, XUserHandle user, XUserGetTokenAndSignatureOptions options, LPCWSTR method, LPCWSTR url, SIZE_T count, const XUserGetTokenAndSignatureUtf16HttpHeader* headers, SIZE_T size, const void* buffer, XAsyncBlock* asyncBlock)
+static HRESULT WINAPI x_user_XUserGetTokenAndSignatureUtf16Async( IXUserImpl *iface, XUserHandle user, XUserGetTokenAndSignatureOptions options, LPCWSTR method, LPCWSTR url, SIZE_T count, const XUserGetTokenAndSignatureUtf16HttpHeader* headers, SIZE_T size, const void* buffer, XAsyncBlock* asyncBlock )
 {
     struct XUserGetTokenAndSignatureContext* context;
     IXThreadingImpl* impl;
 
-    TRACE("iface %p, user %p, options %d, method %hs, url %hs, count %llu, headers %p, size %llu, buffer %p, asyncBlock %p\n", iface, user, options, method, url, count, headers, size, buffer, asyncBlock);
+    TRACE( "iface %p, user %p, options %d, method %hs, url %hs, count %llu, headers %p, size %llu, buffer %p, asyncBlock %p\n", iface, user, options, method, url, count, headers, size, buffer, asyncBlock );
 
-    if (FAILED(QueryApiImpl(&CLSID_XThreadingImpl, &IID_IXThreadingImpl, (void**)&impl))) return E_NOTIMPL;
-    if (!(context = calloc(1, sizeof(*context)))) return E_OUTOFMEMORY;
+    if (FAILED( QueryApiImpl( &CLSID_XThreadingImpl, &IID_IXThreadingImpl, (void**)&impl ) )) return E_NOTIMPL;
+    if (!(context = calloc( 1, sizeof( *context ) ))) return E_OUTOFMEMORY;
     context->method_utf16 = method;
     context->options = options;
     context->buffer = buffer;
@@ -448,83 +461,162 @@ static HRESULT WINAPI x_user_XUserGetTokenAndSignatureUtf16Async(IXUserImpl* ifa
     context->utf16 = TRUE;
     context->size = size;
     context->user = user;
-    if (count && !(context->headers_utf16 = calloc(count, sizeof(*headers))))
+    if (count && !(context->headers_utf16 = calloc( count, sizeof( *headers ) )))
     {
-        free(context);
+        free( context );
         return E_OUTOFMEMORY;
     }
 
     for (SIZE_T i = 0; i < count; i++)
         context->headers_utf16[i] = headers[i];
 
-    return impl->lpVtbl->XAsyncBegin(impl, asyncBlock, context, x_user_XUserGetTokenAndSignatureUtf16Async, "XUserGetTokenAndSignatureUtf16Async", XUserGetTokenAndSignatureProvider);
+    return impl->lpVtbl->XAsyncBegin( impl, asyncBlock, context, x_user_XUserGetTokenAndSignatureUtf16Async, "XUserGetTokenAndSignatureUtf16Async", XUserGetTokenAndSignatureProvider );
 }
 
-static HRESULT WINAPI x_user_XUserGetTokenAndSignatureUtf16ResultSize(IXUserImpl* iface, XAsyncBlock* asyncBlock, SIZE_T* size)
+static HRESULT WINAPI x_user_XUserGetTokenAndSignatureUtf16ResultSize( IXUserImpl *iface, XAsyncBlock* asyncBlock, SIZE_T* size )
 {
-    FIXME("iface %p, asyncBlock %p, size %p stub!\n", iface, asyncBlock, size);
+    FIXME( "iface %p, asyncBlock %p, size %p stub!\n", iface, asyncBlock, size );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_user_XUserGetTokenAndSignatureUtf16Result(IXUserImpl* iface, XAsyncBlock* asyncBlock, SIZE_T size, PVOID buffer, XUserGetTokenAndSignatureUtf16Data** ptr, SIZE_T* used)
+static HRESULT WINAPI x_user_XUserGetTokenAndSignatureUtf16Result( IXUserImpl *iface, XAsyncBlock* asyncBlock, SIZE_T size, PVOID buffer, XUserGetTokenAndSignatureUtf16Data** ptr, SIZE_T* used )
 {
-    FIXME("iface %p, asyncBlock %p, size %llu, buffer %p, ptr %p, used %p stub!\n", iface, asyncBlock, size, buffer, ptr, used);
+    FIXME( "iface %p, asyncBlock %p, size %llu, buffer %p, ptr %p, used %p stub!\n", iface, asyncBlock, size, buffer, ptr, used );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_user_XUserResolveIssueWithUiAsync(IXUserImpl* iface, XUserHandle user, LPCSTR url, XAsyncBlock* asyncBlock)
+static HRESULT WINAPI x_user_XUserResolveIssueWithUiAsync( IXUserImpl *iface, XUserHandle user, LPCSTR url, XAsyncBlock* asyncBlock )
 {
-    FIXME("iface %p, user %p, url %s, asyncBlock %p stub!\n", iface, user, url, asyncBlock);
+    FIXME( "iface %p, user %p, url %s, asyncBlock %p stub!\n", iface, user, url, asyncBlock );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_user_XUserResolveIssueWithUiResult(IXUserImpl* iface, XAsyncBlock* asyncBlock)
+static HRESULT WINAPI x_user_XUserResolveIssueWithUiResult( IXUserImpl *iface, XAsyncBlock* asyncBlock )
 {
-    FIXME("iface %p, asyncBlock %p stub!\n", iface, asyncBlock);
+    FIXME( "iface %p, asyncBlock %p stub!\n", iface, asyncBlock );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_user_XUserResolveIssueWithUiUtf16Async(IXUserImpl* iface, XUserHandle user, LPCWSTR url, XAsyncBlock* asyncBlock)
+static HRESULT WINAPI x_user_XUserResolveIssueWithUiUtf16Async( IXUserImpl *iface, XUserHandle user, LPCWSTR url, XAsyncBlock* asyncBlock )
 {
-    FIXME("iface %p, user %p, url %hs, asyncBlock %p stub!\n", iface, user, url, asyncBlock);
+    FIXME( "iface %p, user %p, url %hs, asyncBlock %p stub!\n", iface, user, url, asyncBlock );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_user_XUserResolveIssueWithUiUtf16Result(IXUserImpl* iface, XAsyncBlock* asyncBlock)
+static HRESULT WINAPI x_user_XUserResolveIssueWithUiUtf16Result( IXUserImpl *iface, XAsyncBlock* asyncBlock )
 {
-    FIXME("iface %p, asyncBlock %p stub!\n", iface, asyncBlock);
+    FIXME( "iface %p, asyncBlock %p stub!\n", iface, asyncBlock );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_user_XUserRegisterForChangeEvent(IXUserImpl* iface, XTaskQueueHandle queue, PVOID context, XUserChangeEventCallback* callback, XTaskQueueRegistrationToken* token)
+static HRESULT WINAPI x_user_XUserRegisterForChangeEvent( IXUserImpl *iface, XTaskQueueHandle queue, PVOID context, XUserChangeEventCallback* callback, XTaskQueueRegistrationToken* token )
 {
-    FIXME("iface %p, context %p, callback %p, token %p stub!\n", iface, context, callback, token);
+    FIXME( "iface %p, context %p, callback %p, token %p stub!\n", iface, context, callback, token );
     return E_NOTIMPL;
 }
 
-static BOOLEAN WINAPI x_user_XUserUnregisterForChangeEvent(IXUserImpl* iface, XTaskQueueRegistrationToken token, BOOLEAN wait)
+static BOOLEAN WINAPI x_user_XUserUnregisterForChangeEvent( IXUserImpl *iface, XTaskQueueRegistrationToken token, BOOLEAN wait )
 {
-    FIXME("iface %p, token %p, wait %d stub!\n", iface, &token, wait);
+    FIXME( "iface %p, token %p, wait %d stub!\n", iface, &token, wait );
     return FALSE;
 }
 
-static HRESULT WINAPI x_user_XUserGetSignOutDeferral(IXUserImpl* iface, XUserSignOutDeferralHandle* deferral)
+static HRESULT WINAPI x_user_XUserGetSignOutDeferral( IXUserImpl *iface, XUserSignOutDeferralHandle* deferral )
 {
-    FIXME("iface %p, deferral %p stub!\n", iface, deferral);
+    FIXME( "iface %p, deferral %p stub!\n", iface, deferral );
     return E_GAMEUSER_DEFERRAL_NOT_AVAILABLE;
 }
 
-static void WINAPI x_user_XUserCloseSignOutDeferralHandle(IXUserImpl* iface, XUserSignOutDeferralHandle deferral)
+static void WINAPI x_user_XUserCloseSignOutDeferralHandle( IXUserImpl *iface, XUserSignOutDeferralHandle deferral )
 {
-    FIXME("iface %p, deferral %p stub!\n", iface, deferral);
+    FIXME( "iface %p, deferral %p stub!\n", iface, deferral );
+}
+
+static HRESULT WINAPI x_user_XUserAddByIdWithUiAsync( IXUserImpl *iface, UINT64 userId, XAsyncBlock *asyncBlock )
+{
+    FIXME( "iface %p, userId %llu, asyncBlock %p stub!\n", iface, userId, asyncBlock );
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI x_user_XUserAddByIdWithUiResult( IXUserImpl *iface, XAsyncBlock *asyncBlock, XUserHandle *user )
+{
+    FIXME( "iface %p, asyncBlock %p, user %p stub!\n", iface, asyncBlock, user );
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI x_user_XUserGetMsaTokenSilentlyAsync( IXUserImpl *iface, XUserHandle user, XUserGetMsaTokenSilentlyOptions options, LPCSTR scope, XAsyncBlock *asyncBlock )
+{
+    FIXME( "iface %p, options %u, scope %s, asyncBlock %p stub!\n", iface, options, scope, asyncBlock );
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI x_user_XUserGetMsaTokenSilentlyResult( IXUserImpl *iface, XAsyncBlock *asyncBlock, SIZE_T size, LPSTR token, SIZE_T *used )
+{
+    FIXME( "iface %p, size %llu, token %p, used %p stub!\n", iface, size, token, used );
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI x_user_XUserGetMsaTokenSilentlyResultSize( IXUserImpl *iface, XAsyncBlock *asyncBlock, SIZE_T *size )
+{
+    FIXME( "iface %p, asyncBlock %p stub!\n", iface, asyncBlock );
+    return E_NOTIMPL;
+}
+
+static BOOLEAN WINAPI x_user_XUserIsStoreUser( IXUserImpl *iface, XUserHandle user )
+{
+    FIXME( "iface %p, user %p stub!\n", iface, user );
+    return FALSE;
+}
+
+static HRESULT WINAPI x_user_XUserPlatformRemoteConnectSetEventHandlers( IXUserImpl *iface, XTaskQueueHandle queue, XUserPlatformRemoteConnectEventHandlers *handlers )
+{
+    FIXME( "iface %p, queue %p, handlers %p stub!\n", iface, queue, handlers );
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI x_user_XUserPlatformRemoteConnectCancelPrompt( IXUserImpl *iface, XUserPlatformOperation operation )
+{
+    FIXME( "iface %p, operation %p stub!\n", iface, operation );
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI x_user_XUserPlatformSpopPromptSetEventHandlers( IXUserImpl *iface, XTaskQueueHandle queue, XUserPlatformSpopPromptEventHandler *handler, void *context )
+{
+    FIXME( "iface %p, queue %p, handler %p, context %p stub!\n", iface, queue, handler, context );
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI x_user_XUserPlatformSpopPromptComplete( IXUserImpl *iface, XUserPlatformOperation operation, XUserPlatformOperationResult result )
+{
+    FIXME( "iface %p iface, operation %p, result %d stub!\n", iface, operation, result );
+    return E_NOTIMPL;
+}
+
+static BOOLEAN WINAPI x_user_XUserIsSignOutPresent( IXUserImpl *iface )
+{
+    FIXME( "iface %p stub!\n", iface );
+    return FALSE;
+}
+
+static HRESULT WINAPI x_user_XUserSignOutAsync( IXUserImpl *iface, XUserHandle user, XAsyncBlock *asyncBlock )
+{
+    FIXME( "iface %p, user %p, asyncBlock %p stub!\n", iface, user, asyncBlock );
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI x_user_XUserSignOutResult( IXUserImpl *iface, XAsyncBlock *asyncBlock )
+{
+    FIXME( "iface %p, asyncBlock %p stub!\n", iface, asyncBlock );
+    return E_NOTIMPL;
 }
 
 static const struct IXUserImplVtbl x_user_vtbl =
 {
+    /* IUnknown methods */
     x_user_QueryInterface,
     x_user_AddRef,
     x_user_Release,
-    /* IXUserImpl methods */
+    /* IXUserBase methods */
     x_user_XUserDuplicateHandle,
     x_user_XUserCloseHandle,
     x_user_XUserCompare,
@@ -558,11 +650,108 @@ static const struct IXUserImplVtbl x_user_vtbl =
     x_user_XUserRegisterForChangeEvent,
     x_user_XUserUnregisterForChangeEvent,
     x_user_XUserGetSignOutDeferral,
-    x_user_XUserCloseSignOutDeferralHandle
+    x_user_XUserCloseSignOutDeferralHandle,
+    /* IXUserAddWithUi methods */
+    x_user_XUserAddByIdWithUiAsync,
+    x_user_XUserAddByIdWithUiResult,
+    /* IXUserMsa methods */
+    x_user_XUserGetMsaTokenSilentlyAsync,
+    x_user_XUserGetMsaTokenSilentlyResult,
+    x_user_XUserGetMsaTokenSilentlyResultSize,
+    /* IXUserStore methods */
+    x_user_XUserIsStoreUser,
+    /* IXUserPlatform methods */
+    x_user_XUserPlatformRemoteConnectSetEventHandlers,
+    x_user_XUserPlatformRemoteConnectCancelPrompt,
+    x_user_XUserPlatformSpopPromptSetEventHandlers,
+    x_user_XUserPlatformSpopPromptComplete,
+    /* IXUserSignOut methods */
+    x_user_XUserIsSignOutPresent,
+    x_user_XUserSignOutAsync,
+    x_user_XUserSignOutResult
+};
+
+static inline struct x_user *impl_from_IXUserGamertag( IXUserGamertag *iface )
+{
+    return CONTAINING_RECORD( iface, struct x_user, IXUserGamertag_iface );
+}
+
+static HRESULT WINAPI x_user_gt_QueryInterface( IXUserGamertag *iface, REFIID iid, void **out )
+{
+    struct x_user *impl = impl_from_IXUserGamertag( iface );
+
+    TRACE( "iface %p, iid %s, out %p\n", iface, debugstr_guid( iid ), out );
+
+    if (!out) return E_POINTER;
+
+    if (IsEqualGUID( iid, &IID_IUnknown ) ||
+        IsEqualGUID( iid, &IID_IXUserBase ) ||
+        IsEqualGUID( iid, &IID_IXUserAddWithUi ) ||
+        IsEqualGUID( iid, &IID_IXUserMsa ) ||
+        IsEqualGUID( iid, &IID_IXUserStore ) ||
+        IsEqualGUID( iid, &IID_IXUserPlatform ) ||
+        IsEqualGUID( iid, &IID_IXUserSignOut ))
+    {
+        *out = &impl->IXUserImpl_iface;
+        IXUserImpl_AddRef( *out );
+        return S_OK;
+    }
+
+    if (IsEqualGUID( iid, &IID_IXUserGamertag ))
+    {
+        *out = &impl->IXUserGamertag_iface;
+        IXUserGamertag_AddRef( *out );
+        return S_OK;
+    }
+
+    FIXME( "%s not implemented, returning E_NOINTERFACE\n", debugstr_guid( iid ) );
+    *out = NULL;
+    return E_NOINTERFACE;
+}
+
+static ULONG WINAPI x_user_gt_AddRef( IXUserGamertag *iface )
+{
+    struct x_user *impl = impl_from_IXUserGamertag( iface );
+    ULONG ref = InterlockedIncrement( &impl->ref );
+    TRACE( "iface %p increasing refcount to %lu\n", iface, ref );
+    return ref;
+}
+
+static ULONG WINAPI x_user_gt_Release( IXUserGamertag *iface )
+{
+    struct x_user *impl = impl_from_IXUserGamertag( iface );
+    ULONG ref = InterlockedDecrement( &impl->ref );
+    TRACE( "iface %p decreasing refcount to %lu\n", iface, ref );
+    if (!ref)
+    {
+        WindowsDeleteString( impl->refresh_token );
+        WindowsDeleteString( impl->oauth_token );
+        WindowsDeleteString( impl->user_token );
+        WindowsDeleteString( impl->xsts_token );
+        free( impl );
+    }
+    return ref;
+}
+
+static HRESULT x_user_gt_XUserGetGamertag( IXUserGamertag *iface, XUserHandle user, XUserGamertagComponent component, SIZE_T size, LPSTR gamertag, SIZE_T *used )
+{
+    FIXME( "iface %p, user %p, component %d, size %llu, gamertag %p, used %p stub!\n", iface, user, component, size, gamertag, used );
+    return E_NOTIMPL;
+}
+
+static const struct IXUserGamertagVtbl x_user_gt_vtbl =
+{
+    /* IUnknown methods */
+    x_user_gt_QueryInterface,
+    x_user_gt_AddRef,
+    x_user_gt_Release,
+    /* IXUserGamertag methods */
+    x_user_gt_XUserGetGamertag
 };
 
 static struct x_user x_user = {
     {&x_user_vtbl},
+    {&x_user_gt_vtbl},
     0,
 };
 

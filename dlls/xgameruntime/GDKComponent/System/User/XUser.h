@@ -30,6 +30,7 @@
 struct x_user
 {
     IXUserImpl IXUserImpl_iface;
+    IXUserGamertag IXUserGamertag_iface;
     LONG ref;
 
     UINT64 xuid;
