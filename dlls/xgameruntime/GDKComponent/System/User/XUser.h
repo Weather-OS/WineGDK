@@ -35,6 +35,7 @@ struct x_user
 
     UINT64 xuid;
     XUserLocalId local_id;
+    XUserAgeGroup age_group;
 
     time_t oauth_token_expiry;
     HSTRING refresh_token;
