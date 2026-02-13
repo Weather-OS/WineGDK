@@ -1,7 +1,5 @@
 /*
- * Runtime Classes for windows.web.dll
- *
- * Copyright (C) 2024 Mohamad Al-Jaf
+ * Copyright 2026 Olivia Ryan
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -18,13 +16,25 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#pragma makedep register
-#pragma winrt ns_prefix
+#ifndef TOKEN_H
+#define TOKEN_H
 
-import "windows.data.json.idl";
+#include "../../../private.h"
 
-namespace Windows.Data.Json {
-    runtimeclass JsonArray;
-    runtimeclass JsonObject;
-    runtimeclass JsonValue;
-}
+#include <errno.h>
+#include <winhttp.h>
+#include "time.h"
+
+struct token
+{
+    time_t expiry;
+    LPCSTR content;
+    UINT32 size;
+};
+
+HRESULT RefreshOAuth( LPCSTR client_id, LPCSTR refresh_token, time_t *new_expiry, HSTRING *new_refresh_token, HSTRING *new_oauth_token );
+HRESULT RequestUserToken( HSTRING oauth_token, HSTRING *token, XUserLocalId *localId );
+HRESULT RequestXstsToken( HSTRING user_token, HSTRING *token, UINT64 *xuid, XUserAgeGroup *age_group );
+HRESULT HSTRINGToMultiByte( HSTRING hstr, LPSTR *str, UINT32 *str_len );
+
+#endif

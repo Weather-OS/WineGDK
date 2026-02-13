@@ -1,7 +1,5 @@
 /*
- * Runtime Classes for windows.web.dll
- *
- * Copyright (C) 2024 Mohamad Al-Jaf
+ * Copyright 2026 Olivia Ryan
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -18,13 +16,32 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#pragma makedep register
-#pragma winrt ns_prefix
+/*
+ * Xbox Game runtime Library
+ * GDK Component: System API -> XUser
+ */
 
-import "windows.data.json.idl";
+#ifndef XUSER_H
+#define XUSER_H
 
-namespace Windows.Data.Json {
-    runtimeclass JsonArray;
-    runtimeclass JsonObject;
-    runtimeclass JsonValue;
-}
+#include "../../../private.h"
+#include "Token.h"
+
+struct x_user
+{
+    IXUserImpl IXUserImpl_iface;
+    IXUserGamertag IXUserGamertag_iface;
+    LONG ref;
+
+    UINT64 xuid;
+    XUserLocalId local_id;
+    XUserAgeGroup age_group;
+
+    time_t oauth_token_expiry;
+    HSTRING refresh_token;
+    HSTRING oauth_token;
+    HSTRING user_token;
+    HSTRING xsts_token;
+};
+
+#endif

@@ -146,7 +146,7 @@ HRESULT WINAPI InitializeApiImpl( ULONG gdkVer, ULONG gsVer )
     return InitializeApiImplEx2( gdkVer, gsVer, 0, NULL );
 }
 
-typedef HRESULT (WINAPI *QueryApiImpl_ext)( GUID *runtimeClassId, REFIID interfaceId, void **out );
+typedef HRESULT (WINAPI *QueryApiImpl_ext)( const GUID *runtimeClassId, REFIID interfaceId, void **out );
 
 HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, void **out )
 {
@@ -209,6 +209,14 @@ HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, voi
     else if ( IsEqualGUID( runtimeClassId, &CLSID_XNetworkingImpl ) )
     {
         return IXNetworkingImpl_QueryInterface( x_networking_impl, interfaceId, out );
+    }
+    else if ( IsEqualGUID( runtimeClassId, &CLSID_XUserImpl ) )
+    {
+        return IXUserImpl_QueryInterface( x_user_impl, interfaceId, out );
+    }
+    else if ( IsEqualGUID( runtimeClassId, &CLSID_XLauncherImpl ) )
+    {
+        return IXLauncherImpl_QueryInterface( x_launcher_impl, interfaceId, out );
     }
     
     FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( runtimeClassId ) );

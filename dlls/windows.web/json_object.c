@@ -1,6 +1,7 @@
 /* WinRT Windows.Data.Json.JsonObject Implementation
  *
  * Copyright (C) 2024 Mohamad Al-Jaf
+ * Copyright (C) 2026 Olivia Ryan
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -26,6 +27,7 @@ struct json_object
 {
     IJsonObject IJsonObject_iface;
     LONG ref;
+    IMap_HSTRING_IInspectable *members;
 };
 
 static inline struct json_object *impl_from_IJsonObject( IJsonObject *iface )
@@ -69,7 +71,10 @@ static ULONG WINAPI json_object_statics_Release( IJsonObject *iface )
 
     TRACE( "iface %p, ref %lu.\n", iface, ref );
 
-    if (!ref) free( impl );
+    if (!ref) {
+        IMap_HSTRING_IInspectable_Release( impl->members );
+        free( impl );
+    }
     return ref;
 }
 
@@ -93,44 +98,115 @@ static HRESULT WINAPI json_object_statics_GetTrustLevel( IJsonObject *iface, Tru
 
 static HRESULT WINAPI json_object_statics_GetNamedValue( IJsonObject *iface, HSTRING name, IJsonValue **value )
 {
-    FIXME( "iface %p, name %s, value %p stub!\n", iface, debugstr_hstring( name ), value );
-    return E_NOTIMPL;
+    struct json_object *impl = impl_from_IJsonObject( iface );
+    boolean exists;
+    HRESULT hr;
+
+    TRACE( "iface %p, name %s, value %p.\n", iface, debugstr_hstring( name ), value );
+
+    if (!value) return E_POINTER;
+
+    hr = IMap_HSTRING_IInspectable_HasKey( impl->members, name, &exists );
+    if ( FAILED(hr) || !exists ) return WEB_E_JSON_VALUE_NOT_FOUND;
+    return IMap_HSTRING_IInspectable_Lookup( impl->members, name, (IInspectable**)value );
 }
 
 static HRESULT WINAPI json_object_statics_SetNamedValue( IJsonObject *iface, HSTRING name, IJsonValue *value )
 {
-    FIXME( "iface %p, name %s, value %p stub!\n", iface, debugstr_hstring( name ), value );
-    return E_NOTIMPL;
+    boolean dummy;
+    struct json_object *impl = impl_from_IJsonObject( iface );
+    TRACE( "iface %p, name %s, value %p.\n", iface, debugstr_hstring( name ), value );
+    return IMap_HSTRING_IInspectable_Insert( impl->members, name, (IInspectable*)value, &dummy );
 }
 
 static HRESULT WINAPI json_object_statics_GetNamedObject( IJsonObject *iface, HSTRING name, IJsonObject **value )
 {
-    FIXME( "iface %p, name %s, value %p stub!\n", iface, debugstr_hstring( name ), value );
-    return E_NOTIMPL;
+    IJsonValue *internal_value;
+    JsonValueType value_type;
+    HRESULT hr;
+
+    TRACE( "iface %p, name %s, value %p.\n", iface, debugstr_hstring( name ), value );
+
+    if (FAILED(hr = IJsonObject_GetNamedValue( iface, name, &internal_value )))
+        return hr;
+
+    IJsonValue_Release( internal_value );
+    IJsonValue_get_ValueType( internal_value, &value_type );
+    if (value_type != JsonValueType_Object) return E_ILLEGAL_METHOD_CALL;
+
+    return IJsonValue_GetObject( internal_value, value );
 }
 
 static HRESULT WINAPI json_object_statics_GetNamedArray( IJsonObject *iface, HSTRING name, IJsonArray **value )
 {
-    FIXME( "iface %p, name %s, value %p stub!\n", iface, debugstr_hstring( name ), value );
-    return E_NOTIMPL;
+    IJsonValue *internal_value;
+    JsonValueType value_type;
+    HRESULT hr;
+
+    TRACE( "iface %p, name %s, value %p.\n", iface, debugstr_hstring( name ), value );
+
+    if (FAILED(hr = IJsonObject_GetNamedValue( iface, name, &internal_value )))
+        return hr;
+
+    IJsonValue_Release( internal_value );
+    IJsonValue_get_ValueType( internal_value, &value_type );
+    if (value_type != JsonValueType_Array) return E_ILLEGAL_METHOD_CALL;
+
+    return IJsonValue_GetArray( internal_value, value );
 }
 
 static HRESULT WINAPI json_object_statics_GetNamedString( IJsonObject *iface, HSTRING name, HSTRING *value )
 {
-    FIXME( "iface %p, name %s, value %p stub!\n", iface, debugstr_hstring( name ), value );
-    return E_NOTIMPL;
+    IJsonValue *internal_value;
+    JsonValueType value_type;
+    HRESULT hr;
+
+    TRACE( "iface %p, name %s, value %p.\n", iface, debugstr_hstring( name ), value );
+
+    if (FAILED(hr = IJsonObject_GetNamedValue( iface, name, &internal_value )))
+        return hr;
+
+    IJsonValue_Release( internal_value );
+    IJsonValue_get_ValueType( internal_value, &value_type );
+    if (value_type != JsonValueType_String) return E_ILLEGAL_METHOD_CALL;
+
+    return IJsonValue_GetString( internal_value, value );
 }
 
 static HRESULT WINAPI json_object_statics_GetNamedNumber( IJsonObject *iface, HSTRING name, DOUBLE *value )
 {
-    FIXME( "iface %p, name %s, value %p stub!\n", iface, debugstr_hstring( name ), value );
-    return E_NOTIMPL;
+    IJsonValue *internal_value;
+    JsonValueType value_type;
+    HRESULT hr;
+
+    TRACE( "iface %p, name %s, value %p.\n", iface, debugstr_hstring( name ), value );
+
+    if (FAILED(hr = IJsonObject_GetNamedValue( iface, name, &internal_value )))
+        return hr;
+
+    IJsonValue_Release( internal_value );
+    IJsonValue_get_ValueType( internal_value, &value_type );
+    if (value_type != JsonValueType_Number) return E_ILLEGAL_METHOD_CALL;
+
+    return IJsonValue_GetNumber( internal_value, value );
 }
 
 static HRESULT WINAPI json_object_statics_GetNamedBoolean( IJsonObject *iface, HSTRING name, boolean *value )
 {
-    FIXME( "iface %p, name %s, value %p stub!\n", iface, debugstr_hstring( name ), value );
-    return E_NOTIMPL;
+    IJsonValue *internal_value;
+    JsonValueType value_type;
+    HRESULT hr;
+
+    TRACE( "iface %p, name %s, value %p.\n", iface, debugstr_hstring( name ), value );
+
+    if (FAILED(hr = IJsonObject_GetNamedValue( iface, name, &internal_value )))
+        return hr;
+
+    IJsonValue_Release( internal_value );
+    IJsonValue_get_ValueType( internal_value, &value_type );
+    if (value_type != JsonValueType_Boolean) return E_ILLEGAL_METHOD_CALL;
+
+    return IJsonValue_GetBoolean( internal_value, value );
 }
 
 static const struct IJsonObjectVtbl json_object_statics_vtbl =
@@ -220,7 +296,12 @@ static HRESULT WINAPI factory_GetTrustLevel( IActivationFactory *iface, TrustLev
 
 static HRESULT WINAPI factory_ActivateInstance( IActivationFactory *iface, IInspectable **instance )
 {
+    LPCWSTR property_set_str = RuntimeClass_Windows_Foundation_Collections_PropertySet;
+    IPropertySet *property_set;
+    HSTRING property_set_class;
     struct json_object *impl;
+    HSTRING_HEADER header;
+    HRESULT hr;
 
     TRACE( "iface %p, instance %p.\n", iface, instance );
 
@@ -229,6 +310,22 @@ static HRESULT WINAPI factory_ActivateInstance( IActivationFactory *iface, IInsp
 
     impl->IJsonObject_iface.lpVtbl = &json_object_statics_vtbl;
     impl->ref = 1;
+
+    WindowsCreateStringReference( property_set_str,
+                                  wcslen( property_set_str ), &header, &property_set_class );
+    if (FAILED(hr = RoActivateInstance( property_set_class, (IInspectable**)&property_set )))
+    {
+        free( impl );
+        return hr;
+    }
+    hr = IPropertySet_QueryInterface( property_set,
+                                      &IID_IMap_HSTRING_IInspectable, (void**)&impl->members );
+    IPropertySet_Release( property_set );
+    if (FAILED(hr))
+    {
+        free( impl );
+        return hr;
+    }
 
     *instance = (IInspectable *)&impl->IJsonObject_iface;
     return S_OK;

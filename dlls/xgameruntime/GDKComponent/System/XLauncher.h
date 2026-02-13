@@ -1,7 +1,5 @@
 /*
- * Runtime Classes for windows.web.dll
- *
- * Copyright (C) 2024 Mohamad Al-Jaf
+ * Copyright 2026 Olivia Ryan
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -18,13 +16,20 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#pragma makedep register
-#pragma winrt ns_prefix
+/*
+ * Xbox Game runtime Library
+ * GDK Component: System API -> XLauncher
+ */
 
-import "windows.data.json.idl";
+#ifndef XLAUNCHER_H
+#define XLAUNCHER_H
 
-namespace Windows.Data.Json {
-    runtimeclass JsonArray;
-    runtimeclass JsonObject;
-    runtimeclass JsonValue;
-}
+#include "../../private.h"
+
+struct x_launcher
+{
+    IXLauncherImpl IXLauncherImpl_iface;
+    LONG ref;
+};
+
+#endif

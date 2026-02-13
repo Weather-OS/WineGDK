@@ -39,6 +39,8 @@
 #define WIDL_using_Windows_Foundation
 #define WIDL_using_Windows_Foundation_Collections
 #include "windows.foundation.h"
+#define WIDL_using_Windows_Data_Json
+#include "windows.data.json.h"
 #define WIDL_using_Windows_Globalization
 #include "windows.globalization.h"
 #define WIDL_using_Windows_System_Profile
@@ -53,6 +55,8 @@ extern IXSystemAnalyticsImpl *x_system_analytics_impl;
 extern IXThreadingImpl *x_threading_impl;
 extern IXGameRuntimeFeatureImpl *x_game_runtime_feature_impl;
 extern IXNetworkingImpl *x_networking_impl;
+extern IXUserImpl *x_user_impl;
+extern IXLauncherImpl *x_launcher_impl;
 
 typedef struct _INITIALIZE_OPTIONS
 {
