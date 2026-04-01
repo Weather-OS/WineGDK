@@ -166,7 +166,7 @@ static HRESULT WINAPI x_networking_XNetworkingQuerySecurityInformationForUrlAsyn
 
 static HRESULT WINAPI x_networking_XNetworkingQuerySecurityInformationForUrlAsyncResult( IXNetworkingImpl *iface, XAsyncBlock *asyncBlock, SIZE_T securityInformationBufferByteCount, SIZE_T *securityInformationBufferByteCountUsed, UINT8 *securityInformationBuffer, XNetworkingSecurityInformation **securityInformation )
 {
-    FIXME( "iface %p, asyncBlock %p, securityInformationBufferByteCount %lld, securityInformationBufferByteCountUsed %p, securityInformationBuffer %p, securityInformation %p stub!\n", iface, asyncBlock, securityInformationBufferByteCount, securityInformationBufferByteCountUsed, securityInformationBuffer, securityInformation );
+    FIXME( "iface %p, asyncBlock %p, securityInformationBufferByteCount %Iu, securityInformationBufferByteCountUsed %p, securityInformationBuffer %p, securityInformation %p stub!\n", iface, asyncBlock, securityInformationBufferByteCount, securityInformationBufferByteCountUsed, securityInformationBuffer, securityInformation );
     return E_NOTIMPL;
 }
 
@@ -174,6 +174,7 @@ static HRESULT WINAPI x_networking_XNetworkingQuerySecurityInformationForUrlUtf1
 {
     HRESULT status;
     IXThreadingImpl *threadingImpl;
+    struct UrlSecurityInfoContext *context;
 
     TRACE( "iface %p, url %p, asyncBlock %p.\n", iface, url, asyncBlock );
 
@@ -181,7 +182,7 @@ static HRESULT WINAPI x_networking_XNetworkingQuerySecurityInformationForUrlUtf1
     status = QueryApiImpl( &CLSID_XThreadingImpl, &IID_IXThreadingImpl, (void **)&threadingImpl );
     if ( FAILED( status ) ) return status;
 
-    struct UrlSecurityInfoContext *context = (struct UrlSecurityInfoContext *)malloc( sizeof( struct UrlSecurityInfoContext ) );
+    context = (struct UrlSecurityInfoContext *)malloc( sizeof( struct UrlSecurityInfoContext ) );
     if ( !context ) return E_OUTOFMEMORY;
 
     context->url = url;
@@ -217,7 +218,7 @@ static HRESULT WINAPI x_networking_XNetworkingQuerySecurityInformationForUrlUtf1
     HRESULT status;
     IXThreadingImpl *threadingImpl;
 
-    TRACE( "iface %p, asyncBlock %p, securityInformationBufferByteCount %lld, securityInformationBufferByteCountUsed %p, securityInformationBuffer %p, securityInformation %p.\n", iface, asyncBlock, securityInformationBufferByteCount, securityInformationBufferByteCountUsed, securityInformationBuffer, securityInformation );
+    TRACE( "iface %p, asyncBlock %p, securityInformationBufferByteCount %Iu, securityInformationBufferByteCountUsed %p, securityInformationBuffer %p, securityInformation %p.\n", iface, asyncBlock, securityInformationBufferByteCount, securityInformationBufferByteCountUsed, securityInformationBuffer, securityInformation );
     
     // Threading module may be obtained from another binary.
     status = QueryApiImpl( &CLSID_XThreadingImpl, &IID_IXThreadingImpl, (void **)&threadingImpl );

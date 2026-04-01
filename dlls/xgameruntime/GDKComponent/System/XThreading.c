@@ -112,7 +112,7 @@ static HRESULT WINAPI x_threading_XAsyncSchedule( IXThreadingImpl* iface, XAsync
 
 static VOID WINAPI x_threading_XAsyncComplete( IXThreadingImpl* iface, XAsyncBlock* asyncBlock, HRESULT result, SIZE_T requiredBufferSize )
 {
-    TRACE( "iface %p, asyncBlock %p, result %#lx, requiredBufferSize %lld.\n", iface, asyncBlock, result, requiredBufferSize );
+    TRACE( "iface %p, asyncBlock %p, result %#lx, requiredBufferSize %Iu.\n", iface, asyncBlock, result, requiredBufferSize );
     XAsyncComplete( asyncBlock, result, requiredBufferSize );
     return;
 }

@@ -168,7 +168,7 @@ static void test_XSystem(void)
     hr = IXSystemImpl_XSystemGetConsoleId( xsystem, XSystemConsoleIdBytes, consoleId, &consoleIdUsed );
     ok( hr == S_OK, "got hr %#lx.\n", hr );
     ok( strcmp( consoleId, "00000000.00000000.00000000.00000000.00" ) == 0, "unexpected consoleId. got %s.\n", debugstr_a( consoleId ) );
-    ok( consoleIdUsed == XSystemConsoleIdBytes, "unexpected consoleIdUsed. got %lld.\n", consoleIdUsed );
+    ok( consoleIdUsed == XSystemConsoleIdBytes, "unexpected consoleIdUsed. got %Iu.\n", consoleIdUsed );
 
     /**
      * xgameruntime.lib::XSystemGetXboxLiveSandboxId
@@ -178,7 +178,7 @@ static void test_XSystem(void)
     hr = IXSystemImpl_XSystemGetXboxLiveSandboxId( xsystem, XSystemXboxLiveSandboxIdMaxBytes, sandboxId, &sandboxIdUsed );
     ok( hr == S_OK, "got hr %#lx.\n", hr );
     ok( strcmp( sandboxId, "RETAIL" ) == 0, "unexpected sandboxId. got %s.\n", debugstr_a( sandboxId ) );
-    ok( sandboxIdUsed == XSystemXboxLiveSandboxIdBytes, "unexpected sandboxIdUsed. got %lld.\n", sandboxIdUsed );
+    ok( sandboxIdUsed == XSystemXboxLiveSandboxIdBytes, "unexpected sandboxIdUsed. got %Iu.\n", sandboxIdUsed );
 
     /**
      * xgameruntime.lib::XSystemGetAppSpecificDeviceId
@@ -345,7 +345,7 @@ static void test_XThreading(void)
          */
         hr = IXThreadingImpl_XAsyncGetResultSize( xthreading, &currentBlock, &receivedBufferSize );
         ok( hr == S_OK, "got hr %#lx.\n", hr );
-        ok( receivedBufferSize == 7, "unexpected receivedBufferSize %lld.\b", receivedBufferSize );
+        ok( receivedBufferSize == 7, "unexpected receivedBufferSize %Iu\n.\b", receivedBufferSize );
 
         receivedBuffer = (LPSTR)malloc( receivedBufferSize );
 
@@ -354,7 +354,7 @@ static void test_XThreading(void)
          */
         hr = IXThreadingImpl_XAsyncGetResult( xthreading, &currentBlock, NULL, receivedBufferSize, (PVOID)receivedBuffer, &bufferUsed );
         ok( hr == S_OK, "got hr %#lx.\n", hr );
-        ok( bufferUsed == 7, "unexpected bufferUsed %lld.\b", bufferUsed );
+        ok( bufferUsed == 7, "unexpected bufferUsed %Iu.\b", bufferUsed );
         ok( strcmp( receivedBuffer, "foobar" ) == 0, "unexpected receivedBuffer %s.\n", debugstr_a( receivedBuffer ) );
     }
 }

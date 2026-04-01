@@ -146,7 +146,7 @@ HRESULT WINAPI InitializeApiImpl( ULONG gdkVer, ULONG gsVer )
     return InitializeApiImplEx2( gdkVer, gsVer, 0, NULL );
 }
 
-typedef HRESULT (WINAPI *QueryApiImpl_ext)( GUID *runtimeClassId, REFIID interfaceId, void **out );
+typedef HRESULT (WINAPI *QueryApiImpl_ext)( const GUID *runtimeClassId, REFIID interfaceId, void **out );
 
 HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, void **out )
 {
@@ -178,19 +178,13 @@ HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, voi
 
     TRACE("runtimeClassId %s, interfaceId %s, out %p\n", debugstr_guid(runtimeClassId), debugstr_guid(interfaceId), out);
 
-    if ( IsEqualGUID( runtimeClassId, &CLSID_XSystemImpl ) )
-    {
+    if (IsEqualGUID( runtimeClassId, &CLSID_XSystemImpl ))
         return IXSystemImpl_QueryInterface( x_system_impl, interfaceId, out );
-    }
-    else if ( IsEqualGUID( runtimeClassId, &CLSID_XGameRuntimeFeatureImpl ) )
-    {
+    if (IsEqualGUID( runtimeClassId, &CLSID_XGameRuntimeFeatureImpl ))
         return IXGameRuntimeFeatureImpl_QueryInterface( x_game_runtime_feature_impl, interfaceId, out );
-    }
-    else if ( IsEqualGUID( runtimeClassId, &CLSID_XSystemAnalyticsImpl ) )
-    {
+    if (IsEqualGUID( runtimeClassId, &CLSID_XSystemAnalyticsImpl ))
         return IXSystemAnalyticsImpl_QueryInterface( x_system_analytics_impl, interfaceId, out );
-    }
-    else if ( IsEqualGUID( runtimeClassId, &CLSID_XThreadingImpl ) )
+    if (IsEqualGUID( runtimeClassId, &CLSID_XThreadingImpl ))
     {
         /**
          * For IXThreading, It's much better to use the native library instead.
@@ -206,11 +200,9 @@ HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, voi
         }
         return func( runtimeClassId, interfaceId, out );
     }
-    else if ( IsEqualGUID( runtimeClassId, &CLSID_XNetworkingImpl ) )
-    {
+    if (IsEqualGUID( runtimeClassId, &CLSID_XNetworkingImpl ))
         return IXNetworkingImpl_QueryInterface( x_networking_impl, interfaceId, out );
-    }
-    
+
     FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( runtimeClassId ) );
     return E_NOTIMPL;
 }
