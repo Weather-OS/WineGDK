@@ -495,7 +495,7 @@ static void SignalWait( IAsyncState* state )
     }
 }
 
-static void CALLBACK CompletionCallback( void* context, BOOL canceled )
+static void CALLBACK CompletionCallback( void* context, BOOLEAN canceled )
 {
     IAsyncState *state = (IAsyncState *)context;
     XAsyncBlock* asyncBlock;
@@ -527,7 +527,7 @@ static HRESULT SignalCompletion( IAsyncState *state )
     if ( stateImpl->providerData.async->callback != NULL )
     {
         state->lpVtbl->AddRef( state );
-        hr = XTaskQueueSubmitDelayedCallback( stateImpl->queue, Completion, 0, (PVOID)state, CompletionCallback );
+        hr = XTaskQueueSubmitDelayedCallback( stateImpl->queue, XTaskQueuePort_Completion, 0, (PVOID)state, CompletionCallback );
 
         if ( SUCCEEDED( hr ) )
         {
@@ -556,7 +556,7 @@ static void CleanupState( IAsyncState *state)
 }
 
 
-static void CALLBACK WorkerCallback( PVOID context, BOOL canceled )
+static void CALLBACK WorkerCallback( PVOID context, BOOLEAN canceled )
 {
     HRESULT callStatus;
     IAsyncState *state = (IAsyncState *)context;
@@ -875,7 +875,7 @@ HRESULT XAsyncSchedule( XAsyncBlock* asyncBlock, UINT32 delayInMs )
 
     state->lpVtbl->AddRef( state );
 
-    hr = XTaskQueueSubmitDelayedCallback( stateImpl->queue, Work, delayInMs, (PVOID)state, WorkerCallback );
+    hr = XTaskQueueSubmitDelayedCallback( stateImpl->queue, XTaskQueuePort_Work, delayInMs, (PVOID)state, WorkerCallback );
 
     state->lpVtbl->Release( state );
 

@@ -37,6 +37,14 @@ typedef struct IXTaskQueueWaitCallback IXTaskQueueWaitCallback;
 static const UINT32 TASK_QUEUE_SIGNATURE = 0x41515545;
 static const UINT32 TASK_QUEUE_PORT_SIGNATURE = 0x41515553;
 
+typedef enum XTaskQueuePortStatus
+{
+    PortStatus_Active,
+    PortStatus_Canceled,
+    PortStatus_Terminating,
+    PortStatus_Terminated
+} XTaskQueuePortStatus;
+
 typedef enum TerminationLevel
 {
     TerminationLevel_None,

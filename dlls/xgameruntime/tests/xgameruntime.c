@@ -305,7 +305,7 @@ static void test_XThreading(void)
         currentBlock.callback = NULL;
         currentBlock.queue = NULL;
 
-        hr = IXThreadingImpl_XTaskQueueCreate( xthreading, Manual, Manual, &taskHandle );
+        hr = IXThreadingImpl_XTaskQueueCreate( xthreading, XTaskQueueDispatchMode_Manual, XTaskQueueDispatchMode_Manual, &taskHandle );
         ok( hr == S_OK, "got hr %#lx.\n", hr );
 
         IXThreadingImpl_XTaskQueueSetCurrentProcessTaskQueue( xthreading, taskHandle );
