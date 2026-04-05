@@ -22,6 +22,7 @@
 #define __WINE_XGAMERUNTIME_PRIVATE_H
 
 #define COBJMACROS
+#include <stdint.h>
 #include <stdlib.h>
 #include <windows.h>
 #include <winstring.h>
@@ -33,7 +34,6 @@
 #include <unknwn.h>
 #include "provider.h"
 #include "wine/debug.h"
-#include "xthread.h"
 #include "xnetwork.h"
 
 #define WIDL_using_Windows_Foundation

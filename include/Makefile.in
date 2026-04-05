@@ -1235,7 +1235,7 @@ SOURCES = \
 	xapo.idl \
 	xapofx.h \
 	xasync.h \
-	xasyncprovider.h \
+	xasyncprovider.idl \
 	xaudio2.idl \
 	xaudio2fx.idl \
 	xcmc.h \

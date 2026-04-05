@@ -111,7 +111,7 @@ struct async_state
     LONG /* ProviderCleanupLocation */ providerCleanup;
     LONG workScheduled;
     BOOLEAN valid;
-    XAsyncProviderCallback *providerCallback;
+    XAsyncProvider *providerCallback;
     XAsyncProviderData providerData;
     XAsyncBlock providerAsyncBlock;
     XAsyncBlock* userAsyncBlock;
@@ -136,7 +136,7 @@ HRESULT XAsyncGetStatus( XAsyncBlock* asyncBlock, BOOLEAN wait );
 HRESULT XAsyncGetResultSize( XAsyncBlock* asyncBlock, SIZE_T* bufferSize );
 VOID XAsyncCancel( XAsyncBlock* asyncBlock );
 HRESULT XAsyncRun( XAsyncBlock* asyncBlock, XAsyncWork* work );
-HRESULT XAsyncBegin( XAsyncBlock* asyncBlock, PVOID context, PVOID identity, LPCSTR identityName, XAsyncProviderCallback* provider );
+HRESULT XAsyncBegin( XAsyncBlock* asyncBlock, PVOID context, const void *identity, LPCSTR identityName, XAsyncProvider* provider );
 HRESULT XAsyncSchedule( XAsyncBlock* asyncBlock, UINT32 delayInMs );
 VOID XAsyncComplete( XAsyncBlock* asyncBlock, HRESULT result, SIZE_T requiredBufferSize );
 

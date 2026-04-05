@@ -18,6 +18,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #define COBJMACROS
@@ -32,7 +33,6 @@
 
 #include "provider.h"
 #include "wine/test.h"
-#include "xthread.h"
 
 #define WIDL_using_Windows_Foundation
 #define WIDL_using_Windows_Foundation_Collections
@@ -80,12 +80,12 @@ static inline HRESULT CALLBACK XAsyncProvider_testCallback( XAsyncOp op, const X
 
     switch ( op )
     {
-        case Begin:
+        case XAsyncOp_Begin:
             trace( "Begin invoked\n" );
             IXThreadingImpl_XAsyncComplete( xthreading, data->async, S_OK, 0 );
             return S_OK;
 
-        case DoWork:
+        case XAsyncOp_DoWork:
             trace( "DoWork invoked\n" );
             IXThreadingImpl_XAsyncComplete( xthreading, data->async, E_PENDING, 0 );
             testData = (LPSTR)malloc( testDataSize * sizeof( CHAR ) );
@@ -93,17 +93,17 @@ static inline HRESULT CALLBACK XAsyncProvider_testCallback( XAsyncOp op, const X
             IXThreadingImpl_XAsyncComplete( xthreading, data->async, S_OK, testDataSize );
             return S_OK;
 
-        case GetResult:
+        case XAsyncOp_GetResult:
             trace( "GetResult invoked\n" );
             memcpy( data->buffer, (void *)testData, testDataSize);
             return S_OK;
 
-        case Cancel:
+        case XAsyncOp_Cancel:
             trace( "Cancel invoked\n" );
             IXThreadingImpl_XAsyncComplete( xthreading, data->async, E_ABORT, 0 );
             return S_OK;
 
-        case Cleanup:
+        case XAsyncOp_Cleanup:
             trace( "Cleanup invoked\n" );
             free( testData );
             return S_OK;

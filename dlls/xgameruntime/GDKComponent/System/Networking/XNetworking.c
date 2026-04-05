@@ -38,12 +38,12 @@ static HRESULT CALLBACK HTTPClientProvider( XAsyncOp operation, const XAsyncProv
 
     switch ( operation )
     {
-        case Begin:
+        case XAsyncOp_Begin:
         {
             return IXThreadingImpl_XAsyncSchedule( threadingImpl, data->async, 100 );
         }
 
-        case DoWork:
+        case XAsyncOp_DoWork:
         {
             status = httpclient_ObtainSecurityInformationForUrl( context->url, &context->securityInformationBuffer, &context->securityInformationBufferCount, &context->securityInformation );
 
@@ -52,7 +52,7 @@ static HRESULT CALLBACK HTTPClientProvider( XAsyncOp operation, const XAsyncProv
             return status;
         }
 
-        case GetResult:
+        case XAsyncOp_GetResult:
         {
             if ( data->buffer && data->bufferSize >= context->securityInformationBufferCount )
             {
@@ -62,13 +62,13 @@ static HRESULT CALLBACK HTTPClientProvider( XAsyncOp operation, const XAsyncProv
             return E_BOUNDS;
         }
 
-        case Cancel:
+        case XAsyncOp_Cancel:
         {
             IXThreadingImpl_XAsyncComplete( threadingImpl, data->async, E_ABORT, 0 );
             return S_OK;
         }
 
-        case Cleanup:
+        case XAsyncOp_Cleanup:
         {
             free( context );
             return S_OK;

@@ -41,18 +41,18 @@ static HRESULT WINAPI selfProviderOperation( XAsyncOp op, const XAsyncProviderDa
 
     switch ( op )
     {
-        case Begin:
+        case XAsyncOp_Begin:
             return XAsyncSchedule(data->async, 0);
                 
-        case DoWork:
+        case XAsyncOp_DoWork:
             work = (XAsyncWork *)data->context;
             hr = work( data->async );
             XAsyncComplete( data->async, hr, 0 );
             break;
 
-        case Cancel:
-        case Cleanup:
-        case GetResult:
+        case XAsyncOp_Cancel:
+        case XAsyncOp_Cleanup:
+        case XAsyncOp_GetResult:
             break;
     }
 
@@ -441,7 +441,7 @@ static void CleanupProviderForLocation( IAsyncState *state, ProviderCleanupLocat
     
     if ( InterlockedCompareExchange( &stateImpl->providerCleanup, 0, 0 ) == InterlockedCompareExchange( &stateImpl->providerCleanup, location, CleanupLocation_CleanedUp ) )
     {
-        stateImpl->providerCallback( Cleanup, &stateImpl->providerData );
+        stateImpl->providerCallback( XAsyncOp_Cleanup, &stateImpl->providerData );
     }
 
     return;
@@ -608,7 +608,7 @@ static void CALLBACK WorkerCallback( PVOID context, BOOLEAN canceled )
     }
     else
     {
-        callStatus = stateImpl->providerCallback( DoWork, &stateImpl->providerData );
+        callStatus = stateImpl->providerCallback( XAsyncOp_DoWork, &stateImpl->providerData );
 
         // Work routine can return E_PENDING if there is more work to do.  Otherwise
         // it either needs to be a failure or it should have called XAsyncComplete, which
@@ -767,7 +767,7 @@ VOID XAsyncCancel( XAsyncBlock* asyncBlock )
 
         if ( TrySetProviderCleanup( state, CleanupLocation_InCancel ) )
         {
-            stateImpl->providerCallback( Cancel, &stateImpl->providerData );
+            stateImpl->providerCallback( XAsyncOp_Cancel, &stateImpl->providerData );
             RevertProviderCleanup( state, CleanupLocation_InCancel );
         }
     }
@@ -795,7 +795,7 @@ HRESULT XAsyncRun( XAsyncBlock* asyncBlock, XAsyncWork* work )
     return hr;
 }
 
-HRESULT XAsyncBegin( XAsyncBlock* asyncBlock, PVOID context, PVOID identity, LPCSTR identityName, XAsyncProviderCallback* provider )
+HRESULT XAsyncBegin( XAsyncBlock* asyncBlock, PVOID context, const void *identity, LPCSTR identityName, XAsyncProvider* provider )
 {
     HRESULT hr;
     IAsyncState *state;
@@ -825,7 +825,7 @@ HRESULT XAsyncBegin( XAsyncBlock* asyncBlock, PVOID context, PVOID identity, LPC
     stateImpl->identityName = identityName;
     stateImpl->providerData.context = context;
 
-    hr = stateImpl->providerCallback( Begin, &stateImpl->providerData );
+    hr = stateImpl->providerCallback( XAsyncOp_Begin, &stateImpl->providerData );
     if ( FAILED( hr ) )
     {
         XAsyncComplete( asyncBlock, hr, 0 );
