@@ -29,7 +29,7 @@
 
 struct x_networking
 {
-    IXNetworkingImpl IXNetworkingImpl_iface;
+    IXNetworkingImpl2 IXNetworkingImpl2_iface;
     LONG ref;
 };
 

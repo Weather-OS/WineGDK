@@ -375,6 +375,21 @@ static void test_XThreading(void)
     }
 }
 
+static void test_XNetworking(void)
+{
+    IXNetworkingImpl *xnetworking;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XNetworkingImpl, &IID_IXNetworkingImpl, (void **)&xnetworking );
+    ok( hr == S_OK, "got hr %#lx.\n", hr );
+
+    check_interface( xnetworking, &IID_IUnknown, TRUE );
+    check_interface( xnetworking, &IID_IXNetworkingImpl, TRUE );
+    flaky check_interface( xnetworking, &IID_IXNetworkingImpl2, TRUE );
+
+    IXNetworkingImpl_Release( xnetworking );
+}
+
 START_TEST(xgameruntime)
 {
     HRESULT hr;
@@ -387,6 +402,7 @@ START_TEST(xgameruntime)
     test_XSystemAnalytics();
     test_XGameRuntimeFeature();
     test_XThreading();
+    test_XNetworking();
 
     RoUninitialize();
 }
