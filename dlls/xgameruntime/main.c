@@ -215,6 +215,8 @@ HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, voi
         return IXLauncherImpl_QueryInterface( x_launcher_impl, interfaceId, out );
     if (IsEqualGUID( runtimeClassId, &CLSID_XErrorImpl ))
         return IXErrorImpl_QueryInterface( x_error_impl, interfaceId, out );
+    if (IsEqualGUID( runtimeClassId, &CLSID_XGameImpl ))
+        return IXGameImpl3_QueryInterface( x_game_impl, interfaceId, out );
 
     FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( runtimeClassId ) );
     return E_NOTIMPL;

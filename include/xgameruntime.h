@@ -29,6 +29,7 @@
 #include <xasyncprovider.h>
 #include <xdisplay.h>
 #include <xerror.h>
+#include <xgame.h>
 #include <xgameerr.h>
 #include <xgameruntimefeature.h>
 #include <xgameruntimeinit.h>

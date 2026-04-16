@@ -1243,6 +1243,7 @@ SOURCES = \
 	xcmc.h \
 	xdisplay.idl \
 	xerror.idl \
+	xgame.idl \
 	xgameerr.h \
 	xgameruntime.h \
 	xgameruntimefeature.idl \
