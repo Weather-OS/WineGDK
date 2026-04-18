@@ -99,6 +99,10 @@
 
 extern BOOLEAN initializeCalled;
 
+extern char *msaAppId;
+extern UINT32 titleId;
+extern BOOLEAN fullTrust;
+
 extern IXThreadingImpl *x_threading_impl;
 extern IXGameRuntimeFeatureImpl *x_game_runtime_feature;
 extern IXSystemImpl *x_system;
@@ -119,7 +123,9 @@ extern IXodusXMLBuilder *xodus_xml_builder;
 
 typedef struct _INITIALIZE_OPTIONS
 {
-    int unused;
+    UINT32 unknown;
+    BOOLEAN isInlineConfig;
+    const char *gameConfig;
 } INITIALIZE_OPTIONS;
 
 typedef struct _POLL_SOCKET_ARGS
