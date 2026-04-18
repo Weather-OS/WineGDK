@@ -208,8 +208,56 @@ cleanup:
 
 static HRESULT WINAPI user_RefreshOAuthToken( IUser *iface )
 {
-    FIXME( "iface %p stub!\n", iface );
-    return E_NOTIMPL;
+    static const char template[] = "grant_type=refresh_token&scope=service::user.auth.xboxlive.com::MBI_SSL&client_id=";
+    struct XUser *impl = impl_from_IUser( iface );
+    HSTRING newAccess = NULL, newRefresh = NULL;
+    UINT32 refreshTokenLen, wRefreshTokenLen;
+    char *buffer = NULL, *data = NULL;
+    const WCHAR *wRefreshToken;
+    IJsonObject *object = NULL;
+    time_t expiry;
+    DOUBLE delta;
+    SIZE_T size;
+    HRESULT hr;
+
+    TRACE( "iface %p.\n", iface );
+
+    wRefreshToken = WindowsGetStringRawBuffer( impl->refreshToken, &wRefreshTokenLen );
+    if (!(refreshTokenLen = WideCharToMultiByte( CP_UTF8, WC_ERR_INVALID_CHARS, wRefreshToken, wRefreshTokenLen, NULL, 0, NULL, NULL ))) goto error;
+    if (!(data = calloc( 1, ARRAY_SIZE( template ) + strlen( msaAppId ) + strlen( "&refresh_token=" ) + refreshTokenLen )))
+    {
+        hr = E_OUTOFMEMORY;
+        goto cleanup;
+    }
+
+    strcpy( data, template );
+    strcat( data, msaAppId );
+    strcat( data, "&refresh_token=" );
+    if (!WideCharToMultiByte( CP_UTF8, WC_ERR_INVALID_CHARS, wRefreshToken, wRefreshTokenLen, data + strlen( data ), refreshTokenLen, NULL, NULL )) goto error;
+    if (FAILED(hr = http_request( L"POST", L"login.live.com", L"/oauth20_token.srf", data, CT_FORM_URLENCODED, ACCEPT_JSON, (UCHAR **)&buffer, &size ))) goto cleanup;
+    if (FAILED(hr = parse_json( buffer, size, &object ))) goto cleanup;
+    if (FAILED(hr = get_json_string( object, L"refresh_token", &newRefresh ))) goto cleanup;
+    if (FAILED(hr = get_json_string( object, L"access_token", &newAccess ))) goto cleanup;
+    if (FAILED(hr = get_json_number( object, L"expires_in", &delta ))) goto cleanup;
+    if ((expiry = time(NULL)) == -1) hr = E_FAIL;
+    else impl->oauth_expiry = expiry + delta;
+    goto cleanup;
+
+error:
+    hr = HRESULT_FROM_WIN32( GetLastError() );
+cleanup:
+    if (data) free( data );
+    if (buffer) free( buffer );
+    if (object) IJsonObject_Release( object );
+    if (SUCCEEDED(hr))
+    {
+        impl->refreshToken = newRefresh;
+        impl->accessToken = newAccess;
+        return hr;
+    }
+    if (newRefresh) WindowsDeleteString( newRefresh );
+    if (newAccess) WindowsDeleteString( newAccess );
+    return hr;
 }
 
 static HRESULT WINAPI user_RequestUserToken( IUser *iface )
