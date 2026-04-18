@@ -38,6 +38,28 @@ static const char PROOF_KEY_TEMPLATE2[] = "\",\"y\":\"";
 /* x & y are 43 chars */
 #define PROOF_KEY_SIZE ARRAY_SIZE( PROOF_KEY_TEMPLATE ) + ARRAY_SIZE( PROOF_KEY_TEMPLATE2 ) + 86
 
+static HRESULT MultiByteToHSTRING( const char *str, UINT32 str_size, HSTRING *hstr )
+{
+    UINT32 wstr_size;
+    WCHAR *wstr;
+    HRESULT hr;
+
+    if (!(wstr_size = MultiByteToWideChar( CP_UTF8, MB_ERR_INVALID_CHARS, str, str_size, NULL, 0 )))
+        return HRESULT_FROM_WIN32( GetLastError() );
+
+    if (!(wstr = calloc( wstr_size, sizeof(WCHAR) ))) return E_OUTOFMEMORY;
+
+    if (!(wstr_size = MultiByteToWideChar( CP_UTF8, MB_ERR_INVALID_CHARS, str, str_size, wstr, wstr_size )))
+    {
+        free( wstr );
+        return HRESULT_FROM_WIN32( GetLastError() );
+    }
+
+    hr = WindowsCreateString( wstr, wstr_size, hstr );
+    free( wstr );
+    return hr;
+}
+
 static HRESULT parse_json( const char *json, SIZE_T jsonLen, IJsonObject **object )
 {
     static const WCHAR *name = RuntimeClass_Windows_Data_Json_JsonValue;
@@ -602,7 +624,19 @@ static HRESULT LoadMsaUser( XUserHandle *user )
 
 static HRESULT LoadDefaultUser( XUserHandle *user )
 {
+    IJsonObject *classicGamertag = NULL, *object = NULL, *profile = NULL, *publicGamerpic = NULL;
+    IJsonArray *settings = NULL, *users = NULL;
+    UINT32 headersLen, tokenLen, userHashLen;
+    const WCHAR *token, *userHash;
+    UCHAR *settingsBuffer = NULL;
+    SIZE_T settingsBufferSize;
+    WCHAR *headers = NULL;
+    char *buffer = NULL;
     XUserHandle impl;
+    LSTATUS status;
+    IUser *iface;
+    HRESULT hr;
+    DWORD size;
 
     TRACE( "user %p.\n", user );
 
@@ -610,8 +644,67 @@ static HRESULT LoadDefaultUser( XUserHandle *user )
     impl->IUser_iface.lpVtbl = &user_vtbl;
     impl->ref = 1;
 
-    *user = impl;
-    return S_OK;
+    iface = &impl->IUser_iface;
+
+    status = RegGetValueA( HKEY_LOCAL_MACHINE, "Software\\Wine\\WineGDK", "RefreshToken", RRF_RT_REG_SZ, NULL, NULL, &size );
+    if (status != ERROR_SUCCESS) goto error;
+    if (!(buffer = calloc( 1, size )))
+    {
+        hr = E_OUTOFMEMORY;
+        goto cleanup;
+    }
+
+    status = RegGetValueA( HKEY_LOCAL_MACHINE, "Software\\Wine\\WineGDK", "RefreshToken", RRF_RT_REG_SZ, NULL, buffer, &size );
+    if (status != ERROR_SUCCESS) goto error;
+    if (FAILED(hr = MultiByteToHSTRING( buffer, size, &impl->refreshToken ))) goto cleanup;
+    if (FAILED(hr = IUser_RefreshOAuthToken( iface ))) goto cleanup;
+    if (FAILED(hr = IUser_RequestUserToken( iface ))) goto cleanup;
+    if (FAILED(hr = IUser_GenerateKeyPair( iface ))) goto cleanup;
+    if (FAILED(hr = IUser_RequestXstsToken( iface ))) goto cleanup;
+
+    /* fetch profile settings */
+    userHash = WindowsGetStringRawBuffer( impl->userHash, &userHashLen );
+    token = WindowsGetStringRawBuffer( impl->xstsToken, &tokenLen );
+    headersLen = wcslen( L"x-xbl-contract-version: 2\r\nAuthorization: XBL3.0 x=;" ) + userHashLen + tokenLen;
+    if (!(headers = calloc( headersLen + 1, sizeof(WCHAR) )))
+    {
+        hr = E_OUTOFMEMORY;
+        goto cleanup;
+    }
+
+    wcscpy( headers, L"x-xbl-contract-version: 2\r\nAuthorization: XBL3.0 x=" );
+    wcsncat( headers, userHash, userHashLen );
+    wcscat( headers, L";" );
+    wcsncat( headers, token, tokenLen );
+    if (FAILED(hr = http_request(
+        L"GET", L"profile.xboxlive.com", L"/users/me/profile/settings?settings=PublicGamerpic,Gamertag",
+        NULL, headers, ACCEPT_JSON, &settingsBuffer, &settingsBufferSize
+    ))) goto cleanup;
+    if (FAILED(hr = parse_json( (char *)settingsBuffer, settingsBufferSize, &object ))) goto cleanup;
+    if (FAILED(hr = get_json_array( object, L"profileUsers", &users ))) goto cleanup;
+    if (FAILED(hr = IJsonArray_GetObjectAt( users, 0, &profile ))) goto cleanup;
+    if (FAILED(hr = get_json_array( profile, L"settings", &settings ))) goto cleanup;
+    if (FAILED(hr = IJsonArray_GetObjectAt( settings, 0, &publicGamerpic ))) goto cleanup;
+    if (FAILED(hr = get_json_string( publicGamerpic, L"value", &impl->publicGamerpic ))) goto cleanup;
+    if (FAILED(hr = IJsonArray_GetObjectAt( settings, 1, &classicGamertag ))) goto cleanup;
+    hr = get_json_string( classicGamertag, L"value", &impl->classicGamertag );
+    goto cleanup;
+
+error:
+    hr = HRESULT_FROM_WIN32( status );
+cleanup:
+    if (buffer) free( buffer );
+    if (headers) free( headers );
+    if (users) IJsonArray_Release( users );
+    if (object) IJsonObject_Release( object );
+    if (profile) IJsonObject_Release( profile );
+    if (settingsBuffer) free( settingsBuffer );
+    if (settings) IJsonArray_Release( settings );
+    if (publicGamerpic) IJsonObject_Release( publicGamerpic );
+    if (classicGamertag) IJsonObject_Release( classicGamertag );
+    if (SUCCEEDED(hr)) *user = impl;
+    else IUser_Release( iface );
+    return hr;
 }
 
 struct x_user
