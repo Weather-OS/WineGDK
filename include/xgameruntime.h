@@ -26,6 +26,7 @@
 #include <xasync.h>
 #include <xasyncprovider.h>
 #include <xgameerr.h>
+#include <xgameruntimefeature.h>
 #include <xgameruntimeinit.h>
 #include <xnetworking.h>
 #include <xtaskqueue.h>

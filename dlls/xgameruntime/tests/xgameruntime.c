@@ -28,7 +28,7 @@
 #include <roapi.h>
 #include <activation.h>
 #include <unknwn.h>
-#include <xgameerr.h>
+#include <xgameruntime.h>
 
 #include "provider.h"
 #include "wine/test.h"
@@ -41,10 +41,6 @@
 #include "windows.globalization.h"
 #define WIDL_using_Windows_System_Profile
 #include "windows.system.profile.h"
-
-// April 2025 Release of GDK
-#define GDKC_VERSION 10001L
-#define GAMING_SERVICES_VERSION 3181L
 
 static HMODULE xgameruntime = NULL;
 
@@ -276,7 +272,7 @@ static void test_XGameRuntimeFeature(void)
     /**
      * xgameruntime.lib::XGameRuntimeIsFeatureAvailable
      */
-    isAvailable = IXGameRuntimeFeatureImpl_XGameRuntimeIsFeatureAvailable( xgame_runtime_feature, XGame );
+    isAvailable = IXGameRuntimeFeatureImpl_XGameRuntimeIsFeatureAvailable( xgame_runtime_feature, XGameRuntimeFeature_XGame );
     ok( isAvailable, "got unexpected isAvailable %d.\n", isAvailable );
 
     IXGameRuntimeFeatureImpl_Release( xgame_runtime_feature );
