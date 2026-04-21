@@ -176,7 +176,7 @@ HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, voi
     TRACE("runtimeClassId %s, interfaceId %s, out %p\n", debugstr_guid(runtimeClassId), debugstr_guid(interfaceId), out);
 
     if (IsEqualGUID( runtimeClassId, &CLSID_XSystemImpl ))
-        return IXSystemImpl_QueryInterface( x_system_impl, interfaceId, out );
+        return IXSystemImpl5_QueryInterface( x_system_impl, interfaceId, out );
     if (IsEqualGUID( runtimeClassId, &CLSID_XGameRuntimeFeatureImpl ))
         return IXGameRuntimeFeatureImpl_QueryInterface( x_game_runtime_feature_impl, interfaceId, out );
     if (IsEqualGUID( runtimeClassId, &CLSID_XSystemAnalyticsImpl ))

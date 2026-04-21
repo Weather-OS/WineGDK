@@ -32,7 +32,6 @@
 #include <xgameruntime.h>
 
 #include <unknwn.h>
-#include "provider.h"
 #include "wine/debug.h"
 #include "xnetwork.h"
 
@@ -44,7 +43,7 @@
 #define WIDL_using_Windows_System_Profile
 #include "windows.system.profile.h"
 
-extern IXSystemImpl *x_system_impl;
+extern IXSystemImpl5 *x_system_impl;
 extern IXSystemAnalyticsImpl *x_system_analytics_impl;
 extern IXThreadingImpl *x_threading_impl;
 extern IXGameRuntimeFeatureImpl *x_game_runtime_feature_impl;

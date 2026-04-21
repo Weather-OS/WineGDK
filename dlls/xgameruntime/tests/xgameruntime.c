@@ -31,7 +31,6 @@
 #include <unknwn.h>
 #include <xgameruntime.h>
 
-#include "provider.h"
 #include "wine/test.h"
 
 #define WIDL_using_Windows_Foundation
@@ -142,19 +141,27 @@ static void test_GDKComponentInit(void)
 
 static void test_XSystem(void)
 {
-    IXSystemImpl *xsystem;
+    IXSystemImpl4 *xsystem4 = NULL;
+    IXSystemImpl3 *xsystem3 = NULL;
+    IXSystemImpl *xsystem = NULL;
     BOOLEAN validHandle;
     HRESULT hr;
     SIZE_T consoleIdUsed;
     SIZE_T sandboxIdUsed;
+    SIZE_T deviceIdUsed;
     LPSTR consoleId;
     LPSTR sandboxId;
+    LPSTR deviceId;
 
     hr = QueryApiImpl_fun( &CLSID_XSystemImpl, &IID_IXSystemImpl, (void **)&xsystem );
     ok( hr == S_OK, "got hr %#lx.\n", hr );
 
     check_interface( xsystem, &IID_IUnknown, TRUE );
     check_interface( xsystem, &IID_IXSystemImpl, TRUE );
+    check_interface( xsystem, &IID_IXSystemImpl2, TRUE );
+    check_interface( xsystem, &IID_IXSystemImpl3, TRUE );
+    check_interface( xsystem, &IID_IXSystemImpl4, TRUE );
+    check_interface( xsystem, &IID_IXSystemImpl5, TRUE );
 
     /**
      * xgameruntime.lib::XSystemGetConsoleId
@@ -165,6 +172,7 @@ static void test_XSystem(void)
     ok( hr == S_OK, "got hr %#lx.\n", hr );
     ok( strcmp( consoleId, "00000000.00000000.00000000.00000000.00" ) == 0, "unexpected consoleId. got %s.\n", debugstr_a( consoleId ) );
     ok( consoleIdUsed == XSystemConsoleIdBytes, "unexpected consoleIdUsed. got %Iu.\n", consoleIdUsed );
+    free( consoleId );
 
     /**
      * xgameruntime.lib::XSystemGetXboxLiveSandboxId
@@ -175,34 +183,46 @@ static void test_XSystem(void)
     ok( hr == S_OK, "got hr %#lx.\n", hr );
     ok( strcmp( sandboxId, "RETAIL" ) == 0, "unexpected sandboxId. got %s.\n", debugstr_a( sandboxId ) );
     ok( sandboxIdUsed == XSystemXboxLiveSandboxIdBytes, "unexpected sandboxIdUsed. got %Iu.\n", sandboxIdUsed );
+    free( sandboxId );
 
     /**
      * xgameruntime.lib::XSystemGetAppSpecificDeviceId
      */
-    hr = IXSystemImpl_XSystemGetAppSpecificDeviceId( xsystem, XSystemAppSpecificDeviceIdBytes, NULL, NULL );
+    deviceId = (LPSTR)malloc( XSystemAppSpecificDeviceIdBytes * sizeof(char) );
+
+    hr = IXSystemImpl_XSystemGetAppSpecificDeviceId( xsystem, XSystemAppSpecificDeviceIdBytes, deviceId, &deviceIdUsed );
     todo_wine ok( hr == S_OK, "got error %#lx.\n", hr );
+    ok( deviceIdUsed == XSystemAppSpecificDeviceIdBytes, "unexpected deviceIdUsed. got %Iu.\n", deviceIdUsed );
+    free( deviceId );
+
+    hr = IXSystemImpl_QueryInterface( xsystem, &IID_IXSystemImpl3, (void **)&xsystem3 );
+    ok( hr == S_OK, "got hr %#lx.\n", hr );
+    IXSystemImpl_Release( xsystem );
+    if (!xsystem3) return;
 
     /**
      * xgameruntime.lib::XSystemHandleTrack
      */
-    hr = IXSystemImpl_XSystemHandleTrack( xsystem );
+    hr = IXSystemImpl3_XSystemHandleTrack( xsystem3, NULL, NULL );
     todo_wine ok( hr == S_OK, "got error %#lx.\n", hr );
 
     /**
      * xgameruntime.lib::XSystemIsHandleValid
      */
-    validHandle = IXSystemImpl_XSystemIsHandleValid( xsystem );
+    validHandle = IXSystemImpl3_XSystemIsHandleValid( xsystem3, NULL );
     ok( validHandle, "got validHandle %d\n", validHandle );
+
+    hr = IXSystemImpl3_QueryInterface( xsystem3, &IID_IXSystemImpl4, (void **)&xsystem4 );
+    ok( hr == S_OK, "got hr %#lx.\n", hr );
+    IXSystemImpl3_Release( xsystem3 );
+    if (!xsystem4) return;
 
     /**
      * xgameruntime.lib::XSystemAllowFullDownloadBandwidth
      */
-    hr = IXSystemImpl_XSystemAllowFullDownloadBandwidth( xsystem, TRUE );
-    todo_wine ok( hr == S_OK, "got error %#lx.\n", hr );
+    IXSystemImpl4_XSystemAllowFullDownloadBandwidth( xsystem4, TRUE );
 
     IXSystemImpl_Release( xsystem );
-    free( consoleId );
-    free( sandboxId );
 }
 
 static void test_XSystemAnalytics(void)

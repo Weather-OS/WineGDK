@@ -1243,6 +1243,7 @@ SOURCES = \
 	xgameruntime.h \
 	xgameruntimefeature.idl \
 	xgameruntimeinit.h \
+	xgameruntimetypes.h \
 	xinput.h \
 	xmldom.h \
 	xmldom.idl \
@@ -1253,6 +1254,7 @@ SOURCES = \
 	xnetworking.h \
 	xpsobjectmodel.idl \
 	xpsobjectmodel_1.idl \
+	xsystem.idl \
 	xtaskqueue.h \
 	zmouse.h
 

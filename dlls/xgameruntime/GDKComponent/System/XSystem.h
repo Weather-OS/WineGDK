@@ -28,7 +28,7 @@
 
 struct x_system
 {
-    IXSystemImpl IXSystemImpl_iface;
+    IXSystemImpl5 IXSystemImpl5_iface;
     LONG ref;
 };
 
