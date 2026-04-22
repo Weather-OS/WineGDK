@@ -15,5 +15,6 @@ SOURCES = \
 	GDKComponent/System/XSystem.c \
 	GDKComponent/System/XSystemAnalytics.c \
 	GDKComponent/System/XThreading.c \
+	GDKComponent/System/XUser.c \
 	main.c
 

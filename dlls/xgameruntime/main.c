@@ -201,6 +201,10 @@ HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, voi
         return IXNetworkingImpl2_QueryInterface( x_networking_impl, interfaceId, out );
     if (IsEqualGUID( runtimeClassId, &CLSID_XAccessibilityImpl ))
         return IXAccessibilityImpl2_QueryInterface( x_accessibility_impl, interfaceId, out );
+    if (IsEqualGUID( runtimeClassId, &CLSID_XUserImpl ))
+        return IXUserImpl6_QueryInterface( x_user_impl, interfaceId, out );
+    if (IsEqualGUID( runtimeClassId, &CLSID_XUserDeviceImpl ))
+        return IXUserDeviceImpl2_QueryInterface( x_user_device_impl, interfaceId, out );
 
     FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( runtimeClassId ) );
     return E_NOTIMPL;

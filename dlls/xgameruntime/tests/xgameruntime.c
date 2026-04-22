@@ -411,6 +411,53 @@ static void test_XAccessibility(void)
     IXAccessibilityImpl_Release( xaccessibility );
 }
 
+static void test_XUser(void)
+{
+    IXUserImpl *xuser = NULL;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XUserImpl, &IID_IXUserImpl, (void **)&xuser );
+    ok( hr == S_OK || broken( hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) ), "got hr %#lx.\n", hr );
+    if (hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) )
+    {
+        win_skip( "clsid %s not supported, skipping tests.\n", debugstr_guid( &CLSID_XUserImpl ) );
+        return;
+    }
+    if (!xuser) return;
+
+    check_interface( xuser, &IID_IUnknown, TRUE );
+    check_interface( xuser, &IID_IXUserImpl, TRUE );
+    flaky check_interface( xuser, &IID_IXUserImpl2, TRUE );
+    flaky check_interface( xuser, &IID_IXUserImpl3, TRUE );
+    flaky check_interface( xuser, &IID_IXUserImpl4, TRUE );
+    flaky check_interface( xuser, &IID_IXUserImpl5, TRUE );
+    flaky check_interface( xuser, &IID_IXUserImpl6, TRUE );
+    flaky check_interface( xuser, &IID_IXUserGamertagImpl, TRUE );
+
+    IXUserImpl_Release( xuser );
+}
+
+static void test_XUserDevice(void)
+{
+    IXUserDeviceImpl *xuserdevice = NULL;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XUserDeviceImpl, &IID_IXUserDeviceImpl, (void **)&xuserdevice );
+    ok( hr == S_OK || broken( hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) ), "got hr %#lx.\n", hr );
+    if (hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) )
+    {
+        win_skip( "clsid %s not supported, skipping tests.\n", debugstr_guid( &CLSID_XUserDeviceImpl ) );
+        return;
+    }
+    if (!xuserdevice) return;
+
+    check_interface( xuserdevice, &IID_IUnknown, TRUE );
+    check_interface( xuserdevice, &IID_IXUserDeviceImpl, TRUE );
+    flaky check_interface( xuserdevice, &IID_IXUserDeviceImpl2, TRUE );
+
+    IXUserDeviceImpl_Release( xuserdevice );
+}
+
 START_TEST(xgameruntime)
 {
     HRESULT hr;
@@ -425,6 +472,8 @@ START_TEST(xgameruntime)
     test_XThreading();
     test_XNetworking();
     test_XAccessibility();
+    test_XUser();
+    test_XUserDevice();
 
     RoUninitialize();
 }

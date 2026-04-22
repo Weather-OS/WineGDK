@@ -34,5 +34,6 @@
 #include <xspeechsynthesizer.h>
 #include <xsystem.h>
 #include <xtaskqueue.h>
+#include <xuser.h>
 
 #endif
