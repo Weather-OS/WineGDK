@@ -30,6 +30,7 @@
 #include <xdisplay.h>
 #include <xerror.h>
 #include <xgame.h>
+#include <xgameactivation.h>
 #include <xgameerr.h>
 #include <xgameruntimefeature.h>
 #include <xgameruntimeinit.h>
