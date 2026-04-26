@@ -44,6 +44,7 @@
 #include <xlauncher.h>
 #include <xnetworking.h>
 #include <xpackage.h>
+#include <xpersistentlocalstorage.h>
 #include <xspeechsynthesizer.h>
 #include <xsystem.h>
 #include <xtaskqueue.h>

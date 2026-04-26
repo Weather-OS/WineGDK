@@ -1266,6 +1266,7 @@ SOURCES = \
 	xmllite.idl \
 	xnetworking.idl \
 	xpackage.idl \
+	xpersistentlocalstorage.idl \
 	xpsobjectmodel.idl \
 	xpsobjectmodel_1.idl \
 	xspeechsynthesizer.h \
