@@ -536,6 +536,26 @@ static void test_XLauncher( void )
     IXLauncherImpl_Release( xlauncher );
 }
 
+static void test_XError( void )
+{
+    IXErrorImpl *xerror = NULL;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XErrorImpl, &IID_IXErrorImpl, (void **)&xerror );
+    ok( hr == S_OK || broken( hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) ), "got hr %#lx.\n", hr );
+    if (hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) )
+    {
+        win_skip( "clsid %s not supported, skipping tests.\n", debugstr_guid( &CLSID_XErrorImpl ) );
+        return;
+    }
+    if (!xerror) return;
+
+    check_interface( xerror, &IID_IUnknown, TRUE );
+    check_interface( xerror, &IID_IXErrorImpl, TRUE );
+
+    IXErrorImpl_Release( xerror );
+}
+
 START_TEST(xgameruntime)
 {
     HRESULT hr;
@@ -555,6 +575,7 @@ START_TEST(xgameruntime)
     test_XAppCapture();
     test_XDisplay();
     test_XLauncher();
+    test_XError();
 
     RoUninitialize();
 }

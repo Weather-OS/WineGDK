@@ -54,6 +54,7 @@ extern IXAppCaptureImpl *x_app_capture_impl;
 extern IXAppCaptureImpl5 *x_app_capture2_impl;
 extern IXDisplayImpl *x_display_impl;
 extern IXLauncherImpl *x_launcher_impl;
+extern IXErrorImpl *x_error_impl;
 
 // Deference is for other modules to communicate with eachother through the same binary.
 HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, void **out );
