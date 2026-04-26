@@ -16,31 +16,27 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef __WINE_XGAMERUNTIME_H
-#define __WINE_XGAMERUNTIME_H
+import "unknwn.idl";
+import "xuser.idl";
 
-/* April 2026 Release of GDK */
-#define GDKC_VERSION 10002L
-#define GAMING_SERVICES_VERSION 7822L
+cpp_quote("#ifdef __WINESRC__")
 
-#include <xaccessibility.h>
-#include <xappcapture.h>
-#include <xasync.h>
-#include <xasyncprovider.h>
-#include <xdisplay.h>
-#include <xerror.h>
-#include <xgame.h>
-#include <xgameactivation.h>
-#include <xgameerr.h>
-#include <xgameevent.h>
-#include <xgameruntimefeature.h>
-#include <xgameruntimeinit.h>
-#include <xgameruntimetypes.h>
-#include <xlauncher.h>
-#include <xnetworking.h>
-#include <xspeechsynthesizer.h>
-#include <xsystem.h>
-#include <xtaskqueue.h>
-#include <xuser.h>
+[
+    local,
+    object,
+    uuid(bbfbdcc7-bfe7-409b-a5ca-edf054960b4d)
+]
+interface IXGameEventImpl : IUnknown
+{
+    HRESULT XGameEventWrite( [in] XUserHandle user, [in, string] const char *serviceConfigId, [in, string] const char *playSessionId, [in, string] const char *eventName, [in, optional, string] const char *dimensionsJson, [in, optional, string] const char *measurementsJson );
+}
 
-#endif
+[
+    uuid(bbfbdcc7-bfe7-409b-a5ca-edf054960b4d)
+]
+coclass XGameEventImpl
+{
+    [default] interface IXGameEventImpl;
+}
+
+cpp_quote("#endif")

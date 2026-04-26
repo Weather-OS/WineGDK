@@ -1246,6 +1246,7 @@ SOURCES = \
 	xgame.idl \
 	xgameactivation.idl \
 	xgameerr.h \
+	xgameevent.idl \
 	xgameruntime.h \
 	xgameruntimefeature.idl \
 	xgameruntimeinit.h \

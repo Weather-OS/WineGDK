@@ -598,6 +598,26 @@ static void test_XGameActivation(void)
     IXGameActivationImpl_Release( xgameactivation );
 }
 
+static void test_XGameEvent(void)
+{
+    IXGameEventImpl *xgameevent = NULL;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XGameEventImpl, &IID_IXGameEventImpl, (void **)&xgameevent );
+    ok( hr == S_OK || broken( hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) ), "got hr %#lx.\n", hr );
+    if (hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) )
+    {
+        win_skip( "clsid %s not supported, skipping tests.\n", debugstr_guid( &CLSID_XGameEventImpl ) );
+        return;
+    }
+    if (!xgameevent) return;
+
+    check_interface( xgameevent, &IID_IUnknown, TRUE );
+    check_interface( xgameevent, &IID_IXGameEventImpl, TRUE );
+
+    IXGameEventImpl_Release( xgameevent );
+}
+
 START_TEST(xgameruntime)
 {
     HRESULT hr;
@@ -620,6 +640,7 @@ START_TEST(xgameruntime)
     test_XError();
     test_XGame();
     test_XGameActivation();
+    test_XGameEvent();
 
     RoUninitialize();
 }

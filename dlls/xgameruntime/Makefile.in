@@ -15,6 +15,7 @@ SOURCES = \
 	GDKComponent/System/XError.c \
 	GDKComponent/System/XGame.c \
 	GDKComponent/System/XGameActivation.c \
+	GDKComponent/System/XGameEvent.c \
 	GDKComponent/System/XGameRuntimeFeature.c \
 	GDKComponent/System/XLauncher.c \
 	GDKComponent/System/XSystem.c \
