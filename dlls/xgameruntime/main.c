@@ -235,6 +235,8 @@ HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, voi
         return IXPackageImpl3_QueryInterface( x_package_impl, interfaceId, out );
     if (IsEqualGUID( runtimeClassId, &CLSID_XPersistentLocalStorageImpl ))
         return IXPersistentLocalStorageImpl3_QueryInterface( x_persistent_local_storage_impl, interfaceId, out );
+    if (IsEqualGUID( runtimeClassId, &CLSID_XStoreImpl ))
+        return IXStoreImpl6_QueryInterface( x_store_impl, interfaceId, out );
 
     FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( runtimeClassId ) );
     return E_NOTIMPL;

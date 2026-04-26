@@ -25,6 +25,7 @@ SOURCES = \
 	GDKComponent/System/XLauncher.c \
 	GDKComponent/System/XPackage.c \
 	GDKComponent/System/XPersistentLocalStorage.c \
+	GDKComponent/System/XStore.c \
 	GDKComponent/System/XSystem.c \
 	GDKComponent/System/XSystemAnalytics.c \
 	GDKComponent/System/XThreading.c \

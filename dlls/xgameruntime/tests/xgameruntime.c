@@ -770,6 +770,31 @@ static void test_XPersistentLocalStorage(void)
     IXPersistentLocalStorageImpl_Release( xpersistentlocalstorage );
 }
 
+static void test_XStore(void)
+{
+    IXStoreImpl *xstore = NULL;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XStoreImpl, &IID_IXStoreImpl, (void **)&xstore );
+    ok( hr == S_OK || broken( hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) ), "got hr %#lx.\n", hr );
+    if (hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) )
+    {
+        win_skip( "clsid %s not supported, skipping tests.\n", debugstr_guid( &CLSID_XStoreImpl ) );
+        return;
+    }
+    if (!xstore) return;
+
+    check_interface( xstore, &IID_IUnknown, TRUE );
+    check_interface( xstore, &IID_IXStoreImpl, TRUE );
+    flaky check_interface( xstore, &IID_IXStoreImpl2, TRUE );
+    flaky check_interface( xstore, &IID_IXStoreImpl3, TRUE );
+    flaky check_interface( xstore, &IID_IXStoreImpl4, TRUE );
+    flaky check_interface( xstore, &IID_IXStoreImpl5, TRUE );
+    flaky check_interface( xstore, &IID_IXStoreImpl6, TRUE );
+
+    IXStoreImpl_Release( xstore );
+}
+
 START_TEST(xgameruntime)
 {
     HRESULT hr;
@@ -800,6 +825,7 @@ START_TEST(xgameruntime)
     test_XGameUi();
     test_XPackage();
     test_XPersistentLocalStorage();
+    test_XStore();
 
     RoUninitialize();
 }
