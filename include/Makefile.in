@@ -1265,6 +1265,7 @@ SOURCES = \
 	xmldsodid.h \
 	xmllite.idl \
 	xnetworking.idl \
+	xpackage.idl \
 	xpsobjectmodel.idl \
 	xpsobjectmodel_1.idl \
 	xspeechsynthesizer.h \
