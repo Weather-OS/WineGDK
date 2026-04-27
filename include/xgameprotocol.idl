@@ -16,33 +16,30 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef __WINE_XGAMERUNTIME_H
-#define __WINE_XGAMERUNTIME_H
+import "unknwn.idl";
+import "xtaskqueue.h";
 
-/* April 2026 Release of GDK */
-#define GDKC_VERSION 10002L
-#define GAMING_SERVICES_VERSION 7822L
+typedef void __stdcall XGameProtocolActivationCallback( void *context, const char *protocolUri );
 
-#include <xaccessibility.h>
-#include <xappcapture.h>
-#include <xasync.h>
-#include <xasyncprovider.h>
-#include <xdisplay.h>
-#include <xerror.h>
-#include <xgame.h>
-#include <xgameactivation.h>
-#include <xgameerr.h>
-#include <xgameevent.h>
-#include <xgameinvite.h>
-#include <xgameprotocol.h>
-#include <xgameruntimefeature.h>
-#include <xgameruntimeinit.h>
-#include <xgameruntimetypes.h>
-#include <xlauncher.h>
-#include <xnetworking.h>
-#include <xspeechsynthesizer.h>
-#include <xsystem.h>
-#include <xtaskqueue.h>
-#include <xuser.h>
+cpp_quote("#ifdef __WINESRC__")
 
-#endif
+[
+    local,
+    object,
+    uuid(026b010c-06c3-4cdd-bbcb-43f229db1cff)
+]
+interface IXGameProtocolImpl : IUnknown
+{
+    HRESULT XGameProtocolRegisterForActivation( [in, optional] XTaskQueueHandle queue, [in, optional] void *context, [in] XGameProtocolActivationCallback *callback, [out] XTaskQueueRegistrationToken *token );
+    BOOLEAN XGameProtocolUnregisterForActivation( [in] XTaskQueueRegistrationToken token, [in] BOOLEAN wait );
+}
+
+[
+    uuid(95fd18d2-74dd-4d7c-aa1b-0b51827665d6)
+]
+coclass XGameProtocolImpl
+{
+    [default] interface IXGameProtocolImpl;
+}
+
+cpp_quote("#endif")
