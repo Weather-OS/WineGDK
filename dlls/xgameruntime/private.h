@@ -60,6 +60,7 @@ extern IXGameActivationImpl *x_game_activation_impl;
 extern IXGameEventImpl *x_game_event_impl;
 extern IXGameInviteImpl2 *x_game_invite_impl;
 extern IXGameProtocolImpl *x_game_protocol_impl;
+extern IXGameSaveImpl3 *x_game_save_impl;
 
 // Deference is for other modules to communicate with eachother through the same binary.
 HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, void **out );

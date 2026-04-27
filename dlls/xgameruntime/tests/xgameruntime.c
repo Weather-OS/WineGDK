@@ -659,6 +659,28 @@ static void test_XGameProtocol(void)
     IXGameProtocolImpl_Release( xgameprotocol );
 }
 
+static void test_XGameSave(void)
+{
+    IXGameSaveImpl *xgamesave = NULL;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XGameSaveImpl, &IID_IXGameSaveImpl, (void **)&xgamesave );
+    ok( hr == S_OK || broken( hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) ), "got hr %#lx.\n", hr );
+    if (hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) )
+    {
+        win_skip( "clsid %s not supported, skipping tests.\n", debugstr_guid( &CLSID_XGameSaveImpl ) );
+        return;
+    }
+    if (!xgamesave) return;
+
+    check_interface( xgamesave, &IID_IUnknown, TRUE );
+    check_interface( xgamesave, &IID_IXGameSaveImpl, TRUE );
+    flaky check_interface( xgamesave, &IID_IXGameSaveImpl2, TRUE );
+    flaky check_interface( xgamesave, &IID_IXGameSaveImpl3, TRUE );
+
+    IXGameSaveImpl_Release( xgamesave );
+}
+
 START_TEST(xgameruntime)
 {
     HRESULT hr;
@@ -684,6 +706,7 @@ START_TEST(xgameruntime)
     test_XGameEvent();
     test_XGameInvite();
     test_XGameProtocol();
+    test_XGameSave();
 
     RoUninitialize();
 }
