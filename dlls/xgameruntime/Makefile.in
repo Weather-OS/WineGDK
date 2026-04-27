@@ -10,6 +10,7 @@ SOURCES = \
 	GDKComponent/System/Threading/XAsync.c \
 	GDKComponent/System/Threading/XOSThreading.c \
 	GDKComponent/System/Threading/XTaskQueue.c \
+	GDKComponent/System/XAccessibility.c \
 	GDKComponent/System/XGameRuntimeFeature.c \
 	GDKComponent/System/XSystem.c \
 	GDKComponent/System/XSystemAnalytics.c \

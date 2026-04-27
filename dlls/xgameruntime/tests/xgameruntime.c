@@ -390,6 +390,27 @@ static void test_XNetworking(void)
     IXNetworkingImpl_Release( xnetworking );
 }
 
+static void test_XAccessibility(void)
+{
+    IXAccessibilityImpl *xaccessibility = NULL;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XAccessibilityImpl, &IID_IXAccessibilityImpl, (void **)&xaccessibility );
+    ok( hr == S_OK || broken( hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) ), "got hr %#lx.\n", hr );
+    if (hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) )
+    {
+        win_skip( "clsid %s not supported, skipping tests.\n", debugstr_guid( &CLSID_XAccessibilityImpl ) );
+        return;
+    }
+    if (!xaccessibility) return;
+
+    check_interface( xaccessibility, &IID_IUnknown, TRUE );
+    check_interface( xaccessibility, &IID_IXAccessibilityImpl, TRUE );
+    flaky check_interface( xaccessibility, &IID_IXAccessibilityImpl2, TRUE );
+
+    IXAccessibilityImpl_Release( xaccessibility );
+}
+
 START_TEST(xgameruntime)
 {
     HRESULT hr;
@@ -403,6 +424,7 @@ START_TEST(xgameruntime)
     test_XGameRuntimeFeature();
     test_XThreading();
     test_XNetworking();
+    test_XAccessibility();
 
     RoUninitialize();
 }
