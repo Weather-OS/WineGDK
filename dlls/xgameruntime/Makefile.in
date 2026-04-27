@@ -11,6 +11,7 @@ SOURCES = \
 	GDKComponent/System/Threading/XOSThreading.c \
 	GDKComponent/System/Threading/XTaskQueue.c \
 	GDKComponent/System/XAccessibility.c \
+	GDKComponent/System/XAppCapture.c \
 	GDKComponent/System/XGameRuntimeFeature.c \
 	GDKComponent/System/XSystem.c \
 	GDKComponent/System/XSystemAnalytics.c \
