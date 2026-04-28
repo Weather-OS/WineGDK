@@ -40,6 +40,7 @@
 #include <xgameruntimetypes.h>
 #include <xgamesave.h>
 #include <xgamestreaming.h>
+#include <xgameui.h>
 #include <xlauncher.h>
 #include <xnetworking.h>
 #include <xspeechsynthesizer.h>

@@ -703,6 +703,29 @@ static void test_XGameStreaming(void)
     IXGameStreamingImpl_Release( xgamestreaming );
 }
 
+static void test_XGameUi(void)
+{
+    IXGameUiImpl *xgameui = NULL;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XGameUiImpl, &IID_IXGameUiImpl, (void **)&xgameui );
+    ok( hr == S_OK || broken( hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) ), "got hr %#lx.\n", hr );
+    if (hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) )
+    {
+        win_skip( "clsid %s not supported, skipping tests.\n", debugstr_guid( &CLSID_XGameUiImpl ) );
+        return;
+    }
+    if (!xgameui) return;
+
+    check_interface( xgameui, &IID_IUnknown, TRUE );
+    check_interface( xgameui, &IID_IXGameUiImpl, TRUE );
+    flaky check_interface( xgameui, &IID_IXGameUiImpl2, TRUE );
+    flaky check_interface( xgameui, &IID_IXGameUiImpl3, TRUE );
+    flaky check_interface( xgameui, &IID_IXGameUiImpl4, TRUE );
+
+    IXGameUiImpl_Release( xgameui );
+}
+
 START_TEST(xgameruntime)
 {
     HRESULT hr;
@@ -730,6 +753,7 @@ START_TEST(xgameruntime)
     test_XGameProtocol();
     test_XGameSave();
     test_XGameStreaming();
+    test_XGameUi();
 
     RoUninitialize();
 }
