@@ -227,6 +227,8 @@ HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, voi
         return IXGameProtocolImpl_QueryInterface( x_game_protocol_impl, interfaceId, out );
     if (IsEqualGUID( runtimeClassId, &CLSID_XGameSaveImpl ))
         return IXGameSaveImpl3_QueryInterface( x_game_save_impl, interfaceId, out );
+    if (IsEqualGUID( runtimeClassId, &CLSID_XGameStreamingImpl ))
+        return IXGameStreamingImpl3_QueryInterface( x_game_streaming_impl, interfaceId, out );
 
     FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( runtimeClassId ) );
     return E_NOTIMPL;

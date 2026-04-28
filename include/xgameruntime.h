@@ -39,6 +39,7 @@
 #include <xgameruntimeinit.h>
 #include <xgameruntimetypes.h>
 #include <xgamesave.h>
+#include <xgamestreaming.h>
 #include <xlauncher.h>
 #include <xnetworking.h>
 #include <xspeechsynthesizer.h>

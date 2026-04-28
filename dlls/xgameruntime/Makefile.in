@@ -20,6 +20,7 @@ SOURCES = \
 	GDKComponent/System/XGameProtocol.c \
 	GDKComponent/System/XGameRuntimeFeature.c \
 	GDKComponent/System/XGameSave.c \
+	GDKComponent/System/XGameStreaming.c \
 	GDKComponent/System/XLauncher.c \
 	GDKComponent/System/XSystem.c \
 	GDKComponent/System/XSystemAnalytics.c \

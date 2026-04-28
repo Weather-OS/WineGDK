@@ -1254,6 +1254,7 @@ SOURCES = \
 	xgameruntimeinit.h \
 	xgameruntimetypes.h \
 	xgamesave.idl \
+	xgamestreaming.idl \
 	xinput.h \
 	xlauncher.idl \
 	xmldom.h \
