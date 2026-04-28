@@ -28,7 +28,7 @@
 #include <roapi.h>
 #include <activation.h>
 
-#include <xgameerr.h>
+#include <xgameruntime.h>
 
 #include <unknwn.h>
 #include "provider.h"
@@ -44,20 +44,11 @@
 #define WIDL_using_Windows_System_Profile
 #include "windows.system.profile.h"
 
-// October 2025 Release of GDK
-#define GDKC_VERSION 10002L
-#define GAMING_SERVICES_VERSION 4429L
-
 extern IXSystemImpl *x_system_impl;
 extern IXSystemAnalyticsImpl *x_system_analytics_impl;
 extern IXThreadingImpl *x_threading_impl;
 extern IXGameRuntimeFeatureImpl *x_game_runtime_feature_impl;
 extern IXNetworkingImpl *x_networking_impl;
-
-typedef struct _INITIALIZE_OPTIONS
-{
-    int unused;
-} INITIALIZE_OPTIONS;
 
 // Deference is for other modules to communicate with eachother through the same binary.
 HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, void **out );

@@ -1,8 +1,5 @@
 /*
- * Xbox Game runtime Library
- *  GDK Component: Internal Initialization Header
- * 
- * Written by Weather
+ * Copyright (C) the Wine project
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,11 +16,18 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef GDKC_INIT
-#define GDKC_INIT
+#ifndef __WINE_XGAMERUNTIME_H
+#define __WINE_XGAMERUNTIME_H
 
-#include "../private.h"
+/* April 2026 Release of GDK */
+#define GDKC_VERSION 10002L
+#define GAMING_SERVICES_VERSION 7822L
 
-HRESULT WINAPI GDKC_InitAPI( ULONG gdkVer, ULONG gsVer, CHAR mode, const XGameRuntimeOptions *options );
+#include <xasync.h>
+#include <xasyncprovider.h>
+#include <xgameerr.h>
+#include <xgameruntimeinit.h>
+#include <xnetworking.h>
+#include <xtaskqueue.h>
 
 #endif
