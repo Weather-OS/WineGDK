@@ -402,14 +402,20 @@ static HRESULT parse_json_array( struct json_buffer *json, IJsonArray **value )
 {
     IJsonArray *array;
     IJsonValue *child;
+    IVector_IJsonValue *vector;
     HRESULT hr;
 
     if (FAILED(hr = IActivationFactory_ActivateInstance( json_array_factory, (IInspectable **)&array ))) return hr;
+    if (FAILED(hr = IJsonArray_QueryInterface( array, &IID_IVector_IJsonValue, (void **)&vector )))
+    {
+        IJsonArray_Release( array );
+        return hr;
+    }
 
     while (json->len && *json->str != ']')
     {
         if (FAILED(hr = parse_json_value( json, &child ))) break;
-        hr = json_array_push( array, child );
+        hr = IVector_IJsonValue_Append( vector, child );
         IJsonValue_Release( child );
         if (FAILED(hr) || !json_buffer_take( json, L",", TRUE )) break;
         if (json_buffer_take( json, L"]", TRUE ))
@@ -418,6 +424,8 @@ static HRESULT parse_json_array( struct json_buffer *json, IJsonArray **value )
             break;
         }
     }
+
+    IVector_IJsonValue_Release( vector );
 
     if (FAILED(hr)) IJsonArray_Release( array );
     else *value = array;
