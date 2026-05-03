@@ -140,7 +140,7 @@ sub parse_makefile($)
         while (/\\$/) { chop; $_ .= <MAKE>; chomp; }  # merge continued lines
         next if (/^\s*$/);
 
-        if (/^\s*(MODULE|IMPORTLIB|TESTDLL|STATICLIB|PARENTSRC|EXTRADLLFLAGS)\s*=\s*(.*)/)
+        if (/^\s*(MODULE|IMPORTLIB|TESTDLL|STATICLIB|UNIXLIB|PARENTSRC|EXTRADLLFLAGS)\s*=\s*(.*)/)
         {
             my $var = $1;
             $make{$var} = $2;
@@ -154,6 +154,7 @@ sub parse_makefile($)
             next;
         }
     }
+    close MAKE;
 
     return %make;
 }
@@ -251,7 +252,7 @@ sub assign_sources_to_makefiles(@)
         my $subdir = $dir;
 
         while ($dir && !defined $makefiles{"$dir/Makefile.in"}) { $dir = dirname( $dir ); }
-        $subdir =~ s/^$dir\/?//;
+        $subdir =~ s/^\Q$dir\E\/?//;
         next unless $dir;
 
         die "no makefile found for $file\n" unless defined $makefiles{"$dir/Makefile.in"};
@@ -259,9 +260,10 @@ sub assign_sources_to_makefiles(@)
         my $make = $makefiles{"$dir/Makefile.in"};
         my $name = substr( $file, length($dir) + 1 );
 
-        if ($name =~ /\.h$/)
+        if ($name =~ /(.*\/)?(.*\.h)$/)
         {
-            next unless defined $global_includes{$name};
+            my $basename = $2;
+            next unless defined $global_includes{$name} || defined $global_includes{$basename};
         }
         elsif ($name =~ /\.idl$/)
         {
@@ -285,11 +287,19 @@ sub assign_sources_to_makefiles(@)
         {
             push @nls_files, $name if $dir eq "nls";
         }
+        elsif ($name =~ /\.dat$/)
+        {
+            next unless $dir eq "nls";
+        }
         elsif ($name =~ /\.xml$/)
         {
             next unless $dir eq "dlls/winewayland.drv";
         }
-        elsif ($name !~ /\.(S|c|desktop|in|inl|l|m|mc|po|rc|rh|sfd|svg|ver|x|y)$/)
+        elsif ($name =~ /^msvcrt\/[^.]+$/) # C++ header without extension
+        {
+            next unless $dir eq "include";
+        }
+        elsif ($name !~ /\.(S|c|cpp|desktop|in|inl|l|m|mc|po|rc|rh|sfd|svg|ver|x|y)$/)
         {
             next;
         }
@@ -318,16 +328,18 @@ sub update_makefiles(@)
         next if $file eq "Makefile.in";
         my %make = %{$makefiles{$file}};
         (my $dir = $file) =~ s/^(.*)\/Makefile\.in/$1/;
+
+        die "Only one of MODULE, STATICLIB, or TESTDLL must be specified in $file"
+            if defined($make{TESTDLL}) + defined($make{STATICLIB}) + defined($make{MODULE}) > 1;
+
         if (defined($make{"TESTDLL"}))  # test
         {
             die "TESTDLL should not be defined in $file" unless $file =~ /\/tests\/Makefile\.in$/;
-            die "MODULE should not be defined in $file" if defined $make{"MODULE"};
-            die "STATICLIB should not be defined in $file" if defined $make{"STATICLIB"};
         }
         elsif (defined($make{"STATICLIB"}))
         {
-            die "MODULE should not be defined in $file" if defined $make{"MODULE"};
             die "invalid STATICLIB name" unless $make{"STATICLIB"} =~ /\.a$/;
+            die "STATICLIB should not be defined in $file" unless $file =~ /^libs\//;
         }
         elsif (defined($make{"MODULE"}))  # dll or program
         {
@@ -335,7 +347,6 @@ sub update_makefiles(@)
             my $dllflags = $make{"EXTRADLLFLAGS"} || "";
             die "invalid MODULE name" if $make{"MODULE"} =~ /\.a$/;
             die "MODULE should not be defined in $file" unless $file =~ /^(dlls|programs)\//;
-            die "STATICLIB should not be defined in $file" if defined $make{"STATICLIB"};
             if ($file =~ /^programs\//)
             {
                 die "EXTRADLLFLAGS should be defined in $file" unless $dllflags;
@@ -357,11 +368,9 @@ sub update_makefiles(@)
                 die "Subsystem should be set to native in $file" unless $dllflags =~ /-Wl,--subsystem,native/;
             }
         }
-        elsif ($file =~ /^tools.*\/Makefile\.in$/)
+        elsif (defined($make{"UNIXLIB"}))
         {
-            die "MODULE should not be defined in $file" if defined $make{"MODULE"};
-            die "STATICLIB should not be defined in $file" if defined $make{"STATICLIB"};
-            die "EXTRADLLFLAGS should not be defined in $file" if defined $make{"EXTRADLLFLAGS"};
+            die "UNIXLIB should not be defined in $file" unless $file =~ /^dlls\/.*\.drv\/Makefile.in$/;
         }
         push @lines, "WINE_CONFIG_MAKEFILE($dir)\n";
     }

@@ -19,6 +19,10 @@
 #ifndef _PROCESSTHREADSAPI_H
 #define _PROCESSTHREADSAPI_H
 
+#include <apisetcconv.h>
+#include <minwindef.h>
+#include <minwinbase.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -31,6 +35,13 @@ typedef enum _THREAD_INFORMATION_CLASS
     ThreadPowerThrottling,
     ThreadInformationClassMax
 } THREAD_INFORMATION_CLASS;
+
+typedef enum _MACHINE_ATTRIBUTES
+{
+    UserEnabled    = 0x00000001,
+    KernelEnabled  = 0x00000002,
+    Wow64Container = 0x00000004,
+} MACHINE_ATTRIBUTES;
 
 typedef struct _MEMORY_PRIORITY_INFORMATION
 {
@@ -45,6 +56,7 @@ typedef struct _THREAD_POWER_THROTTLING_STATE
 } THREAD_POWER_THROTTLING_STATE;
 
 WINBASEAPI VOID WINAPI GetCurrentThreadStackLimits(ULONG_PTR *, ULONG_PTR *);
+WINBASEAPI HRESULT WINAPI GetMachineTypeAttributes(USHORT,MACHINE_ATTRIBUTES *);
 WINBASEAPI HRESULT WINAPI GetThreadDescription(HANDLE,PWSTR *);
 WINBASEAPI HRESULT WINAPI SetThreadDescription(HANDLE,PCWSTR);
 WINBASEAPI BOOL WINAPI SetThreadInformation(HANDLE,THREAD_INFORMATION_CLASS,LPVOID,DWORD);

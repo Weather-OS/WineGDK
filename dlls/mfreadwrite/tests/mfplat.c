@@ -1512,6 +1512,27 @@ static void test_source_reader_from_media_source(void)
         IMFStreamDescriptor_Release(audio_streams[i]);
 }
 
+static void test_source_reader_release(void)
+{
+    IMFByteStream *stream = get_resource_stream("test.wav");
+    IMFAttributes *attributes;
+    IMFSourceReader *reader;
+    HRESULT hr;
+    LONG ref;
+
+    hr = MFCreateAttributes(&attributes, 1);
+    ok(hr == S_OK, "failed to create IMFAttributes hr %#lx\n", hr);
+
+    hr = MFCreateSourceReaderFromByteStream(stream, attributes, &reader);
+    ok(hr == S_OK, "failed to create SourceReader hr %#lx\n", hr);
+
+    ref = IMFSourceReader_Release(reader);
+    ok(ref == 0, "got unexpected ref %lu\n", ref);
+
+    ref = IMFByteStream_Release(stream);
+    ok(ref == 0, "got unexpected ref %lu\n", ref);
+}
+
 static void test_reader_d3d9(void)
 {
     static const struct attribute_desc audio_stream_type_desc[] =
@@ -1735,29 +1756,23 @@ static void test_sink_writer_get_object(void)
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     init_media_type(input_type, video_input_type_desc, -1);
     hr = IMFSinkWriter_SetInputMediaType(writer, 0, input_type, NULL);
-    todo_wine
     ok(hr == S_OK, "SetInputMediaType returned %#lx.\n", hr);
     IMFMediaType_Release(input_type);
 
     /* Get transform after SetInputMediaType. */
     hr = IMFSinkWriter_GetServiceForStream(writer, 0, &GUID_NULL, &IID_IMFTransform, (void **)&transform);
-    todo_wine
     ok(hr == S_OK, "GetServiceForStream returned %#lx.\n", hr);
     if (hr == S_OK)
     IMFTransform_Release(transform);
 
     hr = IMFSinkWriterEx_GetTransformForStream(writer_ex, 0, 0, &guid, &transform);
-    todo_wine
     ok(hr == S_OK, "GetTransformForStream returned %#lx.\n", hr);
-    todo_wine
     ok(IsEqualGUID(&guid, &MFT_CATEGORY_VIDEO_PROCESSOR), "Unexpected guid %s.\n", debugstr_guid(&guid));
     if (hr == S_OK)
     IMFTransform_Release(transform);
 
     hr = IMFSinkWriterEx_GetTransformForStream(writer_ex, 0, 1, &guid, &transform);
-    todo_wine
     ok(hr == S_OK, "GetTransformForStream returned %#lx.\n", hr);
-    todo_wine
     ok(IsEqualGUID(&guid, &MFT_CATEGORY_VIDEO_ENCODER), "Unexpected guid %s.\n", debugstr_guid(&guid));
     if (hr == S_OK)
     IMFTransform_Release(transform);
@@ -1772,14 +1787,11 @@ static void test_sink_writer_get_object(void)
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     init_media_type(input_type, video_input_type_nv12_desc, -1);
     hr = IMFSinkWriter_SetInputMediaType(writer, 0, input_type, NULL);
-    todo_wine
     ok(hr == S_OK, "SetInputMediaType returned %#lx.\n", hr);
     IMFMediaType_Release(input_type);
 
     hr = IMFSinkWriterEx_GetTransformForStream(writer_ex, 0, 0, &guid, &transform);
-    todo_wine
     ok(hr == S_OK, "GetTransformForStream returned %#lx.\n", hr);
-    todo_wine
     ok(IsEqualGUID(&guid, &MFT_CATEGORY_VIDEO_ENCODER), "Unexpected guid %s.\n", debugstr_guid(&guid));
     if (hr == S_OK)
         IMFTransform_Release(transform);
@@ -1797,7 +1809,6 @@ static void test_sink_writer_get_object(void)
     ok(!sink, "Unexpected sink %p.\n", sink);
 
     hr = IMFSinkWriter_BeginWriting(writer);
-    todo_wine
     ok(hr == S_OK, "BeginWriting returned %#lx.\n", hr);
 
     /* Get media sink after BeginWriting. */
@@ -1881,7 +1892,6 @@ static void test_sink_writer_add_stream(void)
     ok(hr == MF_E_INVALIDSTREAMNUMBER, "SetInputMediaType returned %#lx.\n", hr);
 
     hr = IMFSinkWriter_SetInputMediaType(writer, 0, input_type, NULL);
-    todo_wine
     ok(hr == S_OK, "SetInputMediaType returned %#lx.\n", hr);
 
     IMFMediaType_Release(input_type);
@@ -1941,16 +1951,13 @@ static void test_sink_writer_sample_process(void)
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     init_media_type(input_type, video_input_type_desc, -1);
     hr = IMFSinkWriter_SetInputMediaType(writer, 0, input_type, NULL);
-    todo_wine
     ok(hr == S_OK, "SetInputMediaType returned %#lx.\n", hr);
     IMFMediaType_Release(input_type);
 
     /* BeginWriting after adding stream. */
     hr = IMFSinkWriter_BeginWriting(writer);
-    todo_wine
     ok(hr == S_OK, "BeginWriting returned %#lx.\n", hr);
     hr = IMFSinkWriter_BeginWriting(writer);
-    todo_wine
     ok(hr == MF_E_INVALIDREQUEST, "BeginWriting returned %#lx.\n", hr);
 
     /* WriteSample. */
@@ -1964,7 +1971,6 @@ static void test_sink_writer_sample_process(void)
         hr = IMFSample_SetSampleDuration(sample, 333333);
         ok(hr == S_OK, "SetSampleDuration returned %#lx.\n", hr);
         hr = IMFSinkWriter_WriteSample(writer, 0, sample);
-        todo_wine
         ok(hr == S_OK, "WriteSample returned %#lx.\n", hr);
         IMFSample_Release(sample);
     }
@@ -3902,6 +3908,7 @@ START_TEST(mfplat)
     test_source_reader_transform_stream_change();
     test_source_reader_transforms_d3d9();
     test_source_reader_transforms_d3d11();
+    test_source_reader_release();
     test_reader_d3d9();
     test_sink_writer_create();
     test_sink_writer_get_object();

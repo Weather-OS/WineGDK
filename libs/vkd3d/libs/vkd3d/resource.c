@@ -3661,6 +3661,24 @@ bool vkd3d_create_raw_buffer_view(struct d3d12_device *device,
 }
 
 /* samplers */
+
+static VkSamplerReductionModeEXT vk_reduction_mode_from_d3d12(D3D12_FILTER_REDUCTION_TYPE mode)
+{
+    switch (mode)
+    {
+        case D3D12_FILTER_REDUCTION_TYPE_STANDARD:
+        case D3D12_FILTER_REDUCTION_TYPE_COMPARISON:
+            return VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE;
+        case D3D12_FILTER_REDUCTION_TYPE_MINIMUM:
+            return VK_SAMPLER_REDUCTION_MODE_MIN;
+        case D3D12_FILTER_REDUCTION_TYPE_MAXIMUM:
+            return VK_SAMPLER_REDUCTION_MODE_MAX;
+        default:
+            FIXME("Unhandled reduction mode %#x.\n", mode);
+            return VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE;
+    }
+}
+
 static VkFilter vk_filter_from_d3d12(D3D12_FILTER_TYPE type)
 {
     switch (type)
@@ -3734,15 +3752,12 @@ static VkResult d3d12_create_sampler(struct d3d12_device *device, D3D12_FILTER f
         D3D12_COMPARISON_FUNC comparison_func, D3D12_STATIC_BORDER_COLOR border_colour,
         float min_lod, float max_lod, VkSampler *vk_sampler)
 {
+    VkSamplerReductionModeCreateInfoEXT reduction_desc;
     const struct vkd3d_vk_device_procs *vk_procs;
     struct VkSamplerCreateInfo sampler_desc;
     VkResult vr;
 
     vk_procs = &device->vk_procs;
-
-    if (D3D12_DECODE_FILTER_REDUCTION(filter) == D3D12_FILTER_REDUCTION_TYPE_MINIMUM
-            || D3D12_DECODE_FILTER_REDUCTION(filter) == D3D12_FILTER_REDUCTION_TYPE_MAXIMUM)
-        FIXME("Min/max reduction mode not supported.\n");
 
     sampler_desc.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
     sampler_desc.pNext = NULL;
@@ -3766,6 +3781,21 @@ static VkResult d3d12_create_sampler(struct d3d12_device *device, D3D12_FILTER f
     if (address_u == D3D12_TEXTURE_ADDRESS_MODE_BORDER || address_v == D3D12_TEXTURE_ADDRESS_MODE_BORDER
             || address_w == D3D12_TEXTURE_ADDRESS_MODE_BORDER)
         sampler_desc.borderColor = vk_border_colour_from_d3d12(border_colour);
+
+    reduction_desc.reductionMode = vk_reduction_mode_from_d3d12(D3D12_DECODE_FILTER_REDUCTION(filter));
+    if (reduction_desc.reductionMode != VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE)
+    {
+        if (device->vk_info.EXT_sampler_filter_minmax)
+        {
+            reduction_desc.sType = VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO_EXT;
+            reduction_desc.pNext = NULL;
+            vk_prepend_struct(&sampler_desc, &reduction_desc);
+        }
+        else
+        {
+            FIXME("Sampler min/max reduction filtering is not supported by the device.\n");
+        }
+    }
 
     if ((vr = VK_CALL(vkCreateSampler(device->vk_device, &sampler_desc, NULL, vk_sampler))) < 0)
         WARN("Failed to create Vulkan sampler, vr %d.\n", vr);

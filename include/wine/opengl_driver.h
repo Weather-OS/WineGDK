@@ -59,12 +59,27 @@ struct wgl_pixel_format
     int float_components;
 };
 
+enum opengl_extension
+{
+#define USE_GL_EXT(x) x,
+    ALL_GL_EXTS
+    ALL_WGL_EXTS
+#undef USE_GL_EXT
+    GL_EXTENSION_COUNT,
+};
+
 struct opengl_client_context
 {
     struct HGLRC__              obj;            /* client object header */
     UINT64                      unix_handle;
     UINT64                      unix_funcs;
+    DWORD                       current_tid;                            /* thread that the context is current in */
     GLenum                      last_error;
+    int                         major_version;
+    int                         minor_version;
+    BOOLEAN                     extensions[GL_EXTENSION_COUNT];         /* exposed client extensions */
+    UINT32                      extension_count;                        /* size of supported extensions */
+    UINT16                      extension_array[GL_EXTENSION_COUNT];    /* array of supported extensions */
 };
 
 static inline struct opengl_client_context *opengl_client_context_from_client( HGLRC client_context )
@@ -126,13 +141,14 @@ struct opengl_funcs
     ALL_GL_FUNCS
     ALL_GL_EXT_FUNCS
 #undef USE_GL_FUNC
+    void (*p_init_extensions)( BOOLEAN extensions[GL_EXTENSION_COUNT] );
     void (*p_get_pixel_formats)( struct wgl_pixel_format *formats, UINT max_formats, UINT *num_formats, UINT *num_onscreen_formats );
     BOOL (*p_query_renderer)( UINT attribute, void *value );
     BOOL (*p_context_flush)( struct opengl_context *context, void (*flush)(void), UINT flags );
     BOOL (*p_context_create)( struct opengl_context *context, HDC hdc, struct opengl_context *share, const int *attribs );
     BOOL (*p_context_destroy)( struct opengl_context *context );
     BOOL (*p_context_reset)( struct opengl_context *context, struct opengl_context *share, const int *attribs );
-
+    BOOL (*p_pbuffer_create)( HDC hdc, int format, int width, int height, const int *attribs, HPBUFFERARB client_pbuffer );
     void *egl_handle;
 };
 
@@ -191,6 +207,7 @@ struct opengl_drawable
     LONG                                ref;            /* reference count */
     struct list                         entry;          /* entry in cleanup lists */
     struct client_surface              *client;         /* underlying client surface */
+    HDC                                 owner_hdc;      /* HDC owning the drawable, if any (for pbuffer / D3D swapchains) */
     int                                 format;         /* pixel format of the drawable */
     int                                 interval;       /* last set surface swap interval */
     BOOL                                doublebuffer;   /* pixel format is double buffered */
@@ -207,9 +224,16 @@ static inline const char *debugstr_opengl_drawable( struct opengl_drawable *draw
     return wine_dbg_sprintf( "%s/%p (format %u)", debugstr_client_surface( drawable->client ), drawable, drawable->format );
 }
 
+static inline void opengl_drawable_map_buffer( struct opengl_drawable *drawable, GLenum buffer, GLenum set )
+{
+    drawable->buffer_map[buffer - GL_FRONT_LEFT] = set;
+}
+
 W32KAPI void *opengl_drawable_create( UINT size, const struct opengl_drawable_funcs *funcs, int format, struct client_surface *client );
 W32KAPI void opengl_drawable_add_ref( struct opengl_drawable *drawable );
 W32KAPI void opengl_drawable_release( struct opengl_drawable *drawable );
+
+W32KAPI void set_window_opengl_drawable( HWND hwnd, struct opengl_drawable *drawable, BOOL current );
 
 /* interface between win32u and the user drivers */
 struct opengl_driver_funcs
@@ -218,7 +242,7 @@ struct opengl_driver_funcs
     void *(*p_get_proc_address)(const char *);
     UINT (*p_init_pixel_formats)(UINT*);
     BOOL (*p_describe_pixel_format)(int,struct wgl_pixel_format*);
-    const char *(*p_init_wgl_extensions)(struct opengl_funcs *funcs);
+    void (*p_init_extensions)( struct opengl_funcs *funcs, BOOLEAN extensions[GL_EXTENSION_COUNT] );
     BOOL (*p_surface_create)( HWND hwnd, int format, struct opengl_drawable **drawable );
     BOOL (*p_context_create)( int format, void *share, const int *attribs, void **context );
     BOOL (*p_context_destroy)(void*);

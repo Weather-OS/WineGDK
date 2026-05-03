@@ -63,12 +63,8 @@ static unsigned dbg_handle_debug_event(DEBUG_EVENT* de);
  *		dbg_attach_debuggee
  *
  * Sets the debuggee to <pid>
- * cofe instructs winedbg what to do when first exception is received 
- * (break=FALSE, continue=TRUE)
- * wfe is set to TRUE if dbg_attach_debuggee should also proceed with all debug events
- * until the first exception is received (aka: attach to an already running process)
  */
-BOOL dbg_attach_debuggee(DWORD pid)
+BOOL dbg_attach_debuggee(DWORD pid, BOOL verbose)
 {
     if (pid == GetCurrentProcessId())
     {
@@ -92,7 +88,8 @@ BOOL dbg_attach_debuggee(DWORD pid)
     SetEnvironmentVariableA("DBGHELP_NOLIVE", NULL);
 
     dbg_curr_process->active_debuggee = TRUE;
-    dbg_printf("WineDbg attached to pid %04lx\n", pid);
+    if (verbose)
+        dbg_printf("WineDbg attached to pid %04lx\n", pid);
     dbg_curr_pid = pid;
     dbg_curr_thread = NULL;
     dbg_curr_tid = 0;
@@ -840,14 +837,14 @@ enum dbg_start  dbg_active_attach(int argc, char* argv[])
     /* try the form <myself> pid */
     if (argc == 1 && str2int(argv[0], &pid) && pid != 0)
     {
-        if (!dbg_attach_debuggee(pid))
+        if (!dbg_attach_debuggee(pid, TRUE))
             return start_error_init;
     }
     /* try the form <myself> pid evt (Win32 JIT debugger) */
     else if (argc == 2 && str2int(argv[0], &pid) && pid != 0 &&
              str2int(argv[1], &evt) && evt != 0)
     {
-        if (!dbg_attach_debuggee(pid))
+        if (!dbg_attach_debuggee(pid, TRUE))
         {
             /* don't care about result */
             SetEvent((HANDLE)evt);
@@ -1092,10 +1089,46 @@ static BOOL tgt_process_active_get_selector(HANDLE hThread, DWORD sel, LDT_ENTRY
 #endif
 }
 
+BOOL dbg_fetch_active_thread_name(DWORD tid, WCHAR **description)
+{
+    static HRESULT (WINAPI *my_GetThreadDescription)(HANDLE, PWSTR*) = NULL;
+    static BOOL resolved = FALSE;
+    HANDLE h;
+    WCHAR *result = NULL;
+
+    if (!resolved)
+    {
+        HMODULE kernelbase = GetModuleHandleA("kernelbase.dll");
+        if (kernelbase)
+            my_GetThreadDescription = (void *)GetProcAddress(kernelbase, "GetThreadDescription");
+        resolved = TRUE;
+    }
+
+    if (my_GetThreadDescription && (h = OpenThread(THREAD_QUERY_LIMITED_INFORMATION, FALSE, tid)))
+    {
+        WCHAR *descr;
+        if (my_GetThreadDescription(h, &descr) == S_OK)
+        {
+            if (*descr) result = wcsdup(descr);
+            LocalFree(descr);
+        }
+        CloseHandle(h);
+    }
+    if (!result) return FALSE;
+    *description = result;
+    return TRUE;
+}
+
+static BOOL tgt_process_active_fetch_thread_name(const struct dbg_thread *thread, WCHAR **description)
+{
+    return dbg_fetch_active_thread_name(thread->tid, description);
+}
+
 static struct be_process_io be_process_active_io =
 {
     tgt_process_active_close_process,
     tgt_process_active_read,
     tgt_process_active_write,
-    tgt_process_active_get_selector
+    tgt_process_active_get_selector,
+    tgt_process_active_fetch_thread_name,
 };

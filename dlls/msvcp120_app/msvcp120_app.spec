@@ -1803,7 +1803,7 @@
 @ cdecl -arch=win64 ?_Xout_of_range@std@@YAXPEBD@Z(str) msvcp120.?_Xout_of_range@std@@YAXPEBD@Z
 @ stub -arch=win32 ?_Xoverflow_error@std@@YAXPBD@Z
 @ stub -arch=win64 ?_Xoverflow_error@std@@YAXPEBD@Z
-@ stub ?_Xregex_error@std@@YAXW4error_type@regex_constants@1@@Z
+@ cdecl ?_Xregex_error@std@@YAXW4error_type@regex_constants@1@@Z(long) msvcp120.?_Xregex_error@std@@YAXW4error_type@regex_constants@1@@Z
 @ cdecl -arch=win32 ?_Xruntime_error@std@@YAXPBD@Z(str) msvcp120.?_Xruntime_error@std@@YAXPBD@Z
 @ cdecl -arch=win64 ?_Xruntime_error@std@@YAXPEBD@Z(str) msvcp120.?_Xruntime_error@std@@YAXPEBD@Z
 # extern ?adopt_lock@std@@3Uadopt_lock_t@1@B

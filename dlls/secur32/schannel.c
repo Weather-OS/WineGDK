@@ -32,6 +32,8 @@
 #include "sspi.h"
 #define SCHANNEL_USE_BLACKLISTS
 #include "schannel.h"
+#include "bcrypt.h"
+#include "ncrypt.h"
 
 #include "wine/unixlib.h"
 #include "wine/debug.h"
@@ -512,6 +514,80 @@ static WCHAR *get_key_container_path(const CERT_CONTEXT *ctx)
 }
 
 #define MAX_LEAD_BYTES 8
+
+static void reverse_bytes(BYTE *buf, ULONG len)
+{
+    BYTE tmp;
+    ULONG i;
+    for (i = 0; i < len / 2; i++)
+    {
+        tmp = buf[i];
+        buf[i] = buf[len - i - 1];
+        buf[len - i - 1] = tmp;
+    }
+}
+
+/* Convert CAPI PRIVATEKEYBLOB (little-endian) to BCRYPT_RSAKEY_BLOB (big-endian) */
+static BYTE *convert_capi_to_bcrypt(const BYTE *capi_blob, DWORD capi_size, DWORD *out_size)
+{
+    const BLOBHEADER *blob_hdr = (const BLOBHEADER *)capi_blob;
+    const RSAPUBKEY *rsa_hdr = (const RSAPUBKEY *)(blob_hdr + 1);
+    BCRYPT_RSAKEY_BLOB *hdr;
+    DWORD bitlen, modlen, half, bcrypt_size;
+    const BYTE *src;
+    BYTE *buf, *dst;
+
+    if (capi_size < sizeof(BLOBHEADER) + sizeof(RSAPUBKEY)) return NULL;
+
+    bitlen = rsa_hdr->bitlen;
+    modlen = bitlen / 8;
+    half = bitlen / 16;
+
+    bcrypt_size = sizeof(BCRYPT_RSAKEY_BLOB) + sizeof(rsa_hdr->pubexp) + modlen * 2 + half * 5;
+    if (!(buf = malloc(bcrypt_size + MAX_LEAD_BYTES))) return NULL;
+
+    hdr = (BCRYPT_RSAKEY_BLOB *)buf;
+    hdr->Magic = BCRYPT_RSAFULLPRIVATE_MAGIC;
+    hdr->BitLength = bitlen;
+    hdr->cbPublicExp = sizeof(rsa_hdr->pubexp);
+    hdr->cbModulus = modlen;
+    hdr->cbPrime1 = half;
+    hdr->cbPrime2 = half;
+
+    dst = buf + sizeof(*hdr);
+
+    /* PublicExp: CAPI stores as DWORD (little-endian), BCRYPT as big-endian bytes */
+    reverse_bytes((BYTE *)&rsa_hdr->pubexp, sizeof(rsa_hdr->pubexp));
+    memcpy(dst, &rsa_hdr->pubexp, sizeof(rsa_hdr->pubexp));
+    dst += sizeof(rsa_hdr->pubexp);
+
+    src = (const BYTE *)(rsa_hdr + 1);
+
+    /* Modulus */
+    memcpy(dst, src, modlen); reverse_bytes(dst, modlen);
+    src += modlen; dst += modlen;
+    /* Prime1 */
+    memcpy(dst, src, half); reverse_bytes(dst, half);
+    src += half; dst += half;
+    /* Prime2 */
+    memcpy(dst, src, half); reverse_bytes(dst, half);
+    src += half; dst += half;
+    /* Exponent1 */
+    memcpy(dst, src, half); reverse_bytes(dst, half);
+    src += half; dst += half;
+    /* Exponent2 */
+    memcpy(dst, src, half); reverse_bytes(dst, half);
+    src += half; dst += half;
+    /* Coefficient */
+    memcpy(dst, src, half); reverse_bytes(dst, half);
+    src += half; dst += half;
+    /* PrivateExponent */
+    memcpy(dst, src, modlen); reverse_bytes(dst, modlen);
+
+    *out_size = bcrypt_size + MAX_LEAD_BYTES;
+    return buf;
+}
+
 static BYTE *get_key_blob(const CERT_CONTEXT *ctx, DWORD *size)
 {
     BYTE *buf, *ret = NULL;
@@ -548,17 +624,51 @@ static BYTE *get_key_blob(const CERT_CONTEXT *ctx, DWORD *size)
         blob_in.cbData = len;
         if (CryptUnprotectData(&blob_in, NULL, NULL, NULL, NULL, 0, &blob_out))
         {
-            assert(blob_in.cbData >= blob_out.cbData);
-            memcpy(buf, blob_out.pbData, blob_out.cbData);
+            ret = convert_capi_to_bcrypt(blob_out.pbData, blob_out.cbData, size);
             LocalFree(blob_out.pbData);
-            *size = blob_out.cbData + MAX_LEAD_BYTES;
-            ret = buf;
         }
     }
-    else free(buf);
 
+    free(buf);
     RegCloseKey(hkey);
     return ret;
+}
+
+static BYTE *get_key_blob_ncrypt(const CERT_CONTEXT *ctx, DWORD *size)
+{
+    CERT_KEY_CONTEXT keyctx;
+    DWORD ctx_size = sizeof(keyctx);
+    NCRYPT_KEY_HANDLE key;
+    DWORD blob_size;
+    BYTE *buf;
+    SECURITY_STATUS status;
+
+    if (!CertGetCertificateContextProperty(ctx, CERT_KEY_CONTEXT_PROP_ID, &keyctx, &ctx_size))
+        return NULL;
+    if (keyctx.dwKeySpec != CERT_NCRYPT_KEY_SPEC)
+        return NULL;
+
+    key = keyctx.hCryptProv;
+
+    status = NCryptExportKey(key, 0, BCRYPT_RSAFULLPRIVATE_BLOB, NULL, NULL, 0, &blob_size, 0);
+    if (status)
+    {
+        TRACE("NCryptExportKey size query failed: %#lx\n", status);
+        return NULL;
+    }
+
+    if (!(buf = malloc(blob_size + MAX_LEAD_BYTES))) return NULL;
+
+    status = NCryptExportKey(key, 0, BCRYPT_RSAFULLPRIVATE_BLOB, NULL, buf, blob_size, &blob_size, 0);
+    if (status)
+    {
+        TRACE("NCryptExportKey failed: %#lx\n", status);
+        free(buf);
+        return NULL;
+    }
+
+    *size = blob_size + MAX_LEAD_BYTES;
+    return buf;
 }
 
 static SECURITY_STATUS acquire_credentials_handle(ULONG fCredentialUse,
@@ -614,7 +724,8 @@ static SECURITY_STATUS acquire_credentials_handle(ULONG fCredentialUse,
     creds->credential_use = fCredentialUse;
     creds->enabled_protocols = enabled_protocols;
 
-    if (cert && !(key_blob = get_key_blob(cert, &key_size))) goto fail;
+    if (cert && !(key_blob = get_key_blob(cert, &key_size))
+             && !(key_blob = get_key_blob_ncrypt(cert, &key_size))) goto fail;
     params.c = creds;
     if (cert)
     {
@@ -1486,13 +1597,13 @@ static void schan_decrypt_fill_buffer(PSecBufferDesc message, ULONG buffer_type,
 static SECURITY_STATUS SEC_ENTRY schan_DecryptMessage(PCtxtHandle context_handle,
         PSecBufferDesc message, ULONG message_seq_no, PULONG quality)
 {
+    unsigned expected_size, remaining_size;
     SECURITY_STATUS status = SEC_E_OK;
     struct schan_context *ctx;
     struct recv_params params;
     SecBuffer *buffer;
     SIZE_T data_size;
     char *data;
-    unsigned expected_size;
     ULONG received = 0;
     int idx;
     unsigned char *buf_ptr;
@@ -1517,13 +1628,13 @@ static SECURITY_STATUS SEC_ENTRY schan_DecryptMessage(PCtxtHandle context_handle
     {
         TRACE("Expected %u bytes, but buffer only contains %lu bytes\n", expected_size, buffer->cbBuffer);
         buffer->BufferType = SECBUFFER_MISSING;
-        buffer->cbBuffer = expected_size - buffer->cbBuffer;
+        buffer->cbBuffer = remaining_size = expected_size - buffer->cbBuffer;
 
         /* This is a bit weird, but windows does it too */
         idx = schan_find_sec_buffer_idx(message, 0, SECBUFFER_EMPTY);
         buffer = &message->pBuffers[idx];
         buffer->BufferType = SECBUFFER_MISSING;
-        buffer->cbBuffer = expected_size - buffer->cbBuffer;
+        buffer->cbBuffer = remaining_size;
 
         TRACE("Returning SEC_E_INCOMPLETE_MESSAGE\n");
         return SEC_E_INCOMPLETE_MESSAGE;

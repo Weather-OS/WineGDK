@@ -1125,7 +1125,7 @@ GpStatus WINGDIPAPI GdipBitmapLockBits(GpBitmap* bitmap, GDIPCONST GpRect* rect,
 
     if(rect){
         if(rect->X < 0 || rect->Y < 0 || (rect->X + rect->Width > bitmap->width) ||
-          (rect->Y + rect->Height > bitmap->height) || !flags)
+          (rect->Y + rect->Height > bitmap->height))
         {
             image_unlock(&bitmap->image);
             return InvalidParameter;
@@ -1468,29 +1468,73 @@ GpStatus WINGDIPAPI GdipCreateBitmapFromGdiDib(GDIPCONST BITMAPINFO* info,
                                                VOID *bits, GpBitmap **bitmap)
 {
     DWORD height, stride;
-    HBITMAP hbm;
-    void *bmbits;
-    GpStatus status;
+    PixelFormat format;
+    BYTE *scan0;
 
     TRACE("(%p, %p, %p)\n", info, bits, bitmap);
 
     if (!info || !bits || !bitmap)
         return InvalidParameter;
 
-    hbm = CreateDIBSection(0, info, DIB_RGB_COLORS, &bmbits, NULL, 0);
-    if (!hbm)
+    if (info->bmiHeader.biSize < sizeof(BITMAPINFOHEADER))
         return InvalidParameter;
 
     height = abs(info->bmiHeader.biHeight);
     stride = ((info->bmiHeader.biWidth * info->bmiHeader.biBitCount + 31) >> 3) & ~3;
-    TRACE("height %lu, stride %lu, image size %lu\n", height, stride, height * stride);
+    scan0 = bits;
 
-    memcpy(bmbits, bits, height * stride);
+    if (info->bmiHeader.biHeight > 0)
+    {
+        scan0 = scan0 + (height - 1) * stride;
+        stride = -stride;
+    }
 
-    status = GdipCreateBitmapFromHBITMAP(hbm, NULL, bitmap);
-    DeleteObject(hbm);
+    switch (info->bmiHeader.biBitCount)
+    {
+        case 1:
+            format = PixelFormat1bppIndexed;
+            break;
+        case 4:
+            format = PixelFormat4bppIndexed;
+            break;
+        case 8:
+            format = PixelFormat8bppIndexed;
+            break;
+        case 16:
+        {
+            if (info->bmiHeader.biCompression == BI_RGB)
+            {
+                format = PixelFormat16bppRGB555;
+                break;
+            }
+            if (info->bmiHeader.biCompression == BI_BITFIELDS && info->bmiHeader.biSize >= FIELD_OFFSET(BITMAPV4HEADER, bV4AlphaMask))
+            {
+                const BITMAPV4HEADER *header = (const BITMAPV4HEADER*)info;
+                if (header->bV4RedMask == 0x7c00 && header->bV4GreenMask == 0x3e0 && header->bV4BlueMask == 0x1f)
+                {
+                    format = PixelFormat16bppRGB555;
+                    break;
+                }
+                if (header->bV4RedMask == 0xf800 && header->bV4GreenMask == 0x7e0 && header->bV4BlueMask == 0x1f)
+                {
+                    format = PixelFormat16bppRGB565;
+                    break;
+                }
+            }
+            return InvalidParameter;
+        }
+        case 24:
+            format = PixelFormat24bppRGB;
+            break;
+        case 32:
+            format = PixelFormat32bppRGB;
+            break;
+        default:
+            FIXME("don't know how to handle %d bpp\n", info->bmiHeader.biBitCount);
+            return InvalidParameter;
+    }
 
-    return status;
+    return GdipCreateBitmapFromScan0(info->bmiHeader.biWidth, height, stride, format, scan0, bitmap);
 }
 
 /* FIXME: no icm */
@@ -2223,8 +2267,12 @@ GpStatus WINGDIPAPI GdipGetImageHeight(GpImage *image, UINT *height)
         return InvalidParameter;
 
     if(image->type == ImageTypeMetafile)
+    {
+        if(!((GpMetafile*)image)->hemf)
+            return InvalidParameter;
         *height = units_to_pixels(((GpMetafile*)image)->bounds.Height, ((GpMetafile*)image)->unit,
                                   image->yres, ((GpMetafile*)image)->printer_display);
+    }
     else if(image->type == ImageTypeBitmap)
         *height = ((GpBitmap*)image)->height;
     else
@@ -2241,6 +2289,9 @@ GpStatus WINGDIPAPI GdipGetImageHeight(GpImage *image, UINT *height)
 GpStatus WINGDIPAPI GdipGetImageHorizontalResolution(GpImage *image, REAL *res)
 {
     if(!image || !res)
+        return InvalidParameter;
+
+    if((image->type == ImageTypeMetafile) && !((GpMetafile*)image)->hemf)
         return InvalidParameter;
 
     *res = image->xres;
@@ -2318,6 +2369,9 @@ GpStatus WINGDIPAPI GdipGetImageVerticalResolution(GpImage *image, REAL *res)
     if(!image || !res)
         return InvalidParameter;
 
+    if((image->type == ImageTypeMetafile) && !((GpMetafile*)image)->hemf)
+        return InvalidParameter;
+
     *res = image->yres;
 
     TRACE("(%p) <-- %0.2f\n", image, *res);
@@ -2333,8 +2387,12 @@ GpStatus WINGDIPAPI GdipGetImageWidth(GpImage *image, UINT *width)
         return InvalidParameter;
 
     if(image->type == ImageTypeMetafile)
+    {
+        if(!((GpMetafile*)image)->hemf)
+            return InvalidParameter;
         *width = units_to_pixels(((GpMetafile*)image)->bounds.Width, ((GpMetafile*)image)->unit,
                                  image->xres, ((GpMetafile*)image)->printer_display);
+    }
     else if(image->type == ImageTypeBitmap)
         *width = ((GpBitmap*)image)->width;
     else
@@ -3818,15 +3876,11 @@ static GpStatus decode_frame_wic(IWICBitmapDecoder *decoder, BOOL force_conversi
                 if (status == Ok) /* locked bitmap */
                 {
                     wrc.X = 0;
+                    wrc.Y = 0;
                     wrc.Width = width;
-                    wrc.Height = 1;
-                    for (i=0; i<height; i++)
-                    {
-                        wrc.Y = i;
-                        hr = IWICBitmapSource_CopyPixels(source, &wrc, abs(lockeddata.Stride),
-                            abs(lockeddata.Stride), (BYTE*)lockeddata.Scan0+lockeddata.Stride*i);
-                        if (FAILED(hr)) break;
-                    }
+                    wrc.Height = height;
+                    hr = IWICBitmapSource_CopyPixels(source, &wrc, lockeddata.Stride,
+                        lockeddata.Stride * height, (BYTE*)lockeddata.Scan0);
 
                     GdipBitmapUnlockBits(bitmap, &lockeddata);
                 }
@@ -6166,11 +6220,17 @@ GpStatus WINGDIPAPI GdipInitializePalette(ColorPalette *palette,
         wic_palette = get_palette(NULL, (WICBitmapPaletteType)type);
         if (!wic_palette) return OutOfMemory;
 
-        if (palette->Count >= wic_palette->Count)
+        if (palette->Count >= wic_palette->Count + (transparent ? 1 : 0))
         {
-            palette->Flags = wic_palette->Flags;
+            palette->Flags = (UINT)type << 8;
             palette->Count = wic_palette->Count;
             memcpy(palette->Entries, wic_palette->Entries, wic_palette->Count * sizeof(wic_palette->Entries[0]));
+            if (transparent)
+            {
+                /* If there is transparent color, add additional entry to palette */
+                palette->Entries[palette->Count] = 0x00000000;
+                palette->Count++;
+            }
         }
         else
             status = GenericError;

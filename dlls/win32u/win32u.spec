@@ -1150,7 +1150,7 @@
 @ stub -syscall NtUserInitializeInputDeviceInjection
 @ stub -syscall NtUserInitializePointerDeviceInjection
 @ stub -syscall NtUserInitializePointerDeviceInjectionEx
-@ stub -syscall NtUserInitializeTouchInjection
+@ stdcall -syscall NtUserInitializeTouchInjection(long long)
 @ stub -syscall NtUserInjectDeviceInput
 @ stub -syscall NtUserInjectGenericHidInput
 @ stub -syscall NtUserInjectGesture
@@ -1439,7 +1439,7 @@
 @ stub -syscall NtUserSetWindowCompositionTransition
 @ stdcall -syscall NtUserSetWindowContextHelpId(long long)
 @ stub -syscall NtUserSetWindowDisplayAffinity
-@ stub -syscall NtUserSetWindowFNID
+@ stdcall -syscall NtUserSetWindowFNID(long long)
 @ stub -syscall NtUserSetWindowFeedbackSetting
 @ stub -syscall NtUserSetWindowGroup
 @ stdcall -syscall NtUserSetWindowLong(long long long long)

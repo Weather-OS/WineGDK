@@ -68,6 +68,7 @@ static char mdbpath[MAX_PATH];
         expect_ ## func = called_ ## func = FALSE; \
     }while(0)
 
+DEFINE_EXPECT(rowset_QI_IConvertType);
 DEFINE_EXPECT(rowset_QI_IDBAsynchStatus);
 DEFINE_EXPECT(rowset_info_GetProperties);
 DEFINE_EXPECT(column_info_GetColumnInfo);
@@ -358,6 +359,10 @@ static void test_Recordset(void)
     ok( is_eof( recordset ), "not eof\n" );
     ok( is_bof( recordset ), "not bof\n" );
 
+    hr = _Recordset_get_CursorLocation(recordset, &location);
+    ok(hr == S_OK, "hr = %08lx\n", hr);
+    todo_wine ok(location == adUseClient, "got %d\n", location);
+
     hr = _Recordset_get_LockType( recordset, &lock_type );
     ok( hr == S_OK, "got %08lx\n", hr );
     ok( lock_type == adLockBatchOptimistic, "lock_type = %d\n", lock_type );
@@ -588,6 +593,7 @@ struct test_rowset
 
     BOOL exact_scroll;
     BOOL locate;
+    BOOL find_test;
     int idx;
 };
 
@@ -857,15 +863,16 @@ static HRESULT WINAPI column_info_GetColumnInfo(IColumnsInfo *This, DBORDINAL *c
         DBCOLUMNINFO **colinfo, OLECHAR **stringsbuffer)
 {
     DBCOLUMNINFO *dbcolumn;
+    OLECHAR *p;
 
     CHECK_EXPECT2(column_info_GetColumnInfo);
 
-    *columns = 2;
-    *stringsbuffer = CoTaskMemAlloc(sizeof(L"Column1"));
+    *columns = 3;
+    *stringsbuffer = CoTaskMemAlloc(sizeof(L"Column1") + sizeof(L"Column2"));
     lstrcpyW(*stringsbuffer, L"Column1");
 
-    dbcolumn = CoTaskMemAlloc(sizeof(*dbcolumn) * 2);
-    memset(dbcolumn, 0, sizeof(*dbcolumn) * 2);
+    dbcolumn = CoTaskMemAlloc(sizeof(*dbcolumn) * 3);
+    memset(dbcolumn, 0, sizeof(*dbcolumn) * 3);
 
     dbcolumn[0].dwFlags = DBCOLUMNFLAGS_ISBOOKMARK | DBCOLUMNFLAGS_ISFIXEDLENGTH;
     dbcolumn[0].ulColumnSize = sizeof(unsigned int);
@@ -874,7 +881,6 @@ static HRESULT WINAPI column_info_GetColumnInfo(IColumnsInfo *This, DBORDINAL *c
     dbcolumn[0].columnid.uGuid.guid = DBCOL_SPECIALCOL;
 
     dbcolumn[1].pwszName = *stringsbuffer;
-    dbcolumn[1].pTypeInfo = NULL;
     dbcolumn[1].iOrdinal = 1;
     dbcolumn[1].dwFlags = DBCOLUMNFLAGS_MAYBENULL;
     dbcolumn[1].ulColumnSize = 5;
@@ -883,6 +889,14 @@ static HRESULT WINAPI column_info_GetColumnInfo(IColumnsInfo *This, DBORDINAL *c
     dbcolumn[1].bScale = 1;
     dbcolumn[1].columnid.eKind = DBKIND_NAME;
     dbcolumn[1].columnid.uName.pwszName = *stringsbuffer;
+
+    p = *stringsbuffer + ARRAY_SIZE(L"Column1");
+    lstrcpyW(p, L"Column2");
+    dbcolumn[2].pwszName = p;
+    dbcolumn[2].iOrdinal = 1;
+    dbcolumn[2].wType = DBTYPE_BSTR;
+    dbcolumn[2].columnid.eKind = DBKIND_NAME;
+    dbcolumn[2].columnid.uName.pwszName = p;
 
     *colinfo = dbcolumn;
     return S_OK;
@@ -1092,8 +1106,18 @@ static HRESULT WINAPI accessor_CreateAccessor(IAccessor *iface, DBACCESSORFLAGS 
 static HRESULT WINAPI accessor_GetBindings(IAccessor *iface, HACCESSOR hAccessor,
         DBACCESSORFLAGS *pdwAccessorFlags, DBCOUNTITEM *pcBindings, DBBINDING **prgBindings)
 {
-    ok(0, "unexpected call\n");
-    return E_NOTIMPL;
+    struct haccessor *accessor = (struct haccessor *)hAccessor;
+
+    todo_wine ok(0, "unexpected call\n");
+
+    *pdwAccessorFlags = DBACCESSOR_ROWDATA;
+    *pcBindings = (hAccessor == 1 ? 0 : 1);
+    if (*pcBindings)
+    {
+        *prgBindings = CoTaskMemAlloc(sizeof(accessor->binding));
+        (*prgBindings)[0] = accessor->binding;
+    }
+    return S_OK;
 }
 
 static HRESULT WINAPI accessor_ReleaseAccessor(IAccessor *iface,
@@ -1335,6 +1359,7 @@ static HRESULT WINAPI rowset_find_FindNextRow(IRowsetFind *iface,
     DBBKMARK bookmark_size, const BYTE *bookmark, DBROWOFFSET offset,
     DBROWCOUNT rows, DBCOUNTITEM *obtained, HROW **hrows)
 {
+    struct test_rowset *rowset = impl_from_IRowsetFind( iface );
     struct haccessor *accessor = (struct haccessor *)hacc;
     VARIANT *v = find_value;
 
@@ -1348,6 +1373,10 @@ static HRESULT WINAPI rowset_find_FindNextRow(IRowsetFind *iface,
     ok(V_VT(v) == VT_BSTR, "v = %s\n", wine_dbgstr_variant(v));
     ok(!wcscmp(V_BSTR(v), L"1'1"), "v = %s\n", wine_dbgstr_variant(v));
     ok(compare_op == DBCOMPAREOPS_EQ, "compare_op = %ld\n", compare_op);
+    if (rowset->exact_scroll)
+        ok(bookmark_size == sizeof(int), "bookmark_size = %Id\n", bookmark_size);
+    else
+        ok(!bookmark_size, "bookmark_size = %Id\n", bookmark_size);
     if (!bookmark_size)
     {
         ok(!bookmark, "bookmark != NULL\n");
@@ -1545,6 +1574,8 @@ static HRESULT WINAPI rowset_QueryInterface(IRowsetExactScroll *iface, REFIID ri
     }
     else if (IsEqualIID(riid, &IID_IRowsetFind))
     {
+        if (!rowset->IRowsetFind_iface.lpVtbl)
+            return E_NOINTERFACE;
         *obj = &rowset->IRowsetFind_iface;
     }
     else if (IsEqualIID(riid, &IID_IRowsetView))
@@ -1559,6 +1590,11 @@ static HRESULT WINAPI rowset_QueryInterface(IRowsetExactScroll *iface, REFIID ri
             IsEqualIID(riid, &IID_IRowsetCurrentIndex))
     {
         *obj = &rowset->IRowsetCurrentIndex_iface;
+    }
+    else if (IsEqualIID(riid, &IID_IConvertType))
+    {
+        CHECK_EXPECT(rowset_QI_IConvertType);
+        return E_NOINTERFACE;
     }
     else if (IsEqualIID(riid, &UNK_INTERFACE) || IsEqualIID(riid, &UNK2_INTERFACE))
     {
@@ -1597,6 +1633,7 @@ static HRESULT WINAPI rowset_AddRefRows(IRowsetExactScroll *iface, DBCOUNTITEM c
 
 static HRESULT WINAPI rowset_GetData(IRowsetExactScroll *iface, HROW hRow, HACCESSOR hAccessor, void *pData)
 {
+    struct test_rowset *rowset = impl_from_IRowsetExactScroll( iface );
     struct haccessor *haccessor = (struct haccessor *)hAccessor;
     DBSTATUS status = DBSTATUS_S_OK;
     DBLENGTH len;
@@ -1621,13 +1658,31 @@ static HRESULT WINAPI rowset_GetData(IRowsetExactScroll *iface, HROW hRow, HACCE
         break;
 
     case 1:
-        ok(haccessor->binding.dwPart == (DBPART_VALUE | DBPART_STATUS),
-                "dwPart = %ld\n", haccessor->binding.dwPart);
+        if (!rowset->IRowsetFind_iface.lpVtbl)
+        {
+            todo_wine ok(haccessor->binding.dwPart == (DBPART_VALUE | DBPART_STATUS | DBPART_LENGTH),
+                    "dwPart = %ld\n", haccessor->binding.dwPart);
+        }
+        else
+        {
+            ok(haccessor->binding.dwPart == (DBPART_VALUE | DBPART_STATUS),
+                    "dwPart = %ld\n", haccessor->binding.dwPart);
+        }
         ok(haccessor->binding.cbMaxLen == sizeof(VARIANT), "cbMaxLen = %Id\n", haccessor->binding.cbMaxLen);
         ok(haccessor->binding.wType == DBTYPE_VARIANT, "wType = %d\n", haccessor->binding.wType);
 
         V_VT(&val.v) = VT_I4;
         V_I4(&val.v) = 123;
+        len = sizeof(val.v);
+        break;
+    case 2:
+        todo_wine ok(haccessor->binding.dwPart == (DBPART_VALUE | DBPART_STATUS | DBPART_LENGTH),
+                "dwPart = %ld\n", haccessor->binding.dwPart);
+        ok(haccessor->binding.cbMaxLen == sizeof(VARIANT), "cbMaxLen = %Id\n", haccessor->binding.cbMaxLen);
+        ok(haccessor->binding.wType == DBTYPE_VARIANT, "wType = %d\n", haccessor->binding.wType);
+
+        V_VT(&val.v) = VT_BSTR;
+        V_BSTR(&val.v) = SysAllocString(L"test");
         len = sizeof(val.v);
         break;
     default:
@@ -1963,11 +2018,11 @@ static void test_ADORecordsetConstruction(BOOL exact_scroll)
     hr = Fields_get_Count( fields, &count );
     ok( hr == S_OK, "got %08lx\n", hr );
     CHECK_CALLED( column_info_GetColumnInfo );
-    ok( count == 1, "got %ld\n", count );
+    ok( count == 2, "got %ld\n", count );
 
     hr = Fields_get_Count( fields, &count );
     ok( hr == S_OK, "got %08lx\n", hr );
-    ok( count == 1, "got %ld\n", count );
+    ok( count == 2, "got %ld\n", count );
 
     V_VT( &index ) = VT_BSTR;
     V_BSTR( &index ) = SysAllocString( L"Column1" );
@@ -2270,9 +2325,27 @@ static void test_ADORecordsetConstruction(BOOL exact_scroll)
     if (exact_scroll) CHECK_CALLED(rowset_GetData);
 
     if (exact_scroll) SET_EXPECT(rowset_GetData);
-    hr = _Recordset_Find( recordset, (BSTR)L"Column2 = 1", 0, adSearchForward, missing );
+    hr = _Recordset_Find( recordset, (BSTR)L"non_existing = 1", 0, adSearchForward, missing );
     ok(hr == MAKE_ADO_HRESULT( adErrItemNotFound ), "got %08lx\n", hr );
     if (exact_scroll) CHECK_CALLED(rowset_GetData);
+
+    V_VT(&v) = VT_BSTR;
+    V_BSTR(&v) = SysAllocString( L"" );
+    SET_EXPECT(accessor_AddRefAccessor);
+    SET_EXPECT(rowset_AddRefRows);
+    SET_EXPECT(rowset_ReleaseRows);
+    SET_EXPECT(rowset_find_FindNextRow);
+    if (exact_scroll) SET_EXPECT(rowset_GetData);
+    SET_EXPECT(accessor_ReleaseAccessor);
+    hr = _Recordset_Find( recordset, (BSTR)L"Column1 = 1'1", 0, adSearchForward, v );
+    ok( hr == S_OK, "got %08lx\n", hr );
+    CHECK_CALLED(accessor_AddRefAccessor);
+    CHECK_CALLED(rowset_AddRefRows);
+    CHECK_CALLED(rowset_ReleaseRows);
+    CHECK_CALLED(rowset_find_FindNextRow);
+    if (exact_scroll) CHECK_CALLED(rowset_GetData);
+    CHECK_CALLED(accessor_ReleaseAccessor);
+    VariantClear(&v);
 
     for (i = 0; i < ARRAY_SIZE(find_criteria); i++)
     {
@@ -3762,7 +3835,7 @@ static HRESULT WINAPI open_rowset_OpenRowset(IOpenRowset *iface, IUnknown *unk_o
     open_rowset_test.IRowsetView_iface.lpVtbl = &rowset_view;
     open_rowset_test.IChapteredRowset_iface.lpVtbl = &chaptered_rowset;
     open_rowset_test.IRowsetCurrentIndex_iface.lpVtbl = &rowset_current_index;
-    open_rowset_test.IRowsetFind_iface.lpVtbl = &rowset_find;
+    open_rowset_test.IRowsetFind_iface.lpVtbl = NULL;
     open_rowset_test.refs = 1;
     open_rowset_test.IViewChapter_iface.lpVtbl = &view_chapter;
     open_rowset_test.IViewFilter_iface.lpVtbl = &view_filter;
@@ -3786,13 +3859,18 @@ static void test_ADOConnectionConstruction(void)
     ADOConnectionConstruction15 *conn_constr;
     ADORecordsetConstruction *rec_constr;
     IRowsetExactScroll *rowset_es;
+    HROW hrow, *hrows = &hrow;
     _Recordset *recordset;
     DBCOUNTITEM rows, pos;
     IUnknown *unk, *unk2;
+    IAccessor *accessor;
     VARIANT v, missing;
     _Connection *conn;
+    IRowsetFind *find;
+    DBBINDING binding;
     IColumnsInfo *ci;
     IRowset *rowset;
+    HACCESSOR hacc;
     BYTE bookmark;
     LONG state;
     HRESULT hr;
@@ -3894,7 +3972,6 @@ static void test_ADOConnectionConstruction(void)
 
     rows = 0;
     SET_EXPECT(rowset_GetRowsAt);
-    SET_EXPECT(accessor_CreateAccessor);
     SET_EXPECT(rowset_GetData);
     SET_EXPECT(rowset_ReleaseRows);
     hr = IRowsetExactScroll_GetExactPosition(rowset_es, 0, 0, 0, 0, &rows);
@@ -3908,6 +3985,157 @@ static void test_ADOConnectionConstruction(void)
     hr = IRowsetExactScroll_GetExactPosition(rowset_es, 0, sizeof(bookmark), &bookmark, &pos, &rows);
     ok(hr == E_INVALIDARG, "got %08lx\n", hr);
     IRowsetExactScroll_Release(rowset_es);
+
+    hr = IRowset_QueryInterface(rowset, &IID_IRowsetFind, (void **)&find);
+    ok(hr == S_OK, "got %08lx\n", hr);
+
+    hr = IRowsetFind_QueryInterface(find, &IID_IAccessor, (void **)&accessor);
+    ok(hr == S_OK, "got %08lx\n", hr);
+    memset(&binding, 0, sizeof(binding));
+    binding.iOrdinal = 1;
+    binding.dwPart = DBPART_VALUE;
+    binding.cbMaxLen = sizeof(VARIANT);
+    binding.wType = DBTYPE_VARIANT;
+    SET_EXPECT(accessor_CreateAccessor);
+    SET_EXPECT(rowset_QI_IConvertType);
+    hr = IAccessor_CreateAccessor(accessor, DBACCESSOR_ROWDATA, 1, &binding, 0, &hacc, NULL);
+    ok(hr == S_OK, "got %08lx\n", hr);
+    CHECK_CALLED(accessor_CreateAccessor);
+    todo_wine CHECK_CALLED(rowset_QI_IConvertType);
+
+    hr = IRowsetFind_FindNextRow(find, 0, 0, NULL, DBCOMPAREOPS_EQ, 0, NULL, 0, 1, &rows, &hrows);
+    ok(hr == DB_E_BADACCESSORHANDLE, "got %08lx\n", hr);
+
+    V_VT(&v) = VT_BSTR;
+    V_BSTR(&v) = SysAllocString(L"1'1");
+    SET_EXPECT(rowset_GetNextRows);
+    SET_EXPECT(rowset_GetData);
+    SET_EXPECT(rowset_ReleaseRows);
+    hr = IRowsetFind_FindNextRow(find, 0, hacc, &v, DBCOMPAREOPS_EQ, 0, NULL, 0, 1, &rows, &hrows);
+    CHECK_CALLED(rowset_GetNextRows);
+    CHECK_CALLED(rowset_GetData);
+    CHECK_CALLED(rowset_ReleaseRows);
+    ok(hr == DISP_E_TYPEMISMATCH, "got %08lx\n", hr);
+    VariantClear(&v);
+
+    V_VT(&v) = VT_BSTR;
+    V_BSTR(&v) = SysAllocString(L"1");
+    rows = 1;
+    SET_EXPECT(rowset_GetNextRows);
+    SET_EXPECT(rowset_GetData);
+    SET_EXPECT(rowset_ReleaseRows);
+    hr = IRowsetFind_FindNextRow(find, 0, hacc, &v, DBCOMPAREOPS_EQ, 0, NULL, 0, 1, &rows, &hrows);
+    CHECK_CALLED(rowset_GetNextRows);
+    CHECK_CALLED(rowset_GetData);
+    CHECK_CALLED(rowset_ReleaseRows);
+    ok(hr == DB_S_ENDOFROWSET, "got %08lx\n", hr);
+    ok(!rows, "rows = %Id\n", rows);
+    VariantClear(&v);
+
+    SET_EXPECT(rowset_RestartPosition);
+    hr = IRowset_RestartPosition(rowset, 0);
+    CHECK_CALLED(rowset_RestartPosition);
+    ok(hr == S_OK, "got %08lx\n", hr);
+    V_VT(&v) = VT_BSTR;
+    V_BSTR(&v) = SysAllocString(L"123");
+    rows = 123;
+    hrow = 0xdeadbeef;
+    SET_EXPECT(rowset_GetNextRows);
+    SET_EXPECT(rowset_GetData);
+    SET_EXPECT(rowset_AddRefRows);
+    SET_EXPECT(rowset_ReleaseRows);
+    hr = IRowsetFind_FindNextRow(find, 0, hacc, &v, DBCOMPAREOPS_EQ, 0, NULL, 0, 1, &rows, &hrows);
+    CHECK_CALLED(rowset_GetNextRows);
+    CHECK_CALLED(rowset_GetData);
+    CHECK_CALLED(rowset_AddRefRows);
+    CHECK_CALLED(rowset_ReleaseRows);
+    ok(hr == S_OK, "got %08lx\n", hr);
+    ok(rows == 1, "rows = %Id\n", rows);
+    ok(hrow == 1, "hrow = %Id\n", hrow);
+
+    SET_EXPECT(rowset_GetNextRows);
+    SET_EXPECT(rowset_GetData);
+    SET_EXPECT(rowset_AddRefRows);
+    SET_EXPECT(rowset_ReleaseRows);
+    hr = IRowsetFind_FindNextRow(find, 0, hacc, &v,
+            DBCOMPAREOPS_EQ | DBCOMPAREOPS_CASESENSITIVE, 0, NULL, 0, 1, &rows, &hrows);
+    CHECK_CALLED(rowset_GetNextRows);
+    CHECK_CALLED(rowset_GetData);
+    CHECK_CALLED(rowset_AddRefRows);
+    CHECK_CALLED(rowset_ReleaseRows);
+    ok(hr == S_OK, "got %08lx\n", hr);
+    ok(rows == 1, "rows = %Id\n", rows);
+    ok(hrow == 2, "hrow = %Id\n", hrow);
+
+    V_BSTR(&v)[0] = '2';
+    bookmark = DBBMK_FIRST;
+    SET_EXPECT(rowset_GetRowsAt);
+    SET_EXPECT(rowset_GetData);
+    SET_EXPECT(rowset_ReleaseRows);
+    hr = IRowsetFind_FindNextRow(find, 0, hacc, &v, DBCOMPAREOPS_EQ,
+            sizeof(bookmark), &bookmark, 0, 1, &rows, &hrows);
+    CHECK_CALLED(rowset_GetRowsAt);
+    CHECK_CALLED(rowset_GetData);
+    CHECK_CALLED(rowset_ReleaseRows);
+    ok(hr == DB_S_ENDOFROWSET, "got %08lx\n", hr);
+    ok(!rows, "rows = %Id\n", rows);
+    ok(hrow == 2, "hrow = %Id\n", hrow);
+    VariantClear(&v);
+
+    SET_EXPECT(accessor_ReleaseAccessor);
+    hr = IAccessor_ReleaseAccessor(accessor, hacc, NULL);
+    ok(hr == S_OK, "got %08lx\n", hr);
+    CHECK_CALLED(accessor_ReleaseAccessor);
+
+    memset(&binding, 0, sizeof(binding));
+    binding.iOrdinal = 2;
+    binding.dwPart = DBPART_VALUE;
+    binding.cbMaxLen = sizeof(VARIANT);
+    binding.wType = DBTYPE_VARIANT;
+    SET_EXPECT(accessor_CreateAccessor);
+    hr = IAccessor_CreateAccessor(accessor, DBACCESSOR_ROWDATA, 1, &binding, 0, &hacc, NULL);
+    ok(hr == S_OK, "got %08lx\n", hr);
+    CHECK_CALLED(accessor_CreateAccessor);
+
+    V_VT(&v) = VT_BSTR;
+    V_BSTR(&v) = SysAllocString(L"TEST");
+    SET_EXPECT(rowset_GetRowsAt);
+    SET_EXPECT(rowset_GetData);
+    SET_EXPECT(rowset_AddRefRows);
+    SET_EXPECT(rowset_ReleaseRows);
+    hr = IRowsetFind_FindNextRow(find, 0, hacc, &v, DBCOMPAREOPS_EQ,
+            sizeof(bookmark), &bookmark, 0, 1, &rows, &hrows);
+    ok(hr == S_OK, "got %08lx\n", hr);
+    CHECK_CALLED(rowset_GetRowsAt);
+    CHECK_CALLED(rowset_GetData);
+    CHECK_CALLED(rowset_AddRefRows);
+    CHECK_CALLED(rowset_ReleaseRows);
+    ok(rows == 1, "rows = %Id\n", rows);
+    ok(hrow == 1, "hrow = %Id\n", hrow);
+
+    /* DBCOMPAREOPS_CASESENSITIVE is ignored */
+    SET_EXPECT(rowset_GetRowsAt);
+    SET_EXPECT(rowset_GetData);
+    SET_EXPECT(rowset_AddRefRows);
+    SET_EXPECT(rowset_ReleaseRows);
+    hr = IRowsetFind_FindNextRow(find, 0, hacc, &v,
+            DBCOMPAREOPS_BEGINSWITH | DBCOMPAREOPS_CASESENSITIVE,
+            sizeof(bookmark), &bookmark, 0, 1, &rows, &hrows);
+    ok(hr == S_OK, "got %08lx\n", hr);
+    CHECK_CALLED(rowset_GetRowsAt);
+    CHECK_CALLED(rowset_GetData);
+    CHECK_CALLED(rowset_AddRefRows);
+    CHECK_CALLED(rowset_ReleaseRows);
+    ok(rows == 1, "rows = %Id\n", rows);
+    ok(hrow == 1, "hrow = %Id\n", hrow);
+    VariantClear(&v);
+
+    SET_EXPECT(accessor_ReleaseAccessor);
+    hr = IAccessor_ReleaseAccessor(accessor, hacc, NULL);
+    ok(hr == S_OK, "got %08lx\n", hr);
+    CHECK_CALLED(accessor_ReleaseAccessor);
+    IAccessor_Release(accessor);
+    IRowsetFind_Release(find);
 
     SET_EXPECT(accessor_ReleaseAccessor);
     ok(!_Recordset_Release(recordset), "_Recordset not released\n");

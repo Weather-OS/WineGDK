@@ -25,8 +25,6 @@
 
 #include "wine/list.h"
 
-#define WINHTTP_HANDLE_TYPE_SOCKET 4
-
 struct object_header;
 struct object_vtbl
 {
@@ -46,14 +44,13 @@ struct object_header
     DWORD logon_policy;
     DWORD redirect_policy;
     DWORD error;
+    DWORD decompression;
     DWORD_PTR context;
     LONG refs;
     WINHTTP_STATUS_CALLBACK callback;
     DWORD notify_mask;
     LONG recursion_count;
     struct list entry;
-    volatile LONG pending_sends;
-    volatile LONG pending_receives;
 };
 
 struct hostdata
@@ -174,18 +171,48 @@ enum request_flags
     REQUEST_FLAG_WEBSOCKET_UPGRADE = 0x01,
 };
 
-enum request_response_state
+enum request_state
 {
-    REQUEST_RESPONSE_STATE_NONE,
-    REQUEST_RESPONSE_STATE_SENDING_REQUEST,
-    REQUEST_RESPONSE_STATE_READ_RESPONSE_QUEUED,
-    REQUEST_RESPONSE_STATE_REQUEST_SENT,
-    REQUEST_RESPONSE_STATE_READ_RESPONSE_QUEUED_REQUEST_SENT,
-    REQUEST_RESPONSE_STATE_REPLY_RECEIVED,
-    REQUEST_RESPONSE_STATE_READ_RESPONSE_QUEUED_REPLY_RECEIVED,
-    REQUEST_RESPONSE_RECURSIVE_REQUEST,
-    REQUEST_RESPONSE_STATE_RESPONSE_RECEIVED,
+    REQUEST_STATE_NONE,
+    REQUEST_STATE_RECURSIVE_REQUEST,
+    REQUEST_STATE_SENDING_REQUEST,
+    REQUEST_STATE_REQUEST_SENT,
+    REQUEST_STATE_READ_RESPONSE_QUEUED,
+    REQUEST_STATE_RECEIVING_RESPONSE,
+    REQUEST_STATE_RESPONSE_RECEIVED,
 };
+
+#define READ_BUFFER_SIZE 8192
+
+struct read_buffer
+{
+    DWORD pos;  /* current read position in buf */
+    DWORD size; /* valid data size in buf */
+    BYTE  buf[READ_BUFFER_SIZE]; /* buffer for already read but not returned data */
+};
+
+struct data_stream;
+struct request;
+
+struct data_stream_vtbl
+{
+    DWORD (*fill_buffer)( struct data_stream *, struct request *, struct read_buffer * );
+    BOOL  (*end_of_data)( struct data_stream *, struct request * );
+    DWORD (*drain_data)( struct data_stream *, struct request * );
+    void  (*destroy)( struct data_stream * );
+};
+
+struct data_stream
+{
+    const struct data_stream_vtbl *vtbl;
+};
+
+struct netconn_stream
+{
+    struct data_stream data_stream;
+};
+
+extern const struct data_stream_vtbl netconn_stream_vtbl;
 
 struct request
 {
@@ -215,12 +242,9 @@ struct request
     WCHAR *status_text;
     UINT64 content_length; /* total number of bytes to be read */
     UINT64 content_read;   /* bytes read so far */
-    BOOL  read_chunked;   /* are we reading in chunked mode? */
-    BOOL  read_chunked_eof;  /* end of stream in chunked mode */
-    BOOL  read_chunked_size; /* chunk size remaining */
-    DWORD read_pos;       /* current read position in read_buf */
-    DWORD read_size;      /* valid data size in read_buf */
-    char  read_buf[8192]; /* buffer for already read but not returned data */
+    struct read_buffer read;
+    struct data_stream *data_stream;
+    struct netconn_stream netconn_stream;
     struct header *headers;
     DWORD num_headers;
     struct authinfo *authinfo;
@@ -233,9 +257,8 @@ struct request
     } creds[TARGET_MAX][SCHEME_MAX];
     unsigned int websocket_receive_buffer_size;
     unsigned int websocket_send_buffer_size, websocket_set_send_buffer_size;
-    int read_reply_len;
-    DWORD read_reply_status;
-    enum request_response_state state;
+    int reply_len;
+    enum request_state state;
 };
 
 enum socket_state
@@ -296,6 +319,8 @@ struct socket
     unsigned int bytes_in_read_buffer;
     SRWLOCK send_lock;
     volatile LONG pending_noncontrol_send;
+    volatile LONG pending_sends;
+    volatile LONG pending_receives;
     enum fragment_type sending_fragment_type;
     enum fragment_type receiving_fragment_type;
     BOOL last_receive_final;
@@ -399,14 +424,16 @@ BOOL free_handle( HINTERNET );
 
 void send_callback( struct object_header *, DWORD, LPVOID, DWORD );
 void close_connection( struct request * );
-void init_queue( struct queue *queue );
+void init_queue( struct queue * );
+BOOL cancel_queue( struct queue * );
 void stop_queue( struct queue * );
+DWORD queue_task( struct queue *, TASK_CALLBACK, struct task_header *, struct object_header * );
+BOOL task_needs_completion( struct task_header * );
 
 void netconn_addref( struct netconn * );
 void netconn_release( struct netconn * );
 DWORD netconn_create( struct hostdata *, const struct sockaddr_storage *, int, struct netconn ** );
 void netconn_unload( void );
-ULONG netconn_query_data_available( struct netconn * );
 DWORD netconn_recv( struct netconn *, void *, size_t, int, int * );
 DWORD netconn_resolve( const WCHAR *, INTERNET_PORT, DWORD, struct sockaddr_storage *, int );
 DWORD netconn_secure_connect( struct netconn *, WCHAR *, DWORD, CredHandle *, BOOL );
@@ -415,6 +442,7 @@ BOOL netconn_wait_overlapped_result( struct netconn *conn, WSAOVERLAPPED *ovr, D
 void netconn_cancel_io( struct netconn *conn );
 DWORD netconn_set_timeout( struct netconn *, BOOL, int );
 BOOL netconn_is_alive( struct netconn * );
+BOOL netconn_is_valid( struct netconn * );
 const void *netconn_get_certificate( struct netconn * );
 int netconn_get_cipher_strength( struct netconn * );
 
@@ -424,6 +452,7 @@ DWORD add_request_headers( struct request *, const WCHAR *, DWORD, DWORD );
 void destroy_cookies( struct session * );
 BOOL set_server_for_hostname( struct connect *, const WCHAR *, INTERNET_PORT );
 void destroy_authinfo( struct authinfo * );
+void destroy_data_stream( struct data_stream * );
 
 void release_host( struct hostdata * );
 DWORD process_header( struct request *, const WCHAR *, const WCHAR *, DWORD, BOOL );

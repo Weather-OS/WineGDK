@@ -26,7 +26,6 @@
 #include <assert.h>
 
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 #include "ntgdi_private.h"
 #include "ntuser_private.h"
 #include "wine/opengl_driver.h"
@@ -70,7 +69,7 @@ static unsigned int set_startup_info_flags( unsigned int mask, unsigned int flag
 
 void init_startup_info(void)
 {
-    RTL_USER_PROCESS_PARAMETERS *p = NtCurrentTeb()->Peb->ProcessParameters;
+    RTL_USER_PROCESS_PARAMETERS *p = RtlGetCurrentPeb()->ProcessParameters;
 
     startup_show_window = p->wShowWindow;
     set_startup_info_flags( ~0u, p->dwFlags );
@@ -326,10 +325,7 @@ void *client_surface_create( UINT size, const struct client_surface_funcs *funcs
     surface->funcs = funcs;
     surface->ref = 1;
     surface->hwnd = hwnd;
-
-    pthread_mutex_lock( &surfaces_lock );
-    list_add_tail( &client_surfaces, &surface->entry );
-    pthread_mutex_unlock( &surfaces_lock );
+    list_init( &surface->entry );
 
     TRACE( "created %s\n", debugstr_client_surface( surface ) );
     return surface;
@@ -380,6 +376,17 @@ void client_surface_update( struct client_surface *surface )
 {
     pthread_mutex_lock( &surfaces_lock );
     if (surface->hwnd) surface->funcs->update( surface );
+    pthread_mutex_unlock( &surfaces_lock );
+}
+
+void add_window_client_surface( HWND hwnd, struct client_surface *surface )
+{
+    pthread_mutex_lock( &surfaces_lock );
+
+    surface->hwnd = hwnd;
+    list_add_tail( &client_surfaces, &surface->entry );
+    surface->funcs->update( surface );
+
     pthread_mutex_unlock( &surfaces_lock );
 }
 
@@ -1157,7 +1164,12 @@ BOOL is_zoomed( HWND hwnd )
     return (get_window_long( hwnd, GWL_STYLE ) & WS_MAXIMIZE) != 0;
 }
 
-static LONG_PTR get_window_long_size( HWND hwnd, INT offset, UINT size, BOOL ansi )
+static BOOL in_private_data_range( const WND *win, INT offset, UINT size )
+{
+    return offset < win->private_off + win->private_len && offset + size >= win->private_off;
+}
+
+static LONG_PTR get_window_long_size( HWND hwnd, INT offset, UINT size, BOOL ansi, BOOL internal )
 {
     LONG_PTR retval = 0;
     WND *win;
@@ -1220,7 +1232,8 @@ static LONG_PTR get_window_long_size( HWND hwnd, INT offset, UINT size, BOOL ans
 
     if (offset >= 0)
     {
-        if (offset > (int)(win->cbWndExtra - size))
+        if (offset > (int)(win->cbWndExtra - size) ||
+            (!internal && in_private_data_range( win, offset, size )))
         {
             WARN("Invalid offset %d\n", offset );
             release_win_ptr( win );
@@ -1261,13 +1274,13 @@ static LONG_PTR get_window_long_size( HWND hwnd, INT offset, UINT size, BOOL ans
 /* see GetWindowLongW */
 DWORD get_window_long( HWND hwnd, INT offset )
 {
-    return get_window_long_size( hwnd, offset, sizeof(LONG), FALSE );
+    return get_window_long_size( hwnd, offset, sizeof(LONG), FALSE, FALSE );
 }
 
 /* see GetWindowLongPtr */
 ULONG_PTR get_window_long_ptr( HWND hwnd, INT offset, BOOL ansi )
 {
-    return get_window_long_size( hwnd, offset, sizeof(LONG_PTR), ansi );
+    return get_window_long_size( hwnd, offset, sizeof(LONG_PTR), ansi, FALSE );
 }
 
 /* see GetWindowWord */
@@ -1278,7 +1291,7 @@ static WORD get_window_word( HWND hwnd, INT offset )
         RtlSetLastWin32Error( ERROR_INVALID_INDEX );
         return 0;
     }
-    return get_window_long_size( hwnd, offset, sizeof(WORD), TRUE );
+    return get_window_long_size( hwnd, offset, sizeof(WORD), TRUE, FALSE );
 }
 
 UINT set_window_style_bits( HWND hwnd, UINT set_bits, UINT clear_bits )
@@ -1378,7 +1391,8 @@ static HWND set_window_owner( HWND hwnd, HWND owner )
 }
 
 /* Helper function for SetWindowLong(). */
-LONG_PTR set_window_long( HWND hwnd, INT offset, UINT size, LONG_PTR newval, BOOL ansi )
+static LONG_PTR set_window_long_internal( HWND hwnd, INT offset, UINT size,
+                                          LONG_PTR newval, BOOL ansi, BOOL internal )
 {
     BOOL ok, made_visible = FALSE, layered = FALSE;
     LONG_PTR retval = 0;
@@ -1477,7 +1491,8 @@ LONG_PTR set_window_long( HWND hwnd, INT offset, UINT size, LONG_PTR newval, BOO
     case GWLP_USERDATA:
         break;
     default:
-        if (offset < 0 || offset > (int)(win->cbWndExtra - size))
+        if (offset < 0 || offset > (int)(win->cbWndExtra - size) ||
+            (!internal && in_private_data_range( win, offset, size )))
         {
             WARN("Invalid offset %d\n", offset );
             release_win_ptr( win );
@@ -1560,6 +1575,62 @@ LONG_PTR set_window_long( HWND hwnd, INT offset, UINT size, LONG_PTR newval, BOO
     return retval;
 }
 
+LONG_PTR set_window_long( HWND hwnd, INT offset, UINT size, LONG_PTR newval, BOOL ansi )
+{
+    return set_window_long_internal( hwnd, offset, size, newval, ansi, FALSE );
+}
+
+/**********************************************************************
+ *           NtUserSetWindowFNID (win32u.@)
+ *
+ * fnid parameter not compatible with Windows.
+ */
+BOOL WINAPI NtUserSetWindowFNID( HWND hwnd, WORD fnid )
+{
+    int off = FNID_OFF(fnid);
+    int len = FNID_LEN(fnid);
+    WND *win;
+    BOOL ret;
+
+    TRACE( "%p %x\n", hwnd, fnid );
+
+    if (!(win = get_win_ptr( hwnd )))
+    {
+        RtlSetLastWin32Error( ERROR_INVALID_WINDOW_HANDLE );
+        return FALSE;
+    }
+
+    if (win == WND_DESKTOP || win == WND_OTHER_PROCESS)
+    {
+        RtlSetLastWin32Error( ERROR_ACCESS_DENIED );
+        return FALSE;
+    }
+
+    if (win->private_len)
+    {
+        ret = win->private_off == off && win->private_len == len;
+
+        release_win_ptr( win );
+        if (!ret) RtlSetLastWin32Error( ERROR_INVALID_PARAMETER );
+        return ret;
+    }
+
+    SERVER_START_REQ( set_window_info )
+    {
+        req->handle = wine_server_user_handle( hwnd );
+        req->offset = GWLP_FNID_INTERNAL;
+        req->new_info = fnid;
+        if ((ret = !wine_server_call_err( req )))
+        {
+            win->private_off = off;
+            win->private_len = len;
+        }
+    }
+    SERVER_END_REQ;
+    release_win_ptr( win );
+    return ret;
+}
+
 /**********************************************************************
  *           NtUserSetWindowWord (win32u.@)
  */
@@ -1592,6 +1663,7 @@ LONG_PTR WINAPI NtUserSetWindowLongPtr( HWND hwnd, INT offset, LONG_PTR newval, 
 BOOL set_window_pixel_format( HWND hwnd, int format, BOOL internal )
 {
     WND *win = get_win_ptr( hwnd );
+    BOOL changed = FALSE;
 
     if (!win || win == WND_DESKTOP || win == WND_OTHER_PROCESS)
     {
@@ -1600,10 +1672,10 @@ BOOL set_window_pixel_format( HWND hwnd, int format, BOOL internal )
         return FALSE;
     }
     if (!internal) win->pixel_format = format;
-    if (format) win->clip_clients = TRUE;
+    if (format && !win->clip_clients) changed = win->clip_clients = TRUE;
     release_win_ptr( win );
 
-    update_window_state( hwnd );
+    if (changed) update_window_state( hwnd );
     return TRUE;
 }
 
@@ -2272,7 +2344,6 @@ static BOOL apply_window_pos( HWND hwnd, HWND insert_after, UINT swp_flags, stru
         {
             MONITORINFO monitor_info = monitor_info_from_rect( new_rects->window, dpi );
             struct window_rects rects = { monitor_info.rcMonitor, monitor_info.rcMonitor, monitor_info.rcMonitor };
-            OffsetRect( &rects.client, -rects.client.left, -rects.client.top );
             swp_flags |= WINE_SWP_FULLSCREEN;
             swp_flags &= ~WINE_SWP_RESIZABLE;
             monitor_rects = map_window_rects_virt_to_raw( rects, dpi );
@@ -2607,7 +2678,7 @@ BOOL WINAPI NtUserUpdateLayeredWindow( HWND hwnd, HDC hdc_dst, const POINT *pts_
     apply_window_pos( hwnd, 0, swp_flags, surface, &new_rects, NULL );
     if (!surface) return FALSE;
 
-    if (!hdc_src || surface == &dummy_surface)
+    if (!hdc_src || surface == &dummy_surface || NtUserWindowFromDC( hdc_src ) == hwnd)
     {
         user_driver->pUpdateLayeredWindow( hwnd, source_alpha, flags );
         ret = TRUE;
@@ -3002,6 +3073,18 @@ static void make_point_onscreen( POINT *pt )
     make_rect_onscreen( &rect );
     pt->x = rect.left;
     pt->y = rect.top;
+}
+
+void set_window_normal_placement( HWND hwnd, RECT rect )
+{
+    WND *win = get_win_ptr( hwnd );
+
+    if (win && win != WND_OTHER_PROCESS && win != WND_DESKTOP)
+    {
+        make_rect_onscreen( &rect );
+        win->normal_rect = rect_thread_to_win_dpi( hwnd, rect );
+        release_win_ptr( win );
+    }
 }
 
 static BOOL set_window_placement( HWND hwnd, const WINDOWPLACEMENT *wndpl, UINT flags )
@@ -5567,7 +5650,7 @@ static void fix_cs_coordinates( CREATESTRUCTW *cs, INT *sw )
     }
     else  /* overlapped window */
     {
-        RTL_USER_PROCESS_PARAMETERS *params = NtCurrentTeb()->Peb->ProcessParameters;
+        RTL_USER_PROCESS_PARAMETERS *params = RtlGetCurrentPeb()->ProcessParameters;
         MONITORINFO mon_info;
 
         if (!is_default_coord( cs->x ) && !is_default_coord( cs->cx ) && !is_default_coord( cs->cy ))
@@ -6119,7 +6202,7 @@ ULONG_PTR WINAPI NtUserCallHwndParam( HWND hwnd, DWORD_PTR param, DWORD code )
         return get_window_info( hwnd, (WINDOWINFO *)param );
 
     case NtUserCallHwndParam_GetWindowLongA:
-        return get_window_long_size( hwnd, param, sizeof(LONG), TRUE );
+        return get_window_long_size( hwnd, param, sizeof(LONG), TRUE, FALSE );
 
     case NtUserCallHwndParam_GetWindowLongW:
         return get_window_long( hwnd, param );
@@ -6202,6 +6285,18 @@ ULONG_PTR WINAPI NtUserCallHwndParam( HWND hwnd, DWORD_PTR param, DWORD code )
     {
         struct set_raw_window_pos_params *params = (void *)param;
         return set_raw_window_pos( hwnd, params->rect, params->flags, params->internal );
+    }
+
+    case NtUserCallHwndParam_GetPrivateData:
+    {
+        struct get_private_data_params *params = (void *)param;
+        return get_window_long_size( hwnd, params->offset, params->size, FALSE, TRUE );
+    }
+
+    case NtUserCallHwndParam_SetPrivateData:
+    {
+        struct set_private_data_params *params = (void *)param;
+        return set_window_long_internal( hwnd, params->offset, params->size, params->value, FALSE, TRUE );
     }
 
     default:

@@ -1,6 +1,5 @@
-# FROM line will be added dynamically
+FROM debian:trixie
 
-ARG ARCH
 WORKDIR /tmp
 
 RUN export DEBIAN_FRONTEND=noninteractive; \
@@ -97,6 +96,8 @@ RUN export DEBIAN_FRONTEND=noninteractive; \
             gcc \
             gcc-mingw-w64-i686 \
             gcc-mingw-w64-x86-64 \
+            g++-mingw-w64-i686 \
+            g++-mingw-w64-x86-64 \
             gcc-multilib \
             libunwind-dev \
             gstreamer1.0-libav:i386 \

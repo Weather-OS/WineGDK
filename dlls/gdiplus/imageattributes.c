@@ -153,7 +153,7 @@ GpStatus WINGDIPAPI GdipSetImageAttributesColorMatrix(GpImageAttributes *imageat
     TRACE("(%p,%u,%i,%p,%p,%u)\n", imageattr, type, enableFlag, colorMatrix,
         grayMatrix, flags);
 
-    if(!imageattr || !is_valid_ColorAdjustType(type) || flags > ColorMatrixFlagsAltGray)
+    if(!imageattr || !is_valid_ColorAdjustType(type) || flags < ColorMatrixFlagsDefault || flags > ColorMatrixFlagsAltGray)
         return InvalidParameter;
 
     if (enableFlag)

@@ -36,6 +36,16 @@ msgstr "拒绝"
 msgid "Permissions for %1"
 msgstr "%1 的权限"
 
+#: dlls/aero.msstyles/aero.rc:29 dlls/aero.msstyles/aero.rc:35
+#: dlls/comdlg32/comdlg32.rc:134 programs/wordpad/wordpad.rc:137
+msgid "Blue"
+msgstr "蓝色"
+
+#: dlls/aero.msstyles/aero.rc:41 dlls/aero.msstyles/aero.rc:47
+#: programs/winhlp32/winhlp32.rc:53 programs/winhlp32/winhlp32.rc:73
+msgid "Normal"
+msgstr "普通"
+
 #: dlls/appwiz.cpl/appwiz.rc:60
 msgid "Install/Uninstall"
 msgstr "安装/卸载"
@@ -69,7 +79,7 @@ msgstr "修改(&M)..."
 
 #: dlls/appwiz.cpl/appwiz.rc:71 dlls/appwiz.cpl/appwiz.rc:45
 #: dlls/cryptui/cryptui.rc:351 dlls/msacm32/msacm32.rc:40
-#: programs/winecfg/winecfg.rc:205 programs/winecfg/winecfg.rc:242
+#: programs/winecfg/winecfg.rc:206 programs/winecfg/winecfg.rc:243
 #: programs/wordpad/wordpad.rc:256
 msgid "&Remove"
 msgstr "删除(&R)"
@@ -106,7 +116,7 @@ msgstr "技术支持信息"
 #: programs/regedit/regedit.rc:325 programs/regedit/regedit.rc:341
 #: programs/regedit/regedit.rc:354 programs/regedit/regedit.rc:367
 #: programs/taskmgr/taskmgr.rc:442 programs/taskmgr/taskmgr.rc:517
-#: programs/winecfg/winecfg.rc:219 programs/winecfg/winecfg.rc:229
+#: programs/winecfg/winecfg.rc:220 programs/winecfg/winecfg.rc:230
 #: programs/winefile/winefile.rc:127 programs/winefile/winefile.rc:150
 #: programs/winefile/winefile.rc:180 programs/winemine/winemine.rc:73
 #: programs/winemine/winemine.rc:84 programs/winemine/winemine.rc:98
@@ -211,7 +221,7 @@ msgstr "安装(&I)"
 #: programs/regedit/regedit.rc:342 programs/regedit/regedit.rc:355
 #: programs/regedit/regedit.rc:368 programs/taskmgr/taskmgr.rc:443
 #: programs/taskmgr/taskmgr.rc:518 programs/wineboot/wineboot.rc:34
-#: programs/winecfg/winecfg.rc:220 programs/winecfg/winecfg.rc:230
+#: programs/winecfg/winecfg.rc:221 programs/winecfg/winecfg.rc:231
 #: programs/winefile/winefile.rc:128 programs/winefile/winefile.rc:151
 #: programs/winefile/winefile.rc:181 programs/winemine/winemine.rc:99
 #: programs/wordpad/wordpad.rc:216 programs/wordpad/wordpad.rc:227
@@ -696,7 +706,7 @@ msgid "Font St&yle:"
 msgstr "字体样式(&Y):"
 
 #: dlls/comdlg32/comdlg32.rc:260 dlls/comdlg32/comdlg32.rc:439
-#: programs/winecfg/winecfg.rc:302
+#: programs/winecfg/winecfg.rc:303
 msgid "&Size:"
 msgstr "大小(&S):"
 
@@ -712,7 +722,7 @@ msgstr "删除线(&K)"
 msgid "&Underline"
 msgstr "下划线(&U)"
 
-#: dlls/comdlg32/comdlg32.rc:270 programs/winecfg/winecfg.rc:300
+#: dlls/comdlg32/comdlg32.rc:270 programs/winecfg/winecfg.rc:301
 msgid "&Color:"
 msgstr "配色(&C):"
 
@@ -889,7 +899,7 @@ msgstr "份数(&C):"
 msgid "C&ollate"
 msgstr "逐份打印(&O)"
 
-#: dlls/comdlg32/comdlg32.rc:414 programs/winecfg/winecfg.rc:308
+#: dlls/comdlg32/comdlg32.rc:414 programs/winecfg/winecfg.rc:309
 msgid "Si&ze:"
 msgstr "大小(&Z):"
 
@@ -967,7 +977,7 @@ msgstr "文件名:"
 msgid "Files of type:"
 msgstr "文件类型:"
 
-#: dlls/comdlg32/comdlg32.rc:33 dlls/vbscript/vbscript.rc:35
+#: dlls/comdlg32/comdlg32.rc:33 dlls/vbscript/vbscript.rc:37
 msgid "File not found"
 msgstr "找不到文件"
 
@@ -1099,11 +1109,6 @@ msgstr "青柠色"
 #: dlls/comdlg32/comdlg32.rc:133 programs/wordpad/wordpad.rc:136
 msgid "Yellow"
 msgstr "黄色"
-
-#: dlls/comdlg32/comdlg32.rc:134 dlls/light.msstyles/light.rc:29
-#: dlls/light.msstyles/light.rc:35 programs/wordpad/wordpad.rc:137
-msgid "Blue"
-msgstr "蓝色"
 
 #: dlls/comdlg32/comdlg32.rc:135 programs/wordpad/wordpad.rc:138
 msgid "Fuchsia"
@@ -2415,7 +2420,7 @@ msgid "&File name:"
 msgstr "文件名(&F):"
 
 #: dlls/cryptui/cryptui.rc:301 dlls/cryptui/cryptui.rc:323
-#: dlls/cryptui/cryptui.rc:437 programs/winecfg/winecfg.rc:321
+#: dlls/cryptui/cryptui.rc:437 programs/winecfg/winecfg.rc:322
 msgid "B&rowse..."
 msgstr "浏览(&R)..."
 
@@ -3748,11 +3753,19 @@ msgstr "Indeo5"
 msgid "Indeo Video Interactive version 5 video codec"
 msgstr "Indeo Video Interactive 版本 5 视频编解码器"
 
+#: dlls/iyuv_32/iyuv_32.rc:28
+msgid "IYUV codec"
+msgstr ""
+
+#: dlls/iyuv_32/iyuv_32.rc:29
+msgid "Intel Indeo IYUV codec"
+msgstr ""
+
 #: dlls/joy.cpl/joy.rc:37
 msgid "Joysticks"
 msgstr "操纵杆"
 
-#: dlls/joy.cpl/joy.rc:40 programs/winecfg/winecfg.rc:218
+#: dlls/joy.cpl/joy.rc:40 programs/winecfg/winecfg.rc:219
 msgid "&Disable"
 msgstr "停用(&D)"
 
@@ -3896,11 +3909,11 @@ msgstr "过程调用或参数无效"
 msgid "Subscript out of range"
 msgstr "标记越界"
 
-#: dlls/jscript/jscript.rc:31
+#: dlls/jscript/jscript.rc:31 dlls/vbscript/vbscript.rc:36
 msgid "Out of stack space"
 msgstr "堆栈空间不足"
 
-#: dlls/jscript/jscript.rc:32
+#: dlls/jscript/jscript.rc:32 dlls/vbscript/vbscript.rc:49
 msgid "Object required"
 msgstr "需要对象"
 
@@ -3908,23 +3921,23 @@ msgstr "需要对象"
 msgid "Automation server can't create object"
 msgstr "自动化服务器无法创建对象"
 
-#: dlls/jscript/jscript.rc:34 dlls/vbscript/vbscript.rc:49
+#: dlls/jscript/jscript.rc:34 dlls/vbscript/vbscript.rc:53
 msgid "Object doesn't support this property or method"
 msgstr "对象不支持此属性或方式"
 
-#: dlls/jscript/jscript.rc:35 dlls/vbscript/vbscript.rc:50
+#: dlls/jscript/jscript.rc:35 dlls/vbscript/vbscript.rc:54
 msgid "Object doesn't support this action"
 msgstr "对象不支持此动作"
 
-#: dlls/jscript/jscript.rc:36 dlls/vbscript/vbscript.rc:54
+#: dlls/jscript/jscript.rc:36 dlls/vbscript/vbscript.rc:58
 msgid "Argument not optional"
 msgstr "参数不是可选参数"
 
-#: dlls/jscript/jscript.rc:37 dlls/vbscript/vbscript.rc:56
+#: dlls/jscript/jscript.rc:37 dlls/vbscript/vbscript.rc:60
 msgid "Object not a collection"
 msgstr "对象不是集合"
 
-#: dlls/jscript/jscript.rc:38
+#: dlls/jscript/jscript.rc:38 dlls/vbscript/vbscript.rc:69
 msgid "Syntax error"
 msgstr "语法错误"
 
@@ -3932,27 +3945,27 @@ msgstr "语法错误"
 msgid "Expected ';'"
 msgstr "期望得到 ';'"
 
-#: dlls/jscript/jscript.rc:40
+#: dlls/jscript/jscript.rc:40 dlls/vbscript/vbscript.rc:70
 msgid "Expected '('"
 msgstr "期望得到 '('"
 
-#: dlls/jscript/jscript.rc:41
+#: dlls/jscript/jscript.rc:41 dlls/vbscript/vbscript.rc:72
 msgid "Expected ')'"
 msgstr "期望得到 ')'"
 
-#: dlls/jscript/jscript.rc:42
+#: dlls/jscript/jscript.rc:42 dlls/vbscript/vbscript.rc:73
 msgid "Expected identifier"
 msgstr "期望标识符"
 
-#: dlls/jscript/jscript.rc:43
+#: dlls/jscript/jscript.rc:43 dlls/vbscript/vbscript.rc:74
 msgid "Expected '='"
 msgstr "期望得到 '='"
 
-#: dlls/jscript/jscript.rc:44
+#: dlls/jscript/jscript.rc:44 dlls/vbscript/vbscript.rc:93
 msgid "Invalid character"
 msgstr "无效字符"
 
-#: dlls/jscript/jscript.rc:45
+#: dlls/jscript/jscript.rc:45 dlls/vbscript/vbscript.rc:94
 msgid "Unterminated string constant"
 msgstr "未终止的字符串常量"
 
@@ -3996,7 +4009,7 @@ msgstr "Microsoft JScript 编译错误"
 msgid "Microsoft JScript runtime error"
 msgstr "Microsoft JScript 运行时错误"
 
-#: dlls/jscript/jscript.rc:99 dlls/vbscript/vbscript.rc:64
+#: dlls/jscript/jscript.rc:99 dlls/vbscript/vbscript.rc:118
 msgid "Unknown runtime error"
 msgstr "未知运行时错误"
 
@@ -4020,7 +4033,7 @@ msgstr "'[object]' 不是日期对象"
 msgid "Object expected"
 msgstr "期望得到对象"
 
-#: dlls/jscript/jscript.rc:59
+#: dlls/jscript/jscript.rc:59 dlls/vbscript/vbscript.rc:66
 msgid "Illegal assignment"
 msgstr "非法赋值"
 
@@ -4210,3026 +4223,3150 @@ msgstr "格鲁吉亚语"
 msgid "Armenian"
 msgstr "亚美尼亚语"
 
-#: dlls/kernelbase/winerror.mc:28
+#: dlls/kernelbase/winerror.mc:30
 msgid "Success.\n"
 msgstr "成功。\n"
 
-#: dlls/kernelbase/winerror.mc:33
+#: dlls/kernelbase/winerror.mc:35
 msgid "Invalid function.\n"
 msgstr "无效的函数。\n"
 
-#: dlls/kernelbase/winerror.mc:38
+#: dlls/kernelbase/winerror.mc:40
 msgid "File not found.\n"
 msgstr "找不到文件。\n"
 
-#: dlls/kernelbase/winerror.mc:43
+#: dlls/kernelbase/winerror.mc:45
 msgid "Path not found.\n"
 msgstr "找不到路径。\n"
 
-#: dlls/kernelbase/winerror.mc:48 dlls/kernelbase/winerror.mc:3773
+#: dlls/kernelbase/winerror.mc:50 dlls/kernelbase/winerror.mc:3895
 msgid "Too many open files.\n"
 msgstr "太多打开的文件。\n"
 
-#: dlls/kernelbase/winerror.mc:53 dlls/kernelbase/winerror.mc:3758
+#: dlls/kernelbase/winerror.mc:55 dlls/kernelbase/winerror.mc:3880
 msgid "Access denied.\n"
 msgstr "访问被拒绝。\n"
 
-#: dlls/kernelbase/winerror.mc:58
+#: dlls/kernelbase/winerror.mc:60
 msgid "Invalid handle.\n"
 msgstr "无效的句柄。\n"
 
-#: dlls/kernelbase/winerror.mc:63
+#: dlls/kernelbase/winerror.mc:65
 msgid "Memory trashed.\n"
 msgstr "内存已回收。\n"
 
-#: dlls/kernelbase/winerror.mc:68
+#: dlls/kernelbase/winerror.mc:70
 msgid "Not enough memory.\n"
 msgstr "内存不足。\n"
 
-#: dlls/kernelbase/winerror.mc:73
+#: dlls/kernelbase/winerror.mc:75
 msgid "Invalid block.\n"
 msgstr "无效的块。\n"
 
-#: dlls/kernelbase/winerror.mc:78
+#: dlls/kernelbase/winerror.mc:80
 msgid "Bad environment.\n"
 msgstr "环境错误。\n"
 
-#: dlls/kernelbase/winerror.mc:83
+#: dlls/kernelbase/winerror.mc:85
 msgid "Bad format.\n"
 msgstr "格式错误。\n"
 
-#: dlls/kernelbase/winerror.mc:88
+#: dlls/kernelbase/winerror.mc:90
 msgid "Invalid access.\n"
 msgstr "无效的访问。\n"
 
-#: dlls/kernelbase/winerror.mc:93
+#: dlls/kernelbase/winerror.mc:95
 msgid "Invalid data.\n"
 msgstr "无效的数据。\n"
 
-#: dlls/kernelbase/winerror.mc:98
+#: dlls/kernelbase/winerror.mc:100
 msgid "Out of memory.\n"
 msgstr "内存不足。\n"
 
-#: dlls/kernelbase/winerror.mc:103
+#: dlls/kernelbase/winerror.mc:105
 msgid "Invalid drive.\n"
 msgstr "无效的驱动器。\n"
 
-#: dlls/kernelbase/winerror.mc:108
+#: dlls/kernelbase/winerror.mc:110
 msgid "Can't delete current directory.\n"
 msgstr "无法删除当前目录。\n"
 
-#: dlls/kernelbase/winerror.mc:113
+#: dlls/kernelbase/winerror.mc:115
 msgid "Not same device.\n"
 msgstr "不是同一驱动器。\n"
 
-#: dlls/kernelbase/winerror.mc:118
+#: dlls/kernelbase/winerror.mc:120
 msgid "No more files.\n"
 msgstr "没有更多文件。\n"
 
-#: dlls/kernelbase/winerror.mc:123
+#: dlls/kernelbase/winerror.mc:125
 msgid "Write protected.\n"
 msgstr "存在写保护。\n"
 
-#: dlls/kernelbase/winerror.mc:128
+#: dlls/kernelbase/winerror.mc:130
 msgid "Bad unit.\n"
 msgstr "单位错误。\n"
 
-#: dlls/kernelbase/winerror.mc:133
+#: dlls/kernelbase/winerror.mc:135
 msgid "Not ready.\n"
 msgstr "未就绪。\n"
 
-#: dlls/kernelbase/winerror.mc:138
+#: dlls/kernelbase/winerror.mc:140
 msgid "Bad command.\n"
 msgstr "错误指令。\n"
 
-#: dlls/kernelbase/winerror.mc:143
+#: dlls/kernelbase/winerror.mc:145
 msgid "CRC error.\n"
 msgstr "CRC 错误。\n"
 
-#: dlls/kernelbase/winerror.mc:148
+#: dlls/kernelbase/winerror.mc:150
 msgid "Bad length.\n"
 msgstr "长度错误。\n"
 
-#: dlls/kernelbase/winerror.mc:153 dlls/kernelbase/winerror.mc:528
+#: dlls/kernelbase/winerror.mc:155 dlls/kernelbase/winerror.mc:530
 msgid "Seek error.\n"
 msgstr "定位出错。\n"
 
-#: dlls/kernelbase/winerror.mc:158
+#: dlls/kernelbase/winerror.mc:160
 msgid "Not DOS disk.\n"
 msgstr "不是 DOS 磁盘。\n"
 
-#: dlls/kernelbase/winerror.mc:163
+#: dlls/kernelbase/winerror.mc:165
 msgid "Sector not found.\n"
 msgstr "找不到扇区。\n"
 
-#: dlls/kernelbase/winerror.mc:168
+#: dlls/kernelbase/winerror.mc:170
 msgid "Out of paper.\n"
 msgstr "缺纸。\n"
 
-#: dlls/kernelbase/winerror.mc:173
+#: dlls/kernelbase/winerror.mc:175
 msgid "Write fault.\n"
 msgstr "写入错误。\n"
 
-#: dlls/kernelbase/winerror.mc:178
+#: dlls/kernelbase/winerror.mc:180
 msgid "Read fault.\n"
 msgstr "读取错误。\n"
 
-#: dlls/kernelbase/winerror.mc:183
+#: dlls/kernelbase/winerror.mc:185
 msgid "General failure.\n"
 msgstr "一般性错误。\n"
 
-#: dlls/kernelbase/winerror.mc:188
+#: dlls/kernelbase/winerror.mc:190
 msgid "Sharing violation.\n"
 msgstr "共享冲突。\n"
 
-#: dlls/kernelbase/winerror.mc:193
+#: dlls/kernelbase/winerror.mc:195
 msgid "Lock violation.\n"
 msgstr "锁定冲突。\n"
 
-#: dlls/kernelbase/winerror.mc:198
+#: dlls/kernelbase/winerror.mc:200
 msgid "Wrong disk.\n"
 msgstr "错误磁盘。\n"
 
-#: dlls/kernelbase/winerror.mc:203
+#: dlls/kernelbase/winerror.mc:205
 msgid "Sharing buffer exceeded.\n"
 msgstr "共享缓存区超出范围。\n"
 
-#: dlls/kernelbase/winerror.mc:208
+#: dlls/kernelbase/winerror.mc:210
 msgid "End of file.\n"
 msgstr "文件尾。\n"
 
-#: dlls/kernelbase/winerror.mc:213 dlls/kernelbase/winerror.mc:438
+#: dlls/kernelbase/winerror.mc:215 dlls/kernelbase/winerror.mc:440
 msgid "Disk full.\n"
 msgstr "磁盘满。\n"
 
-#: dlls/kernelbase/winerror.mc:218
+#: dlls/kernelbase/winerror.mc:220
 msgid "Request not supported.\n"
 msgstr "请求不被支持。\n"
 
-#: dlls/kernelbase/winerror.mc:223
+#: dlls/kernelbase/winerror.mc:225
 msgid "Remote machine not listening.\n"
 msgstr "远程机器未监听。\n"
 
-#: dlls/kernelbase/winerror.mc:228
+#: dlls/kernelbase/winerror.mc:230
 msgid "Duplicate network name.\n"
 msgstr "重复的网络名称。\n"
 
-#: dlls/kernelbase/winerror.mc:233
+#: dlls/kernelbase/winerror.mc:235
 msgid "Bad network path.\n"
 msgstr "网络路径错误。\n"
 
-#: dlls/kernelbase/winerror.mc:238
+#: dlls/kernelbase/winerror.mc:240
 msgid "Network busy.\n"
 msgstr "网络忙。\n"
 
-#: dlls/kernelbase/winerror.mc:243
+#: dlls/kernelbase/winerror.mc:245
 msgid "Device does not exist.\n"
 msgstr "设备不存在。\n"
 
-#: dlls/kernelbase/winerror.mc:248
+#: dlls/kernelbase/winerror.mc:250
 msgid "Too many commands.\n"
 msgstr "命令过多。\n"
 
-#: dlls/kernelbase/winerror.mc:253
+#: dlls/kernelbase/winerror.mc:255
 msgid "Adapter hardware error.\n"
 msgstr "适配器硬件错误。\n"
 
-#: dlls/kernelbase/winerror.mc:258
+#: dlls/kernelbase/winerror.mc:260
 msgid "Bad network response.\n"
 msgstr "网络响应错误。\n"
 
-#: dlls/kernelbase/winerror.mc:263
+#: dlls/kernelbase/winerror.mc:265
 msgid "Unexpected network error.\n"
 msgstr "未预期的网络错误。\n"
 
-#: dlls/kernelbase/winerror.mc:268
+#: dlls/kernelbase/winerror.mc:270
 msgid "Bad remote adapter.\n"
 msgstr "远程适配器错误。\n"
 
-#: dlls/kernelbase/winerror.mc:273
+#: dlls/kernelbase/winerror.mc:275
 msgid "Print queue full.\n"
 msgstr "打印队列已满。\n"
 
-#: dlls/kernelbase/winerror.mc:278
+#: dlls/kernelbase/winerror.mc:280
 msgid "No spool space.\n"
 msgstr "池空间耗尽。\n"
 
-#: dlls/kernelbase/winerror.mc:283
+#: dlls/kernelbase/winerror.mc:285
 msgid "Print canceled.\n"
 msgstr "打印已取消。\n"
 
-#: dlls/kernelbase/winerror.mc:288
+#: dlls/kernelbase/winerror.mc:290
 msgid "Network name deleted.\n"
 msgstr "网络名已删除。\n"
 
-#: dlls/kernelbase/winerror.mc:293
+#: dlls/kernelbase/winerror.mc:295
 msgid "Network access denied.\n"
 msgstr "网络访问被拒绝。\n"
 
-#: dlls/kernelbase/winerror.mc:298
+#: dlls/kernelbase/winerror.mc:300
 msgid "Bad device type.\n"
 msgstr "设备类型错误。\n"
 
-#: dlls/kernelbase/winerror.mc:303
+#: dlls/kernelbase/winerror.mc:305
 msgid "Bad network name.\n"
 msgstr "错误的网络名。\n"
 
-#: dlls/kernelbase/winerror.mc:308
+#: dlls/kernelbase/winerror.mc:310
 msgid "Too many network names.\n"
 msgstr "网络名称过多。\n"
 
-#: dlls/kernelbase/winerror.mc:313
+#: dlls/kernelbase/winerror.mc:315
 msgid "Too many network sessions.\n"
 msgstr "网络会话过多。\n"
 
-#: dlls/kernelbase/winerror.mc:318
+#: dlls/kernelbase/winerror.mc:320
 msgid "Sharing paused.\n"
 msgstr "共享已暂停。\n"
 
-#: dlls/kernelbase/winerror.mc:323
+#: dlls/kernelbase/winerror.mc:325
 msgid "Request not accepted.\n"
 msgstr "未接受请求。\n"
 
-#: dlls/kernelbase/winerror.mc:328
+#: dlls/kernelbase/winerror.mc:330
 msgid "Redirector paused.\n"
 msgstr "重定向器已暂停。\n"
 
-#: dlls/kernelbase/winerror.mc:333
+#: dlls/kernelbase/winerror.mc:335
 msgid "File exists.\n"
 msgstr "文件已存在。\n"
 
-#: dlls/kernelbase/winerror.mc:338
+#: dlls/kernelbase/winerror.mc:340
 msgid "Cannot create.\n"
 msgstr "无法创建。\n"
 
-#: dlls/kernelbase/winerror.mc:343
+#: dlls/kernelbase/winerror.mc:345
 msgid "Int24 failure.\n"
 msgstr "Int24 错误。\n"
 
-#: dlls/kernelbase/winerror.mc:348
+#: dlls/kernelbase/winerror.mc:350
 msgid "Out of structures.\n"
 msgstr "超出结构。\n"
 
-#: dlls/kernelbase/winerror.mc:353
+#: dlls/kernelbase/winerror.mc:355
 msgid "Already assigned.\n"
 msgstr "已被分配。\n"
 
-#: dlls/kernelbase/winerror.mc:358 dlls/kernelbase/winerror.mc:1713
+#: dlls/kernelbase/winerror.mc:360 dlls/kernelbase/winerror.mc:1830
 msgid "Invalid password.\n"
 msgstr "无效密码。\n"
 
-#: dlls/kernelbase/winerror.mc:363
+#: dlls/kernelbase/winerror.mc:365
 msgid "Invalid parameter.\n"
 msgstr "无效参数。\n"
 
-#: dlls/kernelbase/winerror.mc:368
+#: dlls/kernelbase/winerror.mc:370
 msgid "Net write fault.\n"
 msgstr "网络写入错误。\n"
 
-#: dlls/kernelbase/winerror.mc:373
+#: dlls/kernelbase/winerror.mc:375
 msgid "No process slots.\n"
 msgstr "无线程槽。\n"
 
-#: dlls/kernelbase/winerror.mc:378
+#: dlls/kernelbase/winerror.mc:380
 msgid "Too many semaphores.\n"
 msgstr "太多信号量。\n"
 
-#: dlls/kernelbase/winerror.mc:383
+#: dlls/kernelbase/winerror.mc:385
 msgid "Exclusive semaphore already owned.\n"
 msgstr "专属信号已被占用。\n"
 
-#: dlls/kernelbase/winerror.mc:388
+#: dlls/kernelbase/winerror.mc:390
 msgid "Semaphore is set.\n"
 msgstr "信号已设置。\n"
 
-#: dlls/kernelbase/winerror.mc:393
+#: dlls/kernelbase/winerror.mc:395
 msgid "Too many semaphore requests.\n"
 msgstr "信号请求过多。\n"
 
-#: dlls/kernelbase/winerror.mc:398
+#: dlls/kernelbase/winerror.mc:400
 msgid "Invalid at interrupt time.\n"
 msgstr "中断时间无效。\n"
 
-#: dlls/kernelbase/winerror.mc:403
+#: dlls/kernelbase/winerror.mc:405
 msgid "Semaphore owner died.\n"
 msgstr "信号所有者已终止。\n"
 
-#: dlls/kernelbase/winerror.mc:408
+#: dlls/kernelbase/winerror.mc:410
 msgid "Semaphore user limit.\n"
 msgstr "信号用户限制。\n"
 
-#: dlls/kernelbase/winerror.mc:413
+#: dlls/kernelbase/winerror.mc:415
 msgid "Insert disk for drive %1.\n"
 msgstr "插入驱动器 %1 的磁盘。\n"
 
-#: dlls/kernelbase/winerror.mc:418
+#: dlls/kernelbase/winerror.mc:420
 msgid "Drive locked.\n"
 msgstr "驱动器已锁定。\n"
 
-#: dlls/kernelbase/winerror.mc:423
+#: dlls/kernelbase/winerror.mc:425
 msgid "Broken pipe.\n"
 msgstr "管道中断。\n"
 
-#: dlls/kernelbase/winerror.mc:428
+#: dlls/kernelbase/winerror.mc:430
 msgid "Open failed.\n"
 msgstr "打开失败。\n"
 
-#: dlls/kernelbase/winerror.mc:433
+#: dlls/kernelbase/winerror.mc:435
 msgid "Buffer overflow.\n"
 msgstr "缓存溢出。\n"
 
-#: dlls/kernelbase/winerror.mc:443
+#: dlls/kernelbase/winerror.mc:445
 msgid "No more search handles.\n"
 msgstr "搜索句柄耗尽。\n"
 
-#: dlls/kernelbase/winerror.mc:448
+#: dlls/kernelbase/winerror.mc:450
 msgid "Invalid target handle.\n"
 msgstr "无效的目标句柄。\n"
 
-#: dlls/kernelbase/winerror.mc:453
+#: dlls/kernelbase/winerror.mc:455
 msgid "Invalid IOCTL.\n"
 msgstr "无效的 IOCTL。\n"
 
-#: dlls/kernelbase/winerror.mc:458
+#: dlls/kernelbase/winerror.mc:460
 msgid "Invalid verify switch.\n"
 msgstr "无效的验证开关。\n"
 
-#: dlls/kernelbase/winerror.mc:463
+#: dlls/kernelbase/winerror.mc:465
 msgid "Bad driver level.\n"
 msgstr "驱动级别错误。\n"
 
-#: dlls/kernelbase/winerror.mc:468
+#: dlls/kernelbase/winerror.mc:470
 msgid "Call not implemented.\n"
 msgstr "调用尚未实现。\n"
 
-#: dlls/kernelbase/winerror.mc:473
+#: dlls/kernelbase/winerror.mc:475
 msgid "Semaphore timeout.\n"
 msgstr "信号量超时。\n"
 
-#: dlls/kernelbase/winerror.mc:478
+#: dlls/kernelbase/winerror.mc:480
 msgid "Insufficient buffer.\n"
 msgstr "缓冲区不足。\n"
 
-#: dlls/kernelbase/winerror.mc:483 dlls/mferror/mferror.mc:109
+#: dlls/kernelbase/winerror.mc:485 dlls/mferror/mferror.mc:109
 msgid "Invalid name.\n"
 msgstr "无效名字。\n"
 
-#: dlls/kernelbase/winerror.mc:488
+#: dlls/kernelbase/winerror.mc:490
 msgid "Invalid level.\n"
 msgstr "无效的级别。\n"
 
-#: dlls/kernelbase/winerror.mc:493
+#: dlls/kernelbase/winerror.mc:495
 msgid "No volume label.\n"
 msgstr "无卷标。\n"
 
-#: dlls/kernelbase/winerror.mc:498
+#: dlls/kernelbase/winerror.mc:500
 msgid "Module not found.\n"
 msgstr "找不到模块。\n"
 
-#: dlls/kernelbase/winerror.mc:503
+#: dlls/kernelbase/winerror.mc:505
 msgid "Procedure not found.\n"
 msgstr "找不到过程。\n"
 
-#: dlls/kernelbase/winerror.mc:508
+#: dlls/kernelbase/winerror.mc:510
 msgid "No children to wait for.\n"
 msgstr "没有要等待的子进程。\n"
 
-#: dlls/kernelbase/winerror.mc:513
+#: dlls/kernelbase/winerror.mc:515
 msgid "Child process has not completed.\n"
 msgstr "子进程未完成。\n"
 
-#: dlls/kernelbase/winerror.mc:518
+#: dlls/kernelbase/winerror.mc:520
 msgid "Invalid use of direct access handle.\n"
 msgstr "无效的直接访问句柄使用。\n"
 
-#: dlls/kernelbase/winerror.mc:523
+#: dlls/kernelbase/winerror.mc:525
 msgid "Negative seek.\n"
 msgstr "负寻道。\n"
 
-#: dlls/kernelbase/winerror.mc:533
+#: dlls/kernelbase/winerror.mc:535
 msgid "Drive is a JOIN target.\n"
 msgstr "驱动器不是 JOIN 目标。\n"
 
-#: dlls/kernelbase/winerror.mc:538
+#: dlls/kernelbase/winerror.mc:540
 msgid "Drive is already JOINed.\n"
 msgstr "驱动器已 JOIN。\n"
 
-#: dlls/kernelbase/winerror.mc:543
+#: dlls/kernelbase/winerror.mc:545
 msgid "Drive is already SUBSTed.\n"
 msgstr "驱动器已 SUBST。\n"
 
-#: dlls/kernelbase/winerror.mc:548
+#: dlls/kernelbase/winerror.mc:550
 msgid "Drive is not JOINed.\n"
 msgstr "驱动器未 JOIN。\n"
 
-#: dlls/kernelbase/winerror.mc:553
+#: dlls/kernelbase/winerror.mc:555
 msgid "Drive is not SUBSTed.\n"
 msgstr "驱动器未 SUBST。\n"
 
-#: dlls/kernelbase/winerror.mc:558
+#: dlls/kernelbase/winerror.mc:560
 msgid "Attempt to JOIN onto a JOINed drive.\n"
 msgstr "尝试 JOIN 到已 JOIN 的驱动器。\n"
 
-#: dlls/kernelbase/winerror.mc:563
+#: dlls/kernelbase/winerror.mc:565
 msgid "Attempt to SUBST onto a SUBSTed drive.\n"
 msgstr "尝试 SUBST 到已 SUBST 的驱动器。\n"
 
-#: dlls/kernelbase/winerror.mc:568
+#: dlls/kernelbase/winerror.mc:570
 msgid "Attempt to JOIN to a SUBSTed drive.\n"
 msgstr "尝试 JOIN 到已 SUBST 的驱动器。\n"
 
-#: dlls/kernelbase/winerror.mc:573
+#: dlls/kernelbase/winerror.mc:575
 msgid "Attempt to SUBST to a JOINed drive.\n"
 msgstr "尝试 SUBST 到已 JOIN 的驱动器。\n"
 
-#: dlls/kernelbase/winerror.mc:578
+#: dlls/kernelbase/winerror.mc:580
 msgid "Drive is busy.\n"
 msgstr "驱动器忙。\n"
 
-#: dlls/kernelbase/winerror.mc:583
+#: dlls/kernelbase/winerror.mc:585
 msgid "Same drive.\n"
 msgstr "同一个驱动器。\n"
 
-#: dlls/kernelbase/winerror.mc:588
+#: dlls/kernelbase/winerror.mc:590
 msgid "Not top-level directory.\n"
 msgstr "不是顶级目录。\n"
 
-#: dlls/kernelbase/winerror.mc:593
+#: dlls/kernelbase/winerror.mc:595
 msgid "Directory is not empty.\n"
 msgstr "目录非空。\n"
 
-#: dlls/kernelbase/winerror.mc:598
+#: dlls/kernelbase/winerror.mc:600
 msgid "Path is in use as a SUBST.\n"
 msgstr "路径已作为 SUBST 使用。\n"
 
-#: dlls/kernelbase/winerror.mc:603
+#: dlls/kernelbase/winerror.mc:605
 msgid "Path is in use as a JOIN.\n"
 msgstr "路径已作为 JOIN 使用。\n"
 
-#: dlls/kernelbase/winerror.mc:608
+#: dlls/kernelbase/winerror.mc:610
 msgid "Path is busy.\n"
 msgstr "路径忙。\n"
 
-#: dlls/kernelbase/winerror.mc:613
+#: dlls/kernelbase/winerror.mc:615
 msgid "Already a SUBST target.\n"
 msgstr "已为 SUBST 目标。\n"
 
-#: dlls/kernelbase/winerror.mc:618
+#: dlls/kernelbase/winerror.mc:620
 msgid "System trace not specified or disallowed.\n"
 msgstr "系统追溯未指定或不被允许。\n"
 
-#: dlls/kernelbase/winerror.mc:623
+#: dlls/kernelbase/winerror.mc:625
 msgid "Event count for DosMuxSemWait incorrect.\n"
 msgstr "DosMuxSemWait 的事件计数不正确。\n"
 
-#: dlls/kernelbase/winerror.mc:628
+#: dlls/kernelbase/winerror.mc:630
 msgid "Too many waiters for DosMuxSemWait.\n"
 msgstr "DosMuxSemWait 的等待项过多。\n"
 
-#: dlls/kernelbase/winerror.mc:633
+#: dlls/kernelbase/winerror.mc:635
 msgid "DosSemMuxWait list invalid.\n"
 msgstr "DosSemMuxWait 列表无效。\n"
 
-#: dlls/kernelbase/winerror.mc:638
+#: dlls/kernelbase/winerror.mc:640
 msgid "Volume label too long.\n"
 msgstr "卷标过长。\n"
 
-#: dlls/kernelbase/winerror.mc:643
+#: dlls/kernelbase/winerror.mc:645
 msgid "Too many TCBs.\n"
 msgstr "TCB 过多。\n"
 
-#: dlls/kernelbase/winerror.mc:648
+#: dlls/kernelbase/winerror.mc:650
 msgid "Signal refused.\n"
 msgstr "信号被拒绝。\n"
 
-#: dlls/kernelbase/winerror.mc:653
+#: dlls/kernelbase/winerror.mc:655
 msgid "Segment discarded.\n"
 msgstr "片段已丢弃。\n"
 
-#: dlls/kernelbase/winerror.mc:658
+#: dlls/kernelbase/winerror.mc:660
 msgid "Segment not locked.\n"
 msgstr "片段未锁定。\n"
 
-#: dlls/kernelbase/winerror.mc:663
+#: dlls/kernelbase/winerror.mc:665
 msgid "Bad thread ID address.\n"
 msgstr "无效的线程 ID 地址。\n"
 
-#: dlls/kernelbase/winerror.mc:668
+#: dlls/kernelbase/winerror.mc:670
 msgid "Bad arguments to DosExecPgm.\n"
 msgstr "DosExecPgm 参数无效。\n"
 
-#: dlls/kernelbase/winerror.mc:673
+#: dlls/kernelbase/winerror.mc:675
 msgid "Path is invalid.\n"
 msgstr "路径无效。\n"
 
-#: dlls/kernelbase/winerror.mc:678
+#: dlls/kernelbase/winerror.mc:680
 msgid "Signal pending.\n"
 msgstr "信号正在等待。\n"
 
-#: dlls/kernelbase/winerror.mc:683
+#: dlls/kernelbase/winerror.mc:685
 msgid "Max system-wide thread count reached.\n"
 msgstr "已达到系统最大线程计数。\n"
 
-#: dlls/kernelbase/winerror.mc:688
+#: dlls/kernelbase/winerror.mc:690
 msgid "Lock failed.\n"
 msgstr "锁定失败。\n"
 
-#: dlls/kernelbase/winerror.mc:693
+#: dlls/kernelbase/winerror.mc:695
 msgid "Resource in use.\n"
 msgstr "资源已被占用。\n"
 
-#: dlls/kernelbase/winerror.mc:698
+#: dlls/kernelbase/winerror.mc:700
 msgid "Cancel violation.\n"
 msgstr "取消冲突。\n"
 
-#: dlls/kernelbase/winerror.mc:703
+#: dlls/kernelbase/winerror.mc:705
 msgid "Atomic locks not supported.\n"
 msgstr "不支持原子锁。\n"
 
-#: dlls/kernelbase/winerror.mc:708
+#: dlls/kernelbase/winerror.mc:710
 msgid "Invalid segment number.\n"
 msgstr "段编号无效。\n"
 
-#: dlls/kernelbase/winerror.mc:713
+#: dlls/kernelbase/winerror.mc:715
 msgid "Invalid ordinal for %1.\n"
 msgstr "%1 的序数词无效。\n"
 
-#: dlls/kernelbase/winerror.mc:718
+#: dlls/kernelbase/winerror.mc:720
 msgid "File already exists.\n"
 msgstr "文件已存在。\n"
 
-#: dlls/kernelbase/winerror.mc:723
+#: dlls/kernelbase/winerror.mc:725
 msgid "Invalid flag number.\n"
 msgstr "标志数无效。\n"
 
-#: dlls/kernelbase/winerror.mc:728
+#: dlls/kernelbase/winerror.mc:730
 msgid "Semaphore name not found.\n"
 msgstr "找不到信号量名字。\n"
 
-#: dlls/kernelbase/winerror.mc:733
+#: dlls/kernelbase/winerror.mc:735
 msgid "Invalid starting code segment for %1.\n"
 msgstr "%1 的起始代码片段无效。\n"
 
-#: dlls/kernelbase/winerror.mc:738
+#: dlls/kernelbase/winerror.mc:740
 msgid "Invalid starting stack segment for %1.\n"
 msgstr "%1 的起始栈片段无效。\n"
 
-#: dlls/kernelbase/winerror.mc:743
+#: dlls/kernelbase/winerror.mc:745
 msgid "Invalid module type for %1.\n"
 msgstr "%1 的模块类型无效。\n"
 
-#: dlls/kernelbase/winerror.mc:748
+#: dlls/kernelbase/winerror.mc:750
 msgid "Invalid EXE signature in %1.\n"
 msgstr "%1 内的 EXE 签名无效。\n"
 
-#: dlls/kernelbase/winerror.mc:753
+#: dlls/kernelbase/winerror.mc:755
 msgid "EXE %1 is marked invalid.\n"
 msgstr "EXE %1 已被标记为无效。\n"
 
-#: dlls/kernelbase/winerror.mc:758
+#: dlls/kernelbase/winerror.mc:760
 msgid "Bad EXE format for %1.\n"
 msgstr "%1 的 EXE 格式无效。\n"
 
-#: dlls/kernelbase/winerror.mc:763
+#: dlls/kernelbase/winerror.mc:765
 msgid "Iterated data exceeds 64k in %1.\n"
 msgstr "%1 中的迭代数据超过 64k。\n"
 
-#: dlls/kernelbase/winerror.mc:768
+#: dlls/kernelbase/winerror.mc:770
 msgid "Invalid MinAllocSize in %1.\n"
 msgstr "%1 中的 MinAllocSize 无效。\n"
 
-#: dlls/kernelbase/winerror.mc:773
+#: dlls/kernelbase/winerror.mc:775
 msgid "Dynlink from invalid ring.\n"
 msgstr "自无效环的动态链接。\n"
 
-#: dlls/kernelbase/winerror.mc:778
+#: dlls/kernelbase/winerror.mc:780
 msgid "IOPL not enabled.\n"
 msgstr "未启用 IOPL。\n"
 
-#: dlls/kernelbase/winerror.mc:783
+#: dlls/kernelbase/winerror.mc:785
 msgid "Invalid SEGDPL in %1.\n"
 msgstr "%1 中的 SEGDPL 无效。\n"
 
-#: dlls/kernelbase/winerror.mc:788
+#: dlls/kernelbase/winerror.mc:790
 msgid "Auto data segment exceeds 64k.\n"
 msgstr "自动数据片段超过 64k。\n"
 
-#: dlls/kernelbase/winerror.mc:793
+#: dlls/kernelbase/winerror.mc:795
 msgid "Ring 2 segment must be movable.\n"
 msgstr "Ring 2 的片段必须为可移动。\n"
 
-#: dlls/kernelbase/winerror.mc:798
+#: dlls/kernelbase/winerror.mc:800
 msgid "Relocation chain exceeds segment limit in %1.\n"
 msgstr "%1 中的重定位链超出片段限制。\n"
 
-#: dlls/kernelbase/winerror.mc:803
+#: dlls/kernelbase/winerror.mc:805
 msgid "Infinite loop in relocation chain in %1.\n"
 msgstr "%1 中的重定位链包含无限循环。\n"
 
-#: dlls/kernelbase/winerror.mc:808
+#: dlls/kernelbase/winerror.mc:810
 msgid "Environment variable not found.\n"
 msgstr "未找到环境变量。\n"
 
-#: dlls/kernelbase/winerror.mc:813
+#: dlls/kernelbase/winerror.mc:815
 msgid "No signal sent.\n"
 msgstr "未发送任何信号。\n"
 
-#: dlls/kernelbase/winerror.mc:818 programs/cmd/cmd.rc:406
+#: dlls/kernelbase/winerror.mc:820 programs/cmd/cmd.rc:406
 msgid "File name is too long.\n"
 msgstr "文件名过长。\n"
 
-#: dlls/kernelbase/winerror.mc:823
+#: dlls/kernelbase/winerror.mc:825
 msgid "Ring 2 stack in use.\n"
 msgstr "Ring 2 栈正被占用。\n"
 
-#: dlls/kernelbase/winerror.mc:828
+#: dlls/kernelbase/winerror.mc:830
 msgid "Error in use of filename wildcards.\n"
 msgstr "文件名通配符使用错误。\n"
 
-#: dlls/kernelbase/winerror.mc:833
+#: dlls/kernelbase/winerror.mc:835
 msgid "Invalid signal number.\n"
 msgstr "信号编号无效。\n"
 
-#: dlls/kernelbase/winerror.mc:838
+#: dlls/kernelbase/winerror.mc:840
 msgid "Error setting signal handler.\n"
 msgstr "设置信号处理者时出错。\n"
 
-#: dlls/kernelbase/winerror.mc:843
+#: dlls/kernelbase/winerror.mc:845
 msgid "Segment locked.\n"
 msgstr "片段已锁定。\n"
 
-#: dlls/kernelbase/winerror.mc:848
+#: dlls/kernelbase/winerror.mc:850
 msgid "Too many modules.\n"
 msgstr "模块过多。\n"
 
-#: dlls/kernelbase/winerror.mc:853
+#: dlls/kernelbase/winerror.mc:855
 msgid "Nesting LoadModule calls not allowed.\n"
 msgstr "不允许嵌套 LoadModule 调用。\n"
 
-#: dlls/kernelbase/winerror.mc:858
+#: dlls/kernelbase/winerror.mc:860
 msgid "Machine type mismatch.\n"
 msgstr "机器类型不匹配。\n"
 
-#: dlls/kernelbase/winerror.mc:863
+#: dlls/kernelbase/winerror.mc:865
 msgid "Bad pipe.\n"
 msgstr "无效管道。\n"
 
-#: dlls/kernelbase/winerror.mc:868
+#: dlls/kernelbase/winerror.mc:870
 msgid "Pipe busy.\n"
 msgstr "管道忙。\n"
 
-#: dlls/kernelbase/winerror.mc:873
+#: dlls/kernelbase/winerror.mc:875
 msgid "Pipe closed.\n"
 msgstr "管道已关闭。\n"
 
-#: dlls/kernelbase/winerror.mc:878
+#: dlls/kernelbase/winerror.mc:880
 msgid "Pipe not connected.\n"
 msgstr "管道未连接。\n"
 
-#: dlls/kernelbase/winerror.mc:883
+#: dlls/kernelbase/winerror.mc:885
 msgid "More data available.\n"
 msgstr "有更多可用数据。\n"
 
-#: dlls/kernelbase/winerror.mc:888
+#: dlls/kernelbase/winerror.mc:890
 msgid "Session canceled.\n"
 msgstr "会话取消。\n"
 
-#: dlls/kernelbase/winerror.mc:893
+#: dlls/kernelbase/winerror.mc:895
 msgid "Invalid extended attribute name.\n"
 msgstr "无效的扩展属性名。\n"
 
-#: dlls/kernelbase/winerror.mc:898
+#: dlls/kernelbase/winerror.mc:900
 msgid "Extended attribute list inconsistent.\n"
 msgstr "扩展属性列表不匹配。\n"
 
-#: dlls/kernelbase/winerror.mc:903
+#: dlls/kernelbase/winerror.mc:905
 msgid "No more data available.\n"
 msgstr "没有更多可用数据。\n"
 
-#: dlls/kernelbase/winerror.mc:908
+#: dlls/kernelbase/winerror.mc:910
 msgid "Cannot use Copy API.\n"
 msgstr "不能使用 Copy API。\n"
 
-#: dlls/kernelbase/winerror.mc:913
+#: dlls/kernelbase/winerror.mc:915
 msgid "Directory name invalid.\n"
 msgstr "目录名无效。\n"
 
-#: dlls/kernelbase/winerror.mc:918
+#: dlls/kernelbase/winerror.mc:920
 msgid "Extended attributes didn't fit.\n"
 msgstr "扩展属性不适用。\n"
 
-#: dlls/kernelbase/winerror.mc:923
+#: dlls/kernelbase/winerror.mc:925
 msgid "Extended attribute file corrupt.\n"
 msgstr "扩展属性文件已损坏。\n"
 
-#: dlls/kernelbase/winerror.mc:928
+#: dlls/kernelbase/winerror.mc:930
 msgid "Extended attribute table full.\n"
 msgstr "扩展属性表已满。\n"
 
-#: dlls/kernelbase/winerror.mc:933
+#: dlls/kernelbase/winerror.mc:935
 msgid "Invalid extended attribute handle.\n"
 msgstr "无效的扩展属性句柄。\n"
 
-#: dlls/kernelbase/winerror.mc:938
+#: dlls/kernelbase/winerror.mc:940
 msgid "Extended attributes not supported.\n"
 msgstr "不支持扩展属性。\n"
 
-#: dlls/kernelbase/winerror.mc:943
+#: dlls/kernelbase/winerror.mc:945
 msgid "Mutex not owned by caller.\n"
 msgstr "互斥锁不由调用者所有。\n"
 
-#: dlls/kernelbase/winerror.mc:948
+#: dlls/kernelbase/winerror.mc:950
 msgid "Too many posts to semaphore.\n"
 msgstr "到信号的 post 过多。\n"
 
-#: dlls/kernelbase/winerror.mc:953
+#: dlls/kernelbase/winerror.mc:955
 msgid "Read/WriteProcessMemory partially completed.\n"
 msgstr "Read/WriteProcessMemory 仅部分完成。\n"
 
-#: dlls/kernelbase/winerror.mc:958
+#: dlls/kernelbase/winerror.mc:960
 msgid "The oplock wasn't granted.\n"
 msgstr "未授权 oplock。\n"
 
-#: dlls/kernelbase/winerror.mc:963
+#: dlls/kernelbase/winerror.mc:965
 msgid "Invalid oplock message received.\n"
 msgstr "收到无效的 oplock 消息。\n"
 
-#: dlls/kernelbase/winerror.mc:968
+#: dlls/kernelbase/winerror.mc:970
+#, fuzzy
+#| msgid "Disk is corrupt.\n"
+msgid "Disk is too fragmented.\n"
+msgstr "磁盘已损坏。\n"
+
+#: dlls/kernelbase/winerror.mc:975
+msgid "File cannot be opened because it is in the process of being deleted.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:980
+msgid "Short name settings incompatible with global registry setting.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:985
+msgid "Short names are not enabled on this volume.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:990
+#, fuzzy
+#| msgid "Floppy registers inconsistent.\n"
+msgid "Security stream is inconsistent.\n"
+msgstr "软盘寄存器不相符。\n"
+
+#: dlls/kernelbase/winerror.mc:995
+msgid "File lock operation cannot be processed due to invalid byte range.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:1000
+msgid "Subsystem for supporting image type is not present.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:1005
+msgid "Notification GUID is already defined.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:1010
+#, fuzzy
+#| msgid "Invalid icon handle.\n"
+msgid "Invalid exception handler.\n"
+msgstr "无效的图标句柄。\n"
+
+#: dlls/kernelbase/winerror.mc:1015
+#, fuzzy
+#| msgid "Duplicate service name.\n"
+msgid "Duplicate privileges for the token.\n"
+msgstr "重复的服务名。\n"
+
+#: dlls/kernelbase/winerror.mc:1020
+#, fuzzy
+#| msgid "Not all objects could be exported.\n"
+msgid "No ranges could be processed.\n"
+msgstr "无法导出所有对象。\n"
+
+#: dlls/kernelbase/winerror.mc:1025
+#, fuzzy
+#| msgid "Operation canceled by user.\n"
+msgid "Operation not allowed on system file.\n"
+msgstr "操作被用户取消。\n"
+
+#: dlls/kernelbase/winerror.mc:1030
+msgid "Disk resources have been exhausted.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:1035
+#, fuzzy
+#| msgid "Invalid key.\n"
+msgid "Invalid token.\n"
+msgstr "无效的项。\n"
+
+#: dlls/kernelbase/winerror.mc:1040
+msgid "Command feature not supported on the device.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:1045
 msgid "Message 0x%1 not found in file %2.\n"
 msgstr "未在文件 %2 中发现消息 0x%1。\n"
 
-#: dlls/kernelbase/winerror.mc:973
+#: dlls/kernelbase/winerror.mc:1050
+#, fuzzy
+#| msgid "Sector not found.\n"
+msgid "Scope not found.\n"
+msgstr "找不到扇区。\n"
+
+#: dlls/kernelbase/winerror.mc:1055
+#, fuzzy
+#| msgid "The specified device handle is invalid."
+msgid "The specified Central Access Policy is undefined.\n"
+msgstr "指定的设备句柄无效。"
+
+#: dlls/kernelbase/winerror.mc:1060
+msgid "Central Access Policy from Active Directory is invalid.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:1065
+#, fuzzy
+#| msgid "Host unreachable.\n"
+msgid "Device is unreachable.\n"
+msgstr "主机不可达。\n"
+
+#: dlls/kernelbase/winerror.mc:1070
+msgid "Target device has insufficient resources to complete the operation.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:1075
+msgid ""
+"A data integrity checksum error occurred. Data in the file stream is "
+"corrupt.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:1080
+msgid ""
+"Cannot modify both KERNEL and normal Extended Attributes in one operation.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:1085
+#, fuzzy
+#| msgid "Device does not exist.\n"
+msgid "Device does not support file-level TRIM.\n"
+msgstr "设备不存在。\n"
+
+#: dlls/kernelbase/winerror.mc:1090
 msgid "Invalid address.\n"
 msgstr "地址无效。\n"
 
-#: dlls/kernelbase/winerror.mc:978
+#: dlls/kernelbase/winerror.mc:1095
 msgid "Arithmetic overflow.\n"
 msgstr "算术溢出。\n"
 
-#: dlls/kernelbase/winerror.mc:983
+#: dlls/kernelbase/winerror.mc:1100
 msgid "Pipe connected.\n"
 msgstr "管道已连接。\n"
 
-#: dlls/kernelbase/winerror.mc:988
+#: dlls/kernelbase/winerror.mc:1105
 msgid "Pipe listening.\n"
 msgstr "管道正在监听。\n"
 
-#: dlls/kernelbase/winerror.mc:993
+#: dlls/kernelbase/winerror.mc:1110
 msgid "Extended attribute access denied.\n"
 msgstr "扩展属性访问被拒绝。\n"
 
-#: dlls/kernelbase/winerror.mc:998
+#: dlls/kernelbase/winerror.mc:1115
 msgid "I/O operation aborted.\n"
 msgstr "I/O 操作被终止。\n"
 
-#: dlls/kernelbase/winerror.mc:1003
+#: dlls/kernelbase/winerror.mc:1120
 msgid "Overlapped I/O incomplete.\n"
 msgstr "重叠 I/O 不完整。\n"
 
-#: dlls/kernelbase/winerror.mc:1008
+#: dlls/kernelbase/winerror.mc:1125
 msgid "Overlapped I/O pending.\n"
 msgstr "重叠 I/O 正在等待。\n"
 
-#: dlls/kernelbase/winerror.mc:1013
+#: dlls/kernelbase/winerror.mc:1130
 msgid "No access to memory location.\n"
 msgstr "无法访问内存位置。\n"
 
-#: dlls/kernelbase/winerror.mc:1018
+#: dlls/kernelbase/winerror.mc:1135
 msgid "Swap error.\n"
 msgstr "交换错误。\n"
 
-#: dlls/kernelbase/winerror.mc:1023
+#: dlls/kernelbase/winerror.mc:1140
 msgid "Stack overflow.\n"
 msgstr "栈溢出。\n"
 
-#: dlls/kernelbase/winerror.mc:1028
+#: dlls/kernelbase/winerror.mc:1145
 msgid "Invalid message.\n"
 msgstr "无效消息。\n"
 
-#: dlls/kernelbase/winerror.mc:1033
+#: dlls/kernelbase/winerror.mc:1150
 msgid "Cannot complete.\n"
 msgstr "无法完成。\n"
 
-#: dlls/kernelbase/winerror.mc:1038
+#: dlls/kernelbase/winerror.mc:1155
 msgid "Invalid flags.\n"
 msgstr "无效的标记。\n"
 
-#: dlls/kernelbase/winerror.mc:1043
+#: dlls/kernelbase/winerror.mc:1160
 msgid "Unrecognized volume.\n"
 msgstr "无法识别的卷。\n"
 
-#: dlls/kernelbase/winerror.mc:1048
+#: dlls/kernelbase/winerror.mc:1165
 msgid "File invalid.\n"
 msgstr "文件无效。\n"
 
-#: dlls/kernelbase/winerror.mc:1053
+#: dlls/kernelbase/winerror.mc:1170
 msgid "Cannot run full-screen.\n"
 msgstr "无法以全屏模式运行。\n"
 
-#: dlls/kernelbase/winerror.mc:1058
+#: dlls/kernelbase/winerror.mc:1175
 msgid "Nonexistent token.\n"
 msgstr "不存在的令牌。\n"
 
-#: dlls/kernelbase/winerror.mc:1063
+#: dlls/kernelbase/winerror.mc:1180
 msgid "Registry corrupt.\n"
 msgstr "注册表损坏。\n"
 
-#: dlls/kernelbase/winerror.mc:1068
+#: dlls/kernelbase/winerror.mc:1185
 msgid "Invalid key.\n"
 msgstr "无效的项。\n"
 
-#: dlls/kernelbase/winerror.mc:1073
+#: dlls/kernelbase/winerror.mc:1190
 msgid "Can't open registry key.\n"
 msgstr "无法打开注册表项。\n"
 
-#: dlls/kernelbase/winerror.mc:1078
+#: dlls/kernelbase/winerror.mc:1195
 msgid "Can't read registry key.\n"
 msgstr "无法读取注册表项。\n"
 
-#: dlls/kernelbase/winerror.mc:1083
+#: dlls/kernelbase/winerror.mc:1200
 msgid "Can't write registry key.\n"
 msgstr "无法写入注册表项。\n"
 
-#: dlls/kernelbase/winerror.mc:1088
+#: dlls/kernelbase/winerror.mc:1205
 msgid "Registry has been recovered.\n"
 msgstr "注册表已恢复。\n"
 
-#: dlls/kernelbase/winerror.mc:1093
+#: dlls/kernelbase/winerror.mc:1210
 msgid "Registry is corrupt.\n"
 msgstr "注册表损坏。\n"
 
-#: dlls/kernelbase/winerror.mc:1098
+#: dlls/kernelbase/winerror.mc:1215
 msgid "I/O to registry failed.\n"
 msgstr "注册表 I/O 失败。\n"
 
-#: dlls/kernelbase/winerror.mc:1103
+#: dlls/kernelbase/winerror.mc:1220
 msgid "Not registry file.\n"
 msgstr "不是注册表文件。\n"
 
-#: dlls/kernelbase/winerror.mc:1108
+#: dlls/kernelbase/winerror.mc:1225
 msgid "Key deleted.\n"
 msgstr "注册表项已删除。\n"
 
-#: dlls/kernelbase/winerror.mc:1113
+#: dlls/kernelbase/winerror.mc:1230
 msgid "No registry log space.\n"
 msgstr "注册表日志空间耗尽。\n"
 
-#: dlls/kernelbase/winerror.mc:1118
+#: dlls/kernelbase/winerror.mc:1235
 msgid "Registry key has subkeys.\n"
 msgstr "注册表项包含子项。\n"
 
-#: dlls/kernelbase/winerror.mc:1123
+#: dlls/kernelbase/winerror.mc:1240
 msgid "Subkey must be volatile.\n"
 msgstr "子项必须为可变。\n"
 
-#: dlls/kernelbase/winerror.mc:1128
+#: dlls/kernelbase/winerror.mc:1245
 msgid "Notify change request in progress.\n"
 msgstr "公告正在进行的更改请求。\n"
 
-#: dlls/kernelbase/winerror.mc:1133
+#: dlls/kernelbase/winerror.mc:1250
 msgid "Dependent services are running.\n"
 msgstr "依赖服务仍在运行。\n"
 
-#: dlls/kernelbase/winerror.mc:1138
+#: dlls/kernelbase/winerror.mc:1255
 msgid "Invalid service control.\n"
 msgstr "无效的服务控制。\n"
 
-#: dlls/kernelbase/winerror.mc:1143
+#: dlls/kernelbase/winerror.mc:1260
 msgid "Service request timeout.\n"
 msgstr "服务请求超时。\n"
 
-#: dlls/kernelbase/winerror.mc:1148
+#: dlls/kernelbase/winerror.mc:1265
 msgid "Cannot create service thread.\n"
 msgstr "无法创建服务线程。\n"
 
-#: dlls/kernelbase/winerror.mc:1153
+#: dlls/kernelbase/winerror.mc:1270
 msgid "Service database locked.\n"
 msgstr "服务数据库被锁定。\n"
 
-#: dlls/kernelbase/winerror.mc:1158
+#: dlls/kernelbase/winerror.mc:1275
 msgid "Service already running.\n"
 msgstr "服务已在运行。\n"
 
-#: dlls/kernelbase/winerror.mc:1163
+#: dlls/kernelbase/winerror.mc:1280
 msgid "Invalid service account.\n"
 msgstr "无效的服务帐号。\n"
 
-#: dlls/kernelbase/winerror.mc:1168
+#: dlls/kernelbase/winerror.mc:1285
 msgid "Service is disabled.\n"
 msgstr "服务已禁用。\n"
 
-#: dlls/kernelbase/winerror.mc:1173
+#: dlls/kernelbase/winerror.mc:1290
 msgid "Circular dependency.\n"
 msgstr "循环依赖。\n"
 
-#: dlls/kernelbase/winerror.mc:1178
+#: dlls/kernelbase/winerror.mc:1295
 msgid "Service does not exist.\n"
 msgstr "服务不存在。\n"
 
-#: dlls/kernelbase/winerror.mc:1183
+#: dlls/kernelbase/winerror.mc:1300
 msgid "Service cannot accept control message.\n"
 msgstr "服务无法接受控制消息。\n"
 
-#: dlls/kernelbase/winerror.mc:1188
+#: dlls/kernelbase/winerror.mc:1305
 msgid "Service not active.\n"
 msgstr "服务非活动。\n"
 
-#: dlls/kernelbase/winerror.mc:1193
+#: dlls/kernelbase/winerror.mc:1310
 msgid "Service controller connect failed.\n"
 msgstr "无法连接服务控制器。\n"
 
-#: dlls/kernelbase/winerror.mc:1198
+#: dlls/kernelbase/winerror.mc:1315
 msgid "Exception in service.\n"
 msgstr "服务中出现例外。\n"
 
-#: dlls/kernelbase/winerror.mc:1203
+#: dlls/kernelbase/winerror.mc:1320
 msgid "Database does not exist.\n"
 msgstr "数据库不存在。\n"
 
-#: dlls/kernelbase/winerror.mc:1208
+#: dlls/kernelbase/winerror.mc:1325
 msgid "Service-specific error.\n"
 msgstr "服务专属错误。\n"
 
-#: dlls/kernelbase/winerror.mc:1213
+#: dlls/kernelbase/winerror.mc:1330
 msgid "Process aborted.\n"
 msgstr "进程被终止。\n"
 
-#: dlls/kernelbase/winerror.mc:1218
+#: dlls/kernelbase/winerror.mc:1335
 msgid "Service dependency failed.\n"
 msgstr "服务依赖故障。\n"
 
-#: dlls/kernelbase/winerror.mc:1223
+#: dlls/kernelbase/winerror.mc:1340
 msgid "Service login failed.\n"
 msgstr "服务登录失败。\n"
 
-#: dlls/kernelbase/winerror.mc:1228
+#: dlls/kernelbase/winerror.mc:1345
 msgid "Service start-hang.\n"
 msgstr "服务启动挂起。\n"
 
-#: dlls/kernelbase/winerror.mc:1233
+#: dlls/kernelbase/winerror.mc:1350
 msgid "Invalid service lock.\n"
 msgstr "无效的服务锁。\n"
 
-#: dlls/kernelbase/winerror.mc:1238
+#: dlls/kernelbase/winerror.mc:1355
 msgid "Service marked for delete.\n"
 msgstr "服务已标记删除。\n"
 
-#: dlls/kernelbase/winerror.mc:1243
+#: dlls/kernelbase/winerror.mc:1360
 msgid "Service exists.\n"
 msgstr "服务已存在。\n"
 
-#: dlls/kernelbase/winerror.mc:1248
+#: dlls/kernelbase/winerror.mc:1365
 msgid "System running last-known-good config.\n"
 msgstr "系统使用最近的正确配置运行。\n"
 
-#: dlls/kernelbase/winerror.mc:1253
+#: dlls/kernelbase/winerror.mc:1370
 msgid "Service dependency deleted.\n"
 msgstr "服务依赖已删除。\n"
 
-#: dlls/kernelbase/winerror.mc:1258
+#: dlls/kernelbase/winerror.mc:1375
 msgid "Boot already accepted as last-good config.\n"
 msgstr "引导已接受为最近的正确配置。\n"
 
-#: dlls/kernelbase/winerror.mc:1263
+#: dlls/kernelbase/winerror.mc:1380
 msgid "Service not started since last boot.\n"
 msgstr "服务自上次引导以来未启动。\n"
 
-#: dlls/kernelbase/winerror.mc:1268
+#: dlls/kernelbase/winerror.mc:1385
 msgid "Duplicate service name.\n"
 msgstr "重复的服务名。\n"
 
-#: dlls/kernelbase/winerror.mc:1273
+#: dlls/kernelbase/winerror.mc:1390
 msgid "Different service account.\n"
 msgstr "服务帐号不同。\n"
 
-#: dlls/kernelbase/winerror.mc:1278
+#: dlls/kernelbase/winerror.mc:1395
 msgid "Driver failure cannot be detected.\n"
 msgstr "驱动故障未被检测到。\n"
 
-#: dlls/kernelbase/winerror.mc:1283
+#: dlls/kernelbase/winerror.mc:1400
 msgid "Process abort cannot be detected.\n"
 msgstr "进程中止未被检测到。\n"
 
-#: dlls/kernelbase/winerror.mc:1288
+#: dlls/kernelbase/winerror.mc:1405
 msgid "No recovery program for service.\n"
 msgstr "服务无恢复程序。\n"
 
-#: dlls/kernelbase/winerror.mc:1293
+#: dlls/kernelbase/winerror.mc:1410
 msgid "Service not implemented by exe.\n"
 msgstr "打印功能未被 exe 实现。\n"
 
-#: dlls/kernelbase/winerror.mc:1298
+#: dlls/kernelbase/winerror.mc:1415
 msgid "End of media.\n"
 msgstr "介质结尾。\n"
 
-#: dlls/kernelbase/winerror.mc:1303
+#: dlls/kernelbase/winerror.mc:1420
 msgid "Filemark detected.\n"
 msgstr "探测到文件标记。\n"
 
-#: dlls/kernelbase/winerror.mc:1308
+#: dlls/kernelbase/winerror.mc:1425
 msgid "Beginning of media.\n"
 msgstr "介质开头。\n"
 
-#: dlls/kernelbase/winerror.mc:1313
+#: dlls/kernelbase/winerror.mc:1430
 msgid "Setmark detected.\n"
 msgstr "探测到设置标记。\n"
 
-#: dlls/kernelbase/winerror.mc:1318
+#: dlls/kernelbase/winerror.mc:1435
 msgid "No data detected.\n"
 msgstr "未检测到数据。\n"
 
-#: dlls/kernelbase/winerror.mc:1323
+#: dlls/kernelbase/winerror.mc:1440
 msgid "Partition failure.\n"
 msgstr "分区故障。\n"
 
-#: dlls/kernelbase/winerror.mc:1328
+#: dlls/kernelbase/winerror.mc:1445
 msgid "Invalid block length.\n"
 msgstr "无效的块长度。\n"
 
-#: dlls/kernelbase/winerror.mc:1333
+#: dlls/kernelbase/winerror.mc:1450
 msgid "Device not partitioned.\n"
 msgstr "设备未分区。\n"
 
-#: dlls/kernelbase/winerror.mc:1338
+#: dlls/kernelbase/winerror.mc:1455
 msgid "Unable to lock media.\n"
 msgstr "无法锁定介质。\n"
 
-#: dlls/kernelbase/winerror.mc:1343
+#: dlls/kernelbase/winerror.mc:1460
 msgid "Unable to unload media.\n"
 msgstr "无法卸载介质。\n"
 
-#: dlls/kernelbase/winerror.mc:1348
+#: dlls/kernelbase/winerror.mc:1465
 msgid "Media changed.\n"
 msgstr "介质已更改。\n"
 
-#: dlls/kernelbase/winerror.mc:1353
+#: dlls/kernelbase/winerror.mc:1470
 msgid "I/O bus reset.\n"
 msgstr "I/O 总线复位。\n"
 
-#: dlls/kernelbase/winerror.mc:1358
+#: dlls/kernelbase/winerror.mc:1475
 msgid "No media in drive.\n"
 msgstr "驱动器中无介质。\n"
 
-#: dlls/kernelbase/winerror.mc:1363
+#: dlls/kernelbase/winerror.mc:1480
 msgid "No Unicode translation.\n"
 msgstr "没有 Unicode 翻译。\n"
 
-#: dlls/kernelbase/winerror.mc:1368
+#: dlls/kernelbase/winerror.mc:1485
 msgid "DLL initialization failed.\n"
 msgstr "DLL 初始化失败。\n"
 
-#: dlls/kernelbase/winerror.mc:1373
+#: dlls/kernelbase/winerror.mc:1490
 msgid "Shutdown in progress.\n"
 msgstr "正在关机。\n"
 
-#: dlls/kernelbase/winerror.mc:1378
+#: dlls/kernelbase/winerror.mc:1495
 msgid "No shutdown in progress.\n"
 msgstr "无正在进行的关机操作。\n"
 
-#: dlls/kernelbase/winerror.mc:1383
+#: dlls/kernelbase/winerror.mc:1500
 msgid "I/O device error.\n"
 msgstr "I/O 设备错误。\n"
 
-#: dlls/kernelbase/winerror.mc:1388
+#: dlls/kernelbase/winerror.mc:1505
 msgid "No serial devices found.\n"
 msgstr "未找到串口设备。\n"
 
-#: dlls/kernelbase/winerror.mc:1393
+#: dlls/kernelbase/winerror.mc:1510
 msgid "Shared IRQ busy.\n"
 msgstr "共享 IRQ 忙。\n"
 
-#: dlls/kernelbase/winerror.mc:1398
+#: dlls/kernelbase/winerror.mc:1515
 msgid "Serial I/O completed.\n"
 msgstr "已完成串行 I/O。\n"
 
-#: dlls/kernelbase/winerror.mc:1403
+#: dlls/kernelbase/winerror.mc:1520
 msgid "Serial I/O counter timeout.\n"
 msgstr "串行 I/O 计数器超时。\n"
 
-#: dlls/kernelbase/winerror.mc:1408
+#: dlls/kernelbase/winerror.mc:1525
 msgid "Floppy ID address mark not found.\n"
 msgstr "未找到软盘 ID 地址标记。\n"
 
-#: dlls/kernelbase/winerror.mc:1413
+#: dlls/kernelbase/winerror.mc:1530
 msgid "Floppy reports wrong cylinder.\n"
 msgstr "软盘报告错误柱面。\n"
 
-#: dlls/kernelbase/winerror.mc:1418
+#: dlls/kernelbase/winerror.mc:1535
 msgid "Unknown floppy error.\n"
 msgstr "未知软盘错误。\n"
 
-#: dlls/kernelbase/winerror.mc:1423
+#: dlls/kernelbase/winerror.mc:1540
 msgid "Floppy registers inconsistent.\n"
 msgstr "软盘寄存器不相符。\n"
 
-#: dlls/kernelbase/winerror.mc:1428
+#: dlls/kernelbase/winerror.mc:1545
 msgid "Hard disk recalibrate failed.\n"
 msgstr "硬盘重校正失败。\n"
 
-#: dlls/kernelbase/winerror.mc:1433
+#: dlls/kernelbase/winerror.mc:1550
 msgid "Hard disk operation failed.\n"
 msgstr "硬盘操作失败。\n"
 
-#: dlls/kernelbase/winerror.mc:1438
+#: dlls/kernelbase/winerror.mc:1555
 msgid "Hard disk reset failed.\n"
 msgstr "硬盘复位失败。\n"
 
-#: dlls/kernelbase/winerror.mc:1443
+#: dlls/kernelbase/winerror.mc:1560
 msgid "End of tape media.\n"
 msgstr "磁带介质结尾。\n"
 
-#: dlls/kernelbase/winerror.mc:1448
+#: dlls/kernelbase/winerror.mc:1565
 msgid "Not enough server memory.\n"
 msgstr "服务器内存不足。\n"
 
-#: dlls/kernelbase/winerror.mc:1453
+#: dlls/kernelbase/winerror.mc:1570
 msgid "Possible deadlock.\n"
 msgstr "可能的死锁。\n"
 
-#: dlls/kernelbase/winerror.mc:1458
+#: dlls/kernelbase/winerror.mc:1575
 msgid "Incorrect alignment.\n"
 msgstr "对齐不正确。\n"
 
-#: dlls/kernelbase/winerror.mc:1463
+#: dlls/kernelbase/winerror.mc:1580
 msgid "Set-power-state vetoed.\n"
 msgstr "Set-power-state 被否决。\n"
 
-#: dlls/kernelbase/winerror.mc:1468
+#: dlls/kernelbase/winerror.mc:1585
 msgid "Set-power-state failed.\n"
 msgstr "Set-power-state 失败。\n"
 
-#: dlls/kernelbase/winerror.mc:1473
+#: dlls/kernelbase/winerror.mc:1590
 msgid "Too many links.\n"
 msgstr "链接过多。\n"
 
-#: dlls/kernelbase/winerror.mc:1478
+#: dlls/kernelbase/winerror.mc:1595
 msgid "Newer Windows version needed.\n"
 msgstr "需要更新版本的 Windows。\n"
 
-#: dlls/kernelbase/winerror.mc:1483
+#: dlls/kernelbase/winerror.mc:1600
 msgid "Wrong operating system.\n"
 msgstr "错误的操作系统。\n"
 
-#: dlls/kernelbase/winerror.mc:1488
+#: dlls/kernelbase/winerror.mc:1605
 msgid "Single-instance application.\n"
 msgstr "单实例应用程序。\n"
 
-#: dlls/kernelbase/winerror.mc:1493
+#: dlls/kernelbase/winerror.mc:1610
 msgid "Real-mode application.\n"
 msgstr "实地址模式应用程序。\n"
 
-#: dlls/kernelbase/winerror.mc:1498
+#: dlls/kernelbase/winerror.mc:1615
 msgid "Invalid DLL.\n"
 msgstr "无效的 DLL。\n"
 
-#: dlls/kernelbase/winerror.mc:1503
+#: dlls/kernelbase/winerror.mc:1620
 msgid "No associated application.\n"
 msgstr "无关联的应用程序。\n"
 
-#: dlls/kernelbase/winerror.mc:1508
+#: dlls/kernelbase/winerror.mc:1625
 msgid "DDE failure.\n"
 msgstr "DDE 故障。\n"
 
-#: dlls/kernelbase/winerror.mc:1513
+#: dlls/kernelbase/winerror.mc:1630
 msgid "DLL not found.\n"
 msgstr "找不到 DLL。\n"
 
-#: dlls/kernelbase/winerror.mc:1518
+#: dlls/kernelbase/winerror.mc:1635
 msgid "Out of user handles.\n"
 msgstr "用户句柄不足。\n"
 
-#: dlls/kernelbase/winerror.mc:1523
+#: dlls/kernelbase/winerror.mc:1640
 msgid "Message can only be used in synchronous calls.\n"
 msgstr "消息仅可用于同步调用。\n"
 
-#: dlls/kernelbase/winerror.mc:1528
+#: dlls/kernelbase/winerror.mc:1645
 msgid "The source element is empty.\n"
 msgstr "源元素为空。\n"
 
-#: dlls/kernelbase/winerror.mc:1533
+#: dlls/kernelbase/winerror.mc:1650
 msgid "The destination element is full.\n"
 msgstr "目标元素已满。\n"
 
-#: dlls/kernelbase/winerror.mc:1538
+#: dlls/kernelbase/winerror.mc:1655
 msgid "The element address is invalid.\n"
 msgstr "元素地址无效。\n"
 
-#: dlls/kernelbase/winerror.mc:1543
+#: dlls/kernelbase/winerror.mc:1660
 msgid "The magazine is not present.\n"
 msgstr "缺少盘匣。\n"
 
-#: dlls/kernelbase/winerror.mc:1548
+#: dlls/kernelbase/winerror.mc:1665
 msgid "The device needs reinitialization.\n"
 msgstr "设备需要重新初始化。\n"
 
-#: dlls/kernelbase/winerror.mc:1553
+#: dlls/kernelbase/winerror.mc:1670
 msgid "The device requires cleaning.\n"
 msgstr "设备需要清理。\n"
 
-#: dlls/kernelbase/winerror.mc:1558
+#: dlls/kernelbase/winerror.mc:1675
 msgid "The device door is open.\n"
 msgstr "设备盖是打开的。\n"
 
-#: dlls/kernelbase/winerror.mc:1563
+#: dlls/kernelbase/winerror.mc:1680
 msgid "The device is not connected.\n"
 msgstr "设备未连接。\n"
 
-#: dlls/kernelbase/winerror.mc:1568
+#: dlls/kernelbase/winerror.mc:1685
 msgid "Element not found.\n"
 msgstr "找不到元素。\n"
 
-#: dlls/kernelbase/winerror.mc:1573
+#: dlls/kernelbase/winerror.mc:1690
 msgid "No match found.\n"
 msgstr "没有找到匹配。\n"
 
-#: dlls/kernelbase/winerror.mc:1578
+#: dlls/kernelbase/winerror.mc:1695
 msgid "Property set not found.\n"
 msgstr "找不到属性集。\n"
 
-#: dlls/kernelbase/winerror.mc:1583
+#: dlls/kernelbase/winerror.mc:1700
 msgid "Point not found.\n"
 msgstr "未找到点。\n"
 
-#: dlls/kernelbase/winerror.mc:1588
+#: dlls/kernelbase/winerror.mc:1705
 msgid "No running tracking service.\n"
 msgstr "没有运行中的跟踪服务。\n"
 
-#: dlls/kernelbase/winerror.mc:1593
+#: dlls/kernelbase/winerror.mc:1710
 msgid "No such volume ID.\n"
 msgstr "无此卷 ID。\n"
 
-#: dlls/kernelbase/winerror.mc:1598
+#: dlls/kernelbase/winerror.mc:1715
 msgid "Unable to remove the file to be replaced.\n"
 msgstr "无法移除将被替换的文件。\n"
 
-#: dlls/kernelbase/winerror.mc:1603
+#: dlls/kernelbase/winerror.mc:1720
 msgid "Unable to move the replacement file into place.\n"
 msgstr "无法将替换文件移动到位。\n"
 
-#: dlls/kernelbase/winerror.mc:1608
+#: dlls/kernelbase/winerror.mc:1725
 msgid "Moving the replacement file failed.\n"
 msgstr "移动替换文件失败。\n"
 
-#: dlls/kernelbase/winerror.mc:1613
+#: dlls/kernelbase/winerror.mc:1730
 msgid "The journal is being deleted.\n"
 msgstr "日志正在被删除。\n"
 
-#: dlls/kernelbase/winerror.mc:1618
+#: dlls/kernelbase/winerror.mc:1735
 msgid "The journal is not active.\n"
 msgstr "日志非活动。\n"
 
-#: dlls/kernelbase/winerror.mc:1623
+#: dlls/kernelbase/winerror.mc:1740
 msgid "Potential matching file found.\n"
 msgstr "找到潜在的匹配文件。\n"
 
-#: dlls/kernelbase/winerror.mc:1628
+#: dlls/kernelbase/winerror.mc:1745
 msgid "The journal entry was deleted.\n"
 msgstr "日志项已被删除。\n"
 
-#: dlls/kernelbase/winerror.mc:1633
+#: dlls/kernelbase/winerror.mc:1750
 msgid "Invalid device name.\n"
 msgstr "无效的设备名。\n"
 
-#: dlls/kernelbase/winerror.mc:1638
+#: dlls/kernelbase/winerror.mc:1755
 msgid "Connection unavailable.\n"
 msgstr "连接不可用。\n"
 
-#: dlls/kernelbase/winerror.mc:1643
+#: dlls/kernelbase/winerror.mc:1760
 msgid "Device already remembered.\n"
 msgstr "已记住设备。\n"
 
-#: dlls/kernelbase/winerror.mc:1648
+#: dlls/kernelbase/winerror.mc:1765
 msgid "No network or bad path.\n"
 msgstr "无网络或错误路径。\n"
 
-#: dlls/kernelbase/winerror.mc:1653
+#: dlls/kernelbase/winerror.mc:1770
 msgid "Invalid network provider name.\n"
 msgstr "无效的网络提供者名称。\n"
 
-#: dlls/kernelbase/winerror.mc:1658
+#: dlls/kernelbase/winerror.mc:1775
 msgid "Cannot open network connection profile.\n"
 msgstr "无法打开网络连接档案。\n"
 
-#: dlls/kernelbase/winerror.mc:1663
+#: dlls/kernelbase/winerror.mc:1780
 msgid "Corrupt network connection profile.\n"
 msgstr "网络连接档案已损坏。\n"
 
-#: dlls/kernelbase/winerror.mc:1668
+#: dlls/kernelbase/winerror.mc:1785
 msgid "Not a container.\n"
 msgstr "不是容器。\n"
 
-#: dlls/kernelbase/winerror.mc:1673
+#: dlls/kernelbase/winerror.mc:1790
 msgid "Extended error.\n"
 msgstr "详尽的错误。\n"
 
-#: dlls/kernelbase/winerror.mc:1678
+#: dlls/kernelbase/winerror.mc:1795
 msgid "Invalid group name.\n"
 msgstr "无效组名。\n"
 
-#: dlls/kernelbase/winerror.mc:1683
+#: dlls/kernelbase/winerror.mc:1800
 msgid "Invalid computer name.\n"
 msgstr "无效计算机名。\n"
 
-#: dlls/kernelbase/winerror.mc:1688
+#: dlls/kernelbase/winerror.mc:1805
 msgid "Invalid event name.\n"
 msgstr "无效事件名。\n"
 
-#: dlls/kernelbase/winerror.mc:1693
+#: dlls/kernelbase/winerror.mc:1810
 msgid "Invalid domain name.\n"
 msgstr "无效域名。\n"
 
-#: dlls/kernelbase/winerror.mc:1698
+#: dlls/kernelbase/winerror.mc:1815
 msgid "Invalid service name.\n"
 msgstr "无效服务名。\n"
 
-#: dlls/kernelbase/winerror.mc:1703
+#: dlls/kernelbase/winerror.mc:1820
 msgid "Invalid network name.\n"
 msgstr "无效网络名。\n"
 
-#: dlls/kernelbase/winerror.mc:1708
+#: dlls/kernelbase/winerror.mc:1825
 msgid "Invalid share name.\n"
 msgstr "共享名字无效。\n"
 
-#: dlls/kernelbase/winerror.mc:1718
+#: dlls/kernelbase/winerror.mc:1835
 msgid "Invalid message name.\n"
 msgstr "无效消息名。\n"
 
-#: dlls/kernelbase/winerror.mc:1723
+#: dlls/kernelbase/winerror.mc:1840
 msgid "Invalid message destination.\n"
 msgstr "无效消息目标。\n"
 
-#: dlls/kernelbase/winerror.mc:1728
+#: dlls/kernelbase/winerror.mc:1845
 msgid "Session credential conflict.\n"
 msgstr "会话凭据冲突。\n"
 
-#: dlls/kernelbase/winerror.mc:1733
+#: dlls/kernelbase/winerror.mc:1850
 msgid "Remote session limit exceeded.\n"
 msgstr "超出远程会话限制。\n"
 
-#: dlls/kernelbase/winerror.mc:1738
+#: dlls/kernelbase/winerror.mc:1855
 msgid "Duplicate domain or workgroup name.\n"
 msgstr "重复的域或工作组名称。\n"
 
-#: dlls/kernelbase/winerror.mc:1743
+#: dlls/kernelbase/winerror.mc:1860
 msgid "No network.\n"
 msgstr "无网络。\n"
 
-#: dlls/kernelbase/winerror.mc:1748
+#: dlls/kernelbase/winerror.mc:1865
 msgid "Operation canceled by user.\n"
 msgstr "操作被用户取消。\n"
 
-#: dlls/kernelbase/winerror.mc:1753
+#: dlls/kernelbase/winerror.mc:1870
 msgid "File has a user-mapped section.\n"
 msgstr "文件包含用户映射的区块。\n"
 
-#: dlls/kernelbase/winerror.mc:1758 dlls/kernelbase/winerror.mc:3788
+#: dlls/kernelbase/winerror.mc:1875 dlls/kernelbase/winerror.mc:3910
 msgid "Connection refused.\n"
 msgstr "连接被拒绝。\n"
 
-#: dlls/kernelbase/winerror.mc:1763
+#: dlls/kernelbase/winerror.mc:1880
 msgid "Connection gracefully closed.\n"
 msgstr "连接已顺利关闭。\n"
 
-#: dlls/kernelbase/winerror.mc:1768
+#: dlls/kernelbase/winerror.mc:1885
 msgid "Address already associated with transport endpoint.\n"
 msgstr "地址已关联到传输终点。\n"
 
-#: dlls/kernelbase/winerror.mc:1773
+#: dlls/kernelbase/winerror.mc:1890
 msgid "Address not associated with transport endpoint.\n"
 msgstr "地址未关联到传输终点。\n"
 
-#: dlls/kernelbase/winerror.mc:1778
+#: dlls/kernelbase/winerror.mc:1895
 msgid "Connection invalid.\n"
 msgstr "连接无效。\n"
 
-#: dlls/kernelbase/winerror.mc:1783
+#: dlls/kernelbase/winerror.mc:1900
 msgid "Connection is active.\n"
 msgstr "连接处于活动状态。\n"
 
-#: dlls/kernelbase/winerror.mc:1788
+#: dlls/kernelbase/winerror.mc:1905
 msgid "Network unreachable.\n"
 msgstr "网络不可达。\n"
 
-#: dlls/kernelbase/winerror.mc:1793
+#: dlls/kernelbase/winerror.mc:1910
 msgid "Host unreachable.\n"
 msgstr "主机不可达。\n"
 
-#: dlls/kernelbase/winerror.mc:1798
+#: dlls/kernelbase/winerror.mc:1915
 msgid "Protocol unreachable.\n"
 msgstr "协议不可达。\n"
 
-#: dlls/kernelbase/winerror.mc:1803
+#: dlls/kernelbase/winerror.mc:1920
 msgid "Port unreachable.\n"
 msgstr "端口不可达。\n"
 
-#: dlls/kernelbase/winerror.mc:1808
+#: dlls/kernelbase/winerror.mc:1925
 msgid "Request aborted.\n"
 msgstr "请求已中止。\n"
 
-#: dlls/kernelbase/winerror.mc:1813
+#: dlls/kernelbase/winerror.mc:1930
 msgid "Connection aborted.\n"
 msgstr "连接被终止。\n"
 
-#: dlls/kernelbase/winerror.mc:1818
+#: dlls/kernelbase/winerror.mc:1935
 msgid "Please retry operation.\n"
 msgstr "请重试操作。\n"
 
-#: dlls/kernelbase/winerror.mc:1823
+#: dlls/kernelbase/winerror.mc:1940
 msgid "Connection count limit reached.\n"
 msgstr "连接数量达到上限。\n"
 
-#: dlls/kernelbase/winerror.mc:1828
+#: dlls/kernelbase/winerror.mc:1945
 msgid "Login time restriction.\n"
 msgstr "登录时间限制。\n"
 
-#: dlls/kernelbase/winerror.mc:1833
+#: dlls/kernelbase/winerror.mc:1950
 msgid "Login workstation restriction.\n"
 msgstr "登录工作站限制。\n"
 
-#: dlls/kernelbase/winerror.mc:1838
+#: dlls/kernelbase/winerror.mc:1955
 msgid "Incorrect network address.\n"
 msgstr "无效的网络地址。\n"
 
-#: dlls/kernelbase/winerror.mc:1843
+#: dlls/kernelbase/winerror.mc:1960
 msgid "Service already registered.\n"
 msgstr "服务已注册。\n"
 
-#: dlls/kernelbase/winerror.mc:1848
+#: dlls/kernelbase/winerror.mc:1965
 msgid "Service not found.\n"
 msgstr "找不到服务。\n"
 
-#: dlls/kernelbase/winerror.mc:1853
+#: dlls/kernelbase/winerror.mc:1970
 msgid "User not authenticated.\n"
 msgstr "用户未认证。\n"
 
-#: dlls/kernelbase/winerror.mc:1858
+#: dlls/kernelbase/winerror.mc:1975
 msgid "User not logged on.\n"
 msgstr "用户未登录。\n"
 
-#: dlls/kernelbase/winerror.mc:1863
+#: dlls/kernelbase/winerror.mc:1980
 msgid "Continue work in progress.\n"
 msgstr "继续正在进行的工作。\n"
 
-#: dlls/kernelbase/winerror.mc:1868
+#: dlls/kernelbase/winerror.mc:1985
 msgid "Already initialized.\n"
 msgstr "已被初始化。\n"
 
-#: dlls/kernelbase/winerror.mc:1873
+#: dlls/kernelbase/winerror.mc:1990
 msgid "No more local devices.\n"
 msgstr "无更多本地设备。\n"
 
-#: dlls/kernelbase/winerror.mc:1878
+#: dlls/kernelbase/winerror.mc:1995
 msgid "The site does not exist.\n"
 msgstr "站点不存在。\n"
 
-#: dlls/kernelbase/winerror.mc:1883
+#: dlls/kernelbase/winerror.mc:2000
 msgid "The domain controller already exists.\n"
 msgstr "该域控制器已存在。\n"
 
-#: dlls/kernelbase/winerror.mc:1888
+#: dlls/kernelbase/winerror.mc:2005
 msgid "Supported only when connected.\n"
 msgstr "只有已连接时才支持。\n"
 
-#: dlls/kernelbase/winerror.mc:1893
+#: dlls/kernelbase/winerror.mc:2010
 msgid "Perform operation even when nothing changed.\n"
 msgstr "在不存在更改时依然执行操作。\n"
 
-#: dlls/kernelbase/winerror.mc:1898
+#: dlls/kernelbase/winerror.mc:2015
 msgid "The user profile is invalid.\n"
 msgstr "无效用户档案。\n"
 
-#: dlls/kernelbase/winerror.mc:1903
+#: dlls/kernelbase/winerror.mc:2020
 msgid "Not supported on Small Business Server.\n"
 msgstr "在 Small Business Server 上不被支持。\n"
 
-#: dlls/kernelbase/winerror.mc:1908
+#: dlls/kernelbase/winerror.mc:2025
 msgid "Not all privileges assigned.\n"
 msgstr "未分配所有权限。\n"
 
-#: dlls/kernelbase/winerror.mc:1913
+#: dlls/kernelbase/winerror.mc:2030
 msgid "Some security IDs not mapped.\n"
 msgstr "一部分安全 ID 未映射。\n"
 
-#: dlls/kernelbase/winerror.mc:1918
+#: dlls/kernelbase/winerror.mc:2035
 msgid "No quotas for account.\n"
 msgstr "帐号无配额。\n"
 
-#: dlls/kernelbase/winerror.mc:1923
+#: dlls/kernelbase/winerror.mc:2040
 msgid "Local user session key.\n"
 msgstr "本地用户会话密钥。\n"
 
-#: dlls/kernelbase/winerror.mc:1928
+#: dlls/kernelbase/winerror.mc:2045
 msgid "Password too complex for LM.\n"
 msgstr "密码对于 LM 太复杂。\n"
 
-#: dlls/kernelbase/winerror.mc:1933
+#: dlls/kernelbase/winerror.mc:2050
 msgid "Unknown revision.\n"
 msgstr "未知修订版。\n"
 
-#: dlls/kernelbase/winerror.mc:1938
+#: dlls/kernelbase/winerror.mc:2055
 msgid "Incompatible revision levels.\n"
 msgstr "不兼容的修订级别。\n"
 
-#: dlls/kernelbase/winerror.mc:1943
+#: dlls/kernelbase/winerror.mc:2060
 msgid "Invalid owner.\n"
 msgstr "所有者无效。\n"
 
-#: dlls/kernelbase/winerror.mc:1948
+#: dlls/kernelbase/winerror.mc:2065
 msgid "Invalid primary group.\n"
 msgstr "无效的首要组。\n"
 
-#: dlls/kernelbase/winerror.mc:1953
+#: dlls/kernelbase/winerror.mc:2070
 msgid "No impersonation token.\n"
 msgstr "无模拟令牌。\n"
 
-#: dlls/kernelbase/winerror.mc:1958
+#: dlls/kernelbase/winerror.mc:2075
 msgid "Can't disable mandatory group.\n"
 msgstr "不能禁用必要组。\n"
 
-#: dlls/kernelbase/winerror.mc:1963
+#: dlls/kernelbase/winerror.mc:2080
 msgid "No logon servers available.\n"
 msgstr "无可用的登录服务器。\n"
 
-#: dlls/kernelbase/winerror.mc:1968
+#: dlls/kernelbase/winerror.mc:2085
 msgid "No such logon session.\n"
 msgstr "无此登录会话。\n"
 
-#: dlls/kernelbase/winerror.mc:1973
+#: dlls/kernelbase/winerror.mc:2090
 msgid "No such privilege.\n"
 msgstr "无此权限。\n"
 
-#: dlls/kernelbase/winerror.mc:1978
+#: dlls/kernelbase/winerror.mc:2095
 msgid "Privilege not held.\n"
 msgstr "未保有权限。\n"
 
-#: dlls/kernelbase/winerror.mc:1983
+#: dlls/kernelbase/winerror.mc:2100
 msgid "Invalid account name.\n"
 msgstr "无效的帐号名。\n"
 
-#: dlls/kernelbase/winerror.mc:1988
+#: dlls/kernelbase/winerror.mc:2105
 msgid "User already exists.\n"
 msgstr "用户已经存在。\n"
 
-#: dlls/kernelbase/winerror.mc:1993
+#: dlls/kernelbase/winerror.mc:2110
 msgid "No such user.\n"
 msgstr "无此用户。\n"
 
-#: dlls/kernelbase/winerror.mc:1998
+#: dlls/kernelbase/winerror.mc:2115
 msgid "Group already exists.\n"
 msgstr "组已经存在。\n"
 
-#: dlls/kernelbase/winerror.mc:2003
+#: dlls/kernelbase/winerror.mc:2120
 msgid "No such group.\n"
 msgstr "无此组。\n"
 
-#: dlls/kernelbase/winerror.mc:2008
+#: dlls/kernelbase/winerror.mc:2125
 msgid "User already in group.\n"
 msgstr "用户已在组内。\n"
 
-#: dlls/kernelbase/winerror.mc:2013
+#: dlls/kernelbase/winerror.mc:2130
 msgid "User not in group.\n"
 msgstr "用户不在组内。\n"
 
-#: dlls/kernelbase/winerror.mc:2018
+#: dlls/kernelbase/winerror.mc:2135
 msgid "Can't delete last admin user.\n"
 msgstr "无法删除仅有的管理员用户。\n"
 
-#: dlls/kernelbase/winerror.mc:2023
+#: dlls/kernelbase/winerror.mc:2140
 msgid "Wrong password.\n"
 msgstr "密码错误。\n"
 
-#: dlls/kernelbase/winerror.mc:2028
+#: dlls/kernelbase/winerror.mc:2145
 msgid "Ill-formed password.\n"
 msgstr "密码格式不正确。\n"
 
-#: dlls/kernelbase/winerror.mc:2033
+#: dlls/kernelbase/winerror.mc:2150
 msgid "Password restriction.\n"
 msgstr "密码限制。\n"
 
-#: dlls/kernelbase/winerror.mc:2038
+#: dlls/kernelbase/winerror.mc:2155
 msgid "Logon failure.\n"
 msgstr "登录失败。\n"
 
-#: dlls/kernelbase/winerror.mc:2043
+#: dlls/kernelbase/winerror.mc:2160
 msgid "Account restriction.\n"
 msgstr "帐号限制。\n"
 
-#: dlls/kernelbase/winerror.mc:2048
+#: dlls/kernelbase/winerror.mc:2165
 msgid "Invalid logon hours.\n"
 msgstr "无效登录时间段。\n"
 
-#: dlls/kernelbase/winerror.mc:2053
+#: dlls/kernelbase/winerror.mc:2170
 msgid "Invalid workstation.\n"
 msgstr "无效工作站。\n"
 
-#: dlls/kernelbase/winerror.mc:2058
+#: dlls/kernelbase/winerror.mc:2175
 msgid "Password expired.\n"
 msgstr "密码已过期。\n"
 
-#: dlls/kernelbase/winerror.mc:2063
+#: dlls/kernelbase/winerror.mc:2180
 msgid "Account disabled.\n"
 msgstr "帐号停用。\n"
 
-#: dlls/kernelbase/winerror.mc:2068
+#: dlls/kernelbase/winerror.mc:2185
 msgid "No security ID mapped.\n"
 msgstr "未映射安全 ID。\n"
 
-#: dlls/kernelbase/winerror.mc:2073
+#: dlls/kernelbase/winerror.mc:2190
 msgid "Too many LUIDs requested.\n"
 msgstr "请求的 LUID 过多。\n"
 
-#: dlls/kernelbase/winerror.mc:2078
+#: dlls/kernelbase/winerror.mc:2195
 msgid "LUIDs exhausted.\n"
 msgstr "LUID 耗尽。\n"
 
-#: dlls/kernelbase/winerror.mc:2083
+#: dlls/kernelbase/winerror.mc:2200
 msgid "Invalid sub authority.\n"
 msgstr "子权威无效。\n"
 
-#: dlls/kernelbase/winerror.mc:2088
+#: dlls/kernelbase/winerror.mc:2205
 msgid "Invalid ACL.\n"
 msgstr "无效 ACL。\n"
 
-#: dlls/kernelbase/winerror.mc:2093
+#: dlls/kernelbase/winerror.mc:2210
 msgid "Invalid SID.\n"
 msgstr "无效 SID。\n"
 
-#: dlls/kernelbase/winerror.mc:2098
+#: dlls/kernelbase/winerror.mc:2215
 msgid "Invalid security descriptor.\n"
 msgstr "无效安全描述符。\n"
 
-#: dlls/kernelbase/winerror.mc:2103
+#: dlls/kernelbase/winerror.mc:2220
 msgid "Bad inherited ACL.\n"
 msgstr "非法继承 ACL。\n"
 
-#: dlls/kernelbase/winerror.mc:2108
+#: dlls/kernelbase/winerror.mc:2225
 msgid "Server disabled.\n"
 msgstr "服务器停用。\n"
 
-#: dlls/kernelbase/winerror.mc:2113
+#: dlls/kernelbase/winerror.mc:2230
 msgid "Server not disabled.\n"
 msgstr "服务器未停用。\n"
 
-#: dlls/kernelbase/winerror.mc:2118
+#: dlls/kernelbase/winerror.mc:2235
 msgid "Invalid ID authority.\n"
 msgstr "无效的 ID 机构。\n"
 
-#: dlls/kernelbase/winerror.mc:2123
+#: dlls/kernelbase/winerror.mc:2240
 msgid "Allotted space exceeded.\n"
 msgstr "超出分配的空间。\n"
 
-#: dlls/kernelbase/winerror.mc:2128
+#: dlls/kernelbase/winerror.mc:2245
 msgid "Invalid group attributes.\n"
 msgstr "无效的组属性。\n"
 
-#: dlls/kernelbase/winerror.mc:2133
+#: dlls/kernelbase/winerror.mc:2250
 msgid "Bad impersonation level.\n"
 msgstr "无效的模拟级别。\n"
 
-#: dlls/kernelbase/winerror.mc:2138
+#: dlls/kernelbase/winerror.mc:2255
 msgid "Can't open anonymous security token.\n"
 msgstr "无法打开匿名安全令牌。\n"
 
-#: dlls/kernelbase/winerror.mc:2143
+#: dlls/kernelbase/winerror.mc:2260
 msgid "Bad validation class.\n"
 msgstr "无效验证类。\n"
 
-#: dlls/kernelbase/winerror.mc:2148
+#: dlls/kernelbase/winerror.mc:2265
 msgid "Bad token type.\n"
 msgstr "无效令牌类型。\n"
 
-#: dlls/kernelbase/winerror.mc:2153
+#: dlls/kernelbase/winerror.mc:2270
 msgid "No security on object.\n"
 msgstr "对象上无安全性。\n"
 
-#: dlls/kernelbase/winerror.mc:2158
+#: dlls/kernelbase/winerror.mc:2275
 msgid "Can't access domain information.\n"
 msgstr "无法访问域信息。\n"
 
-#: dlls/kernelbase/winerror.mc:2163
+#: dlls/kernelbase/winerror.mc:2280
 msgid "Invalid server state.\n"
 msgstr "服务器状态无效。\n"
 
-#: dlls/kernelbase/winerror.mc:2168
+#: dlls/kernelbase/winerror.mc:2285
 msgid "Invalid domain state.\n"
 msgstr "无效域状态。\n"
 
-#: dlls/kernelbase/winerror.mc:2173
+#: dlls/kernelbase/winerror.mc:2290
 msgid "Invalid domain role.\n"
 msgstr "无效域角色。\n"
 
-#: dlls/kernelbase/winerror.mc:2178
+#: dlls/kernelbase/winerror.mc:2295
 msgid "No such domain.\n"
 msgstr "无此域。\n"
 
-#: dlls/kernelbase/winerror.mc:2183
+#: dlls/kernelbase/winerror.mc:2300
 msgid "Domain already exists.\n"
 msgstr "域名已存在。\n"
 
-#: dlls/kernelbase/winerror.mc:2188
+#: dlls/kernelbase/winerror.mc:2305
 msgid "Domain limit exceeded.\n"
 msgstr "超出域限制。\n"
 
-#: dlls/kernelbase/winerror.mc:2193
+#: dlls/kernelbase/winerror.mc:2310
 msgid "Internal database corruption.\n"
 msgstr "内部数据库已损坏。\n"
 
-#: dlls/kernelbase/winerror.mc:2198
+#: dlls/kernelbase/winerror.mc:2315
 msgid "Internal error.\n"
 msgstr "内部错误。\n"
 
-#: dlls/kernelbase/winerror.mc:2203
+#: dlls/kernelbase/winerror.mc:2320
 msgid "Generic access types not mapped.\n"
 msgstr "未映射一般访问方式。\n"
 
-#: dlls/kernelbase/winerror.mc:2208
+#: dlls/kernelbase/winerror.mc:2325
 msgid "Bad descriptor format.\n"
 msgstr "无效描述符格式。\n"
 
-#: dlls/kernelbase/winerror.mc:2213
+#: dlls/kernelbase/winerror.mc:2330
 msgid "Not a logon process.\n"
 msgstr "非登录进程。\n"
 
-#: dlls/kernelbase/winerror.mc:2218
+#: dlls/kernelbase/winerror.mc:2335
 msgid "Logon session ID exists.\n"
 msgstr "登录会话 ID 已存在。\n"
 
-#: dlls/kernelbase/winerror.mc:2223
+#: dlls/kernelbase/winerror.mc:2340
 msgid "Unknown authentication package.\n"
 msgstr "未知认证包。\n"
 
-#: dlls/kernelbase/winerror.mc:2228
+#: dlls/kernelbase/winerror.mc:2345
 msgid "Bad logon session state.\n"
 msgstr "无效的登录会话状态。\n"
 
-#: dlls/kernelbase/winerror.mc:2233
+#: dlls/kernelbase/winerror.mc:2350
 msgid "Logon session ID collision.\n"
 msgstr "登录会话 ID 对撞。\n"
 
-#: dlls/kernelbase/winerror.mc:2238
+#: dlls/kernelbase/winerror.mc:2355
 msgid "Invalid logon type.\n"
 msgstr "无效的登录类型。\n"
 
-#: dlls/kernelbase/winerror.mc:2243
+#: dlls/kernelbase/winerror.mc:2360
 msgid "Cannot impersonate.\n"
 msgstr "无法模拟。\n"
 
-#: dlls/kernelbase/winerror.mc:2248
+#: dlls/kernelbase/winerror.mc:2365
 msgid "Invalid transaction state.\n"
 msgstr "事务状态无效。\n"
 
-#: dlls/kernelbase/winerror.mc:2253
+#: dlls/kernelbase/winerror.mc:2370
 msgid "Security DB commit failure.\n"
 msgstr "安全数据库提交故障。\n"
 
-#: dlls/kernelbase/winerror.mc:2258
+#: dlls/kernelbase/winerror.mc:2375
 msgid "Account is built-in.\n"
 msgstr "帐号是内建的。\n"
 
-#: dlls/kernelbase/winerror.mc:2263
+#: dlls/kernelbase/winerror.mc:2380
 msgid "Group is built-in.\n"
 msgstr "内建组。\n"
 
-#: dlls/kernelbase/winerror.mc:2268
+#: dlls/kernelbase/winerror.mc:2385
 msgid "User is built-in.\n"
 msgstr "内建用户。\n"
 
-#: dlls/kernelbase/winerror.mc:2273
+#: dlls/kernelbase/winerror.mc:2390
 msgid "Group is primary for user.\n"
 msgstr "此组是用户的主要组。\n"
 
-#: dlls/kernelbase/winerror.mc:2278
+#: dlls/kernelbase/winerror.mc:2395
 msgid "Token already in use.\n"
 msgstr "令牌已占用。\n"
 
-#: dlls/kernelbase/winerror.mc:2283
+#: dlls/kernelbase/winerror.mc:2400
 msgid "No such local group.\n"
 msgstr "无此本地组。\n"
 
-#: dlls/kernelbase/winerror.mc:2288
+#: dlls/kernelbase/winerror.mc:2405
 msgid "User not in local group.\n"
 msgstr "用户不在本地组内。\n"
 
-#: dlls/kernelbase/winerror.mc:2293
+#: dlls/kernelbase/winerror.mc:2410
 msgid "User already in local group.\n"
 msgstr "用户已在本地组内。\n"
 
-#: dlls/kernelbase/winerror.mc:2298
+#: dlls/kernelbase/winerror.mc:2415
 msgid "Local group already exists.\n"
 msgstr "本地组已经存在。\n"
 
-#: dlls/kernelbase/winerror.mc:2303 dlls/kernelbase/winerror.mc:2328
+#: dlls/kernelbase/winerror.mc:2420 dlls/kernelbase/winerror.mc:2445
 msgid "Logon type not granted.\n"
 msgstr "该登录类型不被允许。\n"
 
-#: dlls/kernelbase/winerror.mc:2308
+#: dlls/kernelbase/winerror.mc:2425
 msgid "Too many secrets.\n"
 msgstr "密文太多。\n"
 
-#: dlls/kernelbase/winerror.mc:2313
+#: dlls/kernelbase/winerror.mc:2430
 msgid "Secret too long.\n"
 msgstr "密文太长。\n"
 
-#: dlls/kernelbase/winerror.mc:2318
+#: dlls/kernelbase/winerror.mc:2435
 msgid "Internal security DB error.\n"
 msgstr "内部安全数据库错误。\n"
 
-#: dlls/kernelbase/winerror.mc:2323
+#: dlls/kernelbase/winerror.mc:2440
 msgid "Too many context IDs.\n"
 msgstr "上下文 ID 过多。\n"
 
-#: dlls/kernelbase/winerror.mc:2333
+#: dlls/kernelbase/winerror.mc:2450
 msgid "Cross-encrypted NT password required.\n"
 msgstr "需要混合加密的 NT 密码。\n"
 
-#: dlls/kernelbase/winerror.mc:2338
+#: dlls/kernelbase/winerror.mc:2455
 msgid "No such member.\n"
 msgstr "无此成员。\n"
 
-#: dlls/kernelbase/winerror.mc:2343
+#: dlls/kernelbase/winerror.mc:2460
 msgid "Invalid member.\n"
 msgstr "成员无效。\n"
 
-#: dlls/kernelbase/winerror.mc:2348
+#: dlls/kernelbase/winerror.mc:2465
 msgid "Too many SIDs.\n"
 msgstr "SID 过多。\n"
 
-#: dlls/kernelbase/winerror.mc:2353
+#: dlls/kernelbase/winerror.mc:2470
 msgid "Cross-encrypted LM password required.\n"
 msgstr "需要混合加密的 LM 密码。\n"
 
-#: dlls/kernelbase/winerror.mc:2358
+#: dlls/kernelbase/winerror.mc:2475
 msgid "No inheritable components.\n"
 msgstr "无可继承的组件。\n"
 
-#: dlls/kernelbase/winerror.mc:2363
+#: dlls/kernelbase/winerror.mc:2480
 msgid "File or directory corrupt.\n"
 msgstr "文件或目录已损坏。\n"
 
-#: dlls/kernelbase/winerror.mc:2368
+#: dlls/kernelbase/winerror.mc:2485
 msgid "Disk is corrupt.\n"
 msgstr "磁盘已损坏。\n"
 
-#: dlls/kernelbase/winerror.mc:2373
+#: dlls/kernelbase/winerror.mc:2490
 msgid "No user session key.\n"
 msgstr "无用户会话密钥。\n"
 
-#: dlls/kernelbase/winerror.mc:2378
+#: dlls/kernelbase/winerror.mc:2495
 msgid "License quota exceeded.\n"
 msgstr "超出许可配额。\n"
 
-#: dlls/kernelbase/winerror.mc:2383
+#: dlls/kernelbase/winerror.mc:2500
 msgid "Wrong target name.\n"
 msgstr "错误的目标名称。\n"
 
-#: dlls/kernelbase/winerror.mc:2388
+#: dlls/kernelbase/winerror.mc:2505
 msgid "Mutual authentication failed.\n"
 msgstr "双边认证失败。\n"
 
-#: dlls/kernelbase/winerror.mc:2393
+#: dlls/kernelbase/winerror.mc:2510
 msgid "Time skew between client and server.\n"
 msgstr "客户端和服务器之间存在时间偏移。\n"
 
-#: dlls/kernelbase/winerror.mc:2398
+#: dlls/kernelbase/winerror.mc:2515
 msgid "Invalid window handle.\n"
 msgstr "无效的窗口句柄。\n"
 
-#: dlls/kernelbase/winerror.mc:2403
+#: dlls/kernelbase/winerror.mc:2520
 msgid "Invalid menu handle.\n"
 msgstr "无效的目录句柄。\n"
 
-#: dlls/kernelbase/winerror.mc:2408
+#: dlls/kernelbase/winerror.mc:2525
 msgid "Invalid cursor handle.\n"
 msgstr "无效光标句柄。\n"
 
-#: dlls/kernelbase/winerror.mc:2413
+#: dlls/kernelbase/winerror.mc:2530
 msgid "Invalid accelerator table handle.\n"
 msgstr "无效的快捷键表句柄。\n"
 
-#: dlls/kernelbase/winerror.mc:2418
+#: dlls/kernelbase/winerror.mc:2535
 msgid "Invalid hook handle.\n"
 msgstr "无效的钩句柄。\n"
 
-#: dlls/kernelbase/winerror.mc:2423
+#: dlls/kernelbase/winerror.mc:2540
 msgid "Invalid DWP handle.\n"
 msgstr "无效的 DWP 句柄。\n"
 
-#: dlls/kernelbase/winerror.mc:2428
+#: dlls/kernelbase/winerror.mc:2545
 msgid "Can't create top-level child window.\n"
 msgstr "无法创建顶级子窗口。\n"
 
-#: dlls/kernelbase/winerror.mc:2433
+#: dlls/kernelbase/winerror.mc:2550
 msgid "Can't find window class.\n"
 msgstr "找不到窗口类。\n"
 
-#: dlls/kernelbase/winerror.mc:2438
+#: dlls/kernelbase/winerror.mc:2555
 msgid "Window owned by another thread.\n"
 msgstr "窗口为另一个线程所有。\n"
 
-#: dlls/kernelbase/winerror.mc:2443
+#: dlls/kernelbase/winerror.mc:2560
 msgid "Hotkey already registered.\n"
 msgstr "热键已被注册。\n"
 
-#: dlls/kernelbase/winerror.mc:2448
+#: dlls/kernelbase/winerror.mc:2565
 msgid "Class already exists.\n"
 msgstr "该类已存在。\n"
 
-#: dlls/kernelbase/winerror.mc:2453
+#: dlls/kernelbase/winerror.mc:2570
 msgid "Class does not exist.\n"
 msgstr "该类不存在。\n"
 
-#: dlls/kernelbase/winerror.mc:2458
+#: dlls/kernelbase/winerror.mc:2575
 msgid "Class has open windows.\n"
 msgstr "类还有窗口开着。\n"
 
-#: dlls/kernelbase/winerror.mc:2463 dlls/mferror/mferror.mc:130
+#: dlls/kernelbase/winerror.mc:2580 dlls/mferror/mferror.mc:130
 msgid "Invalid index.\n"
 msgstr "无效索引。\n"
 
-#: dlls/kernelbase/winerror.mc:2468
+#: dlls/kernelbase/winerror.mc:2585
 msgid "Invalid icon handle.\n"
 msgstr "无效的图标句柄。\n"
 
-#: dlls/kernelbase/winerror.mc:2473
+#: dlls/kernelbase/winerror.mc:2590
 msgid "Private dialog index.\n"
 msgstr "私有对话框索引。\n"
 
-#: dlls/kernelbase/winerror.mc:2478
+#: dlls/kernelbase/winerror.mc:2595
 msgid "List box ID not found.\n"
 msgstr "找不到列表框 ID。\n"
 
-#: dlls/kernelbase/winerror.mc:2483
+#: dlls/kernelbase/winerror.mc:2600
 msgid "No wildcard characters.\n"
 msgstr "无通配字符。\n"
 
-#: dlls/kernelbase/winerror.mc:2488
+#: dlls/kernelbase/winerror.mc:2605
 msgid "Clipboard not open.\n"
 msgstr "剪贴板未打开。\n"
 
-#: dlls/kernelbase/winerror.mc:2493
+#: dlls/kernelbase/winerror.mc:2610
 msgid "Hotkey not registered.\n"
 msgstr "热键未注册。\n"
 
-#: dlls/kernelbase/winerror.mc:2498
+#: dlls/kernelbase/winerror.mc:2615
 msgid "Not a dialog window.\n"
 msgstr "不是对话框窗口。\n"
 
-#: dlls/kernelbase/winerror.mc:2503
+#: dlls/kernelbase/winerror.mc:2620
 msgid "Control ID not found.\n"
 msgstr "找不到控件 ID。\n"
 
-#: dlls/kernelbase/winerror.mc:2508
+#: dlls/kernelbase/winerror.mc:2625
 msgid "Invalid combo box message.\n"
 msgstr "无效的组合框消息。\n"
 
-#: dlls/kernelbase/winerror.mc:2513
+#: dlls/kernelbase/winerror.mc:2630
 msgid "Not a combo box window.\n"
 msgstr "不是组合框窗口。\n"
 
-#: dlls/kernelbase/winerror.mc:2518
+#: dlls/kernelbase/winerror.mc:2635
 msgid "Invalid edit height.\n"
 msgstr "无效的高度编辑。\n"
 
-#: dlls/kernelbase/winerror.mc:2523
+#: dlls/kernelbase/winerror.mc:2640
 msgid "DC not found.\n"
 msgstr "找不到 DC。\n"
 
-#: dlls/kernelbase/winerror.mc:2528
+#: dlls/kernelbase/winerror.mc:2645
 msgid "Invalid hook filter.\n"
 msgstr "无效的钩过滤。\n"
 
-#: dlls/kernelbase/winerror.mc:2533
+#: dlls/kernelbase/winerror.mc:2650
 msgid "Invalid filter procedure.\n"
 msgstr "无效的过滤过程。\n"
 
-#: dlls/kernelbase/winerror.mc:2538
+#: dlls/kernelbase/winerror.mc:2655
 msgid "Hook procedure needs module handle.\n"
 msgstr "钩过程需要模块句柄。\n"
 
-#: dlls/kernelbase/winerror.mc:2543
+#: dlls/kernelbase/winerror.mc:2660
 msgid "Global-only hook procedure.\n"
 msgstr "仅全局的钩过程。\n"
 
-#: dlls/kernelbase/winerror.mc:2548
+#: dlls/kernelbase/winerror.mc:2665
 msgid "Journal hook already set.\n"
 msgstr "日志钩子已被设置。\n"
 
-#: dlls/kernelbase/winerror.mc:2553
+#: dlls/kernelbase/winerror.mc:2670
 msgid "Hook procedure not installed.\n"
 msgstr "钩子过程未安装。\n"
 
-#: dlls/kernelbase/winerror.mc:2558
+#: dlls/kernelbase/winerror.mc:2675
 msgid "Invalid list box message.\n"
 msgstr "列表框消息无效。\n"
 
-#: dlls/kernelbase/winerror.mc:2563
+#: dlls/kernelbase/winerror.mc:2680
 msgid "Invalid LB_SETCOUNT sent.\n"
 msgstr "发送了无效 LB_SETCOUNT。\n"
 
-#: dlls/kernelbase/winerror.mc:2568
+#: dlls/kernelbase/winerror.mc:2685
 msgid "No tab stops on this list box.\n"
 msgstr "此列表框中无制表位。\n"
 
-#: dlls/kernelbase/winerror.mc:2573
+#: dlls/kernelbase/winerror.mc:2690
 msgid "Can't destroy object owned by another thread.\n"
 msgstr "无法销毁另一线程所有的对象。\n"
 
-#: dlls/kernelbase/winerror.mc:2578
+#: dlls/kernelbase/winerror.mc:2695
 msgid "Child window menus not allowed.\n"
 msgstr "不允许子窗口菜单。\n"
 
-#: dlls/kernelbase/winerror.mc:2583
+#: dlls/kernelbase/winerror.mc:2700
 msgid "Window has no system menu.\n"
 msgstr "窗口没有系统菜单。\n"
 
-#: dlls/kernelbase/winerror.mc:2588
+#: dlls/kernelbase/winerror.mc:2705
 msgid "Invalid message box style.\n"
 msgstr "消息框风格无效。\n"
 
-#: dlls/kernelbase/winerror.mc:2593
+#: dlls/kernelbase/winerror.mc:2710
 msgid "Invalid SPI parameter.\n"
 msgstr "无效的 SPI 参数。\n"
 
-#: dlls/kernelbase/winerror.mc:2598
+#: dlls/kernelbase/winerror.mc:2715
 msgid "Screen already locked.\n"
 msgstr "屏幕已锁定。\n"
 
-#: dlls/kernelbase/winerror.mc:2603
+#: dlls/kernelbase/winerror.mc:2720
 msgid "Window handles have different parents.\n"
 msgstr "窗口句柄父级不一致。\n"
 
-#: dlls/kernelbase/winerror.mc:2608
+#: dlls/kernelbase/winerror.mc:2725
 msgid "Not a child window.\n"
 msgstr "不是子窗口。\n"
 
-#: dlls/kernelbase/winerror.mc:2613
+#: dlls/kernelbase/winerror.mc:2730
 msgid "Invalid GW command.\n"
 msgstr "GW 命令无效。\n"
 
-#: dlls/kernelbase/winerror.mc:2618
+#: dlls/kernelbase/winerror.mc:2735
 msgid "Invalid thread ID.\n"
 msgstr "无效的线程 ID。\n"
 
-#: dlls/kernelbase/winerror.mc:2623
+#: dlls/kernelbase/winerror.mc:2740
 msgid "Not an MDI child window.\n"
 msgstr "不是 MDI 子窗口。\n"
 
-#: dlls/kernelbase/winerror.mc:2628
+#: dlls/kernelbase/winerror.mc:2745
 msgid "Popup menu already active.\n"
 msgstr "弹出菜单已激活。\n"
 
-#: dlls/kernelbase/winerror.mc:2633
+#: dlls/kernelbase/winerror.mc:2750
 msgid "No scrollbars.\n"
 msgstr "没有滚动条。\n"
 
-#: dlls/kernelbase/winerror.mc:2638
+#: dlls/kernelbase/winerror.mc:2755
 msgid "Invalid scrollbar range.\n"
 msgstr "无效的滚动条范围。\n"
 
-#: dlls/kernelbase/winerror.mc:2643
+#: dlls/kernelbase/winerror.mc:2760
 msgid "Invalid ShowWin command.\n"
 msgstr "无效的 ShowWin 命令。\n"
 
-#: dlls/kernelbase/winerror.mc:2648
+#: dlls/kernelbase/winerror.mc:2765
 msgid "No system resources.\n"
 msgstr "无系统资源。\n"
 
-#: dlls/kernelbase/winerror.mc:2653
+#: dlls/kernelbase/winerror.mc:2770
 msgid "No non-paged system resources.\n"
 msgstr "无未分页的系统资源。\n"
 
-#: dlls/kernelbase/winerror.mc:2658
+#: dlls/kernelbase/winerror.mc:2775
 msgid "No paged system resources.\n"
 msgstr "无已分页的系统资源。\n"
 
-#: dlls/kernelbase/winerror.mc:2663
+#: dlls/kernelbase/winerror.mc:2780
 msgid "No working set quota.\n"
 msgstr "无工作集配额。\n"
 
-#: dlls/kernelbase/winerror.mc:2668
+#: dlls/kernelbase/winerror.mc:2785
 msgid "No page file quota.\n"
 msgstr "无分页文件配额。\n"
 
-#: dlls/kernelbase/winerror.mc:2673
+#: dlls/kernelbase/winerror.mc:2790
 msgid "Exceeded commitment limit.\n"
 msgstr "超出提交限制。\n"
 
-#: dlls/kernelbase/winerror.mc:2678
+#: dlls/kernelbase/winerror.mc:2795
 msgid "Menu item not found.\n"
 msgstr "找不到菜单项。\n"
 
-#: dlls/kernelbase/winerror.mc:2683
+#: dlls/kernelbase/winerror.mc:2800
 msgid "Invalid keyboard handle.\n"
 msgstr "键盘句柄无效。\n"
 
-#: dlls/kernelbase/winerror.mc:2688
+#: dlls/kernelbase/winerror.mc:2805
 msgid "Hook type not allowed.\n"
 msgstr "不允许的钩子类型。\n"
 
-#: dlls/kernelbase/winerror.mc:2693
+#: dlls/kernelbase/winerror.mc:2810
 msgid "Interactive window station required.\n"
 msgstr "需要交互式窗口站。\n"
 
-#: dlls/kernelbase/winerror.mc:2698
+#: dlls/kernelbase/winerror.mc:2815
 msgid "Timeout.\n"
 msgstr "超时。\n"
 
-#: dlls/kernelbase/winerror.mc:2703
+#: dlls/kernelbase/winerror.mc:2820
 msgid "Invalid monitor handle.\n"
 msgstr "显示器句柄无效。\n"
 
-#: dlls/kernelbase/winerror.mc:2708
+#: dlls/kernelbase/winerror.mc:2825
 msgid "Event log file corrupt.\n"
 msgstr "事件日志文件已损坏。\n"
 
-#: dlls/kernelbase/winerror.mc:2713
+#: dlls/kernelbase/winerror.mc:2830
 msgid "Event log can't start.\n"
 msgstr "无法启动事件日志。\n"
 
-#: dlls/kernelbase/winerror.mc:2718
+#: dlls/kernelbase/winerror.mc:2835
 msgid "Event log file full.\n"
 msgstr "事件日志文件已满。\n"
 
-#: dlls/kernelbase/winerror.mc:2723
+#: dlls/kernelbase/winerror.mc:2840
 msgid "Event log file changed.\n"
 msgstr "事件日志文件已更改。\n"
 
-#: dlls/kernelbase/winerror.mc:2728
+#: dlls/kernelbase/winerror.mc:2845
 msgid "Installer service failed.\n"
 msgstr "安装程序服务失败。\n"
 
-#: dlls/kernelbase/winerror.mc:2733
+#: dlls/kernelbase/winerror.mc:2850
 msgid "Installation aborted by user.\n"
 msgstr "安装被用户终止。\n"
 
-#: dlls/kernelbase/winerror.mc:2738
+#: dlls/kernelbase/winerror.mc:2855
 msgid "Installation failure.\n"
 msgstr "安装失败。\n"
 
-#: dlls/kernelbase/winerror.mc:2743
+#: dlls/kernelbase/winerror.mc:2860
 msgid "Installation suspended.\n"
 msgstr "安装被挂起。\n"
 
-#: dlls/kernelbase/winerror.mc:2748
+#: dlls/kernelbase/winerror.mc:2865
 msgid "Unknown product.\n"
 msgstr "未知产品。\n"
 
-#: dlls/kernelbase/winerror.mc:2753
+#: dlls/kernelbase/winerror.mc:2870
 msgid "Unknown feature.\n"
 msgstr "未知特性。\n"
 
-#: dlls/kernelbase/winerror.mc:2758
+#: dlls/kernelbase/winerror.mc:2875
 msgid "Unknown component.\n"
 msgstr "未知组件。\n"
 
-#: dlls/kernelbase/winerror.mc:2763
+#: dlls/kernelbase/winerror.mc:2880
 msgid "Unknown property.\n"
 msgstr "未知属性。\n"
 
-#: dlls/kernelbase/winerror.mc:2768
+#: dlls/kernelbase/winerror.mc:2885
 msgid "Invalid handle state.\n"
 msgstr "句柄状态无效。\n"
 
-#: dlls/kernelbase/winerror.mc:2773
+#: dlls/kernelbase/winerror.mc:2890
 msgid "Bad configuration.\n"
 msgstr "配置有错。\n"
 
-#: dlls/kernelbase/winerror.mc:2778
+#: dlls/kernelbase/winerror.mc:2895
 msgid "Index is missing.\n"
 msgstr "缺少索引。\n"
 
-#: dlls/kernelbase/winerror.mc:2783
+#: dlls/kernelbase/winerror.mc:2900
 msgid "Installation source is missing.\n"
 msgstr "安装源不存在。\n"
 
-#: dlls/kernelbase/winerror.mc:2788
+#: dlls/kernelbase/winerror.mc:2905
 msgid "Wrong installation package version.\n"
 msgstr "错误的安装包版本。\n"
 
-#: dlls/kernelbase/winerror.mc:2793
+#: dlls/kernelbase/winerror.mc:2910
 msgid "Product uninstalled.\n"
 msgstr "产品已卸载。\n"
 
-#: dlls/kernelbase/winerror.mc:2798
+#: dlls/kernelbase/winerror.mc:2915
 msgid "Invalid query syntax.\n"
 msgstr "请求语法无效。\n"
 
-#: dlls/kernelbase/winerror.mc:2803
+#: dlls/kernelbase/winerror.mc:2920
 msgid "Invalid field.\n"
 msgstr "字段无效。\n"
 
-#: dlls/kernelbase/winerror.mc:2808
+#: dlls/kernelbase/winerror.mc:2925
 msgid "Device removed.\n"
 msgstr "设备已移除。\n"
 
-#: dlls/kernelbase/winerror.mc:2813
+#: dlls/kernelbase/winerror.mc:2930
 msgid "Installation already running.\n"
 msgstr "安装程序已经在运行。\n"
 
-#: dlls/kernelbase/winerror.mc:2818
+#: dlls/kernelbase/winerror.mc:2935
 msgid "Installation package failed to open.\n"
 msgstr "无法打开安装包。\n"
 
-#: dlls/kernelbase/winerror.mc:2823
+#: dlls/kernelbase/winerror.mc:2940
 msgid "Installation package is invalid.\n"
 msgstr "安装包无效。\n"
 
-#: dlls/kernelbase/winerror.mc:2828
+#: dlls/kernelbase/winerror.mc:2945
 msgid "Installer user interface failed.\n"
 msgstr "安装程序用户界面故障。\n"
 
-#: dlls/kernelbase/winerror.mc:2833
+#: dlls/kernelbase/winerror.mc:2950
 msgid "Failed to open installation log file.\n"
 msgstr "无法打开安装日志文件。\n"
 
-#: dlls/kernelbase/winerror.mc:2838
+#: dlls/kernelbase/winerror.mc:2955
 msgid "Installation language not supported.\n"
 msgstr "不被支持的安装语言。\n"
 
-#: dlls/kernelbase/winerror.mc:2843
+#: dlls/kernelbase/winerror.mc:2960
 msgid "Installation transform failed to apply.\n"
 msgstr "无法应用安装转换。\n"
 
-#: dlls/kernelbase/winerror.mc:2848
+#: dlls/kernelbase/winerror.mc:2965
 msgid "Installation package rejected.\n"
 msgstr "安装包被拒绝。\n"
 
-#: dlls/kernelbase/winerror.mc:2853
+#: dlls/kernelbase/winerror.mc:2970
 msgid "Function could not be called.\n"
 msgstr "无法调用函数。\n"
 
-#: dlls/kernelbase/winerror.mc:2858
+#: dlls/kernelbase/winerror.mc:2975
 msgid "Function failed.\n"
 msgstr "函数文件。\n"
 
-#: dlls/kernelbase/winerror.mc:2863
+#: dlls/kernelbase/winerror.mc:2980
 msgid "Invalid table.\n"
 msgstr "表格无效。\n"
 
-#: dlls/kernelbase/winerror.mc:2868
+#: dlls/kernelbase/winerror.mc:2985
 msgid "Data type mismatch.\n"
 msgstr "数据类型不匹配。\n"
 
-#: dlls/kernelbase/winerror.mc:2873 dlls/kernelbase/winerror.mc:3083
+#: dlls/kernelbase/winerror.mc:2990 dlls/kernelbase/winerror.mc:3200
 msgid "Unsupported type.\n"
 msgstr "不支持的类型。\n"
 
-#: dlls/kernelbase/winerror.mc:2878
+#: dlls/kernelbase/winerror.mc:2995
 msgid "Creation failed.\n"
 msgstr "创建失败。\n"
 
-#: dlls/kernelbase/winerror.mc:2883
+#: dlls/kernelbase/winerror.mc:3000
 msgid "Temporary directory not writable.\n"
 msgstr "临时文件目录不可写。\n"
 
-#: dlls/kernelbase/winerror.mc:2888
+#: dlls/kernelbase/winerror.mc:3005
 msgid "Installation platform not supported.\n"
 msgstr "安装平台不支持。\n"
 
-#: dlls/kernelbase/winerror.mc:2893
+#: dlls/kernelbase/winerror.mc:3010
 msgid "Installer not used.\n"
 msgstr "未使用安装器。\n"
 
-#: dlls/kernelbase/winerror.mc:2898
+#: dlls/kernelbase/winerror.mc:3015
 msgid "Failed to open the patch package.\n"
 msgstr "无法打开补丁包。\n"
 
-#: dlls/kernelbase/winerror.mc:2903
+#: dlls/kernelbase/winerror.mc:3020
 msgid "Invalid patch package.\n"
 msgstr "补丁包无效。\n"
 
-#: dlls/kernelbase/winerror.mc:2908
+#: dlls/kernelbase/winerror.mc:3025
 msgid "Unsupported patch package.\n"
 msgstr "不支持的补丁包。\n"
 
-#: dlls/kernelbase/winerror.mc:2913
+#: dlls/kernelbase/winerror.mc:3030
 msgid "Another version is installed.\n"
 msgstr "已安装另一版本。\n"
 
-#: dlls/kernelbase/winerror.mc:2918
+#: dlls/kernelbase/winerror.mc:3035
 msgid "Invalid command line.\n"
 msgstr "命令行无效。\n"
 
-#: dlls/kernelbase/winerror.mc:2923
+#: dlls/kernelbase/winerror.mc:3040
 msgid "Remote installation not allowed.\n"
 msgstr "不允许远程安装。\n"
 
-#: dlls/kernelbase/winerror.mc:2928
+#: dlls/kernelbase/winerror.mc:3045
 msgid "Reboot initiated after successful install.\n"
 msgstr "已在成功安装后启动重启进程。\n"
 
-#: dlls/kernelbase/winerror.mc:2933
+#: dlls/kernelbase/winerror.mc:3050
 msgid "Invalid string binding.\n"
 msgstr "无效的字符串绑定。\n"
 
-#: dlls/kernelbase/winerror.mc:2938
+#: dlls/kernelbase/winerror.mc:3055
 msgid "Wrong kind of binding.\n"
 msgstr "绑定类型错误。\n"
 
-#: dlls/kernelbase/winerror.mc:2943
+#: dlls/kernelbase/winerror.mc:3060
 msgid "Invalid binding.\n"
 msgstr "无效的绑定。\n"
 
-#: dlls/kernelbase/winerror.mc:2948
+#: dlls/kernelbase/winerror.mc:3065
 msgid "RPC protocol sequence not supported.\n"
 msgstr "不支持 RPC 协议序列。\n"
 
-#: dlls/kernelbase/winerror.mc:2953
+#: dlls/kernelbase/winerror.mc:3070
 msgid "Invalid RPC protocol sequence.\n"
 msgstr "无效的 RPC 协议序列。\n"
 
-#: dlls/kernelbase/winerror.mc:2958
+#: dlls/kernelbase/winerror.mc:3075
 msgid "Invalid string UUID.\n"
 msgstr "UUID 字符串无效。\n"
 
-#: dlls/kernelbase/winerror.mc:2963
+#: dlls/kernelbase/winerror.mc:3080
 msgid "Invalid endpoint format.\n"
 msgstr "端点格式无效。\n"
 
-#: dlls/kernelbase/winerror.mc:2968
+#: dlls/kernelbase/winerror.mc:3085
 msgid "Invalid network address.\n"
 msgstr "无效的网络地址。\n"
 
-#: dlls/kernelbase/winerror.mc:2973
+#: dlls/kernelbase/winerror.mc:3090
 msgid "No endpoint found.\n"
 msgstr "找不到端点。\n"
 
-#: dlls/kernelbase/winerror.mc:2978
+#: dlls/kernelbase/winerror.mc:3095
 msgid "Invalid timeout value.\n"
 msgstr "无效的超时值。\n"
 
-#: dlls/kernelbase/winerror.mc:2983
+#: dlls/kernelbase/winerror.mc:3100
 msgid "Object UUID not found.\n"
 msgstr "未找到对象 UUID。\n"
 
-#: dlls/kernelbase/winerror.mc:2988
+#: dlls/kernelbase/winerror.mc:3105
 msgid "UUID already registered.\n"
 msgstr "UUID 已注册。\n"
 
-#: dlls/kernelbase/winerror.mc:2993
+#: dlls/kernelbase/winerror.mc:3110
 msgid "UUID type already registered.\n"
 msgstr "UUID 类型已注册。\n"
 
-#: dlls/kernelbase/winerror.mc:2998
+#: dlls/kernelbase/winerror.mc:3115
 msgid "Server already listening.\n"
 msgstr "服务器已在监听。\n"
 
-#: dlls/kernelbase/winerror.mc:3003
+#: dlls/kernelbase/winerror.mc:3120
 msgid "No protocol sequences registered.\n"
 msgstr "无已注册的 RPC 协议序列。\n"
 
-#: dlls/kernelbase/winerror.mc:3008
+#: dlls/kernelbase/winerror.mc:3125
 msgid "RPC server not listening.\n"
 msgstr "RPC 服务器未在监听。\n"
 
-#: dlls/kernelbase/winerror.mc:3013
+#: dlls/kernelbase/winerror.mc:3130
 msgid "Unknown manager type.\n"
 msgstr "未知管理员类型。\n"
 
-#: dlls/kernelbase/winerror.mc:3018
+#: dlls/kernelbase/winerror.mc:3135
 msgid "Unknown interface.\n"
 msgstr "未知接口。\n"
 
-#: dlls/kernelbase/winerror.mc:3023
+#: dlls/kernelbase/winerror.mc:3140
 msgid "No bindings.\n"
 msgstr "无绑定。\n"
 
-#: dlls/kernelbase/winerror.mc:3028
+#: dlls/kernelbase/winerror.mc:3145
 msgid "No protocol sequences.\n"
 msgstr "无协议序列。\n"
 
-#: dlls/kernelbase/winerror.mc:3033
+#: dlls/kernelbase/winerror.mc:3150
 msgid "Can't create endpoint.\n"
 msgstr "无法创建端点。\n"
 
-#: dlls/kernelbase/winerror.mc:3038
+#: dlls/kernelbase/winerror.mc:3155
 msgid "Out of resources.\n"
 msgstr "资源不足。\n"
 
-#: dlls/kernelbase/winerror.mc:3043
+#: dlls/kernelbase/winerror.mc:3160
 msgid "RPC server unavailable.\n"
 msgstr "RPC 服务器不可用。\n"
 
-#: dlls/kernelbase/winerror.mc:3048
+#: dlls/kernelbase/winerror.mc:3165
 msgid "RPC server too busy.\n"
 msgstr "RPC 服务器太忙。\n"
 
-#: dlls/kernelbase/winerror.mc:3053
+#: dlls/kernelbase/winerror.mc:3170
 msgid "Invalid network options.\n"
 msgstr "网络选项无效。\n"
 
-#: dlls/kernelbase/winerror.mc:3058
+#: dlls/kernelbase/winerror.mc:3175
 msgid "No RPC call active.\n"
 msgstr "无活动 RPC 调用。\n"
 
-#: dlls/kernelbase/winerror.mc:3063
+#: dlls/kernelbase/winerror.mc:3180
 msgid "RPC call failed.\n"
 msgstr "RPC 调用失败。\n"
 
-#: dlls/kernelbase/winerror.mc:3068
+#: dlls/kernelbase/winerror.mc:3185
 msgid "RPC call failed and didn't execute.\n"
 msgstr "RPC 调用失败且未执行。\n"
 
-#: dlls/kernelbase/winerror.mc:3073
+#: dlls/kernelbase/winerror.mc:3190
 msgid "RPC protocol error.\n"
 msgstr "RPC 协议错误。\n"
 
-#: dlls/kernelbase/winerror.mc:3078
+#: dlls/kernelbase/winerror.mc:3195
 msgid "Unsupported transfer syntax.\n"
 msgstr "不支持的传输语法。\n"
 
-#: dlls/kernelbase/winerror.mc:3088
+#: dlls/kernelbase/winerror.mc:3205
 msgid "Invalid tag.\n"
 msgstr "无效的标签。\n"
 
-#: dlls/kernelbase/winerror.mc:3093
+#: dlls/kernelbase/winerror.mc:3210
 msgid "Invalid array bounds.\n"
 msgstr "无效的数组边界。\n"
 
-#: dlls/kernelbase/winerror.mc:3098
+#: dlls/kernelbase/winerror.mc:3215
 msgid "No entry name.\n"
 msgstr "无条目名称。\n"
 
-#: dlls/kernelbase/winerror.mc:3103
+#: dlls/kernelbase/winerror.mc:3220
 msgid "Invalid name syntax.\n"
 msgstr "名字语法无效。\n"
 
-#: dlls/kernelbase/winerror.mc:3108
+#: dlls/kernelbase/winerror.mc:3225
 msgid "Unsupported name syntax.\n"
 msgstr "不支持的名称语法。\n"
 
-#: dlls/kernelbase/winerror.mc:3113
+#: dlls/kernelbase/winerror.mc:3230
 msgid "No network address.\n"
 msgstr "没有网络地址。\n"
 
-#: dlls/kernelbase/winerror.mc:3118
+#: dlls/kernelbase/winerror.mc:3235
 msgid "Duplicate endpoint.\n"
 msgstr "重复的端点。\n"
 
-#: dlls/kernelbase/winerror.mc:3123
+#: dlls/kernelbase/winerror.mc:3240
 msgid "Unknown authentication type.\n"
 msgstr "未知认证类型。\n"
 
-#: dlls/kernelbase/winerror.mc:3128
+#: dlls/kernelbase/winerror.mc:3245
 msgid "Maximum calls too low.\n"
 msgstr "调用上限太低。\n"
 
-#: dlls/kernelbase/winerror.mc:3133
+#: dlls/kernelbase/winerror.mc:3250
 msgid "String too long.\n"
 msgstr "字符串过长。\n"
 
-#: dlls/kernelbase/winerror.mc:3138
+#: dlls/kernelbase/winerror.mc:3255
 msgid "Protocol sequence not found.\n"
 msgstr "找不到协议序列。\n"
 
-#: dlls/kernelbase/winerror.mc:3143
+#: dlls/kernelbase/winerror.mc:3260
 msgid "Procedure number out of range.\n"
 msgstr "过程序号超出范围。\n"
 
-#: dlls/kernelbase/winerror.mc:3148
+#: dlls/kernelbase/winerror.mc:3265
 msgid "Binding has no authentication data.\n"
 msgstr "绑定不带有认证数据。\n"
 
-#: dlls/kernelbase/winerror.mc:3153
+#: dlls/kernelbase/winerror.mc:3270
 msgid "Unknown authentication service.\n"
 msgstr "未知认证服务。\n"
 
-#: dlls/kernelbase/winerror.mc:3158
+#: dlls/kernelbase/winerror.mc:3275
 msgid "Unknown authentication level.\n"
 msgstr "未知认证级别。\n"
 
-#: dlls/kernelbase/winerror.mc:3163
+#: dlls/kernelbase/winerror.mc:3280
 msgid "Invalid authentication identity.\n"
 msgstr "认证身份无效。\n"
 
-#: dlls/kernelbase/winerror.mc:3168
+#: dlls/kernelbase/winerror.mc:3285
 msgid "Unknown authorization service.\n"
 msgstr "未知认证服务。\n"
 
-#: dlls/kernelbase/winerror.mc:3173
+#: dlls/kernelbase/winerror.mc:3290
 msgid "Invalid entry.\n"
 msgstr "无效条目。\n"
 
-#: dlls/kernelbase/winerror.mc:3178
+#: dlls/kernelbase/winerror.mc:3295
 msgid "Can't perform operation.\n"
 msgstr "无法执行操作。\n"
 
-#: dlls/kernelbase/winerror.mc:3183
+#: dlls/kernelbase/winerror.mc:3300
 msgid "Endpoints not registered.\n"
 msgstr "终点尚未注册。\n"
 
-#: dlls/kernelbase/winerror.mc:3188
+#: dlls/kernelbase/winerror.mc:3305
 msgid "Nothing to export.\n"
 msgstr "没有要导出的项目。\n"
 
-#: dlls/kernelbase/winerror.mc:3193
+#: dlls/kernelbase/winerror.mc:3310
 msgid "Incomplete name.\n"
 msgstr "名称不完整。\n"
 
-#: dlls/kernelbase/winerror.mc:3198
+#: dlls/kernelbase/winerror.mc:3315
 msgid "Invalid version option.\n"
 msgstr "版本选项无效。\n"
 
-#: dlls/kernelbase/winerror.mc:3203
+#: dlls/kernelbase/winerror.mc:3320
 msgid "No more members.\n"
 msgstr "无更多成员。\n"
 
-#: dlls/kernelbase/winerror.mc:3208
+#: dlls/kernelbase/winerror.mc:3325
 msgid "Not all objects unexported.\n"
 msgstr "仅导出了部分对象。\n"
 
-#: dlls/kernelbase/winerror.mc:3213
+#: dlls/kernelbase/winerror.mc:3330
 msgid "Interface not found.\n"
 msgstr "找不到接口。\n"
 
-#: dlls/kernelbase/winerror.mc:3218
+#: dlls/kernelbase/winerror.mc:3335
 msgid "Entry already exists.\n"
 msgstr "条目已存在。\n"
 
-#: dlls/kernelbase/winerror.mc:3223
+#: dlls/kernelbase/winerror.mc:3340
 msgid "Entry not found.\n"
 msgstr "找不到条目。\n"
 
-#: dlls/kernelbase/winerror.mc:3228
+#: dlls/kernelbase/winerror.mc:3345
 msgid "Name service unavailable.\n"
 msgstr "名字服务不可用。\n"
 
-#: dlls/kernelbase/winerror.mc:3233
+#: dlls/kernelbase/winerror.mc:3350
 msgid "Invalid network address family.\n"
 msgstr "无效的网络地址系列。\n"
 
-#: dlls/kernelbase/winerror.mc:3238
+#: dlls/kernelbase/winerror.mc:3355
 msgid "Operation not supported.\n"
 msgstr "不支持此操作。\n"
 
-#: dlls/kernelbase/winerror.mc:3243
+#: dlls/kernelbase/winerror.mc:3360
 msgid "No security context available.\n"
 msgstr "无可用的安全上下文。\n"
 
-#: dlls/kernelbase/winerror.mc:3248
+#: dlls/kernelbase/winerror.mc:3365
 msgid "RPCInternal error.\n"
 msgstr "RPC 内部错误。\n"
 
-#: dlls/kernelbase/winerror.mc:3253
+#: dlls/kernelbase/winerror.mc:3370
 msgid "RPC divide-by-zero.\n"
 msgstr "RPC 除以零。\n"
 
-#: dlls/kernelbase/winerror.mc:3258
+#: dlls/kernelbase/winerror.mc:3375
 msgid "Address error.\n"
 msgstr "地址错误。\n"
 
-#: dlls/kernelbase/winerror.mc:3263
+#: dlls/kernelbase/winerror.mc:3380
 msgid "Floating-point divide-by-zero.\n"
 msgstr "浮点除零。\n"
 
-#: dlls/kernelbase/winerror.mc:3268
+#: dlls/kernelbase/winerror.mc:3385
 msgid "Floating-point underflow.\n"
 msgstr "浮点下溢。\n"
 
-#: dlls/kernelbase/winerror.mc:3273
+#: dlls/kernelbase/winerror.mc:3390
 msgid "Floating-point overflow.\n"
 msgstr "浮点溢出。\n"
 
-#: dlls/kernelbase/winerror.mc:3278
+#: dlls/kernelbase/winerror.mc:3395
 msgid "No more entries.\n"
 msgstr "无更多条目。\n"
 
-#: dlls/kernelbase/winerror.mc:3283
+#: dlls/kernelbase/winerror.mc:3400
 msgid "Character translation table open failed.\n"
 msgstr "无法打开字符翻译表。\n"
 
-#: dlls/kernelbase/winerror.mc:3288
+#: dlls/kernelbase/winerror.mc:3405
 msgid "Character translation table file too small.\n"
 msgstr "字符翻译表太小。\n"
 
-#: dlls/kernelbase/winerror.mc:3293
+#: dlls/kernelbase/winerror.mc:3410
 msgid "Null context handle.\n"
 msgstr "空上下文句柄。\n"
 
-#: dlls/kernelbase/winerror.mc:3298
+#: dlls/kernelbase/winerror.mc:3415
 msgid "Context handle damaged.\n"
 msgstr "上下文句柄损坏。\n"
 
-#: dlls/kernelbase/winerror.mc:3303
+#: dlls/kernelbase/winerror.mc:3420
 msgid "Binding handle mismatch.\n"
 msgstr "绑定句柄不匹配。\n"
 
-#: dlls/kernelbase/winerror.mc:3308
+#: dlls/kernelbase/winerror.mc:3425
 msgid "Cannot get call handle.\n"
 msgstr "无法获取调用句柄。\n"
 
-#: dlls/kernelbase/winerror.mc:3313
+#: dlls/kernelbase/winerror.mc:3430
 msgid "Null reference pointer.\n"
 msgstr "空引用指针。\n"
 
-#: dlls/kernelbase/winerror.mc:3318
+#: dlls/kernelbase/winerror.mc:3435
 msgid "Enumeration value out of range.\n"
 msgstr "枚举值超出范围。\n"
 
-#: dlls/kernelbase/winerror.mc:3323
+#: dlls/kernelbase/winerror.mc:3440
 msgid "Byte count too small.\n"
 msgstr "字节数太小。\n"
 
-#: dlls/kernelbase/winerror.mc:3328
+#: dlls/kernelbase/winerror.mc:3445
 msgid "Bad stub data.\n"
 msgstr "无效存根数据。\n"
 
-#: dlls/kernelbase/winerror.mc:3333
+#: dlls/kernelbase/winerror.mc:3450
 msgid "Invalid user buffer.\n"
 msgstr "用户缓冲区无效。\n"
 
-#: dlls/kernelbase/winerror.mc:3338
+#: dlls/kernelbase/winerror.mc:3455
 msgid "Unrecognized media.\n"
 msgstr "无法识别的介质。\n"
 
-#: dlls/kernelbase/winerror.mc:3343
+#: dlls/kernelbase/winerror.mc:3460
 msgid "No trust secret.\n"
 msgstr "无可信密文。\n"
 
-#: dlls/kernelbase/winerror.mc:3348
+#: dlls/kernelbase/winerror.mc:3465
 msgid "No trust SAM account.\n"
 msgstr "无可信 SAM 帐号。\n"
 
-#: dlls/kernelbase/winerror.mc:3353
+#: dlls/kernelbase/winerror.mc:3470
 msgid "Trusted domain failure.\n"
 msgstr "可信域故障。\n"
 
-#: dlls/kernelbase/winerror.mc:3358
+#: dlls/kernelbase/winerror.mc:3475
 msgid "Trusted relationship failure.\n"
 msgstr "可信关系故障。\n"
 
-#: dlls/kernelbase/winerror.mc:3363
+#: dlls/kernelbase/winerror.mc:3480
 msgid "Trust logon failure.\n"
 msgstr "可信登录故障。\n"
 
-#: dlls/kernelbase/winerror.mc:3368
+#: dlls/kernelbase/winerror.mc:3485
 msgid "RPC call already in progress.\n"
 msgstr "RPC 调用已在运行。\n"
 
-#: dlls/kernelbase/winerror.mc:3373
+#: dlls/kernelbase/winerror.mc:3490
 msgid "NETLOGON is not started.\n"
 msgstr "未启动 NETLOGON。\n"
 
-#: dlls/kernelbase/winerror.mc:3378
+#: dlls/kernelbase/winerror.mc:3495
 msgid "Account expired.\n"
 msgstr "帐户已过期。\n"
 
-#: dlls/kernelbase/winerror.mc:3383
+#: dlls/kernelbase/winerror.mc:3500
 msgid "Redirector has open handles.\n"
 msgstr "重定向器仍有打开的句柄。\n"
 
-#: dlls/kernelbase/winerror.mc:3388
+#: dlls/kernelbase/winerror.mc:3505
 msgid "Printer driver already installed.\n"
 msgstr "打印机驱动已安装。\n"
 
-#: dlls/kernelbase/winerror.mc:3393
+#: dlls/kernelbase/winerror.mc:3510
 msgid "Unknown port.\n"
 msgstr "未知端口。\n"
 
-#: dlls/kernelbase/winerror.mc:3398
+#: dlls/kernelbase/winerror.mc:3515
 msgid "Unknown printer driver.\n"
 msgstr "未知打印机驱动。\n"
 
-#: dlls/kernelbase/winerror.mc:3403
+#: dlls/kernelbase/winerror.mc:3520
 msgid "Unknown print processor.\n"
 msgstr "未知打印处理器。\n"
 
-#: dlls/kernelbase/winerror.mc:3408
+#: dlls/kernelbase/winerror.mc:3525
 msgid "Invalid separator file.\n"
 msgstr "无效的分隔文件。\n"
 
-#: dlls/kernelbase/winerror.mc:3413
+#: dlls/kernelbase/winerror.mc:3530
 msgid "Invalid priority.\n"
 msgstr "优先级无效。\n"
 
-#: dlls/kernelbase/winerror.mc:3418
+#: dlls/kernelbase/winerror.mc:3535
 msgid "Invalid printer name.\n"
 msgstr "打印机名无效。\n"
 
-#: dlls/kernelbase/winerror.mc:3423
+#: dlls/kernelbase/winerror.mc:3540
 msgid "Printer already exists.\n"
 msgstr "打印机已存在。\n"
 
-#: dlls/kernelbase/winerror.mc:3428
+#: dlls/kernelbase/winerror.mc:3545
 msgid "Invalid printer command.\n"
 msgstr "打印机命令无效。\n"
 
-#: dlls/kernelbase/winerror.mc:3433
+#: dlls/kernelbase/winerror.mc:3550
 msgid "Invalid data type.\n"
 msgstr "日期格式无效。\n"
 
-#: dlls/kernelbase/winerror.mc:3438
+#: dlls/kernelbase/winerror.mc:3555
 msgid "Invalid environment.\n"
 msgstr "环境无效。\n"
 
-#: dlls/kernelbase/winerror.mc:3443
+#: dlls/kernelbase/winerror.mc:3560
 msgid "No more bindings.\n"
 msgstr "无更多绑定。\n"
 
-#: dlls/kernelbase/winerror.mc:3448
+#: dlls/kernelbase/winerror.mc:3565
 msgid "Can't log on with inter-domain trust account.\n"
 msgstr "无法使用跨域可信帐号登录。\n"
 
-#: dlls/kernelbase/winerror.mc:3453
+#: dlls/kernelbase/winerror.mc:3570
 msgid "Can't log on with workstation trust account.\n"
 msgstr "无法使用工作站可信帐号登录。\n"
 
-#: dlls/kernelbase/winerror.mc:3458
+#: dlls/kernelbase/winerror.mc:3575
 msgid "Can't log on with server trust account.\n"
 msgstr "无法使用服务器可信帐号登录。\n"
 
-#: dlls/kernelbase/winerror.mc:3463
+#: dlls/kernelbase/winerror.mc:3580
 msgid "Domain trust information inconsistent.\n"
 msgstr "域信任信息不匹配。\n"
 
-#: dlls/kernelbase/winerror.mc:3468
+#: dlls/kernelbase/winerror.mc:3585
 msgid "Server has open handles.\n"
 msgstr "服务器有打开的句柄。\n"
 
-#: dlls/kernelbase/winerror.mc:3473
+#: dlls/kernelbase/winerror.mc:3590
 msgid "Resource data not found.\n"
 msgstr "找不到资源数据。\n"
 
-#: dlls/kernelbase/winerror.mc:3478
+#: dlls/kernelbase/winerror.mc:3595
 msgid "Resource type not found.\n"
 msgstr "找不到资源类型。\n"
 
-#: dlls/kernelbase/winerror.mc:3483
+#: dlls/kernelbase/winerror.mc:3600
 msgid "Resource name not found.\n"
 msgstr "找不到资源名称。\n"
 
-#: dlls/kernelbase/winerror.mc:3488
+#: dlls/kernelbase/winerror.mc:3605
 msgid "Resource language not found.\n"
 msgstr "找不到资源语言。\n"
 
-#: dlls/kernelbase/winerror.mc:3493
+#: dlls/kernelbase/winerror.mc:3610
 msgid "Not enough quota.\n"
 msgstr "配额不足。\n"
 
-#: dlls/kernelbase/winerror.mc:3498
+#: dlls/kernelbase/winerror.mc:3615
 msgid "No interfaces.\n"
 msgstr "没有接口。\n"
 
-#: dlls/kernelbase/winerror.mc:3503
+#: dlls/kernelbase/winerror.mc:3620
 msgid "RPC call canceled.\n"
 msgstr "已取消 RPC 调用。\n"
 
-#: dlls/kernelbase/winerror.mc:3508
+#: dlls/kernelbase/winerror.mc:3625
 msgid "Binding incomplete.\n"
 msgstr "绑定不完整。\n"
 
-#: dlls/kernelbase/winerror.mc:3513
+#: dlls/kernelbase/winerror.mc:3630
 msgid "RPC comm failure.\n"
 msgstr "RPC 通信故障。\n"
 
-#: dlls/kernelbase/winerror.mc:3518
+#: dlls/kernelbase/winerror.mc:3635
 msgid "Unsupported authorization level.\n"
 msgstr "不支持的认证级别。\n"
 
-#: dlls/kernelbase/winerror.mc:3523
+#: dlls/kernelbase/winerror.mc:3640
 msgid "No principal name registered.\n"
 msgstr "无已注册的主体名称。\n"
 
-#: dlls/kernelbase/winerror.mc:3528
+#: dlls/kernelbase/winerror.mc:3645
 msgid "Not an RPC error.\n"
 msgstr "非 RPC 错误。\n"
 
-#: dlls/kernelbase/winerror.mc:3533
+#: dlls/kernelbase/winerror.mc:3650
 msgid "UUID is local only.\n"
 msgstr "UUID 仅用于本地。\n"
 
-#: dlls/kernelbase/winerror.mc:3538
+#: dlls/kernelbase/winerror.mc:3655
 msgid "Security package error.\n"
 msgstr "安全包错误。\n"
 
-#: dlls/kernelbase/winerror.mc:3543
+#: dlls/kernelbase/winerror.mc:3660
 msgid "Thread not canceled.\n"
 msgstr "未取消线程。\n"
 
-#: dlls/kernelbase/winerror.mc:3548
+#: dlls/kernelbase/winerror.mc:3665
 msgid "Invalid handle operation.\n"
 msgstr "句柄操作无效。\n"
 
-#: dlls/kernelbase/winerror.mc:3553
+#: dlls/kernelbase/winerror.mc:3670
 msgid "Wrong serializing package version.\n"
 msgstr "序列化包版本错误。\n"
 
-#: dlls/kernelbase/winerror.mc:3558
+#: dlls/kernelbase/winerror.mc:3675
 msgid "Wrong stub version.\n"
 msgstr "stub 版本错误。\n"
 
-#: dlls/kernelbase/winerror.mc:3563
+#: dlls/kernelbase/winerror.mc:3680
 msgid "Invalid pipe object.\n"
 msgstr "无效的管道对象。\n"
 
-#: dlls/kernelbase/winerror.mc:3568
+#: dlls/kernelbase/winerror.mc:3685
 msgid "Wrong pipe order.\n"
 msgstr "管道顺序错误。\n"
 
-#: dlls/kernelbase/winerror.mc:3573
+#: dlls/kernelbase/winerror.mc:3690
 msgid "Wrong pipe version.\n"
 msgstr "管道版本错误。\n"
 
-#: dlls/kernelbase/winerror.mc:3578
+#: dlls/kernelbase/winerror.mc:3695
 msgid "Group member not found.\n"
 msgstr "无法找到该群组成员。\n"
 
-#: dlls/kernelbase/winerror.mc:3583
+#: dlls/kernelbase/winerror.mc:3700
 msgid "Can't create endpoint mapper DB.\n"
 msgstr "无法创建端点映射数据库。\n"
 
-#: dlls/kernelbase/winerror.mc:3588
+#: dlls/kernelbase/winerror.mc:3705
 msgid "Invalid object.\n"
 msgstr "对象无效。\n"
 
-#: dlls/kernelbase/winerror.mc:3593
+#: dlls/kernelbase/winerror.mc:3710
 msgid "Invalid time.\n"
 msgstr "时间无效。\n"
 
-#: dlls/kernelbase/winerror.mc:3598
+#: dlls/kernelbase/winerror.mc:3715
 msgid "Invalid form name.\n"
 msgstr "窗体名无效。\n"
 
-#: dlls/kernelbase/winerror.mc:3603
+#: dlls/kernelbase/winerror.mc:3720
 msgid "Invalid form size.\n"
 msgstr "窗体大小无效。\n"
 
-#: dlls/kernelbase/winerror.mc:3608
+#: dlls/kernelbase/winerror.mc:3725
 msgid "Already awaiting printer handle.\n"
 msgstr "已在等待打印机句柄。\n"
 
-#: dlls/kernelbase/winerror.mc:3613
+#: dlls/kernelbase/winerror.mc:3730
 msgid "Printer deleted.\n"
 msgstr "打印机已删除。\n"
 
-#: dlls/kernelbase/winerror.mc:3618
+#: dlls/kernelbase/winerror.mc:3735
 msgid "Invalid printer state.\n"
 msgstr "打印机状态无效。\n"
 
-#: dlls/kernelbase/winerror.mc:3623
+#: dlls/kernelbase/winerror.mc:3740
 msgid "User must change password.\n"
 msgstr "用户必须更改密码。\n"
 
-#: dlls/kernelbase/winerror.mc:3628
+#: dlls/kernelbase/winerror.mc:3745
 msgid "Domain controller not found.\n"
 msgstr "找不到域控制器。\n"
 
-#: dlls/kernelbase/winerror.mc:3633
+#: dlls/kernelbase/winerror.mc:3750
 msgid "Account locked out.\n"
 msgstr "帐号已禁用。\n"
 
-#: dlls/kernelbase/winerror.mc:3638
+#: dlls/kernelbase/winerror.mc:3755
 msgid "Invalid pixel format.\n"
 msgstr "像素格式无效。\n"
 
-#: dlls/kernelbase/winerror.mc:3643
+#: dlls/kernelbase/winerror.mc:3760
 msgid "Invalid driver.\n"
 msgstr "驱动无效。\n"
 
-#: dlls/kernelbase/winerror.mc:3648
+#: dlls/kernelbase/winerror.mc:3765
 msgid "Invalid object resolver set.\n"
 msgstr "对象解析器集无效。\n"
 
-#: dlls/kernelbase/winerror.mc:3653
+#: dlls/kernelbase/winerror.mc:3770
 msgid "Incomplete RPC send.\n"
 msgstr "RPC 发送不完整。\n"
 
-#: dlls/kernelbase/winerror.mc:3658
+#: dlls/kernelbase/winerror.mc:3775
 msgid "Invalid asynchronous RPC handle.\n"
 msgstr "异步 RPC 句柄无效。\n"
 
-#: dlls/kernelbase/winerror.mc:3663
+#: dlls/kernelbase/winerror.mc:3780
 msgid "Invalid asynchronous RPC call.\n"
 msgstr "异步 RPC 调用无效。\n"
 
-#: dlls/kernelbase/winerror.mc:3668
+#: dlls/kernelbase/winerror.mc:3785
 msgid "RPC pipe closed.\n"
 msgstr "RPC 管道已关闭。\n"
 
-#: dlls/kernelbase/winerror.mc:3673
+#: dlls/kernelbase/winerror.mc:3790
 msgid "Discipline error on RPC pipe.\n"
 msgstr "RPC 管道中出现规则性错误。\n"
 
-#: dlls/kernelbase/winerror.mc:3678
+#: dlls/kernelbase/winerror.mc:3795
 msgid "No data on RPC pipe.\n"
 msgstr "RPC 管道中没有数据。\n"
 
-#: dlls/kernelbase/winerror.mc:3683
+#: dlls/kernelbase/winerror.mc:3800
 msgid "No site name available.\n"
 msgstr "没有可用的站点名。\n"
 
-#: dlls/kernelbase/winerror.mc:3688
+#: dlls/kernelbase/winerror.mc:3805
 msgid "The file cannot be accessed.\n"
 msgstr "无法访问此文件。\n"
 
-#: dlls/kernelbase/winerror.mc:3693
+#: dlls/kernelbase/winerror.mc:3810
 msgid "The filename cannot be resolved.\n"
 msgstr "不能解析文件名。\n"
 
-#: dlls/kernelbase/winerror.mc:3698
+#: dlls/kernelbase/winerror.mc:3815
 msgid "RPC entry type mismatch.\n"
 msgstr "RPC 条目类型不匹配。\n"
 
-#: dlls/kernelbase/winerror.mc:3703
+#: dlls/kernelbase/winerror.mc:3820
 msgid "Not all objects could be exported.\n"
 msgstr "无法导出所有对象。\n"
 
-#: dlls/kernelbase/winerror.mc:3708
+#: dlls/kernelbase/winerror.mc:3825
 msgid "The interface could not be exported.\n"
 msgstr "不能导出接口。\n"
 
-#: dlls/kernelbase/winerror.mc:3713
+#: dlls/kernelbase/winerror.mc:3830
 msgid "The profile could not be added.\n"
 msgstr "无法添加该档案。\n"
 
-#: dlls/kernelbase/winerror.mc:3718
+#: dlls/kernelbase/winerror.mc:3835
 msgid "The profile element could not be added.\n"
 msgstr "无法添加该档案元素。\n"
 
-#: dlls/kernelbase/winerror.mc:3723
+#: dlls/kernelbase/winerror.mc:3840
 msgid "The profile element could not be removed.\n"
 msgstr "无法删除该档案元素。\n"
 
-#: dlls/kernelbase/winerror.mc:3728
+#: dlls/kernelbase/winerror.mc:3845
 msgid "The group element could not be added.\n"
 msgstr "无法添加该群组元素。\n"
 
-#: dlls/kernelbase/winerror.mc:3733
+#: dlls/kernelbase/winerror.mc:3850
 msgid "The group element could not be removed.\n"
 msgstr "无法删除该群组元素。\n"
 
-#: dlls/kernelbase/winerror.mc:3738
+#: dlls/kernelbase/winerror.mc:3855
 msgid "The username could not be found.\n"
 msgstr "找不到用户名。\n"
 
-#: dlls/kernelbase/winerror.mc:3743
+#: dlls/kernelbase/winerror.mc:3860
 msgid "This network connection does not exist.\n"
 msgstr "该网络连接不存在。\n"
 
-#: dlls/kernelbase/winerror.mc:3748
+#: dlls/kernelbase/winerror.mc:3865
+#, fuzzy
+#| msgid "File or directory corrupt.\n"
+msgid "File or directory is not a reparse point.\n"
+msgstr "文件或目录已损坏。\n"
+
+#: dlls/kernelbase/winerror.mc:3870
 msgid "Call interrupted.\n"
 msgstr "调用已中断。\n"
 
-#: dlls/kernelbase/winerror.mc:3753
+#: dlls/kernelbase/winerror.mc:3875
 msgid "Invalid file handle.\n"
 msgstr "无效的文件句柄。\n"
 
-#: dlls/kernelbase/winerror.mc:3763
+#: dlls/kernelbase/winerror.mc:3885
 msgid "Invalid pointer address.\n"
 msgstr "无效的指针地址。\n"
 
-#: dlls/kernelbase/winerror.mc:3768
+#: dlls/kernelbase/winerror.mc:3890
 msgid "Invalid argument.\n"
 msgstr "无效的参数。\n"
 
-#: dlls/kernelbase/winerror.mc:3778
+#: dlls/kernelbase/winerror.mc:3900
 msgid "Cannot assign requested address.\n"
 msgstr "无法分配所请求的地址。\n"
 
-#: dlls/kernelbase/winerror.mc:3783
+#: dlls/kernelbase/winerror.mc:3905
 msgid "Connection reset by peer.\n"
 msgstr "连接被重置。\n"
 
-#: dlls/kernelbase/winerror.mc:3793
+#: dlls/kernelbase/winerror.mc:3915
 msgid "Host not found.\n"
 msgstr "未找到主机。\n"
 
-#: dlls/kernelbase/winerror.mc:3798
+#: dlls/kernelbase/winerror.mc:3920
 msgid "Nonauthoritative host not found.\n"
 msgstr "未找到非授权主机。\n"
 
-#: dlls/kernelbase/winerror.mc:3803
+#: dlls/kernelbase/winerror.mc:3925
 msgid "Nonrecoverable error.\n"
 msgstr "不可恢复错误。\n"
 
-#: dlls/kernelbase/winerror.mc:3808
+#: dlls/kernelbase/winerror.mc:3930
 msgid "Name valid, no data record.\n"
 msgstr "名称无效，没有数据记录。\n"
 
-#: dlls/kernelbase/winerror.mc:3822
+#: dlls/kernelbase/winerror.mc:3951
 msgid "Not implemented.\n"
 msgstr "尚未实现。\n"
 
-#: dlls/kernelbase/winerror.mc:3843
+#: dlls/kernelbase/winerror.mc:3972
 msgid "Call failed.\n"
 msgstr "调用失败。\n"
 
-#: dlls/kernelbase/winerror.mc:3815
+#: dlls/kernelbase/winerror.mc:3937
+#, fuzzy
+#| msgid "Unable to unload media.\n"
+msgid "Unable to find matching object.\n"
+msgstr "无法卸载介质。\n"
+
+#: dlls/kernelbase/winerror.mc:3944
 msgid "No Signature found in file.\n"
 msgstr "未在文件内找到签名。\n"
 
-#: dlls/kernelbase/winerror.mc:3829
+#: dlls/kernelbase/winerror.mc:3958
 msgid "Invalid call.\n"
 msgstr "无效调用。\n"
 
-#: dlls/kernelbase/winerror.mc:3836
+#: dlls/kernelbase/winerror.mc:3965
 msgid "Resource is not currently available.\n"
 msgstr "资源当前不可用。\n"
-
-#: dlls/light.msstyles/light.rc:41 dlls/light.msstyles/light.rc:47
-#: programs/winhlp32/winhlp32.rc:53 programs/winhlp32/winhlp32.rc:73
-msgid "Normal"
-msgstr "普通"
 
 #: dlls/localspl/localspl.rc:37
 msgid "Letter"
@@ -8188,7 +8325,7 @@ msgstr "超链接"
 msgid "Hyperlink Information"
 msgstr "超链接信息"
 
-#: dlls/mshtml/mshtml.rc:43 programs/winecfg/winecfg.rc:249
+#: dlls/mshtml/mshtml.rc:43 programs/winecfg/winecfg.rc:250
 msgid "&Type:"
 msgstr "类型(&T):"
 
@@ -8786,6 +8923,228 @@ msgstr "全帧(未压缩)"
 #: dlls/msvidc32/msvidc32.rc:29
 msgid "Wine Video 1 video codec"
 msgstr "Wine Video 1 视频编解码器"
+
+#: dlls/msxml3/msxml.mc:31
+#, fuzzy
+#| msgid "Undefined external error."
+msgid "Undefined reference\n"
+msgstr "未定义的外部错误。"
+
+#: dlls/msxml3/msxml.mc:38
+msgid "Found self-referential entity\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:45
+msgid "Unparsed entity reference\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:52
+msgid "Name text contains colon ':'\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:59
+msgid "Namespace prefix hasn't been declared\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:66
+#, fuzzy
+#| msgid "Expected '='"
+msgid "Expected '=' character\n"
+msgstr "期望得到 '='"
+
+#: dlls/msxml3/msxml.mc:73
+#, fuzzy
+#| msgid "Expected an operator.\n"
+msgid "Expected a quote character\n"
+msgstr "期望一个操作符。\n"
+
+#: dlls/msxml3/msxml.mc:80
+msgid "Malformed comment\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:87
+#, fuzzy
+#| msgid "Invalid character"
+msgid "Invalid name start character\n"
+msgstr "无效字符"
+
+#: dlls/msxml3/msxml.mc:94
+#, fuzzy
+#| msgid "Invalid character"
+msgid "Invalid name character\n"
+msgstr "无效字符"
+
+#: dlls/msxml3/msxml.mc:101
+msgid "The '<' character found in attribute value\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:108
+#, fuzzy
+#| msgid "Expected an operator.\n"
+msgid "Expected whitespace character\n"
+msgstr "期望一个操作符。\n"
+
+#: dlls/msxml3/msxml.mc:115
+#, fuzzy
+#| msgid "Expected an operator.\n"
+msgid "Expected end tag character '>'\n"
+msgstr "期望一个操作符。\n"
+
+#: dlls/msxml3/msxml.mc:122
+#, fuzzy
+#| msgid "Invalid character(s) in path"
+msgid "Invalid character in DTD content\n"
+msgstr "路径中包含无效字符"
+
+#: dlls/msxml3/msxml.mc:129
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected ';' character\n"
+msgstr "期望得到 ';'"
+
+#: dlls/msxml3/msxml.mc:136
+#, fuzzy
+#| msgid "Invalid character(s) in path"
+msgid "Invalid character in entity reference\n"
+msgstr "路径中包含无效字符"
+
+#: dlls/msxml3/msxml.mc:143
+#, fuzzy
+#| msgid "Invalid character(s) in path"
+msgid "Invalid character in mixed DTD content\n"
+msgstr "路径中包含无效字符"
+
+#: dlls/msxml3/msxml.mc:150
+#, fuzzy
+#| msgid "Expected an operator.\n"
+msgid "Expected '*' character\n"
+msgstr "期望一个操作符。\n"
+
+#: dlls/msxml3/msxml.mc:157
+#, fuzzy
+#| msgid "Expected an operator.\n"
+msgid "Expected parenthesis character\n"
+msgstr "期望一个操作符。\n"
+
+#: dlls/msxml3/msxml.mc:164
+#, fuzzy
+#| msgid "Invalid character(s) in path"
+msgid "Invalid character in DTD enumeration\n"
+msgstr "路径中包含无效字符"
+
+#: dlls/msxml3/msxml.mc:171
+#, fuzzy
+#| msgid "Invalid name syntax.\n"
+msgid "Invalid PI syntax\n"
+msgstr "名字语法无效。\n"
+
+#: dlls/msxml3/msxml.mc:178
+#, fuzzy
+#| msgid "Expected an operator.\n"
+msgid "Expected closing quote character\n"
+msgstr "期望一个操作符。\n"
+
+#: dlls/msxml3/msxml.mc:185
+msgid "Multiple colon character found\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:192
+#, fuzzy
+#| msgid "Invalid character"
+msgid "Invalid Unicode character\n"
+msgstr "无效字符"
+
+#: dlls/msxml3/msxml.mc:199
+msgid "Expected whitespace or '?' character\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:206
+msgid "Unexpected end tag '>' character\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:213
+#, fuzzy
+#| msgid "Invalid group attributes.\n"
+msgid "Found duplicate attribute\n"
+msgstr "无效的组属性。\n"
+
+#: dlls/msxml3/msxml.mc:220
+#, fuzzy
+#| msgid "Key is invalid.\n"
+msgid "Document root is invalid\n"
+msgstr "键值无效。\n"
+
+#: dlls/msxml3/msxml.mc:227
+#, fuzzy
+#| msgid "Invalid handle operation.\n"
+msgid "Invalid xml declaration\n"
+msgstr "句柄操作无效。\n"
+
+#: dlls/msxml3/msxml.mc:234
+#, fuzzy
+#| msgid "Source is missing.\n"
+msgid "Document root is missing\n"
+msgstr "缺少源。\n"
+
+#: dlls/msxml3/msxml.mc:241
+msgid "Unexpected end of input data stream\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:248
+msgid "Found unexpected CDATA closing markup ']]>'\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:255
+msgid "Found unterminated PI declaration\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:262
+msgid "Found unterminated end tag\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:269
+msgid "Found unterminated CDATA block\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:276
+msgid "Use namespace prefix is reserved\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:283
+#, fuzzy
+#| msgid "The passwords do not match."
+msgid "End tag does not match\n"
+msgstr "密码不一致。"
+
+#: dlls/msxml3/msxml.mc:290
+#, fuzzy
+#| msgid "Invalid domain name.\n"
+msgid "Invalid encoding name\n"
+msgstr "无效域名。\n"
+
+#: dlls/msxml3/msxml.mc:297
+#, fuzzy
+#| msgid "Invalid media type.\n"
+msgid "Invalid model in DTD contentspec\n"
+msgstr "媒体类型无效。\n"
+
+#: dlls/msxml3/msxml.mc:304
+#, fuzzy
+#| msgid "Invalid group attributes.\n"
+msgid "Invalid DTD attribute type\n"
+msgstr "无效的组属性。\n"
+
+#: dlls/msxml3/msxml.mc:311
+#, fuzzy
+#| msgid "Invalid handle operation.\n"
+msgid "Invalid standalone declaration\n"
+msgstr "句柄操作无效。\n"
+
+#: dlls/msxml3/msxml.mc:318
+#, fuzzy
+#| msgid "Invalid version option.\n"
+msgid "Invalid xml version\n"
+msgstr "版本选项无效。\n"
 
 #: dlls/oleacc/oleacc.rc:31
 msgid "unknown object"
@@ -9590,7 +9949,7 @@ msgid "b"
 msgstr "b"
 
 #: dlls/sane.ds/sane.rc:34 dlls/wineps.drv/wineps.rc:52
-#: programs/winecfg/winecfg.rc:188
+#: programs/winecfg/winecfg.rc:189
 msgctxt "unit: dots/inch"
 msgid "dpi"
 msgstr "dpi"
@@ -10124,7 +10483,7 @@ msgstr "打开(&O):"
 
 #: dlls/shell32/shell32.rc:345 programs/progman/progman.rc:182
 #: programs/progman/progman.rc:201 programs/progman/progman.rc:218
-#: programs/winecfg/winecfg.rc:247 programs/winefile/winefile.rc:129
+#: programs/winecfg/winecfg.rc:248 programs/winefile/winefile.rc:129
 msgid "&Browse..."
 msgstr "浏览(&B)..."
 
@@ -10210,7 +10569,7 @@ msgstr "原位置"
 msgid "Date deleted"
 msgstr "删除日期"
 
-#: dlls/shell32/shell32.rc:151 programs/winecfg/winecfg.rc:106
+#: dlls/shell32/shell32.rc:151 programs/winecfg/winecfg.rc:107
 #: programs/winefile/winefile.rc:99
 msgctxt "display name"
 msgid "Desktop"
@@ -12621,103 +12980,339 @@ msgid "This array is fixed or temporarily locked"
 msgstr "该数组为固定数组或已被临时锁定"
 
 #: dlls/vbscript/vbscript.rc:34
+#, fuzzy
+#| msgid "Division by zero error.\n"
+msgid "Division by zero"
+msgstr "被零除错误。\n"
+
+#: dlls/vbscript/vbscript.rc:35
 msgid "Type mismatch"
 msgstr "类型不匹配"
 
-#: dlls/vbscript/vbscript.rc:36
+#: dlls/vbscript/vbscript.rc:38
 msgid "Device I/O error"
 msgstr "设备 I/O 错误"
 
-#: dlls/vbscript/vbscript.rc:37
+#: dlls/vbscript/vbscript.rc:39
 msgid "File already exists"
 msgstr "文件已存在"
 
-#: dlls/vbscript/vbscript.rc:38
+#: dlls/vbscript/vbscript.rc:40
 msgid "Disk full"
 msgstr "磁盘已满"
 
-#: dlls/vbscript/vbscript.rc:39
+#: dlls/vbscript/vbscript.rc:41
 msgid "Too many files"
 msgstr "太多文件"
 
-#: dlls/vbscript/vbscript.rc:40
+#: dlls/vbscript/vbscript.rc:42
 msgid "Permission denied"
 msgstr "没有权限"
 
-#: dlls/vbscript/vbscript.rc:41
+#: dlls/vbscript/vbscript.rc:43
 msgid "Path/File access error"
 msgstr "路径/文件访问出错"
 
-#: dlls/vbscript/vbscript.rc:42
+#: dlls/vbscript/vbscript.rc:44
 msgid "Path not found"
 msgstr "找不到路径"
 
-#: dlls/vbscript/vbscript.rc:43
+#: dlls/vbscript/vbscript.rc:45
 msgid "Object variable not set"
 msgstr "未设置对象变量"
 
-#: dlls/vbscript/vbscript.rc:44
+#: dlls/vbscript/vbscript.rc:46
+#, fuzzy
+#| msgid "Object is not initialized.\n"
+msgid "For loop not initialized"
+msgstr "对象未初始化。\n"
+
+#: dlls/vbscript/vbscript.rc:47
 msgid "Invalid use of Null"
 msgstr "Null 使用无效"
 
-#: dlls/vbscript/vbscript.rc:45
+#: dlls/vbscript/vbscript.rc:48
 msgid "Can't create necessary temporary file"
 msgstr "无法创建必要的临时文件"
 
-#: dlls/vbscript/vbscript.rc:46
+#: dlls/vbscript/vbscript.rc:50
 msgid "ActiveX component can't create object"
 msgstr "ActiveX 组件无法创建对象"
 
-#: dlls/vbscript/vbscript.rc:47
+#: dlls/vbscript/vbscript.rc:51
 msgid "Class doesn't support Automation"
 msgstr "类不支持自动化"
 
-#: dlls/vbscript/vbscript.rc:48
+#: dlls/vbscript/vbscript.rc:52
 msgid "File name or class name not found during Automation operation"
 msgstr "自动化操作期间无法找到文件名或类名"
 
-#: dlls/vbscript/vbscript.rc:51
+#: dlls/vbscript/vbscript.rc:55
 msgid "Object doesn't support named arguments"
 msgstr "对象不支持命名参数"
 
-#: dlls/vbscript/vbscript.rc:52
+#: dlls/vbscript/vbscript.rc:56
 msgid "Object doesn't support current locale setting"
 msgstr "对象不支持当前 locale 设置"
 
-#: dlls/vbscript/vbscript.rc:53
+#: dlls/vbscript/vbscript.rc:57
 msgid "Named argument not found"
 msgstr "未找到命名参数"
 
-#: dlls/vbscript/vbscript.rc:55
+#: dlls/vbscript/vbscript.rc:59
 msgid "Wrong number of arguments or invalid property assignment"
 msgstr "参数数量错误或无效的指定属性"
 
-#: dlls/vbscript/vbscript.rc:57
+#: dlls/vbscript/vbscript.rc:62
 msgid "Specified DLL function not found"
 msgstr "未找到指定的 DLL 函数"
 
-#: dlls/vbscript/vbscript.rc:58
+#: dlls/vbscript/vbscript.rc:61
+msgid "This key is already associated with an element of this collection"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:63
 msgid "Variable uses an Automation type not supported in VBScript"
 msgstr "变量使用了 VBScript 中不支持的自动化类型"
 
-#: dlls/vbscript/vbscript.rc:59
+#: dlls/vbscript/vbscript.rc:64
 msgid "The remote server machine does not exist or is unavailable"
 msgstr "远程服务器不存在或不可用"
 
-#: dlls/vbscript/vbscript.rc:60
+#: dlls/vbscript/vbscript.rc:65
+#, fuzzy
+#| msgid "'|' is undefined"
+msgid "Variable is undefined"
+msgstr "'|' 未被定义"
+
+#: dlls/vbscript/vbscript.rc:67
 msgid "Invalid or unqualified reference"
 msgstr "无效或不合格引用"
 
-#: dlls/vbscript/vbscript.rc:62
+#: dlls/vbscript/vbscript.rc:68
+#, fuzzy
+#| msgid "Class does not exist.\n"
+msgid "Class not defined"
+msgstr "该类不存在。\n"
+
+#: dlls/vbscript/vbscript.rc:71
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected ']'"
+msgstr "期望得到 ';'"
+
+#: dlls/vbscript/vbscript.rc:75
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'If'"
+msgstr "期望得到 ';'"
+
+#: dlls/vbscript/vbscript.rc:76
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'To'"
+msgstr "期望得到 ';'"
+
+#: dlls/vbscript/vbscript.rc:77
+#, fuzzy
+#| msgid "Expected '@end'"
+msgid "Expected 'End'"
+msgstr "期望 '@end'"
+
+#: dlls/vbscript/vbscript.rc:78
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'Function'"
+msgstr "期望得到 ';'"
+
+#: dlls/vbscript/vbscript.rc:79
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'Sub'"
+msgstr "期望得到 ';'"
+
+#: dlls/vbscript/vbscript.rc:80
+#, fuzzy
+#| msgid "Expected '@end'"
+msgid "Expected 'Then'"
+msgstr "期望 '@end'"
+
+#: dlls/vbscript/vbscript.rc:81
+#, fuzzy
+#| msgid "Expected '@end'"
+msgid "Expected 'Wend'"
+msgstr "期望 '@end'"
+
+#: dlls/vbscript/vbscript.rc:82
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'Loop'"
+msgstr "期望得到 ';'"
+
+#: dlls/vbscript/vbscript.rc:83
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'Next'"
+msgstr "期望得到 ';'"
+
+#: dlls/vbscript/vbscript.rc:84
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'Case'"
+msgstr "期望得到 ';'"
+
+#: dlls/vbscript/vbscript.rc:85
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'Select'"
+msgstr "期望得到 ';'"
+
+#: dlls/vbscript/vbscript.rc:86
+#, fuzzy
+#| msgid "Expected '@end'"
+msgid "Expected statement"
+msgstr "期望 '@end'"
+
+#: dlls/vbscript/vbscript.rc:87
+#, fuzzy
+#| msgid "Expected an operand.\n"
+msgid "Expected end of statement"
+msgstr "期望一个操作数。\n"
+
+#: dlls/vbscript/vbscript.rc:88
+#, fuzzy
+#| msgid "Unterminated string constant"
+msgid "Expected integer constant"
+msgstr "未终止的字符串常量"
+
+#: dlls/vbscript/vbscript.rc:89
+msgid "Expected 'While', 'Until' or end of statement"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:91
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'With'"
+msgstr "期望得到 ';'"
+
+#: dlls/vbscript/vbscript.rc:90
+#, fuzzy
+#| msgid "Secret too long.\n"
+msgid "Identifier too long"
+msgstr "密文太长。\n"
+
+#: dlls/vbscript/vbscript.rc:92
+#, fuzzy
+#| msgid "Invalid flag number.\n"
+msgid "Invalid number"
+msgstr "标志数无效。\n"
+
+#: dlls/vbscript/vbscript.rc:95
+#, fuzzy
+#| msgid "Invalid use of Null"
+msgid "Invalid use of 'Me' keyword"
+msgstr "Null 使用无效"
+
+#: dlls/vbscript/vbscript.rc:96
+msgid "'loop' without 'do'"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:97
+#, fuzzy
+#| msgid "Invalid printer state.\n"
+msgid "Invalid 'exit' statement"
+msgstr "打印机状态无效。\n"
+
+#: dlls/vbscript/vbscript.rc:98
+msgid "Invalid 'for' loop control variable"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:99
+#, fuzzy
+#| msgid "Label redefined"
+msgid "Name redefined"
+msgstr "标签被重复定义"
+
+#: dlls/vbscript/vbscript.rc:100
+msgid "Must be first statement on the line"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:101
+msgid "Cannot use parentheses when calling a Sub"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:102
+#, fuzzy
+#| msgid "Expected an operator.\n"
+msgid "Expected literal constant"
+msgstr "期望一个操作符。\n"
+
+#: dlls/vbscript/vbscript.rc:103
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'In'"
+msgstr "期望得到 ';'"
+
+#: dlls/vbscript/vbscript.rc:104
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'Class'"
+msgstr "期望得到 ';'"
+
+#: dlls/vbscript/vbscript.rc:105
+msgid "Must be defined inside a Class"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:106
+msgid "Expected Let or Set or Get in property declaration"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:107
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'Property'"
+msgstr "期望得到 ';'"
+
+#: dlls/vbscript/vbscript.rc:108
+msgid "Number of arguments must be consistent across properties specification"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:109
+msgid "Cannot have multiple default property/method in a Class"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:110
+msgid "Class initialize or terminate do not have arguments"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:111
+msgid "Property set or let must have at least one argument"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:112
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Unexpected 'Next'"
+msgstr "期望得到 ';'"
+
+#: dlls/vbscript/vbscript.rc:113
+msgid "'Default' specification must also specify 'Public'"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:114
+msgid "'Default' specification can only be on Property Get"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:116
 msgid "Microsoft VBScript compilation error"
 msgstr "Microsoft VBScript 编译错误"
 
-#: dlls/vbscript/vbscript.rc:63
+#: dlls/vbscript/vbscript.rc:117
 msgid "Microsoft VBScript runtime error"
 msgstr "Microsoft VBScript 运行时错误"
 
 #: dlls/winemac.drv/winemac.rc:32 programs/wineboot/wineboot.rc:42
-#: programs/winecfg/winecfg.rc:143
+#: programs/winecfg/winecfg.rc:144
 msgid "Wine"
 msgstr "Wine"
 
@@ -13744,7 +14339,7 @@ msgid "Digi&tal"
 msgstr "数字时钟(&T)"
 
 #: programs/clock/clock.rc:35 programs/notepad/notepad.rc:59
-#: programs/winecfg/winecfg.rc:315 programs/winefile/winefile.rc:63
+#: programs/winecfg/winecfg.rc:316 programs/winefile/winefile.rc:63
 #: programs/wordpad/wordpad.rc:84
 msgid "&Font..."
 msgstr "字体(&F)..."
@@ -14725,6 +15320,47 @@ msgstr "每个字符都是 %1!u! 像素宽，%2!u! 像素高"
 #: programs/conhost/conhost.rc:42
 msgid "This is a test"
 msgstr "This is a test 这是测试"
+
+#: programs/wscript/wscript.rc:45
+msgid ""
+"Usage: CScript scriptname.extension [option...] [arguments...]\n"
+"\n"
+"Options:\n"
+"//B         Batch mode: Suppresses script errors and prompts from "
+"displaying\n"
+"//D         Enable Active Debugging\n"
+"//E:engine  Use engine for executing script\n"
+"//H:CScript Changes the default script host to CScript.exe\n"
+"//H:WScript Changes the default script host to WScript.exe (default)\n"
+"//I         Interactive mode (default, opposite of //B)\n"
+"//Job:xxxx  Execute a WSF job\n"
+"//Logo      Display logo (default)\n"
+"//Nologo    Prevent logo display: No banner will be shown at execution time\n"
+"//S         Save current command line options for this user\n"
+"//T:nn      Time out in seconds:  Maximum time a script is permitted to run\n"
+"//X         Execute script in debugger\n"
+"//U         Use Unicode for redirected I/O from the console\n"
+msgstr ""
+
+#: programs/wscript/wscript.rc:47
+msgid "Input Error: There is no script file specified.\n"
+msgstr ""
+
+#: programs/wscript/wscript.rc:48
+#, fuzzy
+#| msgid "Error: Could not find process \"%1\".\n"
+msgid "Input Error: Can not find script file \"%1\".\n"
+msgstr "错误: 找不到进程 \"%1\"。\n"
+
+#: programs/wscript/wscript.rc:49
+msgid "CScript Error: Loading script \"%1\" failed (%2).\n"
+msgstr ""
+
+#: programs/wscript/wscript.rc:52
+msgid ""
+"Script execution time was exceeded on script \"%1\".\n"
+"Script execution was terminated.\n"
+msgstr ""
 
 #: programs/dxdiag/dxdiag.rc:30
 msgid "DirectX Diagnostic Tool"
@@ -18310,7 +18946,7 @@ msgstr ""
 msgid "The Wine configuration in %s is being updated, please wait..."
 msgstr "正在更新位于 %s 的 Wine 配置，请稍候..."
 
-#: programs/winecfg/winecfg.rc:146
+#: programs/winecfg/winecfg.rc:147
 msgid ""
 "This program is free software; you can redistribute it and/or modify it "
 "under the terms of the GNU Lesser General Public License as published by the "
@@ -18321,23 +18957,23 @@ msgstr ""
 "(LGPL) 来对其进行添加、修改和重新发布。许可协议版本为 2.1，您也可以选择采用更"
 "新的版本。"
 
-#: programs/winecfg/winecfg.rc:148
+#: programs/winecfg/winecfg.rc:149
 msgid "Windows registration information"
 msgstr "Windows 注册信息"
 
-#: programs/winecfg/winecfg.rc:149
+#: programs/winecfg/winecfg.rc:150
 msgid "&Owner:"
 msgstr "姓名(&O):"
 
-#: programs/winecfg/winecfg.rc:151
+#: programs/winecfg/winecfg.rc:152
 msgid "Organi&zation:"
 msgstr "组织(&Z):"
 
-#: programs/winecfg/winecfg.rc:159
+#: programs/winecfg/winecfg.rc:160
 msgid "Application settings"
 msgstr "应用程序设置"
 
-#: programs/winecfg/winecfg.rc:160
+#: programs/winecfg/winecfg.rc:161
 msgid ""
 "Wine can mimic different Windows versions for each application. This tab is "
 "linked to the Libraries and Graphics tabs to allow you to change system-wide "
@@ -18346,55 +18982,55 @@ msgstr ""
 "对不同的程序，可以让 Wine 假装成不同版本的 Windows，也可以在“函数库”与“显示”"
 "标签页中作不同的设置。"
 
-#: programs/winecfg/winecfg.rc:164
+#: programs/winecfg/winecfg.rc:165
 msgid "Add appli&cation..."
 msgstr "增加程序设置(&C)..."
 
-#: programs/winecfg/winecfg.rc:165
+#: programs/winecfg/winecfg.rc:166
 msgid "&Remove application"
 msgstr "删除程序设置(&R)"
 
-#: programs/winecfg/winecfg.rc:166
+#: programs/winecfg/winecfg.rc:167
 msgid "&Windows Version:"
 msgstr "&Windows 版本:"
 
-#: programs/winecfg/winecfg.rc:174
+#: programs/winecfg/winecfg.rc:175
 msgid "Window settings"
 msgstr "窗口设置"
 
-#: programs/winecfg/winecfg.rc:175
+#: programs/winecfg/winecfg.rc:176
 msgid "Automatically capture the &mouse in full-screen windows"
 msgstr "全屏模式下自动捕获光标(&M)"
 
-#: programs/winecfg/winecfg.rc:176
+#: programs/winecfg/winecfg.rc:177
 msgid "Allow the window manager to &decorate the windows"
 msgstr "允许窗口管理器装饰窗口(&D)"
 
-#: programs/winecfg/winecfg.rc:177
+#: programs/winecfg/winecfg.rc:178
 msgid "Allow the &window manager to control the windows"
 msgstr "允许窗口管理器控制窗口(&W)"
 
-#: programs/winecfg/winecfg.rc:178
+#: programs/winecfg/winecfg.rc:179
 msgid "&Emulate a virtual desktop"
 msgstr "虚拟桌面(&E)"
 
-#: programs/winecfg/winecfg.rc:180
+#: programs/winecfg/winecfg.rc:181
 msgid "Desktop &size:"
 msgstr "桌面大小(&S):"
 
-#: programs/winecfg/winecfg.rc:185
+#: programs/winecfg/winecfg.rc:186
 msgid "Screen resolution"
 msgstr "屏幕分辨率"
 
-#: programs/winecfg/winecfg.rc:189
+#: programs/winecfg/winecfg.rc:190
 msgid "This is a sample text using 10 point Tahoma"
 msgstr "这是使用 10 号 Tahoma 字体的示例文本"
 
-#: programs/winecfg/winecfg.rc:196
+#: programs/winecfg/winecfg.rc:197
 msgid "DLL overrides"
 msgstr "DLL 顶替"
 
-#: programs/winecfg/winecfg.rc:197
+#: programs/winecfg/winecfg.rc:198
 msgid ""
 "Dynamic Link Libraries can be specified individually to be either builtin "
 "(provided by Wine) or native (taken from Windows or provided by the "
@@ -18403,169 +19039,169 @@ msgstr ""
 "对各个动态链接库，可以选择使用 Wine 提供的内建版本，还是使用取自 Windows 或程"
 "序所提供的原装版本。"
 
-#: programs/winecfg/winecfg.rc:199
+#: programs/winecfg/winecfg.rc:200
 msgid "&New override for library:"
 msgstr "新增函数库顶替(&N):"
 
-#: programs/winecfg/winecfg.rc:201
+#: programs/winecfg/winecfg.rc:202
 msgid "A&dd"
 msgstr "添加(&D)"
 
-#: programs/winecfg/winecfg.rc:202
+#: programs/winecfg/winecfg.rc:203
 msgid "Existing &overrides:"
 msgstr "已有的函数库顶替(&O):"
 
-#: programs/winecfg/winecfg.rc:204
+#: programs/winecfg/winecfg.rc:205
 msgid "&Edit..."
 msgstr "编辑(&E)..."
 
-#: programs/winecfg/winecfg.rc:210
+#: programs/winecfg/winecfg.rc:211
 msgid "Edit Override"
 msgstr "编辑顶替"
 
-#: programs/winecfg/winecfg.rc:213
+#: programs/winecfg/winecfg.rc:214
 msgid "Load order"
 msgstr "载入顺序"
 
-#: programs/winecfg/winecfg.rc:214
+#: programs/winecfg/winecfg.rc:215
 msgid "&Builtin (Wine)"
 msgstr "内建(Wine)(&B)"
 
-#: programs/winecfg/winecfg.rc:215
+#: programs/winecfg/winecfg.rc:216
 msgid "&Native (Windows)"
 msgstr "原装(Windows)(&N)"
 
-#: programs/winecfg/winecfg.rc:216
+#: programs/winecfg/winecfg.rc:217
 msgid "Buil&tin then Native"
 msgstr "内建先于原装(&T)"
 
-#: programs/winecfg/winecfg.rc:217
+#: programs/winecfg/winecfg.rc:218
 msgid "Nati&ve then Builtin"
 msgstr "原装先于内建(&V)"
 
-#: programs/winecfg/winecfg.rc:225
+#: programs/winecfg/winecfg.rc:226
 msgid "Select Drive Letter"
 msgstr "选择驱动器盘符"
 
-#: programs/winecfg/winecfg.rc:237
+#: programs/winecfg/winecfg.rc:238
 msgid "Drive configuration"
 msgstr "驱动器设置"
 
-#: programs/winecfg/winecfg.rc:238
+#: programs/winecfg/winecfg.rc:239
 msgid ""
 "Failed to connect to the mount manager; the drive configuration cannot be "
 "edited."
 msgstr "无法连接到挂载管理器；不能修改驱动器配置。"
 
-#: programs/winecfg/winecfg.rc:241
+#: programs/winecfg/winecfg.rc:242
 msgid "A&dd..."
 msgstr "添加(&D)..."
 
-#: programs/winecfg/winecfg.rc:245
+#: programs/winecfg/winecfg.rc:246
 msgid "&Path:"
 msgstr "路径(&P):"
 
-#: programs/winecfg/winecfg.rc:252 programs/winecfg/winecfg.rc:37
+#: programs/winecfg/winecfg.rc:253 programs/winecfg/winecfg.rc:37
 msgid "Show Advan&ced"
 msgstr "显示高级选项(&C)"
 
-#: programs/winecfg/winecfg.rc:253
+#: programs/winecfg/winecfg.rc:254
 msgid "De&vice:"
 msgstr "设备(&V):"
 
-#: programs/winecfg/winecfg.rc:255
+#: programs/winecfg/winecfg.rc:256
 msgid "Bro&wse..."
 msgstr "浏览(&W)..."
 
-#: programs/winecfg/winecfg.rc:257
+#: programs/winecfg/winecfg.rc:258
 msgid "&Label:"
 msgstr "卷标(&L):"
 
-#: programs/winecfg/winecfg.rc:259
+#: programs/winecfg/winecfg.rc:260
 msgid "S&erial:"
 msgstr "序列号(&E):"
 
-#: programs/winecfg/winecfg.rc:262
+#: programs/winecfg/winecfg.rc:263
 msgid "&Show dot files"
 msgstr "显示隐藏文件(&S)"
 
-#: programs/winecfg/winecfg.rc:269
+#: programs/winecfg/winecfg.rc:270
 msgid "Driver diagnostics"
 msgstr "驱动程序诊断"
 
-#: programs/winecfg/winecfg.rc:271
+#: programs/winecfg/winecfg.rc:272
 msgid "&Test Sound"
 msgstr "测试音频(&T)"
 
-#: programs/winecfg/winecfg.rc:272
+#: programs/winecfg/winecfg.rc:273
 msgid "Defaults"
 msgstr "默认值"
 
-#: programs/winecfg/winecfg.rc:273
+#: programs/winecfg/winecfg.rc:274
 msgid "Output device:"
 msgstr "输出设备:"
 
-#: programs/winecfg/winecfg.rc:274
+#: programs/winecfg/winecfg.rc:275
 msgid "Voice output device:"
 msgstr "语音输出设备:"
 
-#: programs/winecfg/winecfg.rc:275
+#: programs/winecfg/winecfg.rc:276
 msgid "Input device:"
 msgstr "输入设备:"
 
-#: programs/winecfg/winecfg.rc:276
+#: programs/winecfg/winecfg.rc:277
 msgid "Voice input device:"
 msgstr "语音输入设备:"
 
-#: programs/winecfg/winecfg.rc:277
+#: programs/winecfg/winecfg.rc:278
 msgid "MIDI output device:"
 msgstr "MIDI 输出设备:"
 
-#: programs/winecfg/winecfg.rc:283 programs/winecfg/winecfg.rc:89
+#: programs/winecfg/winecfg.rc:284 programs/winecfg/winecfg.rc:89
 msgid "Speaker configuration"
 msgstr "扬声器设置"
 
-#: programs/winecfg/winecfg.rc:286
+#: programs/winecfg/winecfg.rc:287
 msgid "Speakers:"
 msgstr "扬声器:"
 
-#: programs/winecfg/winecfg.rc:294
+#: programs/winecfg/winecfg.rc:295
 msgid "Appearance"
 msgstr "外观"
 
-#: programs/winecfg/winecfg.rc:295
+#: programs/winecfg/winecfg.rc:296
 msgid "&Theme:"
 msgstr "主题(&T):"
 
-#: programs/winecfg/winecfg.rc:297
+#: programs/winecfg/winecfg.rc:298
 msgid "&WinRT theme:"
 msgstr "WinRT 主题(&W):"
 
-#: programs/winecfg/winecfg.rc:299
+#: programs/winecfg/winecfg.rc:300
 msgid "&Install theme..."
 msgstr "安装主题(&I)..."
 
-#: programs/winecfg/winecfg.rc:304
+#: programs/winecfg/winecfg.rc:305
 msgid "It&em:"
 msgstr "物件(&E):"
 
-#: programs/winecfg/winecfg.rc:306
+#: programs/winecfg/winecfg.rc:307
 msgid "C&olor:"
 msgstr "颜色(&O):"
 
-#: programs/winecfg/winecfg.rc:312
+#: programs/winecfg/winecfg.rc:313
 msgid "MIME types"
 msgstr "MIME 类型"
 
-#: programs/winecfg/winecfg.rc:313
+#: programs/winecfg/winecfg.rc:314
 msgid "Manage file and protocol &associations"
 msgstr "管理文件和协议关联(&A)"
 
-#: programs/winecfg/winecfg.rc:316
+#: programs/winecfg/winecfg.rc:317
 msgid "Folders"
 msgstr "文件夹"
 
-#: programs/winecfg/winecfg.rc:319
+#: programs/winecfg/winecfg.rc:320
 msgid "&Link to:"
 msgstr "映射至(&L):"
 
@@ -18646,26 +19282,32 @@ msgid "(System default)"
 msgstr "(系统默认)"
 
 #: programs/winecfg/winecfg.rc:90
-msgid "5.1 Surround"
+#, fuzzy
+#| msgid "5.1 Surround"
+msgid "7.1 Surround"
 msgstr "5.1 环绕声"
 
 #: programs/winecfg/winecfg.rc:91
+msgid "5.1 Surround"
+msgstr "5.1 环绕声"
+
+#: programs/winecfg/winecfg.rc:92
 msgid "Quadraphonic"
 msgstr "四声道录放音设备"
 
-#: programs/winecfg/winecfg.rc:92
+#: programs/winecfg/winecfg.rc:93
 msgid "Stereo"
 msgstr "双声道"
 
-#: programs/winecfg/winecfg.rc:93
+#: programs/winecfg/winecfg.rc:94
 msgid "Mono"
 msgstr "单声道"
 
-#: programs/winecfg/winecfg.rc:98
+#: programs/winecfg/winecfg.rc:99
 msgid "Light"
 msgstr "浅色"
 
-#: programs/winecfg/winecfg.rc:99
+#: programs/winecfg/winecfg.rc:100
 msgid "Dark"
 msgstr "深色"
 
@@ -18782,127 +19424,127 @@ msgstr ""
 "\n"
 "请记得点选“驱动器”标签的“添加”来建立它!\n"
 
-#: programs/winecfg/winecfg.rc:104
+#: programs/winecfg/winecfg.rc:105
 msgid "Controls Background"
 msgstr "控件背景"
 
-#: programs/winecfg/winecfg.rc:105
+#: programs/winecfg/winecfg.rc:106
 msgid "Controls Text"
 msgstr "控件文字"
 
-#: programs/winecfg/winecfg.rc:107
+#: programs/winecfg/winecfg.rc:108
 msgid "Menu Background"
 msgstr "菜单背景"
 
-#: programs/winecfg/winecfg.rc:108
+#: programs/winecfg/winecfg.rc:109
 msgid "Menu Text"
 msgstr "菜单文字"
 
-#: programs/winecfg/winecfg.rc:109
+#: programs/winecfg/winecfg.rc:110
 msgid "Scrollbar"
 msgstr "滚动条"
 
-#: programs/winecfg/winecfg.rc:110
+#: programs/winecfg/winecfg.rc:111
 msgid "Selection Background"
 msgstr "选中的文字背景"
 
-#: programs/winecfg/winecfg.rc:111
+#: programs/winecfg/winecfg.rc:112
 msgid "Selection Text"
 msgstr "选中的文字"
 
-#: programs/winecfg/winecfg.rc:112
+#: programs/winecfg/winecfg.rc:113
 msgid "Tooltip Background"
 msgstr "工具提示背景"
 
-#: programs/winecfg/winecfg.rc:113
+#: programs/winecfg/winecfg.rc:114
 msgid "Tooltip Text"
 msgstr "工具提示文字"
 
-#: programs/winecfg/winecfg.rc:114
+#: programs/winecfg/winecfg.rc:115
 msgid "Window Background"
 msgstr "窗口背景"
 
-#: programs/winecfg/winecfg.rc:115
+#: programs/winecfg/winecfg.rc:116
 msgid "Window Text"
 msgstr "窗口文字"
 
-#: programs/winecfg/winecfg.rc:116
+#: programs/winecfg/winecfg.rc:117
 msgid "Active Title Bar"
 msgstr "活动窗口标题栏"
 
-#: programs/winecfg/winecfg.rc:117
+#: programs/winecfg/winecfg.rc:118
 msgid "Active Title Text"
 msgstr "活动窗口标题栏文字"
 
-#: programs/winecfg/winecfg.rc:118
+#: programs/winecfg/winecfg.rc:119
 msgid "Inactive Title Bar"
 msgstr "非活动窗口标题栏"
 
-#: programs/winecfg/winecfg.rc:119
+#: programs/winecfg/winecfg.rc:120
 msgid "Inactive Title Text"
 msgstr "非活动窗口标题栏"
 
-#: programs/winecfg/winecfg.rc:120
+#: programs/winecfg/winecfg.rc:121
 msgid "Message Box Text"
 msgstr "消息框文字"
 
-#: programs/winecfg/winecfg.rc:121
+#: programs/winecfg/winecfg.rc:122
 msgid "Application Workspace"
 msgstr "应用程序工作区"
 
-#: programs/winecfg/winecfg.rc:122
+#: programs/winecfg/winecfg.rc:123
 msgid "Window Frame"
 msgstr "焦点控件框架"
 
-#: programs/winecfg/winecfg.rc:123
+#: programs/winecfg/winecfg.rc:124
 msgid "Active Border"
 msgstr "活动窗口边界"
 
-#: programs/winecfg/winecfg.rc:124
+#: programs/winecfg/winecfg.rc:125
 msgid "Inactive Border"
 msgstr "非活动窗口边界"
 
-#: programs/winecfg/winecfg.rc:125
+#: programs/winecfg/winecfg.rc:126
 msgid "Controls Shadow"
 msgstr "控件阴影"
 
-#: programs/winecfg/winecfg.rc:126
+#: programs/winecfg/winecfg.rc:127
 msgid "Gray Text"
 msgstr "灰色文字"
 
-#: programs/winecfg/winecfg.rc:127
+#: programs/winecfg/winecfg.rc:128
 msgid "Controls Highlight"
 msgstr "控件高亮"
 
-#: programs/winecfg/winecfg.rc:128
+#: programs/winecfg/winecfg.rc:129
 msgid "Controls Dark Shadow"
 msgstr "控件灰暗"
 
-#: programs/winecfg/winecfg.rc:129
+#: programs/winecfg/winecfg.rc:130
 msgid "Controls Light"
 msgstr "控件光亮"
 
-#: programs/winecfg/winecfg.rc:130
+#: programs/winecfg/winecfg.rc:131
 msgid "Controls Alternate Background"
 msgstr "控件切换背景"
 
-#: programs/winecfg/winecfg.rc:131
+#: programs/winecfg/winecfg.rc:132
 msgid "Hot Tracked Item"
 msgstr "鼠标拖选框"
 
-#: programs/winecfg/winecfg.rc:132
+#: programs/winecfg/winecfg.rc:133
 msgid "Active Title Bar Gradient"
 msgstr "活动窗口标题栏渐进目标色"
 
-#: programs/winecfg/winecfg.rc:133
+#: programs/winecfg/winecfg.rc:134
 msgid "Inactive Title Bar Gradient"
 msgstr "非活动窗口标题栏渐进目标色"
 
-#: programs/winecfg/winecfg.rc:134
+#: programs/winecfg/winecfg.rc:135
 msgid "Menu Highlight"
 msgstr "菜单高亮"
 
-#: programs/winecfg/winecfg.rc:135
+#: programs/winecfg/winecfg.rc:136
 msgid "Menu Bar"
 msgstr "菜单栏"
 

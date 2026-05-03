@@ -25,22 +25,7 @@
 extern "C" {
 #endif
 
-#ifndef WINBASEAPI
-#ifdef _KERNEL32_
-#define WINBASEAPI
-#else
-#define WINBASEAPI DECLSPEC_IMPORT
-#endif
-#endif
-
-#ifndef WINADVAPI
-#ifdef _ADVAPI32_
-#define WINADVAPI
-#else
-#define WINADVAPI DECLSPEC_IMPORT
-#endif
-#endif
-
+#include <apisetcconv.h>
 #include <minwinbase.h>
 #include <libloaderapi.h>
 #include <processthreadsapi.h>
@@ -339,16 +324,21 @@ typedef VOID (CALLBACK *LPOVERLAPPED_COMPLETION_ROUTINE)(DWORD,DWORD,LPOVERLAPPE
  */
 
 /* STARTUPINFO.dwFlags */
-#define	STARTF_USESHOWWINDOW	0x00000001
-#define	STARTF_USESIZE		0x00000002
-#define	STARTF_USEPOSITION	0x00000004
-#define	STARTF_USECOUNTCHARS	0x00000008
-#define	STARTF_USEFILLATTRIBUTE	0x00000010
-#define	STARTF_RUNFULLSCREEN	0x00000020
-#define	STARTF_FORCEONFEEDBACK	0x00000040
-#define	STARTF_FORCEOFFFEEDBACK	0x00000080
-#define	STARTF_USESTDHANDLES	0x00000100
-#define	STARTF_USEHOTKEY	0x00000200
+#define STARTF_USESHOWWINDOW    0x00000001
+#define STARTF_USESIZE          0x00000002
+#define STARTF_USEPOSITION      0x00000004
+#define STARTF_USECOUNTCHARS    0x00000008
+#define STARTF_USEFILLATTRIBUTE 0x00000010
+#define STARTF_RUNFULLSCREEN    0x00000020
+#define STARTF_FORCEONFEEDBACK  0x00000040
+#define STARTF_FORCEOFFFEEDBACK 0x00000080
+#define STARTF_USESTDHANDLES    0x00000100
+#define STARTF_USEHOTKEY        0x00000200
+#define STARTF_TITLEISLINKNAME  0x00000800
+#define STARTF_TITLEISAPPID     0x00001000
+#define STARTF_PREVENTPINNING   0x00002000
+#define STARTF_UNTRUSTEDSOURCE  0x00008000
+#define STARTF_HOLOGRAPHIC      0x00040000
 
 typedef struct _STARTUPINFOA{
         DWORD cb;		/* 00: size of struct */
@@ -1431,13 +1421,6 @@ typedef struct _WIN32_MEMORY_RANGE_ENTRY
     SIZE_T NumberOfBytes;
 } WIN32_MEMORY_RANGE_ENTRY, *PWIN32_MEMORY_RANGE_ENTRY;
 
-typedef enum _MACHINE_ATTRIBUTES
-{
-    UserEnabled    = 0x00000001,
-    KernelEnabled  = 0x00000002,
-    Wow64Container = 0x00000004,
-} MACHINE_ATTRIBUTES;
-
 typedef struct _PROCESS_MACHINE_INFORMATION
 {
     USHORT ProcessMachine;
@@ -1488,6 +1471,7 @@ WINBASEAPI ATOM        WINAPI AddAtomW(LPCWSTR);
 #define                       AddAtom WINELIB_NAME_AW(AddAtom)
 WINADVAPI  BOOL        WINAPI AddAuditAccessAce(PACL,DWORD,DWORD,PSID,BOOL,BOOL);
 WINADVAPI  BOOL        WINAPI AddAuditAccessAceEx(PACL,DWORD,DWORD,DWORD,PSID,BOOL,BOOL);
+WINADVAPI  BOOL        WINAPI AddConditionalAce(PACL,DWORD,DWORD,UCHAR,DWORD,PSID,PWCHAR,DWORD *);
 WINADVAPI  BOOL        WINAPI AddMandatoryAce(PACL,DWORD,DWORD,DWORD,PSID);
 WINBASEAPI VOID        WINAPI AddRefActCtx(HANDLE);
 WINBASEAPI PVOID       WINAPI AddVectoredExceptionHandler(ULONG,PVECTORED_EXCEPTION_HANDLER);
@@ -2444,7 +2428,7 @@ WINBASEAPI void        WINAPI SwitchToFiber(LPVOID);
 WINBASEAPI BOOL        WINAPI SwitchToThread(void);
 WINBASEAPI BOOL        WINAPI SystemTimeToFileTime(const SYSTEMTIME*,LPFILETIME);
 WINBASEAPI BOOL        WINAPI TerminateJobObject(HANDLE,UINT);
-WINBASEAPI BOOL        WINAPI TerminateProcess(HANDLE,DWORD);
+WINBASEAPI BOOL        WINAPI TerminateProcess(HANDLE,UINT);
 WINBASEAPI BOOL        WINAPI TerminateThread(HANDLE,DWORD);
 WINBASEAPI DWORD       WINAPI TlsAlloc(void);
 WINBASEAPI BOOL        WINAPI TlsFree(DWORD);
@@ -2623,9 +2607,11 @@ static inline LPSTR WINAPI lstrcatA( LPSTR dst, LPCSTR src )
 
 /* strncpy/wcsncpy don't do what you think, don't use them */
 #undef strncpy
-#undef wcsncpy
 #define strncpy(d,s,n) error do_not_use_strncpy_use_lstrcpynA_or_memcpy_instead
+#ifdef __WINE_WCHAR_H
+#undef wcsncpy
 #define wcsncpy(d,s,n) error do_not_use_wcsncpy_use_lstrcpynW_or_memcpy_instead
+#endif
 
 #endif /* !defined(__WINESRC__) || defined(WINE_NO_INLINE_STRING) */
 
@@ -2663,8 +2649,8 @@ extern WCHAR * CDECL wine_get_dos_file_name( const char * ) __WINE_DEALLOC(HeapF
 
 #define GetCurrentProcess()   NtCurrentProcess()
 #define GetCurrentThread()    NtCurrentThread()
-#define GetCurrentProcessId() HandleToULong(NtCurrentTeb()->ClientId.UniqueProcess)
-#define GetCurrentThreadId()  HandleToULong(NtCurrentTeb()->ClientId.UniqueThread)
+#define GetCurrentProcessId() HandleToULong(PsGetCurrentProcessId())
+#define GetCurrentThreadId()  HandleToULong(PsGetCurrentThreadId())
 
 #elif defined(__WINESRC__)
 

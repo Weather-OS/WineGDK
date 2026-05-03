@@ -1,8 +1,7 @@
 /*
  * Support for communicating with BlueZ over DBus.
  *
- * Copyright 2024 Vibhav Pant
- * Copyright 2025 Vibhav Pant
+ * Copyright 2024-2026 Vibhav Pant
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -39,7 +38,6 @@
 #endif
 
 #include <ntstatus.h>
-#define WIN32_NO_STATUS
 #include <windef.h>
 #include <winternl.h>
 #include <winbase.h>
@@ -92,6 +90,7 @@ const int bluez_timeout = -1;
 #define DBUS_OBJECTMANAGER_SIGNAL_INTERFACESADDED "InterfacesAdded"
 #define DBUS_OBJECTMANAGER_SIGNAL_INTERFACESREMOVED "InterfacesRemoved"
 #define DBUS_PROPERTIES_SIGNAL_PROPERTIESCHANGED "PropertiesChanged"
+#define DBUS_DBUS_SIGNAL_NAMEOWNERCHANGED "NameOwnerChanged"
 
 #define DBUS_INTERFACES_ADDED_SIGNATURE                                                            \
     DBUS_TYPE_OBJECT_PATH_AS_STRING                                                                \
@@ -114,6 +113,9 @@ const int bluez_timeout = -1;
     DBUS_TYPE_STRING_AS_STRING DBUS_TYPE_VARIANT_AS_STRING                                         \
     DBUS_DICT_ENTRY_END_CHAR_AS_STRING                                                             \
     DBUS_TYPE_ARRAY_AS_STRING DBUS_TYPE_STRING_AS_STRING
+
+#define DBUS_NAMEOWNERCHANGED_SIGNATURE \
+    DBUS_TYPE_STRING_AS_STRING DBUS_TYPE_STRING_AS_STRING DBUS_TYPE_STRING_AS_STRING
 
 #define BLUEZ_DEST "org.bluez"
 #define BLUEZ_INTERFACE_ADAPTER "org.bluez.Adapter1"
@@ -255,8 +257,9 @@ static const char *dbgstr_dbus_message( DBusMessage *message )
 
 static inline const char *dbgstr_dbus_connection( DBusConnection *connection )
 {
-    return wine_dbg_sprintf( "{%p connected=%d}", connection,
-                             p_dbus_connection_get_is_connected( connection ) );
+    return wine_dbg_sprintf( "{%p connected=%d name=%s}", connection,
+                             p_dbus_connection_get_is_connected( connection ),
+                             debugstr_a( p_dbus_bus_get_unique_name( connection ) ) );
 }
 
 static const char *dbgstr_dbus_error( const DBusError *error )
@@ -264,27 +267,89 @@ static const char *dbgstr_dbus_error( const DBusError *error )
     return wine_dbg_sprintf( "{%s: %s}", debugstr_a( error->name ), debugstr_a( error->message ) );
 }
 
+static const char *dbgstr_dbus_iter( DBusMessageIter *iter )
+{
+    int arg_type, next;
+
+    if (!iter) return "(null)";
+
+    arg_type = p_dbus_message_iter_get_arg_type( iter );
+    if (arg_type == DBUS_TYPE_INVALID)
+        return wine_dbg_sprintf( "{%p arg=DBUS_TYPE_INVALID}", iter );
+
+    next = p_dbus_message_iter_has_next( iter );
+    if (arg_type == DBUS_TYPE_ARRAY)
+    {
+        int elem_type, count;
+
+        elem_type = p_dbus_message_iter_get_element_type( iter );
+        count = p_dbus_message_iter_get_element_count( iter );
+        return wine_dbg_sprintf( "{%p arg=%c elem=%c count=%d next=%d}", iter, arg_type, elem_type,
+                                 count, next );
+    }
+    return wine_dbg_sprintf( "{%p arg=%c next=%d}", iter, arg_type, next );
+}
+
 static NTSTATUS bluez_get_objects_async( DBusConnection *connection, DBusPendingCall **call )
 {
     DBusMessage *request;
     dbus_bool_t success;
 
-    TRACE( "Getting managed objects under '/' at service '%s'\n", BLUEZ_DEST );
-    request = p_dbus_message_new_method_call(
-        BLUEZ_DEST, "/", DBUS_INTERFACE_OBJECTMANAGER, "GetManagedObjects" );
+    request = p_dbus_message_new_method_call( BLUEZ_DEST, "/", DBUS_INTERFACE_OBJECTMANAGER, "GetManagedObjects" );
     if (!request)
-    {
         return STATUS_NO_MEMORY;
-    }
 
     success = p_dbus_connection_send_with_reply( connection, request, call, -1 );
     p_dbus_message_unref( request );
-    if (!success)
+    return success ? (*call ? STATUS_SUCCESS : STATUS_INTERNAL_ERROR) : STATUS_NO_MEMORY;
+}
+
+#define WINE_BLUEZ_AUTH_AGENT_PATH "/org/winehq/wine/winebth/AuthAgent"
+
+static void bluez_register_auth_agent_callback( DBusPendingCall *call, void *data )
+{
+    DBusMessage *reply = p_dbus_pending_call_steal_reply( call );
+    DBusError error;
+
+    p_dbus_error_init( &error );
+    if (p_dbus_set_error_from_message( &error, reply ))
+        ERR( "Failed to register authentication agent with BlueZ, expect issues with pairing: %s\n",
+             dbgstr_dbus_error( &error ) );
+    else
+        TRACE( "Registered authentication agent %s with BlueZ\n", WINE_BLUEZ_AUTH_AGENT_PATH );
+    p_dbus_error_free( &error );
+    p_dbus_message_unref( reply );
+}
+
+static NTSTATUS bluez_register_auth_agent_async( DBusConnection *connection )
+{
+    static const char *wine_bluez_auth_agent_path = WINE_BLUEZ_AUTH_AGENT_PATH;
+    static const char *capability = "KeyboardDisplay";
+    DBusPendingCall *call;
+    DBusMessage *request;
+    dbus_bool_t success;
+
+    request = p_dbus_message_new_method_call( BLUEZ_DEST, "/org/bluez", BLUEZ_INTERFACE_AGENT_MANAGER, "RegisterAgent" );
+    if (!request)
         return STATUS_NO_MEMORY;
 
-    if (*call == NULL)
-        return STATUS_INVALID_PARAMETER;
+    success = p_dbus_message_append_args( request, DBUS_TYPE_OBJECT_PATH, &wine_bluez_auth_agent_path, DBUS_TYPE_STRING,
+                                          &capability, DBUS_TYPE_INVALID );
+    if (!success)
+    {
+        p_dbus_message_unref( request );
+        return STATUS_NO_MEMORY;
+    }
 
+    success = p_dbus_connection_send_with_reply( connection, request, &call, -1 );
+    p_dbus_message_unref( request );
+    if (!success)
+        return STATUS_NO_MEMORY;
+    if (!call)
+        return STATUS_INTERNAL_ERROR;
+
+    p_dbus_pending_call_set_notify( call, bluez_register_auth_agent_callback, NULL, NULL );
+    p_dbus_pending_call_unref( call );
     return STATUS_SUCCESS;
 }
 
@@ -638,7 +703,7 @@ static void bluez_radio_prop_from_dict_entry( const char *prop_name, DBusMessage
                                               winebluetooth_radio_props_mask_t *props_mask,
                                               winebluetooth_radio_props_mask_t wanted_props_mask )
 {
-    TRACE_(dbus)( "(%s, %p, %p, %p, %#x)\n", debugstr_a( prop_name ), variant, props, props_mask,
+    TRACE_(dbus)( "(%s, %s, %p, %p, %#x)\n", debugstr_a( prop_name ), dbgstr_dbus_iter( variant ), props, props_mask,
                   wanted_props_mask );
 
     if (wanted_props_mask & WINEBLUETOOTH_RADIO_PROPERTY_NAME &&
@@ -730,7 +795,7 @@ static void bluez_device_prop_from_dict_entry( const char *prop_name, DBusMessag
                                                winebluetooth_device_props_mask_t *props_mask,
                                                winebluetooth_device_props_mask_t wanted_props_mask )
 {
-    TRACE_( dbus )( "(%s, %p, %p, %p, %#x)\n", debugstr_a( prop_name ), variant, props, props_mask,
+    TRACE_( dbus )( "(%s, %s, %p, %p, %#x)\n", debugstr_a( prop_name ), dbgstr_dbus_iter( variant ), props, props_mask,
                     wanted_props_mask );
 
 
@@ -806,6 +871,116 @@ static void bluez_device_prop_from_dict_entry( const char *prop_name, DBusMessag
     }
 }
 
+static void bluez_gatt_service_props_from_dict_entry( const char *prop_name, DBusMessageIter *variant,
+                                                      struct winebluetooth_watcher_event_gatt_service_added *service )
+{
+    TRACE_( dbus )( "(%s, %s, %p)\n", debugstr_a( prop_name ), dbgstr_dbus_iter( variant ), service );
+
+    if (!strcmp( prop_name, "Device" )
+        && p_dbus_message_iter_get_arg_type( variant ) == DBUS_TYPE_OBJECT_PATH )
+    {
+        const char *device_path;
+        struct unix_name *device_name;
+
+        p_dbus_message_iter_get_basic( variant, &device_path );
+        device_name = unix_name_get_or_create( device_path );
+        service->device.handle = (UINT_PTR)device_name;
+    }
+    else if (!strcmp( prop_name, "Handle" )
+             && p_dbus_message_iter_get_arg_type( variant ) == DBUS_TYPE_UINT16)
+        p_dbus_message_iter_get_basic( variant, &service->attr_handle );
+    else if (!strcmp( prop_name, "Primary" )
+             && p_dbus_message_iter_get_arg_type( variant ) == DBUS_TYPE_BOOLEAN)
+    {
+        dbus_bool_t primary;
+        p_dbus_message_iter_get_basic( variant, &primary );
+        service->is_primary = !!primary;
+    }
+    else if (!strcmp( prop_name, "UUID" )
+             && p_dbus_message_iter_get_arg_type( variant ) == DBUS_TYPE_STRING)
+    {
+        const char *uuid_str;
+        p_dbus_message_iter_get_basic( variant, &uuid_str );
+        if (!parse_uuid( &service->uuid, uuid_str ))
+            ERR( "Failed to parse UUID %s\n", debugstr_a( uuid_str ) );
+    }
+}
+
+struct named_flag
+{
+    const char *name;
+    BOOLEAN *flag;
+};
+
+static int named_flag_cmp( const void *flag1, const void *flag2 )
+{
+    const struct named_flag *f1 = flag1, *f2 = flag2;
+    return strcmp( f1->name, f2->name );
+}
+
+static void
+bluez_gatt_characteristic_props_from_dict_entry( const char *prop_name, DBusMessageIter *variant,
+                                                 struct winebluetooth_watcher_event_gatt_characteristic_added *chrc )
+{
+    TRACE_( dbus )( "(%s, %s, %p)\n", debugstr_a( prop_name ), dbgstr_dbus_iter( variant ), chrc );
+
+    if (!strcmp( prop_name, "Flags" )
+        && p_dbus_message_iter_get_arg_type ( variant ) == DBUS_TYPE_ARRAY
+        && p_dbus_message_iter_get_element_type ( variant ) == DBUS_TYPE_STRING)
+    {
+        /* These should always be sorted by the flag name. */
+        const struct named_flag flags[] = {
+            { "authenticate-signed-writes", &chrc->props.IsSignedWritable },
+            { "broadcast", &chrc->props.IsBroadcastable },
+            { "extended-properties", &chrc->props.HasExtendedProperties },
+            { "indicate", &chrc->props.IsIndicatable },
+            { "notify", &chrc->props.IsNotifiable },
+            { "read", &chrc->props.IsReadable },
+            { "write", &chrc->props.IsWritable },
+            { "write-without-response", &chrc->props.IsWritableWithoutResponse },
+        };
+        DBusMessageIter flags_iter;
+
+        p_dbus_message_iter_recurse( variant, &flags_iter );
+        while (p_dbus_message_iter_get_arg_type( &flags_iter ) != DBUS_TYPE_INVALID)
+        {
+            const struct named_flag *flag;
+            struct named_flag name;
+
+            p_dbus_message_iter_get_basic( &flags_iter, &name.name );
+            if ((flag = bsearch( &name, flags, ARRAY_SIZE( flags ), sizeof( *flags ), named_flag_cmp )))
+                *flag->flag = TRUE;
+            else
+                FIXME( "Unknown characteristic flag: %s\n", debugstr_a( name.name ) );
+            p_dbus_message_iter_next( &flags_iter );
+        }
+    }
+    else if (!strcmp( prop_name, "Service" )
+             && p_dbus_message_iter_get_arg_type( variant ) == DBUS_TYPE_OBJECT_PATH)
+    {
+        const char *path;
+        struct unix_name *service_name;
+        p_dbus_message_iter_get_basic( variant, &path );
+        service_name = unix_name_get_or_create( path );
+        chrc->service.handle = (UINT_PTR)service_name;
+    }
+    else if (!strcmp( prop_name, "UUID" )
+             && p_dbus_message_iter_get_arg_type( variant ) == DBUS_TYPE_STRING)
+    {
+        const char *uuid_str;
+        GUID uuid;
+
+        p_dbus_message_iter_get_basic( variant, &uuid_str );
+        if (parse_uuid( &uuid, uuid_str ))
+            uuid_to_le( &uuid, &chrc->props.CharacteristicUuid );
+        else
+            ERR( "Failed to parse UUID %s\n", debugstr_a( uuid_str ) );
+    }
+    else if (!strcmp( prop_name, "Handle" )
+             && p_dbus_message_iter_get_arg_type( variant ) == DBUS_TYPE_UINT16)
+        p_dbus_message_iter_get_basic( variant, &chrc->props.AttributeHandle );
+}
+
 static NTSTATUS bluez_adapter_get_props_async( void *connection, const char *radio_object_path,
                                                DBusPendingCall **call )
 {
@@ -852,9 +1027,153 @@ static NTSTATUS bluez_device_get_props_by_path_async( DBusConnection *connection
     return STATUS_SUCCESS;
 }
 
+struct bluez_gatt_characteristic_value
+{
+    DBusMessage *message;
+    const BYTE *buf; /* Points into message */
+};
+
+/* array_iter must point to the start of the byte array, message should be the DBus message that the iterator belongs
+ * to. */
+static BOOL bluez_gatt_characteristic_value_new_from_iter( DBusMessage *message, DBusMessageIter *array_iter,
+                                                           struct winebluetooth_gatt_characteristic_value *value )
+{
+    struct bluez_gatt_characteristic_value *val;
+    DBusMessageIter bytes_iter;
+    int size;
+
+    TRACE_( dbus )( "(%s, %s, %p)\n", dbgstr_dbus_message( message ), dbgstr_dbus_iter( array_iter ), value );
+
+    if (!(val = calloc( 1, sizeof( *val ) ))) return FALSE;
+    val->message = p_dbus_message_ref( message );
+    p_dbus_message_iter_recurse( array_iter, &bytes_iter );
+    p_dbus_message_iter_get_fixed_array( &bytes_iter, &val->buf, &size );
+
+    value->size = size;
+    value->handle = (UINT_PTR)val;
+
+    return TRUE;
+}
+
+void bluez_gatt_characteristic_value_free( void *val )
+{
+    struct bluez_gatt_characteristic_value *value = val;
+
+    p_dbus_message_unref( value->message );
+    free( value );
+}
+
+void bluez_gatt_characteristic_value_move( struct winebluetooth_gatt_characteristic_value *value, BYTE *dest )
+{
+    struct bluez_gatt_characteristic_value *val = (struct bluez_gatt_characteristic_value *)value->handle;
+
+    memcpy( dest, val->buf, value->size );
+    bluez_gatt_characteristic_value_free( val );
+}
+
+static NTSTATUS bluez_gatt_error_to_status( const DBusError *error )
+{
+    if (p_dbus_error_has_name( error, "org.bluez.Error.NotPermitted" ))
+    {
+        if (!strcmp( error->message, "Read not permitted" ))
+            return STATUS_BTH_ATT_READ_NOT_PERMITTED;
+        else if (!strcmp( error->message, "Write not permitted" ))
+            return STATUS_BTH_ATT_WRITE_NOT_PERMITTED;
+        else
+            return STATUS_BTH_ATT_INSUFFICIENT_AUTHENTICATION;
+    }
+    else if (p_dbus_error_has_name( error, "org.bluez.Error.NotAuthorized" ))
+        return STATUS_BTH_ATT_INSUFFICIENT_AUTHORIZATION;
+    else if (p_dbus_error_has_name( error, "org.bluez.Error.NotSupported" ))
+        return STATUS_BTH_ATT_REQUEST_NOT_SUPPORTED;
+    else if (p_dbus_error_has_name( error, "org.bluez.Error.InvalidArguments" ))
+    {
+        if (!strcmp( error->message, "Invalid offset" ))
+            return STATUS_BTH_ATT_INVALID_OFFSET;
+        else if (!strcmp( error->message, "Invalid Length" ))
+            return STATUS_BTH_ATT_INVALID_ATTRIBUTE_VALUE_LENGTH;
+        return STATUS_BTH_ATT_UNKNOWN_ERROR;
+    }
+    else if (p_dbus_error_has_name( error, "org.bluez.Error.Failed" ) && !strcmp( error->message, "Not connected" ))
+        return STATUS_DEVICE_NOT_CONNECTED;
+    return bluez_dbus_error_to_ntstatus( error );
+}
+
+struct bluez_async_req_data
+{
+    IRP *irp;
+    struct bluez_watcher_ctx *watcher_ctx;
+};
+
+static void bluez_gatt_characteristic_read_callback( DBusPendingCall *pending, void *param );
+
+NTSTATUS bluez_gatt_characteristic_read( void *connection, void *watcher_ctx, struct unix_name *characteristic,
+                                         IRP *irp )
+{
+    DBusMessageIter args_iter, dict_iter = DBUS_MESSAGE_ITER_INIT_CLOSED;
+    struct bluez_async_req_data *data = NULL;
+    DBusPendingCall *pending_call = NULL;
+    DBusMessage *request;
+    NTSTATUS status;
+    dbus_bool_t success;
+
+    TRACE( "(%s, %p)\n", debugstr_a( characteristic->str ), irp );
+
+    request = p_dbus_message_new_method_call( BLUEZ_DEST, characteristic->str, BLUEZ_INTERFACE_GATT_CHARACTERISTICS,
+                                              "ReadValue" );
+    if (!request)
+        return STATUS_NO_MEMORY;
+    if (!(data = malloc( sizeof( *data ) )))
+    {
+        status = STATUS_NO_MEMORY;
+        goto failed;
+    }
+
+    data->irp = irp;
+    data->watcher_ctx = watcher_ctx;
+    p_dbus_message_iter_init_append( request, &args_iter );
+    if (!p_dbus_message_iter_open_container( &args_iter, DBUS_TYPE_ARRAY, "{sv}", &dict_iter ))
+    {
+        status = STATUS_NO_MEMORY;
+        goto failed;
+    }
+    if (!p_dbus_message_iter_close_container( &args_iter, &dict_iter ))
+    {
+        status = STATUS_NO_MEMORY;
+        goto failed;
+    }
+    success = p_dbus_connection_send_with_reply( connection, request, &pending_call, bluez_timeout );
+    if (!success)
+    {
+        status = STATUS_NO_MEMORY;
+        goto failed;
+    }
+    if (!pending_call)
+    {
+        status = STATUS_INTERNAL_ERROR;
+        goto failed;
+    }
+    if (!p_dbus_pending_call_set_notify( pending_call, bluez_gatt_characteristic_read_callback, data, free ))
+    {
+        p_dbus_pending_call_cancel( pending_call );
+        p_dbus_pending_call_unref( pending_call );
+        status = STATUS_NO_MEMORY;
+        goto failed;
+    }
+    p_dbus_pending_call_unref( pending_call );
+    p_dbus_message_unref( request );
+    return STATUS_PENDING;
+failed:
+    p_dbus_message_iter_abandon_container_if_open( &args_iter, &dict_iter );
+    p_dbus_message_unref( request );
+    return status;
+}
+
 struct bluez_watcher_ctx
 {
-    void *init_device_list_call;
+    DBusConnection *connection;
+    char *bluez_dbus_unique_name;
+    DBusPendingCall *init_device_list_call;
 
     /* struct bluez_init_entry */
     struct list initial_radio_list;
@@ -868,6 +1187,40 @@ struct bluez_watcher_ctx
     /* struct bluez_watcher_event */
     struct list event_list;
 };
+
+static BOOL bluez_event_list_queue_new_event( struct list *event_list,
+                                              enum winebluetooth_watcher_event_type event_type,
+                                              union winebluetooth_watcher_event_data event );
+
+static void bluez_gatt_characteristic_read_callback( DBusPendingCall *pending, void *param )
+{
+    struct winebluetooth_watcher_event_gatt_characteristic_value_read read = {0};
+    union winebluetooth_watcher_event_data event;
+    struct bluez_async_req_data *data = param;
+    DBusMessage *reply;
+    DBusError error;
+
+    read.irp = data->irp;
+    reply = p_dbus_pending_call_steal_reply( pending );
+    p_dbus_error_init( &error );
+    if (p_dbus_set_error_from_message( &error, reply ))
+        read.result = bluez_gatt_error_to_status( &error );
+    else
+    {
+        DBusMessageIter iter;
+
+        p_dbus_message_iter_init( reply, &iter );
+        if (!bluez_gatt_characteristic_value_new_from_iter( reply, &iter, &read.value ))
+            read.result = STATUS_NO_MEMORY;
+    }
+
+    event.gatt_characteristic_value_read = read;
+    if (!bluez_event_list_queue_new_event( &data->watcher_ctx->event_list,
+                                           BLUETOOTH_WATCHER_EVENT_TYPE_GATT_CHARACTERISTIC_VALUE_READ, event ))
+        bluez_gatt_characteristic_value_free( (struct bluez_gatt_characteristic_value *)read.value.handle );
+    p_dbus_error_free( &error );
+    p_dbus_message_unref( reply );
+}
 
 struct bluez_init_entry
 {
@@ -927,6 +1280,64 @@ void *bluez_dbus_init( void )
     }
 
     return connection;
+}
+
+/* Return the unique connection name for org.bluez. We use this to ensure that:
+ * - BlueZ is actually available on this sytem before we make any calls to it.
+ * - Only BlueZ can make method calls to us.
+ */
+static NTSTATUS bluez_dbus_get_unique_name_async( DBusConnection *connection, DBusPendingCall **call )
+{
+    const char *bluez_name = BLUEZ_DEST;
+    DBusMessage *request;
+    dbus_bool_t success;
+
+    request = p_dbus_message_new_method_call( "org.freedesktop.DBus", "/org/freedesktop/DBus", DBUS_INTERFACE_DBUS,
+                                              "GetNameOwner" );
+    if (!request) return STATUS_NO_MEMORY;
+
+    if (!p_dbus_message_append_args( request, DBUS_TYPE_STRING, &bluez_name, DBUS_TYPE_INVALID ))
+    {
+        p_dbus_message_unref( request );
+        return STATUS_NO_MEMORY;
+    }
+
+    success = p_dbus_connection_send_with_reply( connection, request, call, bluez_timeout);
+    p_dbus_message_unref( request );
+    return success ? (*call ? STATUS_SUCCESS : STATUS_INTERNAL_ERROR) : STATUS_NO_MEMORY;
+}
+
+/* Called once the BlueZ service has been activated by the system. */
+static void bluez_on_service_available( struct bluez_watcher_ctx *ctx )
+{
+    NTSTATUS status;
+
+    TRACE_(dbus)( "org.bluez available on %s, initializing bluetooth.\n", debugstr_a( ctx->bluez_dbus_unique_name ) );
+
+    if ((status = bluez_register_auth_agent_async( ctx->connection )))
+        ERR_(dbus)( "Failed to create async RegisterAgent call: %#x\n", status );
+    if ((status = bluez_get_objects_async( ctx->connection, &ctx->init_device_list_call )))
+        ERR_(dbus)( "Failed to create async GetManagedObjects call: %#x\n", status );
+}
+
+static void bluez_dbus_get_name_owner_callback( DBusPendingCall *call, void *data )
+{
+    DBusMessage *reply = p_dbus_pending_call_steal_reply( call );
+    struct bluez_watcher_ctx *ctx = data;
+    const char *name;
+    DBusError error;
+
+    p_dbus_error_init( &error );
+    if (p_dbus_set_error_from_message( &error, reply ))
+        WARN_(dbus)( "Failed to get unique name for org.bluez: %s\n", dbgstr_dbus_error( &error ) );
+    else if (!p_dbus_message_get_args( reply, &error, DBUS_TYPE_STRING, &name, DBUS_TYPE_INVALID ))
+        ERR_(dbus)( "Failed to read string from GetNameOwner reply: %s\n", dbgstr_dbus_error(  &error ) );
+    /* If bluez_signal_handler has already set a unique_name, nothing needs to be done. This can happen if BlueZ
+     * (re)starts right after we set up the signal handler in bluez_watcher_init. */
+    else if (!ctx->bluez_dbus_unique_name && ((ctx->bluez_dbus_unique_name = strdup( name ))))
+        bluez_on_service_available( ctx );
+    p_dbus_error_free( &error );
+    p_dbus_message_unref( reply );
 }
 
 void bluez_dbus_close( void *connection )
@@ -1059,17 +1470,12 @@ static DBusHandlerResult bluez_auth_agent_vtable_message_handler( DBusConnection
 const static struct DBusObjectPathVTable bluez_auth_agent_object_vtable = {
     .message_function = bluez_auth_agent_vtable_message_handler };
 
-#define WINE_BLUEZ_AUTH_AGENT_PATH "/org/winehq/wine/winebth/AuthAgent"
-
 NTSTATUS bluez_auth_agent_start( void *connection, void **auth_agent_ctx )
 {
-    static const char *wine_bluez_auth_agent_path = WINE_BLUEZ_AUTH_AGENT_PATH;
-    static const char *capability = "KeyboardDisplay";
     struct bluez_auth_agent_ctx *ctx;
-    DBusMessage *request;
+    NTSTATUS status = STATUS_SUCCESS;
     dbus_bool_t success;
     DBusError error;
-    NTSTATUS status;
 
     TRACE( "(%s, %p)\n", dbgstr_dbus_connection( connection ), auth_agent_ctx );
 
@@ -1092,40 +1498,9 @@ NTSTATUS bluez_auth_agent_start( void *connection, void **auth_agent_ctx )
         ERR_(dbus)( "Failed to register object: %s\n", dbgstr_dbus_error( &error ) );
         status = bluez_dbus_error_to_ntstatus( &error );
         bluez_auth_agent_ctx_decref( ctx );
-        goto done;
     }
-
-    request = p_dbus_message_new_method_call( BLUEZ_DEST, "/org/bluez", BLUEZ_INTERFACE_AGENT_MANAGER,
-                                              "RegisterAgent" );
-    if (!request)
-    {
-        status = STATUS_NO_MEMORY;
-        goto failure;
-    }
-
-    success = p_dbus_message_append_args( request, DBUS_TYPE_OBJECT_PATH, &wine_bluez_auth_agent_path, DBUS_TYPE_STRING,
-                                          &capability, DBUS_TYPE_INVALID );
-    if (!success)
-    {
-        status = STATUS_NO_MEMORY;
-        goto failure;
-    }
-
-    success = p_dbus_connection_send( connection, request, NULL );
-    p_dbus_message_unref( request );
-    if (!success)
-    {
-        status = STATUS_NO_MEMORY;
-        goto failure;
-    }
-    status = STATUS_SUCCESS;
-    *auth_agent_ctx = ctx;
-    goto done;
-
-failure:
-    p_dbus_connection_unregister_object_path( connection, WINE_BLUEZ_AUTH_AGENT_PATH );
-    bluez_auth_agent_ctx_decref( ctx );
-done:
+    else
+        *auth_agent_ctx = ctx;
     p_dbus_error_free( &error );
     return status;
 }
@@ -1290,18 +1665,9 @@ NTSTATUS bluez_device_disconnect( void *connection, const char *device_path )
     return STATUS_SUCCESS;
 }
 
-static BOOL bluez_event_list_queue_new_event( struct list *event_list,
-                                              enum winebluetooth_watcher_event_type event_type,
-                                              union winebluetooth_watcher_event_data event );
-struct bluez_device_pair_data
-{
-    IRP *irp;
-    struct bluez_watcher_ctx *watcher_ctx;
-};
-
 static void bluez_device_pair_callback( DBusPendingCall *pending, void *param )
 {
-    struct bluez_device_pair_data *data = param;
+    struct bluez_async_req_data *data = param;
     DBusMessage *reply;
     DBusError error;
     union winebluetooth_watcher_event_data event = {0};
@@ -1325,7 +1691,7 @@ NTSTATUS bluez_device_start_pairing( void *connection, void *watcher_ctx, struct
 {
     DBusMessage *request;
     DBusPendingCall *pending_call = NULL;
-    struct bluez_device_pair_data *data;
+    struct bluez_async_req_data *data;
     dbus_bool_t success;
 
     TRACE( "(%p, %p, %s, %p)\n", connection, watcher_ctx, debugstr_a( device->str ), irp );
@@ -1512,9 +1878,47 @@ static UINT16 bluez_dbus_get_invalidated_properties_from_iter(
     return mask;
 }
 
-static void bluez_signal_handler( DBusConnection *conn, DBusMessage *msg, const char *signal_iface, const char *signal_name, const char *signal_sig, struct list *event_list )
+static void bluez_signal_handler( DBusConnection *conn, DBusMessage *msg, const char *signal_iface,
+                                  const char *signal_name, const char *signal_sig, struct bluez_watcher_ctx *ctx )
 {
+    struct list *event_list = &ctx->event_list;
 
+    if (!strcmp( signal_iface, DBUS_INTERFACE_DBUS ) &&
+        !strcmp( signal_name, DBUS_DBUS_SIGNAL_NAMEOWNERCHANGED ) &&
+        !strcmp( signal_sig, DBUS_NAMEOWNERCHANGED_SIGNATURE ))
+    {
+        const static union winebluetooth_watcher_event_data empty_event;
+        const char *name, *old_owner, *new_owner;
+        DBusError error;
+
+        p_dbus_error_init( &error );
+        if (!p_dbus_message_get_args( msg, &error, DBUS_TYPE_STRING, &name, DBUS_TYPE_STRING, &old_owner,
+                                      DBUS_TYPE_STRING, &new_owner, DBUS_TYPE_INVALID ))
+        {
+            ERR( "Failed to read NameOwnerChanged arguments: %s\n", dbgstr_dbus_error( &error ) );
+            p_dbus_error_free( &error );
+            return;
+        }
+        p_dbus_error_free( &error );
+        if (strcmp( name, BLUEZ_DEST )) return;
+        if (new_owner[0] && (!ctx->bluez_dbus_unique_name || strcmp( ctx->bluez_dbus_unique_name, new_owner )))
+        {
+            free( ctx->bluez_dbus_unique_name );
+            if ((ctx->bluez_dbus_unique_name = strdup( new_owner )))
+                bluez_on_service_available( ctx );
+        }
+        else if (ctx->bluez_dbus_unique_name)
+        {
+            TRACE_(dbus)( "org.bluez down, removing all entries.\n" );
+
+            free( ctx->bluez_dbus_unique_name );
+            ctx->bluez_dbus_unique_name = NULL;
+            /* When BlueZ shuts down gracefully, we will already have received InterfaceRemoved signals for
+             * all previously added Bluetooth entries. This event is useful for when BlueZ crashes, in which
+             * case we would have to remove the entries ourselves. */
+            bluez_event_list_queue_new_event( event_list, BLUETOOTH_WATCHER_EVENT_TYPE_SERVICE_DOWN, empty_event );
+        }
+    }
     if (!strcmp( signal_iface, DBUS_INTERFACE_OBJECTMANAGER ) &&
         !strcmp( signal_name, DBUS_OBJECTMANAGER_SIGNAL_INTERFACESADDED ) &&
         !strcmp( signal_sig, DBUS_INTERFACES_ADDED_SIGNATURE ))
@@ -1623,6 +2027,78 @@ static void bluez_signal_handler( DBusConnection *conn, DBusMessage *msg, const 
                         unix_name_free( device_name );
                         unix_name_free( radio_name );
                     }
+                }
+            }
+            else if (!strcmp( iface_name, BLUEZ_INTERFACE_GATT_SERVICE ))
+            {
+                union winebluetooth_watcher_event_data event = {0};
+                DBusMessageIter props_iter, variant;
+                struct unix_name *service_name;
+                const char *prop_name;
+
+                if (!(service_name = unix_name_get_or_create( object_path )))
+                {
+                    ERR( "Failed to allocate memory for GATT service path %s\n", debugstr_a( object_path ) );
+                    break;
+                }
+                event.gatt_service_added.service.handle = (UINT_PTR)service_name;
+                p_dbus_message_iter_next( &iface_entry );
+                p_dbus_message_iter_recurse( &iface_entry, &props_iter );
+
+                while ((prop_name = bluez_next_dict_entry( &props_iter, &variant )))
+                    bluez_gatt_service_props_from_dict_entry( prop_name, &variant, &event.gatt_service_added );
+
+                if (!event.gatt_service_added.device.handle)
+                {
+                    unix_name_free( service_name );
+                    ERR( "Could not find the associated device for the GATT service %s\n", debugstr_a( object_path ) );
+                    break;
+                }
+
+                TRACE( "New Bluez org.bluez.GattService1 object added at %s: %p\n", debugstr_a( object_path ),
+                       service_name );
+                if (!bluez_event_list_queue_new_event( event_list, BLUETOOTH_WATCHER_EVENT_TYPE_DEVICE_GATT_SERVICE_ADDED,
+                                                       event ))
+                {
+                    unix_name_free( service_name );
+                    unix_name_free( (struct unix_name *)event.gatt_service_added.device.handle );
+                }
+            }
+            else if (!strcmp( iface_name, BLUEZ_INTERFACE_GATT_CHARACTERISTICS ))
+            {
+                struct winebluetooth_watcher_event_gatt_characteristic_added chrc_added = {0};
+                union winebluetooth_watcher_event_data event = {0};
+                struct unix_name *chrc_name;
+                DBusMessageIter props_iter, variant;
+                const char *prop_name;
+
+                chrc_name = unix_name_get_or_create( object_path );
+                chrc_added.characteristic.handle = (UINT_PTR)chrc_name;
+                if (!chrc_name)
+                {
+                    ERR( "Failed to allocate memory for GATT characteristic path %s\n", debugstr_a( object_path ) );
+                    break;
+                }
+                p_dbus_message_iter_next( &iface_entry );
+                p_dbus_message_iter_recurse( &iface_entry, &props_iter );
+
+                while ((prop_name = bluez_next_dict_entry( &props_iter, &variant )))
+                    bluez_gatt_characteristic_props_from_dict_entry( prop_name, &variant, &chrc_added );
+                if (!chrc_added.service.handle)
+                {
+                    unix_name_free( chrc_name );
+                    ERR( "Could not find the associated service for the GATT characteristic %s\n",
+                         debugstr_a( object_path ) );
+                    break;
+                }
+                event.gatt_characteristic_added = chrc_added;
+                TRACE( "New BlueZ org.bluez.GattCharacterisic1 object added at %s: %p\n", debugstr_a( object_path ),
+                       object_path );
+                if (!bluez_event_list_queue_new_event( event_list, BLUETOOTH_WATCHER_EVENT_TYPE_GATT_CHARACTERISTIC_ADDED,
+                                                       event ))
+                {
+                    unix_name_free( chrc_name );
+                    unix_name_free( (struct unix_name *)chrc_added.service.handle );
                 }
             }
             p_dbus_message_iter_next( &ifaces_iter );
@@ -1895,22 +2371,85 @@ static void bluez_signal_handler( DBusConnection *conn, DBusMessage *msg, const 
                 return;
             }
         }
+        else if (!strcmp( iface, BLUEZ_INTERFACE_GATT_CHARACTERISTICS ))
+        {
+            struct winebluetooth_watcher_event_gatt_characteristic_value_changed changed_event = {0};
+            union winebluetooth_watcher_event_data event;
+            DBusMessageIter changed_props_iter, variant;
+            const char *prop_name, *object_path;
+            struct unix_name *chrc_name;
+            BOOL val_changed = FALSE;
+
+            p_dbus_message_iter_next( &iter );
+            p_dbus_message_iter_recurse( &iter, &changed_props_iter );
+            while ((prop_name = bluez_next_dict_entry( &changed_props_iter, &variant )))
+            {
+                if (!strcmp( prop_name, "Value" )
+                    && p_dbus_message_iter_get_arg_type( &variant ) == DBUS_TYPE_ARRAY
+                    && p_dbus_message_iter_get_element_type( &variant ) == DBUS_TYPE_BYTE)
+                {
+                    val_changed = bluez_gatt_characteristic_value_new_from_iter( msg, &variant, &changed_event.value );
+                    break;
+                }
+            }
+            if (!val_changed)
+                return;
+
+            object_path = p_dbus_message_get_path( msg );
+            TRACE( "Value changed for GATT characteristic %s\n", debugstr_a( object_path ) );
+            if (!(chrc_name = unix_name_get_or_create( object_path )))
+            {
+                ERR( "Failed to allocate memory for GATT characteristic path %s\n", debugstr_a( object_path ) );
+                bluez_gatt_characteristic_value_free(
+                    (struct bluez_gatt_characteristic_value *)changed_event.value.handle );
+                return;
+            }
+
+            changed_event.characteristic.handle = (UINT_PTR)chrc_name;
+            event.gatt_characteristic_value_changed = changed_event;
+            if (!bluez_event_list_queue_new_event( event_list, BLUETOOTH_WATCHER_EVENT_TYPE_GATT_CHARACTERISTIC_VALUE_CHANGED,
+                                                   event ))
+            {
+                unix_name_free( chrc_name );
+                bluez_gatt_characteristic_value_free(
+                    (struct bluez_gatt_characteristic_value *)changed_event.value.handle );
+                return;
+            }
+        }
     }
 }
 
 static DBusHandlerResult bluez_filter( DBusConnection *conn, DBusMessage *msg, void *data )
 {
-    struct list *event_list;
+    struct bluez_watcher_ctx *ctx = data;
     int type;
 
     if (TRACE_ON( dbus ))
         TRACE_( dbus )( "(%s, %s, %p)\n", dbgstr_dbus_connection( conn ), dbgstr_dbus_message( msg ), data );
 
-    event_list = &((struct bluez_watcher_ctx *)data)->event_list;
     type = p_dbus_message_get_type( msg );
     if (type == DBUS_MESSAGE_TYPE_SIGNAL)
         bluez_signal_handler( conn, msg, p_dbus_message_get_interface( msg ), p_dbus_message_get_member( msg ),
-                              p_dbus_message_get_signature( msg ), event_list );
+                              p_dbus_message_get_signature( msg ), ctx );
+    else if (type == DBUS_MESSAGE_TYPE_METHOD_CALL)
+    {
+        DBusMessage *reply;
+        const char *sender;
+        dbus_bool_t success;
+
+        /* Only allow incoming method calls from org.bluez. */
+        if (!(sender = p_dbus_message_get_sender( msg )) || !ctx->bluez_dbus_unique_name ||
+            strcmp( sender, ctx->bluez_dbus_unique_name ))
+        {
+            if (!(reply = p_dbus_message_new_error( msg, DBUS_ERROR_ACCESS_DENIED, "Access Denied" )))
+                return DBUS_HANDLER_RESULT_NEED_MEMORY;
+
+            ERR_(dbus)("Denying method call from unknown sender: %s\n", debugstr_a( sender ) );
+            success = p_dbus_connection_send( conn, reply, NULL );
+            p_dbus_message_unref( reply );
+            return success ? DBUS_HANDLER_RESULT_HANDLED : DBUS_HANDLER_RESULT_NEED_MEMORY;
+        }
+    }
 
     return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
@@ -1923,8 +2462,14 @@ static const char BLUEZ_MATCH_PROPERTIES[] = "type='signal',"
                                              "interface='"DBUS_INTERFACE_PROPERTIES"',"
                                              "member='PropertiesChanged',"
                                              "sender='"BLUEZ_DEST"',";
+static const char DBUS_MATCH_NAMEOWNERCHANGED[] = "type='signal',"
+                                                  "interface='"DBUS_INTERFACE_DBUS"',"
+                                                  "member='NameOwnerChanged',"
+                                                  "arg0='"BLUEZ_DEST"',"
+                                                  "path='/org/freedesktop/DBus',"
+                                                  "sender='org.freedesktop.DBus'";
 
-static const char *BLUEZ_MATCH_RULES[] = { BLUEZ_MATCH_OBJECTMANAGER, BLUEZ_MATCH_PROPERTIES };
+static const char *BLUEZ_MATCH_RULES[] = { BLUEZ_MATCH_OBJECTMANAGER, BLUEZ_MATCH_PROPERTIES, DBUS_MATCH_NAMEOWNERCHANGED };
 
 /* Free up the watcher alongside any remaining events and initial devices and other associated resources. */
 static void bluez_watcher_free( struct bluez_watcher_ctx *watcher )
@@ -1950,6 +2495,8 @@ static void bluez_watcher_free( struct bluez_watcher_ctx *watcher )
         list_remove( &event1->entry );
         switch (event1->event_type)
         {
+        case BLUETOOTH_WATCHER_EVENT_TYPE_SERVICE_DOWN:
+            break;
         case BLUETOOTH_WATCHER_EVENT_TYPE_RADIO_ADDED:
             unix_name_free( (struct unix_name *)event1->event.radio_added.radio.handle );
             break;
@@ -1981,35 +2528,40 @@ static void bluez_watcher_free( struct bluez_watcher_ctx *watcher )
         case BLUETOOTH_WATCHER_EVENT_TYPE_GATT_CHARACTERISTIC_ADDED:
             unix_name_free( (struct unix_name *)event1->event.gatt_characteristic_added.characteristic.handle );
             unix_name_free( (struct unix_name *)event1->event.gatt_characteristic_added.service.handle );
+            bluez_gatt_characteristic_value_free(
+                (struct bluez_gatt_characteristic_value *)event1->event.gatt_characteristic_added.value.handle );
             break;
         case BLUETOOTH_WATCHER_EVENT_TYPE_GATT_CHARACTERISTIC_REMOVED:
             unix_name_free( (struct unix_name *)event1->event.gatt_characterisic_removed.handle );
+            break;
+        case BLUETOOTH_WATCHER_EVENT_TYPE_GATT_CHARACTERISTIC_VALUE_CHANGED:
+            unix_name_free( (struct unix_name *)event1->event.gatt_characteristic_value_changed.characteristic.handle );
+            bluez_gatt_characteristic_value_free(
+                (struct bluez_gatt_characteristic_value *)event1->event.gatt_characteristic_added.value.handle );
+            break;
+        case BLUETOOTH_WATCHER_EVENT_TYPE_GATT_CHARACTERISTIC_VALUE_READ:
+            bluez_gatt_characteristic_value_free(
+                (struct bluez_gatt_characteristic_value *)event1->event.gatt_characteristic_value_read.value.handle );
             break;
         }
         free( event1 );
     }
 
+    p_dbus_connection_unref( watcher->connection );
+    free( watcher->bluez_dbus_unique_name );
     free( watcher );
 }
 
 NTSTATUS bluez_watcher_init( void *connection, void **ctx )
 {
-    DBusError err;
-    NTSTATUS status;
+    struct bluez_watcher_ctx *watcher_ctx;
     DBusPendingCall *call;
-    struct bluez_watcher_ctx *watcher_ctx =
-        calloc( 1, sizeof( struct bluez_watcher_ctx ) );
+    NTSTATUS status;
+    DBusError err;
     SIZE_T i;
 
-    if (watcher_ctx == NULL) return STATUS_NO_MEMORY;
-    status = bluez_get_objects_async( connection, &call );
-    if (status != STATUS_SUCCESS)
-    {
-        free( watcher_ctx );
-        ERR( "could not create async GetManagedObjects call: %#x\n", status);
-        return status;
-    }
-    watcher_ctx->init_device_list_call = call;
+    if (!(watcher_ctx = calloc( 1, sizeof( struct bluez_watcher_ctx ) ))) return STATUS_NO_MEMORY;
+    watcher_ctx->connection = p_dbus_connection_ref( connection );
     list_init( &watcher_ctx->initial_radio_list );
     list_init( &watcher_ctx->initial_device_list );
     list_init( &watcher_ctx->initial_gatt_service_list );
@@ -2021,33 +2573,52 @@ NTSTATUS bluez_watcher_init( void *connection, void **ctx )
      * is racy as the filter is removed from a different thread. */
     if (!p_dbus_connection_add_filter( connection, bluez_filter, watcher_ctx, NULL ))
     {
-        p_dbus_pending_call_cancel( call );
-        p_dbus_pending_call_unref( call );
-        free( watcher_ctx );
-        ERR( "Could not add DBus filter\n" );
-        return STATUS_NO_MEMORY;
+        ERR_(dbus)( "Could not add DBus filter\n" );
+        status = STATUS_NO_MEMORY;
+        goto done;
     }
     p_dbus_error_init( &err );
     for (i = 0; i < ARRAY_SIZE( BLUEZ_MATCH_RULES ); i++)
     {
-        TRACE( "Adding DBus match rule %s\n", debugstr_a( BLUEZ_MATCH_RULES[i] ) );
+        const char *rule = BLUEZ_MATCH_RULES[i];
 
-        p_dbus_bus_add_match( connection, BLUEZ_MATCH_RULES[i], &err );
+        TRACE_(dbus)( "Adding DBus match rule %s\n", debugstr_a( rule ) );
+        p_dbus_bus_add_match( connection, rule, &err );
         if (p_dbus_error_is_set( &err ))
         {
-            NTSTATUS status = bluez_dbus_error_to_ntstatus( &err );
-            ERR( "Could not add DBus match %s: %s\n", debugstr_a( BLUEZ_MATCH_RULES[i] ), dbgstr_dbus_error( &err ) );
-            p_dbus_pending_call_cancel( call );
-            p_dbus_pending_call_unref( call );
-            p_dbus_error_free( &err );
-            free( watcher_ctx );
-            return status;
+            ERR_(dbus)( "Could not add DBus match %s: %s\n", debugstr_a( rule ), dbgstr_dbus_error( &err ) );
+            status = bluez_dbus_error_to_ntstatus( &err );
+            goto done;
         }
     }
+    /* Get the unique name after setting up a signal handler, this avoids a race condition if BlueZ (re)starts (and thus
+     * gets a new unique name) between the call to GetNameOwner and dbus_connection_add_filter. */
+    if ((status = bluez_dbus_get_unique_name_async( connection, &call ))) goto done;
+    if (!p_dbus_pending_call_set_notify( call, bluez_dbus_get_name_owner_callback, watcher_ctx, NULL ))
+    {
+        status = STATUS_NO_MEMORY;
+        p_dbus_pending_call_cancel( call );
+    }
+    p_dbus_pending_call_unref( call );
+done:
     p_dbus_error_free( &err );
-    *ctx = watcher_ctx;
-    TRACE( "ctx=%p\n", ctx );
-    return STATUS_SUCCESS;
+    if (status)
+    {
+        if (watcher_ctx->init_device_list_call)
+        {
+            p_dbus_pending_call_cancel( watcher_ctx->init_device_list_call );
+            p_dbus_pending_call_unref( watcher_ctx->init_device_list_call );
+        }
+        p_dbus_connection_unref( watcher_ctx->connection );
+        free( watcher_ctx->bluez_dbus_unique_name );
+        free( watcher_ctx );
+    }
+    else
+    {
+        *ctx = watcher_ctx;
+        TRACE( "ctx=%p\n", ctx );
+    }
+    return status;
 }
 
 void bluez_watcher_close( void *connection, void *ctx )
@@ -2178,8 +2749,8 @@ static NTSTATUS bluez_build_initial_device_lists( DBusMessage *reply, struct lis
             }
             else if (!strcmp( iface, BLUEZ_INTERFACE_GATT_SERVICE ))
             {
-                struct unix_name *service_name, *device_name = NULL;
                 struct bluez_init_entry *init_device;
+                struct unix_name *service_name;
                 DBusMessageIter variant;
                 const char *prop_name;
 
@@ -2194,49 +2765,14 @@ static NTSTATUS bluez_build_initial_device_lists( DBusMessage *reply, struct lis
                 if (!service_name)
                 {
                     ERR( "Failed to allocate memory for service path %s\n", debugstr_a( path ) );
+                    free( init_device );
                     break;
                 }
                 init_device->object.service.service.handle = (UINT_PTR)service_name;
 
                 while ((prop_name = bluez_next_dict_entry( &prop_iter, &variant )))
-                {
-                    if (!strcmp( prop_name, "Device" )
-                        && p_dbus_message_iter_get_arg_type( &variant ) == DBUS_TYPE_OBJECT_PATH )
-                    {
-                        const char *device_path;
-
-                        p_dbus_message_iter_get_basic( &variant, &device_path );
-                        device_name = unix_name_get_or_create( device_path );
-                        if (!device_name)
-                        {
-                            unix_name_free( service_name );
-                            free( init_device );
-                            ERR( "Failed to allocate memory for device path %s\n", debugstr_a( device_path ));
-                            status = STATUS_NO_MEMORY;
-                            goto done;
-                        }
-                        init_device->object.service.device.handle = (UINT_PTR)device_name;
-                    }
-                    else if (!strcmp( prop_name, "Handle" )
-                             && p_dbus_message_iter_get_arg_type( &variant ) == DBUS_TYPE_UINT16)
-                        p_dbus_message_iter_get_basic( &variant, &init_device->object.service.attr_handle );
-                    else if (!strcmp( prop_name, "Primary" )
-                             && p_dbus_message_iter_get_arg_type( &variant ) == DBUS_TYPE_BOOLEAN)
-                    {
-                        dbus_bool_t primary;
-                        p_dbus_message_iter_get_basic( &variant, &primary );
-                        init_device->object.service.is_primary = !!primary;
-                    }
-                    else if (!strcmp( prop_name, "UUID" )
-                             && p_dbus_message_iter_get_arg_type( &variant ) == DBUS_TYPE_STRING)
-                    {
-                        const char *uuid_str;
-                        p_dbus_message_iter_get_basic( &variant, &uuid_str );
-                        if (!parse_uuid( &init_device->object.service.uuid, uuid_str ))
-                            ERR("Failed to parse UUID %s for GATT service %s\n", debugstr_a( uuid_str ), debugstr_a( path ) );
-                    }
-                }
-                if (!device_name)
+                    bluez_gatt_service_props_from_dict_entry( prop_name, &variant, &init_device->object.service );
+                if (!init_device->object.service.device.handle)
                 {
                     unix_name_free( service_name );
                     free( init_device );
@@ -2249,9 +2785,8 @@ static NTSTATUS bluez_build_initial_device_lists( DBusMessage *reply, struct lis
             }
             else if (!strcmp( iface, BLUEZ_INTERFACE_GATT_CHARACTERISTICS ))
             {
-                struct unix_name *service_name = NULL, *char_name;
+                struct unix_name *char_name;
                 struct bluez_init_entry *init_entry;
-                BTH_LE_GATT_CHARACTERISTIC *props;
                 DBusMessageIter variant;
                 const char *prop_name;
 
@@ -2269,76 +2804,35 @@ static NTSTATUS bluez_build_initial_device_lists( DBusMessage *reply, struct lis
                     goto done;
                 }
 
-                props = &init_entry->object.characteristic.props;
                 init_entry->object.characteristic.characteristic.handle = (UINT_PTR)char_name;
                 while ((prop_name = bluez_next_dict_entry( &prop_iter, &variant )))
                 {
-                    if (!strcmp( prop_name, "Flags" )
-                        && p_dbus_message_iter_get_arg_type ( &variant ) == DBUS_TYPE_ARRAY
-                        && p_dbus_message_iter_get_element_type ( &variant ) == DBUS_TYPE_STRING)
+                    if (!strcmp( prop_name, "Value" )
+                        && p_dbus_message_iter_get_arg_type( &variant ) == DBUS_TYPE_ARRAY
+                        && p_dbus_message_iter_get_element_type( &variant ) == DBUS_TYPE_BYTE)
                     {
-                        DBusMessageIter flags_iter;
-                        const struct {
-                            const char *name;
-                            BOOLEAN *flag;
-                        } flags[] = {
-                            { "broadcast", &props->IsBroadcastable },
-                            { "read", &props->IsReadable },
-                            { "write", &props->IsWritable },
-                            { "write-without-response", &props->IsWritableWithoutResponse },
-                            { "authenticate-signed-writes", &props->IsSignedWritable },
-                            { "notify", &props->IsNotifiable },
-                            { "indicate", &props->IsIndicatable },
-                            { "extended-properties", &props->HasExtendedProperties },
-                        };
-
-                        p_dbus_message_iter_recurse( &variant, &flags_iter );
-                        while (p_dbus_message_iter_get_arg_type( &flags_iter ) != DBUS_TYPE_INVALID)
+                        if (!bluez_gatt_characteristic_value_new_from_iter( reply, &variant,
+                                                                            &init_entry->object.characteristic.value ))
                         {
-                            const char *flag_name;
-                            SIZE_T i;
-
-                            p_dbus_message_iter_get_basic( &flags_iter, &flag_name );
-                            for (i = 0; i < ARRAY_SIZE( flags ); i++)
-                            {
-                                if (!strcmp( flags[i].name, flag_name ))
-                                    *flags[i].flag = TRUE;
-                            }
-                            p_dbus_message_iter_next( &flags_iter );
+                            unix_name_free( char_name );
+                            free( init_entry );
+                            status = STATUS_NO_MEMORY;
+                            goto done;
                         }
                     }
-                    else if (!strcmp( prop_name, "Service" )
-                             && p_dbus_message_iter_get_arg_type( &variant ) == DBUS_TYPE_OBJECT_PATH)
-                    {
-                        const char *path;
-
-                        p_dbus_message_iter_get_basic( &variant, &path );
-                        service_name = unix_name_get_or_create( path );
-                    }
-                    else if (!strcmp( prop_name, "UUID" )
-                             && p_dbus_message_iter_get_arg_type( &variant ) == DBUS_TYPE_STRING)
-                    {
-                        const char *uuid_str;
-                        GUID uuid;
-
-                        p_dbus_message_iter_get_basic( &variant, &uuid_str );
-                        if (parse_uuid( &uuid, uuid_str ))
-                            uuid_to_le( &uuid, &props->CharacteristicUuid );
-                        else
-                            ERR( "Failed to parse UUID %s for GATT characteristic %s\n", debugstr_a( uuid_str ), debugstr_a( path ) );
-                    }
-                    else if (!strcmp( prop_name, "Handle" )
-                             && p_dbus_message_iter_get_arg_type( &variant ) == DBUS_TYPE_UINT16)
-                        p_dbus_message_iter_get_basic( &variant, &props->AttributeHandle );
+                    else
+                        bluez_gatt_characteristic_props_from_dict_entry( prop_name, &variant,
+                                                                         &init_entry->object.characteristic );
                 }
-                if (!service_name)
+                if (!init_entry->object.characteristic.service.handle)
                 {
+                    bluez_gatt_characteristic_value_free(
+                        (struct bluez_gatt_characteristic_value *)init_entry->object.characteristic.value.handle );
                     unix_name_free( char_name );
                     free( init_entry );
                     ERR( "Could not find the associated service for the GATT charcteristic %s\n", debugstr_a( path ) );
                     break;
                 }
-                init_entry->object.characteristic.service.handle = (UINT_PTR)service_name;
 
                 list_add_tail( gatt_chars_list, &init_entry->entry );
                 TRACE( "Found Bluez org.bluez.GattCharacteristic1 object %s %p\n", debugstr_a( path ), char_name );
@@ -2552,5 +3046,10 @@ NTSTATUS bluez_device_start_pairing( void *connection, void *watcher_ctx, struct
 {
     return STATUS_NOT_SUPPORTED;
 }
-
+void bluez_gatt_characteristic_value_move( struct winebluetooth_gatt_characteristic_value *value, BYTE *buf ) {}
+void bluez_gatt_characteristic_value_free( void *val ) {}
+NTSTATUS bluez_gatt_characteristic_read( void *connection, void *watcher, struct unix_name *characteristic, IRP *irp )
+{
+    return STATUS_NOT_SUPPORTED;
+}
 #endif /* SONAME_LIBDBUS_1 */

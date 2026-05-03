@@ -24,7 +24,6 @@
 #include <stdarg.h>
 
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 #include "windef.h"
 #include "winbase.h"
 #include "ntuser.h"
@@ -93,6 +92,8 @@ struct window
     int              prop_inuse;      /* number of in-use window properties */
     int              prop_alloc;      /* number of allocated window properties */
     struct property *properties;      /* window properties array */
+    int              private_off;     /* offset of private extra bytes range */
+    int              private_len;     /* length of private extra bytes range */
     int              nb_extra_bytes;  /* number of extra bytes */
     char            *extra_bytes;     /* extra bytes storage */
     window_shm_t    *shared;          /* window in session shared memory */
@@ -493,7 +494,7 @@ static void set_property( struct window *win, atom_t atom, lparam_t data, enum p
     }
 
     /* need to add an entry */
-    if (!grab_atom( table, atom )) return;
+    if (type == PROP_TYPE_STRING && !grab_atom( table, atom )) return;
     if (free == -1)
     {
         /* no free entry */
@@ -504,7 +505,7 @@ static void set_property( struct window *win, atom_t atom, lparam_t data, enum p
                                        sizeof(*new_props) * (win->prop_alloc + 16) )))
             {
                 set_error( STATUS_NO_MEMORY );
-                release_atom( table, atom );
+                if (type == PROP_TYPE_STRING) release_atom( table, atom );
                 return;
             }
             win->prop_alloc += 16;
@@ -525,12 +526,13 @@ static lparam_t remove_property( struct window *win, atom_t atom )
 
     for (i = 0; i < win->prop_inuse; i++)
     {
-        if (win->properties[i].type == PROP_TYPE_FREE) continue;
-        if (win->properties[i].atom == atom)
+        struct property *prop = win->properties + i;
+        if (prop->type == PROP_TYPE_FREE) continue;
+        if (prop->atom == atom)
         {
-            release_atom( table, atom );
-            win->properties[i].type = PROP_TYPE_FREE;
-            return win->properties[i].data;
+            if (prop->type == PROP_TYPE_STRING) release_atom( table, atom );
+            prop->type = PROP_TYPE_FREE;
+            return prop->data;
         }
     }
     /* FIXME: last error? */
@@ -560,8 +562,9 @@ static inline void destroy_properties( struct window *win )
     if (!win->properties) return;
     for (i = 0; i < win->prop_inuse; i++)
     {
-        if (win->properties[i].type == PROP_TYPE_FREE) continue;
-        release_atom( table, win->properties[i].atom );
+        struct property *prop = win->properties + i;
+        if (prop->type == PROP_TYPE_FREE) continue;
+        if (prop->type == PROP_TYPE_STRING) release_atom( table, prop->atom );
     }
     free( win->properties );
 }
@@ -2272,6 +2275,11 @@ DECL_HANDLER(create_window)
     reply->class_ptr   = get_class_client_ptr( win->class );
 }
 
+static BOOL in_private_data_range( const struct window *win, int offset, int size )
+{
+    return offset < win->private_off + win->private_len && offset + size >= win->private_off;
+}
+
 
 /* set the parent of a window */
 DECL_HANDLER(set_parent)
@@ -2395,7 +2403,8 @@ DECL_HANDLER(get_window_info)
     case GWLP_USERDATA:   reply->info = win->user_data;  break;
     default:
         if (req->size > sizeof(reply->info) || req->offset < 0 ||
-            req->offset > win->nb_extra_bytes - (int)req->size)
+            req->offset > win->nb_extra_bytes - (int)req->size ||
+            in_private_data_range( win, req->offset, req->size ))
         {
             set_win32_error( ERROR_INVALID_INDEX );
             break;
@@ -2461,6 +2470,10 @@ DECL_HANDLER(set_window_info)
     case GWLP_USERDATA:
         reply->old_info = win->user_data;
         win->user_data = req->new_info;
+        break;
+    case GWLP_FNID_INTERNAL:
+        win->private_off = FNID_OFF(req->new_info);
+        win->private_len = FNID_LEN(req->new_info);
         break;
     default:
         if (req->size > sizeof(req->new_info) || req->offset < 0 ||

@@ -34,7 +34,6 @@
 #include <pthread.h>
 
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 #include "winternl.h"
 #include "initguid.h"
 #include "audioclient.h"
@@ -425,6 +424,9 @@ static int get_oss_format(const WAVEFORMATEX *fmt)
 {
     WAVEFORMATEXTENSIBLE *fmtex = (WAVEFORMATEXTENSIBLE*)fmt;
 
+    if (fmt->wFormatTag == WAVE_FORMAT_EXTENSIBLE && fmt->wBitsPerSample != fmtex->Samples.wValidBitsPerSample)
+        return -1;
+
     if(fmt->wFormatTag == WAVE_FORMAT_PCM ||
             (fmt->wFormatTag == WAVE_FORMAT_EXTENSIBLE &&
              IsEqualGUID(&fmtex->SubFormat, &KSDATAFORMAT_SUBTYPE_PCM))){
@@ -434,7 +436,15 @@ static int get_oss_format(const WAVEFORMATEX *fmt)
         case 16:
             return AFMT_S16_LE;
         case 24:
+            /* According to the docs AFMT_S24_LE means a 24 bit sample in the
+             * LSB of a 32-bit container; AFMT_S24_PACKED means instead a packed
+             * 24-bit sample. In FreeBSD instead AFMT_S24_LE means a packed
+             * sample and AFMT_S24_PACKED does not exist. */
+#ifdef AFMT_S24_PACKED
+            return AFMT_S24_PACKED;
+#else
             return AFMT_S24_LE;
+#endif
         case 32:
             return AFMT_S32_LE;
         }
@@ -598,6 +608,12 @@ static NTSTATUS oss_create_stream(void *args)
 
     stream->period = params->period;
     stream->period_frames = muldiv(params->fmt->nSamplesPerSec, params->period, 10000000);
+
+    if (stream->period_frames == 0)
+    {
+        params->result = E_INVALIDARG;
+        goto exit;
+    }
 
     stream->bufsize_frames = muldiv(params->duration, params->fmt->nSamplesPerSec, 10000000);
     if(params->share == AUDCLNT_SHAREMODE_EXCLUSIVE)

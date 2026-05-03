@@ -126,6 +126,7 @@
 @ stdcall WSCGetProviderPath(ptr ptr ptr ptr)
 @ stdcall WSCInstallNameSpace(wstr wstr long long ptr)
 @ stdcall WSCInstallProvider(ptr wstr ptr long ptr)
+@ stdcall WSCInstallProvider64_32(ptr wstr ptr long ptr)
 @ stdcall WSCSetApplicationCategory(wstr long wstr long long ptr ptr)
 @ stdcall WSCUnInstallNameSpace(ptr)
 @ stub    WSCUpdateProvider

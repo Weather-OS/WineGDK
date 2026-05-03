@@ -90,10 +90,9 @@ int vkd3d_shader_serialize_dxbc(size_t section_count, const struct vkd3d_shader_
         set_u32(&buffer, checksum_position + i * sizeof(uint32_t), checksum[i]);
 
     if (!buffer.status)
-    {
-        dxbc->code = buffer.data;
-        dxbc->size = buffer.size;
-    }
+        vkd3d_shader_code_from_bytecode_buffer(dxbc, &buffer);
+    vkd3d_bytecode_buffer_cleanup(&buffer);
+
     return buffer.status;
 }
 
@@ -340,11 +339,7 @@ int vkd3d_shader_parse_dxbc(const struct vkd3d_shader_code *dxbc,
     ret = parse_dxbc(dxbc, &message_context, NULL, flags, desc);
 
     vkd3d_shader_message_context_trace_messages(&message_context);
-    if (!vkd3d_shader_message_context_copy_messages(&message_context, messages) && ret >= 0)
-    {
-        vkd3d_shader_free_dxbc(desc);
-        ret = VKD3D_ERROR_OUT_OF_MEMORY;
-    }
+    vkd3d_shader_string_from_message_context(messages, &message_context);
     vkd3d_shader_message_context_cleanup(&message_context);
 
     if (ret < 0)
@@ -1106,9 +1101,7 @@ int vkd3d_shader_parse_root_signature(const struct vkd3d_shader_code *dxbc,
 
     ret = for_each_dxbc_section(dxbc, &message_context, NULL, rts0_handler, root_signature);
     vkd3d_shader_message_context_trace_messages(&message_context);
-    if (!vkd3d_shader_message_context_copy_messages(&message_context, messages))
-        ret = VKD3D_ERROR_OUT_OF_MEMORY;
-
+    vkd3d_shader_string_from_message_context(messages, &message_context);
     vkd3d_shader_message_context_cleanup(&message_context);
     if (ret < 0)
         vkd3d_shader_free_root_signature(root_signature);
@@ -1558,8 +1551,7 @@ int vkd3d_shader_serialize_root_signature(const struct vkd3d_shader_versioned_ro
 
 done:
     vkd3d_shader_message_context_trace_messages(&context.message_context);
-    if (!vkd3d_shader_message_context_copy_messages(&context.message_context, messages))
-        ret = VKD3D_ERROR_OUT_OF_MEMORY;
+    vkd3d_shader_string_from_message_context(messages, &context.message_context);
     vkd3d_shader_message_context_cleanup(&context.message_context);
     return ret;
 }

@@ -49,7 +49,6 @@
 #include <unistd.h>
 
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 #include "winternl.h"
 
 #include "file.h"
@@ -367,7 +366,7 @@ static int read_process_memory_vm( struct thread *thread, client_ptr_t ptr, data
         return -1;
     }
     if (len == size) return 1;
-    set_error( len >= 0 ? STATUS_PARTIAL_COPY : STATUS_ACCESS_DENIED );
+    set_error( STATUS_PARTIAL_COPY );
     return 0;
 }
 #else

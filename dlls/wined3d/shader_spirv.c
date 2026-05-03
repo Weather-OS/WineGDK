@@ -104,6 +104,7 @@ struct wined3d_shader_spirv_compile_args
     struct vkd3d_shader_varying_map_info varying_map;
     struct vkd3d_shader_spirv_target_info spirv_target;
     struct vkd3d_shader_parameter_info parameter_info;
+    struct vkd3d_shader_d3dbc_source_info d3dbc_info;
     enum vkd3d_shader_spirv_extension extensions[1];
     struct vkd3d_shader_parameter1 parameters[12];
     unsigned int ps_alpha_swizzle[WINED3D_MAX_RENDER_TARGETS];
@@ -258,7 +259,10 @@ static void shader_spirv_init_compile_args(const struct wined3d_vk_info *vk_info
     args->spirv_target.environment = environment;
 
     args->parameter_info.type = VKD3D_SHADER_STRUCTURE_TYPE_PARAMETER_INFO;
-    args->parameter_info.next = vkd3d_interface;
+    args->parameter_info.next = &args->d3dbc_info;
+
+    args->d3dbc_info.type = VKD3D_SHADER_STRUCTURE_TYPE_D3DBC_SOURCE_INFO;
+    args->d3dbc_info.next = vkd3d_interface;
 
     args->spirv_target.extensions = args->extensions;
 
@@ -284,6 +288,21 @@ static void shader_spirv_init_compile_args(const struct wined3d_vk_info *vk_info
 
         args->spirv_target.output_swizzles = args->ps_alpha_swizzle;
         args->spirv_target.output_swizzle_count = ARRAY_SIZE(args->ps_alpha_swizzle);
+
+        for (i = 0; i < ARRAY_SIZE(args->d3dbc_info.texture_dimensions); ++i)
+        {
+            enum wined3d_shader_tex_types type = (compile_args->u.fs.args.tex_types
+                    >> (i * WINED3D_PSARGS_TEXTYPE_SHIFT)) & WINED3D_PSARGS_TEXTYPE_MASK;
+
+            if (type == WINED3D_SHADER_TEX_3D)
+                args->d3dbc_info.texture_dimensions[i] = VKD3D_SHADER_RESOURCE_TEXTURE_3D;
+            else if (type == WINED3D_SHADER_TEX_CUBE)
+                args->d3dbc_info.texture_dimensions[i] = VKD3D_SHADER_RESOURCE_TEXTURE_CUBE;
+            else
+                args->d3dbc_info.texture_dimensions[i] = VKD3D_SHADER_RESOURCE_TEXTURE_2D;
+        }
+
+        args->d3dbc_info.shadow_samplers = compile_args->u.fs.args.shadow;
     }
     else if (shader_type == WINED3D_SHADER_TYPE_VERTEX)
     {

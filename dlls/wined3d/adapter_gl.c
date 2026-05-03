@@ -1311,6 +1311,7 @@ cards_nvidia_binary[] =
     {"RTX 4060",                    CARD_NVIDIA_GEFORCE_RTX4060},
     {"Tesla T4",                    CARD_NVIDIA_TESLA_T4},
     {"Ampere A10",                  CARD_NVIDIA_AMPERE_A10},
+    {"NVIDIA A10G",                 CARD_NVIDIA_AMPERE_A10G},
     {"RTX 3090 Ti",                 CARD_NVIDIA_GEFORCE_RTX3090TI},
     {"RTX 3090",                    CARD_NVIDIA_GEFORCE_RTX3090},
     {"RTX 3080 Ti",                 CARD_NVIDIA_GEFORCE_RTX3080TI},
@@ -3978,7 +3979,6 @@ static void wined3d_adapter_init_fb_cfgs(struct wined3d_adapter_gl *adapter_gl, 
             if (!GL_EXTCALL(wglGetPixelFormatAttribivARB(dc, format_id, 0, attrib_count, attribs, values)))
                 continue;
 
-            cfg->iPixelFormat = format_id;
             cfg->redSize = values[0];
             cfg->greenSize = values[1];
             cfg->blueSize = values[2];
@@ -4011,7 +4011,7 @@ static void wined3d_adapter_init_fb_cfgs(struct wined3d_adapter_gl *adapter_gl, 
 
             TRACE("iPixelFormat=%d, iPixelType=%#x, doubleBuffer=%d, RGBA=%d/%d/%d/%d, "
                     "depth=%d, stencil=%d, samples=%d, windowDrawable=%d\n",
-                    cfg->iPixelFormat, cfg->iPixelType, cfg->doubleBuffer,
+                    format_id, cfg->iPixelType, cfg->doubleBuffer,
                     cfg->redSize, cfg->greenSize, cfg->blueSize, cfg->alphaSize,
                     cfg->depthSize, cfg->stencilSize, cfg->numSamples, cfg->windowDrawable);
 
@@ -4044,7 +4044,6 @@ static void wined3d_adapter_init_fb_cfgs(struct wined3d_adapter_gl *adapter_gl, 
                 continue;
             }
 
-            cfg->iPixelFormat = format_id;
             cfg->redSize = pfd.cRedBits;
             cfg->greenSize = pfd.cGreenBits;
             cfg->blueSize = pfd.cBlueBits;
@@ -4061,7 +4060,7 @@ static void wined3d_adapter_init_fb_cfgs(struct wined3d_adapter_gl *adapter_gl, 
 
             TRACE("iPixelFormat=%d, iPixelType=%#x, doubleBuffer=%d, RGBA=%d/%d/%d/%d, "
                     "depth=%d, stencil=%d, windowDrawable=%d\n",
-                    cfg->iPixelFormat, cfg->iPixelType, cfg->doubleBuffer,
+                    format_id, cfg->iPixelType, cfg->doubleBuffer,
                     cfg->redSize, cfg->greenSize, cfg->blueSize, cfg->alphaSize,
                     cfg->depthSize, cfg->stencilSize, cfg->windowDrawable);
 

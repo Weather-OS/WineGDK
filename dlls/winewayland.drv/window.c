@@ -28,7 +28,6 @@
 #include <stdlib.h>
 
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 
 #include "waylanddrv.h"
 
@@ -160,6 +159,8 @@ static void wayland_win_data_get_config(struct wayland_win_data *data,
 
     TRACE("window=%s style=%#x\n", wine_dbgstr_rect(&conf->rect), style);
 
+    conf->minimized = !!(style & WS_MINIMIZE);
+
     /* The fullscreen state is implied by the window position and style. */
     if (data->is_fullscreen)
     {
@@ -268,12 +269,14 @@ static void wayland_surface_update_state_toplevel(struct wayland_surface *surfac
          /* First do all state unsettings, before setting new state. Some
           * Wayland compositors misbehave if the order is reversed. */
         if (!(surface->window.state & WAYLAND_SURFACE_CONFIG_STATE_MAXIMIZED) &&
-            (surface->current.state & WAYLAND_SURFACE_CONFIG_STATE_MAXIMIZED))
+            (surface->current.state & WAYLAND_SURFACE_CONFIG_STATE_MAXIMIZED) &&
+            !surface->window.minimized)
         {
             xdg_toplevel_unset_maximized(surface->xdg_toplevel);
         }
         if (!(surface->window.state & WAYLAND_SURFACE_CONFIG_STATE_FULLSCREEN) &&
-            (surface->current.state & WAYLAND_SURFACE_CONFIG_STATE_FULLSCREEN))
+            (surface->current.state & WAYLAND_SURFACE_CONFIG_STATE_FULLSCREEN) &&
+            !surface->window.minimized)
         {
             xdg_toplevel_unset_fullscreen(surface->xdg_toplevel);
         }
@@ -287,6 +290,10 @@ static void wayland_surface_update_state_toplevel(struct wayland_surface *surfac
            !(surface->current.state & WAYLAND_SURFACE_CONFIG_STATE_FULLSCREEN))
         {
             xdg_toplevel_set_fullscreen(surface->xdg_toplevel, NULL);
+        }
+        if (surface->window.minimized)
+        {
+            xdg_toplevel_set_minimized(surface->xdg_toplevel);
         }
     }
     else
@@ -494,6 +501,7 @@ static void wayland_configure_window(HWND hwnd)
     DWORD style;
     BOOL needs_enter_size_move = FALSE;
     BOOL needs_exit_size_move = FALSE;
+    BOOL restoring_from_minimize = FALSE;
     struct wayland_win_data *data;
     RECT rect;
 
@@ -576,6 +584,31 @@ static void wayland_configure_window(HWND hwnd)
     wayland_surface_coords_to_window(surface, width, height,
                                      &window_width, &window_height);
 
+    /* Detect a restore from an application-initiated minimize: the last
+     * requested config placed the window at the offscreen sentinel position
+     * with WS_MINIMIZE, and the compositor is now sending a configure. Ack
+     * the configure to avoid a protocol violation and send SC_RESTORE so
+     * Win32 runs the full restore sequence (clearing WS_MINIMIZE, restoring
+     * position/size, sending WM_SIZE, etc.), which triggers a new configure
+     * cycle. */
+    restoring_from_minimize = surface->window.rect.left <= -32000 &&
+                              surface->window.rect.top  <= -32000 &&
+                              surface->window.minimized;
+    if (restoring_from_minimize)
+    {
+        TRACE("hwnd=%p restoring from minimize\n", hwnd);
+        surface->current = surface->processing;
+        memset(&surface->processing, 0, sizeof(surface->processing));
+        xdg_surface_ack_configure(surface->xdg_surface,
+                                  surface->current.serial);
+        wayland_win_data_release(data);
+        send_message(hwnd, WM_SYSCOMMAND, SC_RESTORE, 0);
+        return;
+    }
+
+    SetRect(&rect, 0, 0, window_width, window_height);
+    OffsetRect(&rect, data->rects.window.left, data->rects.window.top);
+
     wayland_win_data_release(data);
 
     TRACE("processing=%dx%d,%#x\n", width, height, state);
@@ -601,8 +634,6 @@ static void wayland_configure_window(HWND hwnd)
         flags |= SWP_NOSENDCHANGING;
     }
 
-    SetRect(&rect, 0, 0, window_width, window_height);
-    OffsetRect(&rect, data->rects.window.left, data->rects.window.top);
     NtUserSetRawWindowPos(hwnd, rect, flags, FALSE);
 }
 

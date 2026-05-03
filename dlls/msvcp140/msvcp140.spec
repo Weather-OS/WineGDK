@@ -1687,7 +1687,7 @@
 @ cdecl -arch=win64 ?_Xout_of_range@std@@YAXPEBD@Z(str) _Xout_of_range
 @ stub -arch=win32 ?_Xoverflow_error@std@@YAXPBD@Z
 @ stub -arch=win64 ?_Xoverflow_error@std@@YAXPEBD@Z
-@ stub ?_Xregex_error@std@@YAXW4error_type@regex_constants@1@@Z
+@ cdecl ?_Xregex_error@std@@YAXW4error_type@regex_constants@1@@Z(long) _Xregex_error
 @ cdecl -arch=win32 ?_Xruntime_error@std@@YAXPBD@Z(str) _Xruntime_error
 @ cdecl -arch=win64 ?_Xruntime_error@std@@YAXPEBD@Z(str) _Xruntime_error
 @ cdecl -arch=win32 ?__ExceptionPtrAssign@@YAXPAXPBX@Z(ptr ptr) __ExceptionPtrAssign
@@ -1706,8 +1706,8 @@
 @ cdecl -arch=win64 ?__ExceptionPtrDestroy@@YAXPEAX@Z(ptr) __ExceptionPtrDestroy
 @ cdecl -arch=win32 ?__ExceptionPtrRethrow@@YAXPBX@Z(ptr) __ExceptionPtrRethrow
 @ cdecl -arch=win64 ?__ExceptionPtrRethrow@@YAXPEBX@Z(ptr) __ExceptionPtrRethrow
-@ stub -arch=win32 ?__ExceptionPtrSwap@@YAXPAX0@Z
-@ stub -arch=win64 ?__ExceptionPtrSwap@@YAXPEAX0@Z
+@ cdecl -arch=win32 ?__ExceptionPtrSwap@@YAXPAX0@Z(ptr ptr) __ExceptionPtrSwap
+@ cdecl -arch=win64 ?__ExceptionPtrSwap@@YAXPEAX0@Z(ptr ptr) __ExceptionPtrSwap
 @ cdecl -arch=win32 ?__ExceptionPtrToBool@@YA_NPBX@Z(ptr) __ExceptionPtrToBool
 @ cdecl -arch=win64 ?__ExceptionPtrToBool@@YA_NPEBX@Z(ptr) __ExceptionPtrToBool
 @ cdecl -arch=arm ?always_noconv@codecvt_base@std@@QBA_NXZ(ptr) codecvt_base_always_noconv

@@ -28,7 +28,6 @@
 #include <assert.h>
 
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 #include "ntgdi_private.h"
 #include "ntuser_private.h"
 #include "winreg.h"
@@ -333,7 +332,7 @@ static HANDLE get_display_device_init_mutex( void )
     HANDLE mutex;
 
     snprintf( buffer, ARRAY_SIZE(buffer), "\\Sessions\\%u\\BaseNamedObjects\\display_device_init",
-              NtCurrentTeb()->Peb->SessionId );
+              RtlGetCurrentPeb()->SessionId );
     name.MaximumLength = asciiz_to_unicode( bufferW, buffer );
     name.Length = name.MaximumLength - sizeof(WCHAR);
 
@@ -1644,9 +1643,11 @@ static BOOL write_gpu_to_registry( const struct gpu *gpu, const struct pci_id *p
         if (pci->vendor && pci->device)
         {
             asciiz_to_unicode( bufferW, "DeviceId" );
-            set_reg_value( hkey, bufferW, REG_DWORD, &pci->device, sizeof(pci->device) );
+            value = pci->device;
+            set_reg_value( hkey, bufferW, REG_DWORD, &value, sizeof(value) );
             asciiz_to_unicode( bufferW, "VendorId" );
-            set_reg_value( hkey, bufferW, REG_DWORD, &pci->vendor, sizeof(pci->vendor) );
+            value = pci->vendor;
+            set_reg_value( hkey, bufferW, REG_DWORD, &value, sizeof(value) );
         }
         NtClose( hkey );
     }
@@ -4765,7 +4766,7 @@ MONITORINFO monitor_info_from_window( HWND hwnd, UINT flags )
  */
 ULONG WINAPI NtUserGetSystemDpiForProcess( HANDLE process )
 {
-    if (process && process != GetCurrentProcess())
+    if (process && process != GetCurrentProcess() && NtCompareObjects( GetCurrentProcess(), process ))
     {
         FIXME( "not supported on other process %p\n", process );
         return 0;
@@ -5665,7 +5666,7 @@ static WCHAR desk_wallpaper_path[MAX_PATH];
 static PATH_ENTRY( DESKPATTERN, DESKTOP_KEY, "Pattern", desk_pattern_path );
 static PATH_ENTRY( DESKWALLPAPER, DESKTOP_KEY, "Wallpaper", desk_wallpaper_path );
 
-static BYTE user_prefs[8] = { 0x30, 0x00, 0x00, 0x80, 0x12, 0x00, 0x00, 0x00 };
+static BYTE user_prefs[8] = { 0x10, 0x00, 0x00, 0x80, 0x12, 0x00, 0x00, 0x00 };
 static BINARY_ENTRY( USERPREFERENCESMASK, user_prefs, DESKTOP_KEY, "UserPreferencesMask" );
 
 static FONT_ENTRY( CAPTIONLOGFONT, FW_BOLD, METRICS_KEY, "CaptionFont" );
@@ -5938,7 +5939,7 @@ void sysparams_init(void)
 
     /* open the app-specific key */
 
-    appname = NtCurrentTeb()->Peb->ProcessParameters->ImagePathName.Buffer;
+    appname = RtlGetCurrentPeb()->ProcessParameters->ImagePathName.Buffer;
     if ((p = wcsrchr( appname, '/' ))) appname = p + 1;
     if ((p = wcsrchr( appname, '\\' ))) appname = p + 1;
     len = lstrlenW( appname );
@@ -6589,7 +6590,12 @@ BOOL WINAPI NtUserSystemParametersInfo( UINT action, UINT val, void *ptr, UINT w
     WINE_SPI_FIXME(SPI_SETICONS);
 
     case SPI_GETDEFAULTINPUTLANG:
-        ret = NtUserGetKeyboardLayout(0) != 0;
+        if (ptr)
+        {
+            HKL layout = NtUserGetKeyboardLayout(0);
+            *(HKL*)ptr = layout;
+            ret = layout != 0;
+        }
         break;
 
     WINE_SPI_FIXME(SPI_SETDEFAULTINPUTLANG);
@@ -7382,7 +7388,7 @@ ULONG WINAPI NtUserGetProcessDpiAwarenessContext( HANDLE process )
 {
     ULONG context;
 
-    if (process && process != GetCurrentProcess())
+    if (process && process != GetCurrentProcess() && NtCompareObjects( GetCurrentProcess(), process ))
     {
         WARN( "not supported on other process %p\n", process );
         return NTUSER_DPI_UNAWARE;

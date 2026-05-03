@@ -25,6 +25,24 @@
 #include <stdint.h>
 #include <assert.h>
 
+static const char *debug_d3dx10_filter(uint32_t filter_flags)
+{
+    static const char *filter_types[] = { "", "D3DX10_FILTER_NONE", "D3DX10_FILTER_POINT", "D3DX10_FILTER_LINEAR",
+                                          "D3DX10_FILTER_TRIANGLE", "D3DX10_FILTER_BOX", "", "" };
+    static const char *srgb_types[] = { "", "|D3DX10_FILTER_SRGB_IN", "|D3DX10_FILTER_SRGB_OUT", "|D3DX10_FILTER_SRGB" };
+    static const char *dither_types[] = { "", "|D3DX10_FILTER_DITHER", "|D3DX10_FILTER_DITHER_DIFFUSION", ""};
+    static const char *mirror_types[] = { "", "|D3DX10_FILTER_MIRROR_U", "|D3DX10_FILTER_MIRROR_V",
+                                          "|D3DX10_FILTER_MIRROR_U|D3DX10_FILTER_MIRROR_V", "|D3DX10_FILTER_MIRROR_W",
+                                          "|D3DX10_FILTER_MIRROR_U|D3DX10_FILTER_MIRROR_W",
+                                          "|D3DX10_FILTER_MIRROR_V|D3DX10_FILTER_MIRROR_W", "|D3DX10_FILTER_MIRROR", };
+    const uint8_t mirror = ((filter_flags >> 16) & 0x7);
+    const uint8_t dither = ((filter_flags >> 19) & 0x3);
+    const uint8_t srgb = ((filter_flags >> 21) & 0x3);
+    const uint8_t filter = (filter_flags & 0x7);
+
+    return wine_dbg_sprintf("%s%s%s%s", filter_types[filter], mirror_types[mirror], dither_types[dither], srgb_types[srgb]);
+}
+
 static const D3DX10_IMAGE_LOAD_INFO d3dx10_default_load_info =
 {
     D3DX10_DEFAULT, D3DX10_DEFAULT, D3DX10_DEFAULT, D3DX10_DEFAULT, D3DX10_DEFAULT, D3DX10_DEFAULT, D3DX10_DEFAULT,
@@ -804,6 +822,25 @@ static const uint8_t dds_cube_map_4_4[] =
     0x80,0x00,0x00,0x00,0x80,0x00,0x00,0x00,0x80,0x00,0x00,0x00,0x80,0x00,0x00,0x00,
     0x80,0x00,0x00,0x00,0x80,0x00,0x00,0x00,0x80,0x00,0x00,0x00,0x80,0x00,0x00,0x00,
     0x00,0x80,0x80,0x00,0x00,0x80,0x80,0x00,0x00,0x80,0x80,0x00,0x00,0x80,0x80,0x00,
+};
+
+/* 4x4 DXT10 DDS file with a format of DXGI_FORMAT_R8G8B8A8_UNORM. */
+static const uint8_t dds_dxt10_4_4[] =
+{
+    0x44,0x44,0x53,0x20,0x7c,0x00,0x00,0x00,0x01,0x10,0x00,0x00,0x04,0x00,0x00,0x00,
+    0x04,0x00,0x00,0x00,0x10,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x20,0x00,0x00,0x00,
+    0x04,0x00,0x00,0x00,0x44,0x58,0x31,0x30,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x1c,0x00,0x00,0x00,0x03,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x10,0x10,0x10,0x10,0x20,0x20,0x20,0x20,
+    0x30,0x30,0x30,0x30,0x40,0x40,0x40,0x40,0x50,0x50,0x50,0x50,0x60,0x60,0x60,0x60,
+    0x70,0x70,0x70,0x70,0x80,0x80,0x80,0x80,0x90,0x90,0x90,0x90,0xa0,0xa0,0xa0,0xa0,
+    0xb0,0xb0,0xb0,0xb0,0xc0,0xc0,0xc0,0xc0,0xd0,0xd0,0xd0,0xd0,0xe0,0xe0,0xe0,0xe0,
+    0xf0,0xf0,0xf0,0xf0,
 };
 
 /* 1x1 wmp image */
@@ -1826,6 +1863,24 @@ static const struct test_image_load_info
             }
         }
     },
+    /*
+     * Pass in invalid filter flags. Ignored if the dimensions and format of the
+     * destination texture match the source image.
+     */
+    {
+        dds_dxt10_4_4, sizeof(dds_dxt10_4_4),
+        {
+            D3DX10_DEFAULT, D3DX10_DEFAULT, D3DX10_DEFAULT, D3DX10_DEFAULT, 1, (D3D10_USAGE)D3DX10_DEFAULT,
+            D3DX10_DEFAULT, D3DX10_DEFAULT, D3DX10_DEFAULT, D3DX10_DEFAULT, 7, D3DX10_DEFAULT
+        },
+        S_OK, D3D10_RESOURCE_DIMENSION_TEXTURE2D,
+        {
+            .desc_2d =
+            {
+                4, 4, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, { 1, 0 }, D3D10_USAGE_DEFAULT, D3D10_BIND_SHADER_RESOURCE, 0, 0
+            }
+        }
+    },
 };
 
 static const struct test_invalid_image_load_info
@@ -1947,6 +2002,24 @@ static BOOL is_block_compressed(DXGI_FORMAT format)
             return TRUE;
 
     return FALSE;
+}
+
+static BOOL is_srgb_format(DXGI_FORMAT format)
+{
+    switch (format)
+    {
+        case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+        case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+        case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
+        case DXGI_FORMAT_BC1_UNORM_SRGB:
+        case DXGI_FORMAT_BC2_UNORM_SRGB:
+        case DXGI_FORMAT_BC3_UNORM_SRGB:
+        case DXGI_FORMAT_BC7_UNORM_SRGB:
+            return TRUE;
+
+        default:
+            return FALSE;
+    }
 }
 
 static unsigned int get_bpp_from_format(DXGI_FORMAT format)
@@ -2667,14 +2740,27 @@ static inline BOOL check_readback_pixel_4bpp_rgba(const void *got, const void *e
             && compare_uint((c1 >> 24) & 0xff, (c2 >> 24) & 0xff, max_diff);
 }
 
+static inline BOOL check_readback_pixel_float4_rgba(const void *got, const void *expected, uint32_t max_diff)
+{
+    const float *a = got;
+    const float *b = expected;
+
+    return (compare_float(a[0], b[0], max_diff) && compare_float(a[1], b[1], max_diff)
+        && compare_float(a[2], b[2], max_diff) && compare_float(a[3], b[3], max_diff));
+}
+
 typedef BOOL (*check_readback_pixel_func)(const void *, const void *, uint32_t);
 static inline check_readback_pixel_func get_readback_pixel_func_for_dxgi_format(DXGI_FORMAT format)
 {
     switch (format)
     {
+        case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
         case DXGI_FORMAT_R8G8B8A8_UNORM:
         case DXGI_FORMAT_B8G8R8A8_UNORM:
             return check_readback_pixel_4bpp_rgba;
+
+        case DXGI_FORMAT_R32G32B32A32_FLOAT:
+            return check_readback_pixel_float4_rgba;
 
         default:
             assert(0 && "Need to add format to get_readback_pixel_func_for_dxgi_format().");
@@ -5601,6 +5687,279 @@ static void test_image_filters(void)
     ok(!ID3D10Device_Release(device), "Unexpected refcount.\n");
 }
 
+/*
+ * DXT2 and DXT4 are decoded without taking premultiplied alpha
+ * into account on d3dx10/d3dx11.
+ */
+static void test_dxt_formats(void)
+{
+    static const uint8_t expected_dst[] =
+    {
+        0x21,0x20,0x21,0x88,0x31,0x31,0x31,0x88,0x21,0x20,0x21,0x88,0x31,0x31,0x31,0x88,
+        0x21,0x20,0x21,0x88,0x31,0x31,0x31,0x88,0x21,0x20,0x21,0x88,0x31,0x31,0x31,0x88,
+        0x21,0x20,0x21,0x88,0x31,0x31,0x31,0x88,0x21,0x20,0x21,0x88,0x31,0x31,0x31,0x88,
+        0x21,0x20,0x21,0x88,0x31,0x31,0x31,0x88,0x21,0x20,0x21,0x88,0x31,0x31,0x31,0x88,
+    };
+    static const uint8_t test_dxt2_dxt3_data[] =
+    {
+        0x88,0x88,0x88,0x88,0x88,0x88,0x88,0x88,0x86,0x31,0x04,0x21,0x11,0x11,0x11,0x11,
+    };
+    static const uint8_t test_dxt4_dxt5_data[] =
+    {
+        0x88,0x88,0x00,0x00,0x00,0x00,0x00,0x00,0x86,0x31,0x04,0x21,0x11,0x11,0x11,0x11,
+    };
+    static const struct
+    {
+        DWORD format;
+        const void *data;
+        unsigned int size;
+    } tests[] =
+    {
+        { MAKEFOURCC('D','X','T','2'), test_dxt2_dxt3_data, sizeof(test_dxt2_dxt3_data) },
+        { MAKEFOURCC('D','X','T','3'), test_dxt2_dxt3_data, sizeof(test_dxt2_dxt3_data) },
+        { MAKEFOURCC('D','X','T','4'), test_dxt4_dxt5_data, sizeof(test_dxt4_dxt5_data) },
+        { MAKEFOURCC('D','X','T','5'), test_dxt4_dxt5_data, sizeof(test_dxt4_dxt5_data) },
+    };
+    struct
+    {
+        DWORD magic;
+        struct dds_header header;
+        BYTE data[256];
+    } dds;
+    D3DX10_IMAGE_LOAD_INFO load_info;
+    struct resource_readback rb;
+    ID3D10Resource *resource;
+    ID3D10Device *device;
+    unsigned int i;
+    HRESULT hr;
+
+    device = create_device();
+    if (!device)
+    {
+        skip("Failed to create device, skipping tests.\n");
+        return;
+    }
+
+    CoInitialize(NULL);
+
+    dds.magic = MAKEFOURCC('D','D','S',' ');
+    fill_dds_header(&dds.header);
+    dds.header.pixel_format.flags = DDS_PF_FOURCC;
+    dds.header.pixel_format.bpp = 0;
+    dds.header.pixel_format.rmask = 0;
+    dds.header.pixel_format.gmask = 0;
+    dds.header.pixel_format.bmask = 0;
+    dds.header.pixel_format.amask = 0;
+
+    memset(dds.data, 0, sizeof(dds.data));
+    load_info = d3dx10_default_load_info;
+    load_info.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    load_info.Filter = load_info.MipFilter = D3DX10_FILTER_NONE;
+
+    for (i = 0; i < ARRAY_SIZE(tests); ++i)
+    {
+        winetest_push_context("Test %u (%s)", i, debugstr_fourcc(tests[i].format));
+        memcpy(dds.data, tests[i].data, tests[i].size);
+        dds.header.pixel_format.fourcc = tests[i].format;
+
+        hr = D3DX10CreateTextureFromMemory(device, &dds, sizeof(dds), &load_info, NULL, &resource, NULL);
+        ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+        get_resource_readback(resource, 0, &rb);
+        check_test_readback(&rb, expected_dst, 4, 4, 1, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
+        release_resource_readback(&rb);
+        ID3D10Resource_Release(resource);
+        winetest_pop_context();
+    }
+
+    CoUninitialize();
+    ok(!ID3D10Device_Release(device), "Unexpected refcount.\n");
+}
+
+static void test_srgb_filter_flags(void)
+{
+    static const float test_float4_srgb_in[] =
+    {
+        0.09f, 0.1f,  0.2f, 1.0f,
+        0.30f, 0.4f,  0.5f, 2.0f,
+        0.60f, 0.7f,  0.8f, 3.0f,
+        0.90f, 1.5f, -1.0f, 4.0f,
+    };
+    static const float test_float4_srgb_in_expected[] =
+    {
+        5.00732847e-003,  6.27983455e-003, 2.89932229e-002, 1.00000000e+000,
+        7.07391128e-002,  1.33206353e-001, 2.17635408e-001, 2.00000000e+000,
+        3.25037479e-001,  4.56263810e-001, 6.12064898e-001, 3.00000000e+000,
+        7.93109715e-001, -2.24207754e-044, 1.00000000e+000, 4.00000000e+000,
+    };
+    static const float test_float4_srgb_in_expected_32[] =
+    {
+        5.00732893e-003, 6.27983361e-003, 2.89932191e-002, 1.00000000e+000,
+        7.07391202e-002, 1.33206338e-001, 2.17635408e-001, 2.00000000e+000,
+        3.25037509e-001, 4.56263840e-001, 6.12064838e-001, 3.00000000e+000,
+        /*
+         * On 32-bit d3dx10+, an input value of 1.5f being converted from SRGB
+         * to linear produces quite a few different values depending on the
+         * SDK version. Presumably it's reading beyond the end of a LUT,
+         * values above ~106.0f will cause a crash on all versions and
+         * bitnesses.
+         */
+#if D3DX10_SDK_VERSION < 35
+        7.93109715e-001, 3.48807693e-001, 1.00000000e+000, 4.00000000e+000
+#elif D3DX10_SDK_VERSION < 37
+        7.93109715e-001, 3.56686294e-001, 1.00000000e+000, 4.00000000e+000
+#elif D3DX10_SDK_VERSION < 40
+        7.93109715e-001, 3.64580810e-001, 1.00000000e+000, 4.00000000e+000
+#else
+        7.93109715e-001, 3.33099246e-001, 1.00000000e+000, 4.00000000e+000
+#endif
+    };
+    static const float test_float4_srgb_out[] =
+    {
+        0.001f, 0.1f, 0.2f, 1.0f,
+        0.300f, 0.4f, 0.5f, 2.0f,
+        0.600f, 0.7f, 0.8f, 3.0f,
+        0.900f, 1.5f, 1.0f, 4.0f,
+    };
+    /* 32-bit can handle a -1.0f input, 64-bit will crash. */
+    static const float test_float4_srgb_out_32[] =
+    {
+        0.001f, 0.1f,  0.2f, 1.0f,
+        0.300f, 0.4f,  0.5f, 2.0f,
+        0.600f, 0.7f,  0.8f, 3.0f,
+        0.900f, 1.5f, -1.0f, 4.0f,
+    };
+    static const float test_float4_srgb_out_expected[] =
+    {
+        4.32867892e-002, 3.51118684e-001, 4.81157422e-001, 1.00000000e+000,
+        5.78532457e-001, 6.59353793e-001, 7.29740620e-001, 2.00000000e+000,
+        7.92793036e-001, 8.50335538e-001, 9.03545380e-001, 3.00000000e+000,
+        9.53237593e-001, 1.86132386e-001, 1.00000000e+000, 4.00000000e+000,
+    };
+    static const float test_float4_srgb_out_expected_32[] =
+    {
+        4.32868190e-002, 3.51118833e-001, 4.81157631e-001, 1.00000000e+000,
+        5.78532815e-001, 6.59354091e-001, 7.29740679e-001, 2.00000000e+000,
+        7.92793512e-001, 8.50336075e-001, 9.03545797e-001, 3.00000000e+000,
+        9.53237832e-001, 1.86132386e-001, -INFINITY,       4.00000000e+000,
+    };
+    static const uint32_t test_a8r8g8b8[] = { 0x00102030, 0x40506070, 0x8090a0b0, 0xc0d0e0ff };
+    static const uint32_t test_a8r8g8b8_srgb_in_expected[] = { 0x00010306, 0x40141e2a, 0x80495b71, 0xc0a3c0ff };
+    static const uint32_t test_a8r8g8b8_srgb_out_expected[] = { 0x00486377, 0x4097a4af, 0x80c5ced7, 0xc0e8f0ff };
+    static const struct
+    {
+        unsigned int width;
+        unsigned int height;
+        const void *src_data;
+        const void *src_data_32;
+        DXGI_FORMAT src_format;
+        DWORD flags;
+
+        const void *expected_dst_data;
+        const void *expected_dst_data_32;
+        DXGI_FORMAT dst_format;
+        BOOL todo;
+    } tests[] =
+    {
+        /* Both IN and OUT flags, nothing changes. */
+        {
+            2, 2, test_a8r8g8b8, NULL, DXGI_FORMAT_R8G8B8A8_UNORM, D3DX10_FILTER_NONE | D3DX10_FILTER_SRGB,
+            test_a8r8g8b8, NULL, DXGI_FORMAT_R8G8B8A8_UNORM
+        },
+        {
+            2, 2, test_a8r8g8b8, NULL, DXGI_FORMAT_R8G8B8A8_UNORM, D3DX10_FILTER_NONE | D3DX10_FILTER_SRGB_IN,
+            test_a8r8g8b8_srgb_in_expected, NULL, DXGI_FORMAT_R8G8B8A8_UNORM
+        },
+        {
+            2, 2, test_a8r8g8b8, NULL, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, D3DX10_FILTER_NONE,
+            test_a8r8g8b8_srgb_in_expected, NULL, DXGI_FORMAT_R8G8B8A8_UNORM, .todo = TRUE
+        },
+        {
+            2, 2, test_a8r8g8b8, NULL, DXGI_FORMAT_R8G8B8A8_UNORM, D3DX10_FILTER_NONE | D3DX10_FILTER_SRGB_OUT,
+            test_a8r8g8b8_srgb_out_expected, NULL, DXGI_FORMAT_R8G8B8A8_UNORM
+        },
+        {
+            2, 2, test_a8r8g8b8, NULL, DXGI_FORMAT_R8G8B8A8_UNORM, D3DX10_FILTER_NONE,
+            test_a8r8g8b8_srgb_out_expected, NULL, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, .todo = TRUE
+        },
+        /* 5. */
+        {
+            2, 2, test_float4_srgb_in, NULL, DXGI_FORMAT_R32G32B32A32_FLOAT, D3DX10_FILTER_NONE | D3DX10_FILTER_SRGB_IN,
+            test_float4_srgb_in_expected, test_float4_srgb_in_expected_32, DXGI_FORMAT_R32G32B32A32_FLOAT, .todo = TRUE
+        },
+        {
+            2, 2, test_float4_srgb_out, test_float4_srgb_out_32, DXGI_FORMAT_R32G32B32A32_FLOAT,
+            D3DX10_FILTER_NONE | D3DX10_FILTER_SRGB_OUT, test_float4_srgb_out_expected, test_float4_srgb_out_expected_32,
+            DXGI_FORMAT_R32G32B32A32_FLOAT, .todo = TRUE
+        },
+    };
+    struct
+    {
+        DWORD magic;
+        struct dds_header header;
+        struct dds_header_dxt10 dxt10;
+        BYTE data[8192];
+    } dds;
+    const BOOL is_32 = (sizeof(void *) == 4);
+    D3DX10_IMAGE_LOAD_INFO load_info;
+    struct resource_readback rb;
+    ID3D10Resource *resource;
+    ID3D10Device *device;
+    unsigned int i;
+    HRESULT hr;
+
+    device = create_device();
+    if (!device)
+    {
+        skip("Failed to create device, skipping tests.\n");
+        return;
+    }
+
+    CoInitialize(NULL);
+
+    dds.magic = MAKEFOURCC('D','D','S',' ');
+    for (i = 0; i < ARRAY_SIZE(tests); ++i)
+    {
+        const unsigned int fmt_bpp = (get_bpp_from_format(tests[i].src_format) + 7) / 8;
+        unsigned int src_pitch = fmt_bpp * tests[i].width;
+        const uint8_t *src_data, *expected_dst;
+
+        winetest_push_context("Test %u (%s)", i, debug_d3dx10_filter(tests[i].flags));
+
+        load_info = d3dx10_default_load_info;
+        load_info.Height = tests[i].height;
+        load_info.Width = tests[i].width;
+        load_info.Filter = tests[i].flags;
+        load_info.Format = tests[i].dst_format;
+        load_info.MipLevels = 1;
+
+        expected_dst = (is_32 && tests[i].expected_dst_data_32) ? tests[i].expected_dst_data_32 : tests[i].expected_dst_data;
+        src_data = (is_32 && tests[i].src_data_32) ? tests[i].src_data_32 : tests[i].src_data;
+
+        /* Height + 1 to make sure filter flags aren't ignored. */
+        set_dxt10_dds_header(&dds.header, 0, tests[i].width, tests[i].height + 1, 0, 1, src_pitch, 0, 0);
+        set_dds_header_dxt10(&dds.dxt10, tests[i].src_format, D3D10_RESOURCE_DIMENSION_TEXTURE2D, 0, 1, 0);
+        memcpy(dds.data, src_data, src_pitch * tests[i].height);
+
+        hr = D3DX10CreateTextureFromMemory(device, &dds, sizeof(dds), &load_info, NULL, &resource, NULL);
+        todo_wine_if(is_srgb_format(tests[i].src_format) || is_srgb_format(tests[i].dst_format))
+                ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+        if (SUCCEEDED(hr))
+        {
+            get_resource_readback(resource, 0, &rb);
+            todo_wine_if(tests[i].todo) check_test_readback(&rb, expected_dst, tests[i].width, tests[i].height, 1,
+                    tests[i].dst_format, 0);
+            release_resource_readback(&rb);
+            ID3D10Resource_Release(resource);
+        }
+
+        winetest_pop_context();
+    }
+
+    CoUninitialize();
+    ok(!ID3D10Device_Release(device), "Unexpected refcount.\n");
+}
+
 #define check_rect(rect, left, top, right, bottom) _check_rect(__LINE__, rect, left, top, right, bottom)
 static inline void _check_rect(unsigned int line, const RECT *rect, int left, int top, int right, int bottom)
 {
@@ -7090,4 +7449,6 @@ START_TEST(d3dx10)
     test_legacy_dds_header_image_info();
     test_dxt10_dds_header_image_info();
     test_image_filters();
+    test_dxt_formats();
+    test_srgb_filter_flags();
 }

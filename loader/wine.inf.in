@@ -232,6 +232,7 @@ HKCR,.lnk,,2,"lnkfile"
 HKCR,.msi,,2,"Msi.Package"
 HKCR,.msp,,2,"Msi.Patch"
 HKCR,.pdf,,2,"pdffile"
+HKCR,.reg,,2,"regfile"
 HKCR,.rtf,,2,"rtffile"
 HKCR,.wri,,2,"wrifile"
 HKCR,*\shellex\ContextMenuHandlers,,16
@@ -283,6 +284,8 @@ HKCR,Msi.Patch\DefaultIcon,,2,"msiexec.exe"
 HKCR,Msi.Patch\shell\Open\command,,2,"%11%\msiexec.exe /p ""%1"" %*"
 HKCR,pdffile,,2,"PDF Document"
 HKCR,pdffile\shell\open\command,,2,"""%11%\winebrowser.exe"" ""%1"""
+HKCR,regfile,,2,"Windows Registry File"
+HKCR,regfile\shell\open\command,,2,"""%11%\regedit.exe"" ""%1"""
 HKCR,rtffile,,2,"Rich Text Document"
 HKCR,rtffile\shell\open\command,,2,"""%16422%\Windows NT\Accessories\wordpad.exe"" ""%1"""
 HKCR,rtffile\shell\print\command,,2,"""%16422%\Windows NT\Accessories\wordpad.exe"" /p ""%1"""
@@ -612,6 +615,7 @@ HKLM,System\Select,"Default",0x10003,1
 HKLM,System\Select,"Failed",0x10003,0
 HKLM,System\Select,"LastKnownGood",0x10003,1
 HKCU,AppEvents\Schemes\Apps\Explorer\Navigating\.Current,,,""
+HKCU,Software\Classes,,16
 HKCU,Software\Microsoft\Protected Storage System Provider,,16
 ; Some apps requires at least four subkeys of Active Setup\Installed Components
 HKLM,SOFTWARE\Microsoft\Active Setup\Installed Components\{44BBA855-CC51-11CF-AAFA-00AA00B6015F},,2,"DirectDrawEx"
@@ -784,6 +788,7 @@ HKLM,SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x86,"Version",2,"14.42.344
 16422,Internet Explorer,iexplore.exe
 16422,Windows Media Player,wmplayer.exe
 16422,Windows NT\Accessories,wordpad.exe
+16427,Microsoft Shared\Ink,inkobj.dll
 16427,System\OLE DB,oledb32.dll
 16427,System\OLE DB,msdaps.dll
 16427,System\OLE DB,msdasql.dll
@@ -817,7 +822,7 @@ HKLM,SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x86,"Version",2,"14.42.344
 11,,notepad.exe
 11,,winetest.exe,-
 ; themes
-10,resources\themes\light,light.msstyles
+10,resources\themes\aero,aero.msstyles
 ; skip .NET fake dlls in Wine Mono package
 11,,aspnet_regiis.exe,-
 11,,ngen.exe,-
@@ -852,6 +857,7 @@ HKLM,SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x86,"Version",2,"14.42.344
 16422,Windows Media Player,wmplayer.exe
 16422,Windows NT\Accessories,wordpad.exe
 16427,Microsoft Shared\TextConv,
+16427,Microsoft Shared\Ink,inkobj.dll
 16427,System\OLE DB,oledb32.dll
 16427,System\OLE DB,msdaps.dll
 16427,System\OLE DB,msdasql.dll
@@ -882,6 +888,8 @@ system.ini, drivers32,,"vidc.mrle=msrle32.dll"
 system.ini, drivers32,,"vidc.msvc=msvidc32.dll"
 system.ini, drivers32,,"vidc.cvid=iccvid.dll"
 system.ini, drivers32,,"vidc.IV50=ir50_32.dll"
+system.ini, drivers32,,"vidc.i420=iyuv_32.dll"
+system.ini, drivers32,,"vidc.iyuv=iyuv_32.dll"
 system.ini, drivers32,,"; vidc.IV31=ir32_32.dll"
 system.ini, drivers32,,"; vidc.IV32=ir32_32.dll"
 
@@ -1004,7 +1012,7 @@ ErrorControl=1
 
 [ThemeManager]
 HKCU,"Software\Microsoft\Windows\CurrentVersion\ThemeManager","ThemeActive",2,"1"
-HKCU,"Software\Microsoft\Windows\CurrentVersion\ThemeManager","DllName",2,"%10%\resources\themes\light\light.msstyles"
+HKCU,"Software\Microsoft\Windows\CurrentVersion\ThemeManager","DllName",2,"%10%\resources\themes\aero\aero.msstyles"
 HKCU,"Software\Microsoft\Windows\CurrentVersion\ThemeManager","ColorName",2,"Blue"
 HKCU,"Software\Microsoft\Windows\CurrentVersion\ThemeManager","SizeName",2,"NormalSize"
 

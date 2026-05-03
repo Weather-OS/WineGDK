@@ -665,7 +665,8 @@ static HRESULT WINAPI transform_ProcessOutput(IMFTransform *iface, DWORD flags, 
     if (!samples->pSample)
         return E_INVALIDARG;
 
-    if (SUCCEEDED(hr = wg_transform_read_mf(impl->wg_transform, samples->pSample, &samples->dwStatus, NULL)))
+    if (SUCCEEDED(hr = wg_transform_read_mf(impl->wg_transform, samples->pSample,
+            impl->output_info.cbSize, &samples->dwStatus, NULL)))
         wg_sample_queue_flush(impl->wg_sample_queue, false);
 
     return hr;
@@ -1036,4 +1037,20 @@ HRESULT color_convert_create(IUnknown *outer, IUnknown **out)
     *out = &impl->IUnknown_inner;
     TRACE("Created %p\n", *out);
     return S_OK;
+}
+
+HRESULT WINAPI winegstreamer_create_color_converter(IMFTransform **out)
+{
+    IUnknown *unknown;
+    HRESULT hr;
+
+    TRACE("out %p.\n", out);
+
+    if (!init_gstreamer())
+        return E_FAIL;
+
+    if (FAILED(hr = color_convert_create(NULL, &unknown)))
+        return hr;
+
+    return IUnknown_QueryInterface(unknown, &IID_IMFTransform, (void**)out);
 }

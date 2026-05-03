@@ -2333,6 +2333,18 @@ int WINAPI WSCInstallProvider( GUID *provider, const WCHAR *path,
     return 0;
 }
 
+/***********************************************************************
+ *      WSCInstallProvider64_32   (ws2_32.@)
+ */
+int WINAPI WSCInstallProvider64_32( GUID *provider, const WCHAR *path,
+                                    WSAPROTOCOL_INFOW *protocol_info, DWORD count, int *err )
+{
+    FIXME( "(%s, %s, %p, %lu, %p): stub !\n", debugstr_guid(provider),
+           debugstr_w(path), protocol_info, count, err );
+    *err = 0;
+    return 0;
+}
+
 
 /***********************************************************************
  *      WSCDeinstallProvider   (ws2_32.@)

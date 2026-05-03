@@ -1822,8 +1822,10 @@ enum server_fd_type
     unsigned int flags;         /* SEC_* flags */
     obj_handle_t shared_file;   /* shared mapping file handle */
     data_size_t  name_len;      /* length of file name  */
+    data_size_t  ver_len;       /* length of version resource  */
     data_size_t  total;         /* total required buffer size in bytes */
     VARARG(image,pe_image_info);/* image info for SEC_IMAGE mappings */
+    VARARG(version,version_res,ver_len);/* version resource for SEC_IMAGE mappings */
     VARARG(name,unicode_str,name_len);  /* filename for SEC_IMAGE mappings */
     VARARG(exp_name,string);    /* exported name for SEC_IMAGE mappings */
 @END
@@ -3095,10 +3097,11 @@ enum coords_relative
 @END
 
 
-/* Get the time of the last input event */
-@REQ(get_last_input_time)
+/* Get/Set the time of the input event */
+@REQ(set_user_input_time)
+    int          set;             /* update queue input time */
 @REPLY
-    unsigned int time;
+    unsigned int time;            /* time of the last session-wide user input */
 @END
 
 

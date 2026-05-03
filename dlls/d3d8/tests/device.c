@@ -2094,11 +2094,7 @@ static void test_reset(void)
 
     hr = IDirect3D8_CreateDevice(d3d8, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL,
             window, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &d3dpp, &device2);
-    if (FAILED(hr))
-    {
-        skip("Failed to create device, hr %#lx.\n", hr);
-        goto cleanup;
-    }
+    ok(hr == S_OK, "Got hr %#lx.\n", hr);
 
     hr = IDirect3DDevice8_TestCooperativeLevel(device2);
     ok(SUCCEEDED(hr), "TestCooperativeLevel failed, hr %#lx.\n", hr);
@@ -2113,14 +2109,11 @@ static void test_reset(void)
 
     hr = IDirect3DDevice8_Reset(device2, &d3dpp);
     ok(SUCCEEDED(hr), "Reset failed, hr %#lx.\n", hr);
-    if (FAILED(hr))
-        goto cleanup;
 
     hr = IDirect3DDevice8_GetDepthStencilSurface(device2, &surface);
     ok(SUCCEEDED(hr), "GetDepthStencilSurface failed, hr %#lx.\n", hr);
     ok(!!surface, "Depth / stencil buffer should not be NULL.\n");
-    if (surface)
-        IDirect3DSurface8_Release(surface);
+    IDirect3DSurface8_Release(surface);
 
 cleanup:
     free(modes);

@@ -11735,9 +11735,9 @@ static void test_method_vs_getter(IHTMLDocument2 *doc)
 {
     DISPPARAMS dp = { 0 };
     IDispatchEx *dispex;
+    VARIANT v, arg;
     DISPID dispid;
     HRESULT hres;
-    VARIANT v;
     BSTR bstr;
 
     hres = IHTMLDocument2_QueryInterface(doc, &IID_IDispatchEx, (void**)&dispex);
@@ -11785,6 +11785,15 @@ static void test_method_vs_getter(IHTMLDocument2 *doc)
     }
     VariantClear(&v);
 
+    dp.cArgs = 1;
+    dp.rgvarg = &arg;
+    V_VT(&arg) = VT_I4;
+    V_I4(&arg) = 42;
+    hres = IDispatchEx_InvokeEx(dispex, dispid, LOCALE_NEUTRAL, DISPATCH_METHOD | DISPATCH_PROPERTYGET, &dp, &v, NULL, NULL);
+    ok(hres == S_OK, "InvokeEx failed: %08lx\n", hres);
+    ok(V_VT(&v) == VT_EMPTY, "V_VT = %d\n", V_VT(&v));
+
+    dp.cArgs = 0;
     hres = IDispatchEx_InvokeEx(dispex, dispid, LOCALE_NEUTRAL, DISPATCH_PROPERTYGET, &dp, &v, NULL, NULL);
     ok(hres == S_OK, "InvokeEx failed: %08lx\n", hres);
     ok(V_VT(&v) == VT_DISPATCH, "V_VT = %d\n", V_VT(&v));

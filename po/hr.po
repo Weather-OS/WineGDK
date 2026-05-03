@@ -40,6 +40,16 @@ msgstr ""
 msgid "Permissions for %1"
 msgstr "Pristup odbijen.\n"
 
+#: dlls/aero.msstyles/aero.rc:29 dlls/aero.msstyles/aero.rc:35
+#: dlls/comdlg32/comdlg32.rc:134 programs/wordpad/wordpad.rc:137
+msgid "Blue"
+msgstr "Plava"
+
+#: dlls/aero.msstyles/aero.rc:41 dlls/aero.msstyles/aero.rc:47
+#: programs/winhlp32/winhlp32.rc:53 programs/winhlp32/winhlp32.rc:73
+msgid "Normal"
+msgstr "Normalan"
+
 #: dlls/appwiz.cpl/appwiz.rc:60
 msgid "Install/Uninstall"
 msgstr "Instaliraj/Ukloni"
@@ -77,7 +87,7 @@ msgstr "I&zmjeni..."
 
 #: dlls/appwiz.cpl/appwiz.rc:71 dlls/appwiz.cpl/appwiz.rc:45
 #: dlls/cryptui/cryptui.rc:351 dlls/msacm32/msacm32.rc:40
-#: programs/winecfg/winecfg.rc:205 programs/winecfg/winecfg.rc:242
+#: programs/winecfg/winecfg.rc:206 programs/winecfg/winecfg.rc:243
 #: programs/wordpad/wordpad.rc:256
 msgid "&Remove"
 msgstr "&Ukloni"
@@ -114,7 +124,7 @@ msgstr "Informacije o podršci"
 #: programs/regedit/regedit.rc:325 programs/regedit/regedit.rc:341
 #: programs/regedit/regedit.rc:354 programs/regedit/regedit.rc:367
 #: programs/taskmgr/taskmgr.rc:442 programs/taskmgr/taskmgr.rc:517
-#: programs/winecfg/winecfg.rc:219 programs/winecfg/winecfg.rc:229
+#: programs/winecfg/winecfg.rc:220 programs/winecfg/winecfg.rc:230
 #: programs/winefile/winefile.rc:127 programs/winefile/winefile.rc:150
 #: programs/winefile/winefile.rc:180 programs/winemine/winemine.rc:73
 #: programs/winemine/winemine.rc:84 programs/winemine/winemine.rc:98
@@ -220,7 +230,7 @@ msgstr "&Instaliraj"
 #: programs/regedit/regedit.rc:342 programs/regedit/regedit.rc:355
 #: programs/regedit/regedit.rc:368 programs/taskmgr/taskmgr.rc:443
 #: programs/taskmgr/taskmgr.rc:518 programs/wineboot/wineboot.rc:34
-#: programs/winecfg/winecfg.rc:220 programs/winecfg/winecfg.rc:230
+#: programs/winecfg/winecfg.rc:221 programs/winecfg/winecfg.rc:231
 #: programs/winefile/winefile.rc:128 programs/winefile/winefile.rc:151
 #: programs/winefile/winefile.rc:181 programs/winemine/winemine.rc:99
 #: programs/wordpad/wordpad.rc:216 programs/wordpad/wordpad.rc:227
@@ -720,7 +730,7 @@ msgid "Font St&yle:"
 msgstr "Sti&l Fonta:"
 
 #: dlls/comdlg32/comdlg32.rc:260 dlls/comdlg32/comdlg32.rc:439
-#: programs/winecfg/winecfg.rc:302
+#: programs/winecfg/winecfg.rc:303
 msgid "&Size:"
 msgstr "&Veličina:"
 
@@ -736,7 +746,7 @@ msgstr "Pre&crtano"
 msgid "&Underline"
 msgstr "Po&dcrtano"
 
-#: dlls/comdlg32/comdlg32.rc:270 programs/winecfg/winecfg.rc:300
+#: dlls/comdlg32/comdlg32.rc:270 programs/winecfg/winecfg.rc:301
 msgid "&Color:"
 msgstr "&Boja:"
 
@@ -915,7 +925,7 @@ msgstr "Broj kopija:"
 msgid "C&ollate"
 msgstr "Sra&vniti"
 
-#: dlls/comdlg32/comdlg32.rc:414 programs/winecfg/winecfg.rc:308
+#: dlls/comdlg32/comdlg32.rc:414 programs/winecfg/winecfg.rc:309
 msgid "Si&ze:"
 msgstr "Veli&čina:"
 
@@ -993,7 +1003,7 @@ msgstr "Nazi&v datoteke:"
 msgid "Files of type:"
 msgstr "Datoteke tipa:"
 
-#: dlls/comdlg32/comdlg32.rc:33 dlls/vbscript/vbscript.rc:35
+#: dlls/comdlg32/comdlg32.rc:33 dlls/vbscript/vbscript.rc:37
 msgid "File not found"
 msgstr "Datoteka nije pronađena"
 
@@ -1125,11 +1135,6 @@ msgstr "Limun zelena"
 #: dlls/comdlg32/comdlg32.rc:133 programs/wordpad/wordpad.rc:136
 msgid "Yellow"
 msgstr "Žuta"
-
-#: dlls/comdlg32/comdlg32.rc:134 dlls/light.msstyles/light.rc:29
-#: dlls/light.msstyles/light.rc:35 programs/wordpad/wordpad.rc:137
-msgid "Blue"
-msgstr "Plava"
 
 #: dlls/comdlg32/comdlg32.rc:135 programs/wordpad/wordpad.rc:138
 msgid "Fuchsia"
@@ -2461,7 +2466,7 @@ msgid "&File name:"
 msgstr "Naziv &datoteke:"
 
 #: dlls/cryptui/cryptui.rc:301 dlls/cryptui/cryptui.rc:323
-#: dlls/cryptui/cryptui.rc:437 programs/winecfg/winecfg.rc:321
+#: dlls/cryptui/cryptui.rc:437 programs/winecfg/winecfg.rc:322
 msgid "B&rowse..."
 msgstr "N&ađi..."
 
@@ -3855,11 +3860,19 @@ msgstr "Indeks"
 msgid "Indeo Video Interactive version 5 video codec"
 msgstr "Wine Video 1 video codec"
 
+#: dlls/iyuv_32/iyuv_32.rc:28
+msgid "IYUV codec"
+msgstr ""
+
+#: dlls/iyuv_32/iyuv_32.rc:29
+msgid "Intel Indeo IYUV codec"
+msgstr ""
+
 #: dlls/joy.cpl/joy.rc:37
 msgid "Joysticks"
 msgstr "Joystici"
 
-#: dlls/joy.cpl/joy.rc:40 programs/winecfg/winecfg.rc:218
+#: dlls/joy.cpl/joy.rc:40 programs/winecfg/winecfg.rc:219
 msgid "&Disable"
 msgstr "&Isključi"
 
@@ -4020,13 +4033,13 @@ msgstr "Nevažeći poziv procedure ili argumenta"
 msgid "Subscript out of range"
 msgstr "Potpis je van dometa"
 
-#: dlls/jscript/jscript.rc:31
+#: dlls/jscript/jscript.rc:31 dlls/vbscript/vbscript.rc:36
 #, fuzzy
 #| msgid "Out of paper; "
 msgid "Out of stack space"
 msgstr "Nema papira; "
 
-#: dlls/jscript/jscript.rc:32
+#: dlls/jscript/jscript.rc:32 dlls/vbscript/vbscript.rc:49
 msgid "Object required"
 msgstr "Potreban objekt"
 
@@ -4034,25 +4047,25 @@ msgstr "Potreban objekt"
 msgid "Automation server can't create object"
 msgstr "Poslužitelj automatizacije ne može stvoriti objekt"
 
-#: dlls/jscript/jscript.rc:34 dlls/vbscript/vbscript.rc:49
+#: dlls/jscript/jscript.rc:34 dlls/vbscript/vbscript.rc:53
 msgid "Object doesn't support this property or method"
 msgstr "Objekt ne podržava ovo svojstvo ili metodu"
 
-#: dlls/jscript/jscript.rc:35 dlls/vbscript/vbscript.rc:50
+#: dlls/jscript/jscript.rc:35 dlls/vbscript/vbscript.rc:54
 msgid "Object doesn't support this action"
 msgstr "Objekt ne podržava ovu radnju"
 
-#: dlls/jscript/jscript.rc:36 dlls/vbscript/vbscript.rc:54
+#: dlls/jscript/jscript.rc:36 dlls/vbscript/vbscript.rc:58
 msgid "Argument not optional"
 msgstr "Argument nije opcionalan"
 
-#: dlls/jscript/jscript.rc:37 dlls/vbscript/vbscript.rc:56
+#: dlls/jscript/jscript.rc:37 dlls/vbscript/vbscript.rc:60
 #, fuzzy
 #| msgid "Object Class Violation"
 msgid "Object not a collection"
 msgstr "Kršenje klase objekata"
 
-#: dlls/jscript/jscript.rc:38
+#: dlls/jscript/jscript.rc:38 dlls/vbscript/vbscript.rc:69
 msgid "Syntax error"
 msgstr "Greška u sintaksi"
 
@@ -4060,31 +4073,31 @@ msgstr "Greška u sintaksi"
 msgid "Expected ';'"
 msgstr "Očekivano ';'"
 
-#: dlls/jscript/jscript.rc:40
+#: dlls/jscript/jscript.rc:40 dlls/vbscript/vbscript.rc:70
 msgid "Expected '('"
 msgstr "Očekivano '('"
 
-#: dlls/jscript/jscript.rc:41
+#: dlls/jscript/jscript.rc:41 dlls/vbscript/vbscript.rc:72
 msgid "Expected ')'"
 msgstr "Očekivano ')'"
 
-#: dlls/jscript/jscript.rc:42
+#: dlls/jscript/jscript.rc:42 dlls/vbscript/vbscript.rc:73
 #, fuzzy
 #| msgid "Expected an operand.\n"
 msgid "Expected identifier"
 msgstr "Očekivan operand.\n"
 
-#: dlls/jscript/jscript.rc:43
+#: dlls/jscript/jscript.rc:43 dlls/vbscript/vbscript.rc:74
 #, fuzzy
 #| msgid "Expected ';'"
 msgid "Expected '='"
 msgstr "Očekivano ';'"
 
-#: dlls/jscript/jscript.rc:44
+#: dlls/jscript/jscript.rc:44 dlls/vbscript/vbscript.rc:93
 msgid "Invalid character"
 msgstr "Neispravan znak"
 
-#: dlls/jscript/jscript.rc:45
+#: dlls/jscript/jscript.rc:45 dlls/vbscript/vbscript.rc:94
 msgid "Unterminated string constant"
 msgstr "Nezavršen niz znakova"
 
@@ -4132,7 +4145,7 @@ msgstr ""
 msgid "Microsoft JScript runtime error"
 msgstr ""
 
-#: dlls/jscript/jscript.rc:99 dlls/vbscript/vbscript.rc:64
+#: dlls/jscript/jscript.rc:99 dlls/vbscript/vbscript.rc:118
 #, fuzzy
 #| msgid "Unknown error"
 msgid "Unknown runtime error"
@@ -4160,7 +4173,7 @@ msgstr "'[object]' nije vremenski objekt"
 msgid "Object expected"
 msgstr "Očekivan objekt"
 
-#: dlls/jscript/jscript.rc:59
+#: dlls/jscript/jscript.rc:59 dlls/vbscript/vbscript.rc:66
 msgid "Illegal assignment"
 msgstr "Nedozvoljeno pridruživanje"
 
@@ -4376,3056 +4389,3180 @@ msgstr ""
 msgid "Armenian"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:28
+#: dlls/kernelbase/winerror.mc:30
 msgid "Success.\n"
 msgstr "Uspjeh.\n"
 
-#: dlls/kernelbase/winerror.mc:33
+#: dlls/kernelbase/winerror.mc:35
 msgid "Invalid function.\n"
 msgstr "Neispravna funkcija.\n"
 
-#: dlls/kernelbase/winerror.mc:38
+#: dlls/kernelbase/winerror.mc:40
 msgid "File not found.\n"
 msgstr "Datoteka nije pronađena.\n"
 
-#: dlls/kernelbase/winerror.mc:43
+#: dlls/kernelbase/winerror.mc:45
 msgid "Path not found.\n"
 msgstr "Putanja nije pronađena.\n"
 
-#: dlls/kernelbase/winerror.mc:48 dlls/kernelbase/winerror.mc:3773
+#: dlls/kernelbase/winerror.mc:50 dlls/kernelbase/winerror.mc:3895
 msgid "Too many open files.\n"
 msgstr "Previše otvorenih datoteka.\n"
 
-#: dlls/kernelbase/winerror.mc:53 dlls/kernelbase/winerror.mc:3758
+#: dlls/kernelbase/winerror.mc:55 dlls/kernelbase/winerror.mc:3880
 msgid "Access denied.\n"
 msgstr "Pristup odbijen.\n"
 
-#: dlls/kernelbase/winerror.mc:58
+#: dlls/kernelbase/winerror.mc:60
 msgid "Invalid handle.\n"
 msgstr "Neispravna poveznica.\n"
 
-#: dlls/kernelbase/winerror.mc:63
+#: dlls/kernelbase/winerror.mc:65
 msgid "Memory trashed.\n"
 msgstr "Memorija razbacana.\n"
 
-#: dlls/kernelbase/winerror.mc:68
+#: dlls/kernelbase/winerror.mc:70
 msgid "Not enough memory.\n"
 msgstr "Nema više memorije.\n"
 
-#: dlls/kernelbase/winerror.mc:73
+#: dlls/kernelbase/winerror.mc:75
 msgid "Invalid block.\n"
 msgstr "Neispravan blok.\n"
 
-#: dlls/kernelbase/winerror.mc:78
+#: dlls/kernelbase/winerror.mc:80
 msgid "Bad environment.\n"
 msgstr "Loša okolina.\n"
 
-#: dlls/kernelbase/winerror.mc:83
+#: dlls/kernelbase/winerror.mc:85
 msgid "Bad format.\n"
 msgstr "Loš format.\n"
 
-#: dlls/kernelbase/winerror.mc:88
+#: dlls/kernelbase/winerror.mc:90
 msgid "Invalid access.\n"
 msgstr "Neispravan pristup.\n"
 
-#: dlls/kernelbase/winerror.mc:93
+#: dlls/kernelbase/winerror.mc:95
 msgid "Invalid data.\n"
 msgstr "Neispravni podaci.\n"
 
-#: dlls/kernelbase/winerror.mc:98
+#: dlls/kernelbase/winerror.mc:100
 msgid "Out of memory.\n"
 msgstr "Nema više memorije.\n"
 
-#: dlls/kernelbase/winerror.mc:103
+#: dlls/kernelbase/winerror.mc:105
 msgid "Invalid drive.\n"
 msgstr "Neispravni pogon.\n"
 
-#: dlls/kernelbase/winerror.mc:108
+#: dlls/kernelbase/winerror.mc:110
 msgid "Can't delete current directory.\n"
 msgstr "Ne mogu obrisati trenutni direktorij.\n"
 
-#: dlls/kernelbase/winerror.mc:113
+#: dlls/kernelbase/winerror.mc:115
 msgid "Not same device.\n"
 msgstr "Nije isti uređdaj.\n"
 
-#: dlls/kernelbase/winerror.mc:118
+#: dlls/kernelbase/winerror.mc:120
 msgid "No more files.\n"
 msgstr "Nema više datoteka.\n"
 
-#: dlls/kernelbase/winerror.mc:123
+#: dlls/kernelbase/winerror.mc:125
 msgid "Write protected.\n"
 msgstr "Zaštićeno od pisanja.\n"
 
-#: dlls/kernelbase/winerror.mc:128
+#: dlls/kernelbase/winerror.mc:130
 msgid "Bad unit.\n"
 msgstr "Loša jedinica.\n"
 
-#: dlls/kernelbase/winerror.mc:133
+#: dlls/kernelbase/winerror.mc:135
 msgid "Not ready.\n"
 msgstr "Nespreman.\n"
 
-#: dlls/kernelbase/winerror.mc:138
+#: dlls/kernelbase/winerror.mc:140
 msgid "Bad command.\n"
 msgstr "Loša naredba.\n"
 
-#: dlls/kernelbase/winerror.mc:143
+#: dlls/kernelbase/winerror.mc:145
 msgid "CRC error.\n"
 msgstr "CRC pogreška.\n"
 
-#: dlls/kernelbase/winerror.mc:148
+#: dlls/kernelbase/winerror.mc:150
 msgid "Bad length.\n"
 msgstr "Loša duljina.\n"
 
-#: dlls/kernelbase/winerror.mc:153 dlls/kernelbase/winerror.mc:528
+#: dlls/kernelbase/winerror.mc:155 dlls/kernelbase/winerror.mc:530
 msgid "Seek error.\n"
 msgstr "Greška tijekom pretrage.\n"
 
-#: dlls/kernelbase/winerror.mc:158
+#: dlls/kernelbase/winerror.mc:160
 msgid "Not DOS disk.\n"
 msgstr "Nije DOS disk.\n"
 
-#: dlls/kernelbase/winerror.mc:163
+#: dlls/kernelbase/winerror.mc:165
 msgid "Sector not found.\n"
 msgstr "Sektor nije pronađen.\n"
 
-#: dlls/kernelbase/winerror.mc:168
+#: dlls/kernelbase/winerror.mc:170
 msgid "Out of paper.\n"
 msgstr "Nema papira.\n"
 
-#: dlls/kernelbase/winerror.mc:173
+#: dlls/kernelbase/winerror.mc:175
 msgid "Write fault.\n"
 msgstr "Greška prilikom pisanja.\n"
 
-#: dlls/kernelbase/winerror.mc:178
+#: dlls/kernelbase/winerror.mc:180
 msgid "Read fault.\n"
 msgstr "Greška prilikon čitanja.\n"
 
-#: dlls/kernelbase/winerror.mc:183
+#: dlls/kernelbase/winerror.mc:185
 msgid "General failure.\n"
 msgstr "Opća greška.\n"
 
-#: dlls/kernelbase/winerror.mc:188
+#: dlls/kernelbase/winerror.mc:190
 msgid "Sharing violation.\n"
 msgstr "Povreda dijeljenja.\n"
 
-#: dlls/kernelbase/winerror.mc:193
+#: dlls/kernelbase/winerror.mc:195
 msgid "Lock violation.\n"
 msgstr "Povreda zaključavanja.\n"
 
-#: dlls/kernelbase/winerror.mc:198
+#: dlls/kernelbase/winerror.mc:200
 msgid "Wrong disk.\n"
 msgstr "Krivi disk.\n"
 
-#: dlls/kernelbase/winerror.mc:203
+#: dlls/kernelbase/winerror.mc:205
 msgid "Sharing buffer exceeded.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:208
+#: dlls/kernelbase/winerror.mc:210
 msgid "End of file.\n"
 msgstr "Kraj datoteke.\n"
 
-#: dlls/kernelbase/winerror.mc:213 dlls/kernelbase/winerror.mc:438
+#: dlls/kernelbase/winerror.mc:215 dlls/kernelbase/winerror.mc:440
 msgid "Disk full.\n"
 msgstr "Disk pun.\n"
 
-#: dlls/kernelbase/winerror.mc:218
+#: dlls/kernelbase/winerror.mc:220
 msgid "Request not supported.\n"
 msgstr "Zahtjev nije podržan.\n"
 
-#: dlls/kernelbase/winerror.mc:223
+#: dlls/kernelbase/winerror.mc:225
 msgid "Remote machine not listening.\n"
 msgstr "Udaljeno računalo ne sluša.\n"
 
-#: dlls/kernelbase/winerror.mc:228
+#: dlls/kernelbase/winerror.mc:230
 msgid "Duplicate network name.\n"
 msgstr "Dvostruki naziv mrežne.\n"
 
-#: dlls/kernelbase/winerror.mc:233
+#: dlls/kernelbase/winerror.mc:235
 msgid "Bad network path.\n"
 msgstr "Loša mrežna putanja.\n"
 
-#: dlls/kernelbase/winerror.mc:238
+#: dlls/kernelbase/winerror.mc:240
 msgid "Network busy.\n"
 msgstr "Mreža zauzeta.\n"
 
-#: dlls/kernelbase/winerror.mc:243
+#: dlls/kernelbase/winerror.mc:245
 msgid "Device does not exist.\n"
 msgstr "Uređaj ne postoji.\n"
 
-#: dlls/kernelbase/winerror.mc:248
+#: dlls/kernelbase/winerror.mc:250
 msgid "Too many commands.\n"
 msgstr "Previše naredbi.\n"
 
-#: dlls/kernelbase/winerror.mc:253
+#: dlls/kernelbase/winerror.mc:255
 msgid "Adapter hardware error.\n"
 msgstr "Greška hardverskog adaptera.\n"
 
-#: dlls/kernelbase/winerror.mc:258
+#: dlls/kernelbase/winerror.mc:260
 msgid "Bad network response.\n"
 msgstr "Loš mrežni odgovor.\n"
 
-#: dlls/kernelbase/winerror.mc:263
+#: dlls/kernelbase/winerror.mc:265
 msgid "Unexpected network error.\n"
 msgstr "Neočekivana mrežna greška.\n"
 
-#: dlls/kernelbase/winerror.mc:268
+#: dlls/kernelbase/winerror.mc:270
 msgid "Bad remote adapter.\n"
 msgstr "Loš udaljeni adapter.\n"
 
-#: dlls/kernelbase/winerror.mc:273
+#: dlls/kernelbase/winerror.mc:275
 msgid "Print queue full.\n"
 msgstr "Pun red za ispis.\n"
 
-#: dlls/kernelbase/winerror.mc:278
+#: dlls/kernelbase/winerror.mc:280
 msgid "No spool space.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:283
+#: dlls/kernelbase/winerror.mc:285
 msgid "Print canceled.\n"
 msgstr "Ispis otkazan.\n"
 
-#: dlls/kernelbase/winerror.mc:288
+#: dlls/kernelbase/winerror.mc:290
 msgid "Network name deleted.\n"
 msgstr "Mrežno ime izbrisano.\n"
 
-#: dlls/kernelbase/winerror.mc:293
+#: dlls/kernelbase/winerror.mc:295
 msgid "Network access denied.\n"
 msgstr "Mrežni pristup odbijen.\n"
 
-#: dlls/kernelbase/winerror.mc:298
+#: dlls/kernelbase/winerror.mc:300
 msgid "Bad device type.\n"
 msgstr "Nevaljan tip uređaja.\n"
 
-#: dlls/kernelbase/winerror.mc:303
+#: dlls/kernelbase/winerror.mc:305
 msgid "Bad network name.\n"
 msgstr "Loše mrežno ime.\n"
 
-#: dlls/kernelbase/winerror.mc:308
+#: dlls/kernelbase/winerror.mc:310
 msgid "Too many network names.\n"
 msgstr "Previše mrežnih imena.\n"
 
-#: dlls/kernelbase/winerror.mc:313
+#: dlls/kernelbase/winerror.mc:315
 msgid "Too many network sessions.\n"
 msgstr "Previše mrežnih sjednica.\n"
 
-#: dlls/kernelbase/winerror.mc:318
+#: dlls/kernelbase/winerror.mc:320
 msgid "Sharing paused.\n"
 msgstr "Dijeljenje pauzirano.\n"
 
-#: dlls/kernelbase/winerror.mc:323
+#: dlls/kernelbase/winerror.mc:325
 msgid "Request not accepted.\n"
 msgstr "Zahtjev nije prihvaćen.\n"
 
-#: dlls/kernelbase/winerror.mc:328
+#: dlls/kernelbase/winerror.mc:330
 msgid "Redirector paused.\n"
 msgstr "Preusmjerivač pauziran.\n"
 
-#: dlls/kernelbase/winerror.mc:333
+#: dlls/kernelbase/winerror.mc:335
 msgid "File exists.\n"
 msgstr "Datoteka postoji.\n"
 
-#: dlls/kernelbase/winerror.mc:338
+#: dlls/kernelbase/winerror.mc:340
 msgid "Cannot create.\n"
 msgstr "Ne mogu stvoriti.\n"
 
-#: dlls/kernelbase/winerror.mc:343
+#: dlls/kernelbase/winerror.mc:345
 msgid "Int24 failure.\n"
 msgstr "Int24 greška.\n"
 
-#: dlls/kernelbase/winerror.mc:348
+#: dlls/kernelbase/winerror.mc:350
 msgid "Out of structures.\n"
 msgstr "Nema više struktura.\n"
 
-#: dlls/kernelbase/winerror.mc:353
+#: dlls/kernelbase/winerror.mc:355
 msgid "Already assigned.\n"
 msgstr "Već pridruženo.\n"
 
-#: dlls/kernelbase/winerror.mc:358 dlls/kernelbase/winerror.mc:1713
+#: dlls/kernelbase/winerror.mc:360 dlls/kernelbase/winerror.mc:1830
 msgid "Invalid password.\n"
 msgstr "Neispravna lozinka.\n"
 
-#: dlls/kernelbase/winerror.mc:363
+#: dlls/kernelbase/winerror.mc:365
 msgid "Invalid parameter.\n"
 msgstr "Neispravan parametar.\n"
 
-#: dlls/kernelbase/winerror.mc:368
+#: dlls/kernelbase/winerror.mc:370
 msgid "Net write fault.\n"
 msgstr "Greška u mrežnom pisanju.\n"
 
-#: dlls/kernelbase/winerror.mc:373
+#: dlls/kernelbase/winerror.mc:375
 msgid "No process slots.\n"
 msgstr "Nema više mjesta za procese.\n"
 
-#: dlls/kernelbase/winerror.mc:378
+#: dlls/kernelbase/winerror.mc:380
 msgid "Too many semaphores.\n"
 msgstr "Previše semafora.\n"
 
-#: dlls/kernelbase/winerror.mc:383
+#: dlls/kernelbase/winerror.mc:385
 msgid "Exclusive semaphore already owned.\n"
 msgstr "Ekslukzivan semafor već ima vlasnika.\n"
 
-#: dlls/kernelbase/winerror.mc:388
+#: dlls/kernelbase/winerror.mc:390
 msgid "Semaphore is set.\n"
 msgstr "Semafor je postavljen.\n"
 
-#: dlls/kernelbase/winerror.mc:393
+#: dlls/kernelbase/winerror.mc:395
 msgid "Too many semaphore requests.\n"
 msgstr "Previše zahtjeva za semafor.\n"
 
-#: dlls/kernelbase/winerror.mc:398
+#: dlls/kernelbase/winerror.mc:400
 msgid "Invalid at interrupt time.\n"
 msgstr "Neispravan u trenutku prekida.\n"
 
-#: dlls/kernelbase/winerror.mc:403
+#: dlls/kernelbase/winerror.mc:405
 msgid "Semaphore owner died.\n"
 msgstr "Vlasnik semafora je umro.\n"
 
-#: dlls/kernelbase/winerror.mc:408
+#: dlls/kernelbase/winerror.mc:410
 msgid "Semaphore user limit.\n"
 msgstr "Korisničko ograničenje broja semafora.\n"
 
-#: dlls/kernelbase/winerror.mc:413
+#: dlls/kernelbase/winerror.mc:415
 msgid "Insert disk for drive %1.\n"
 msgstr "Ubacite disk za pogon %1.\n"
 
-#: dlls/kernelbase/winerror.mc:418
+#: dlls/kernelbase/winerror.mc:420
 msgid "Drive locked.\n"
 msgstr "Pogon zaključan.\n"
 
-#: dlls/kernelbase/winerror.mc:423
+#: dlls/kernelbase/winerror.mc:425
 msgid "Broken pipe.\n"
 msgstr "Slomljen cjevovod.\n"
 
-#: dlls/kernelbase/winerror.mc:428
+#: dlls/kernelbase/winerror.mc:430
 msgid "Open failed.\n"
 msgstr "Otvaranje neuspješno.\n"
 
-#: dlls/kernelbase/winerror.mc:433
+#: dlls/kernelbase/winerror.mc:435
 msgid "Buffer overflow.\n"
 msgstr "Prekoračenje kapaciteta međuspremnika.\n"
 
-#: dlls/kernelbase/winerror.mc:443
+#: dlls/kernelbase/winerror.mc:445
 msgid "No more search handles.\n"
 msgstr "Nema više poveznica pretraga.\n"
 
-#: dlls/kernelbase/winerror.mc:448
+#: dlls/kernelbase/winerror.mc:450
 msgid "Invalid target handle.\n"
 msgstr "Neispravna ciljana poveznica.\n"
 
-#: dlls/kernelbase/winerror.mc:453
+#: dlls/kernelbase/winerror.mc:455
 msgid "Invalid IOCTL.\n"
 msgstr "Neispravni IOCTL.\n"
 
-#: dlls/kernelbase/winerror.mc:458
+#: dlls/kernelbase/winerror.mc:460
 msgid "Invalid verify switch.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:463
+#: dlls/kernelbase/winerror.mc:465
 msgid "Bad driver level.\n"
 msgstr "Loša razina drivera.\n"
 
-#: dlls/kernelbase/winerror.mc:468
+#: dlls/kernelbase/winerror.mc:470
 msgid "Call not implemented.\n"
 msgstr "Poziv nije implementiran.\n"
 
-#: dlls/kernelbase/winerror.mc:473
+#: dlls/kernelbase/winerror.mc:475
 msgid "Semaphore timeout.\n"
 msgstr "Semafor istekao.\n"
 
-#: dlls/kernelbase/winerror.mc:478
+#: dlls/kernelbase/winerror.mc:480
 msgid "Insufficient buffer.\n"
 msgstr "Nedovoljan međuspremnik.\n"
 
-#: dlls/kernelbase/winerror.mc:483 dlls/mferror/mferror.mc:109
+#: dlls/kernelbase/winerror.mc:485 dlls/mferror/mferror.mc:109
 msgid "Invalid name.\n"
 msgstr "Neispravno ime.\n"
 
-#: dlls/kernelbase/winerror.mc:488
+#: dlls/kernelbase/winerror.mc:490
 msgid "Invalid level.\n"
 msgstr "Neispravna razina.\n"
 
-#: dlls/kernelbase/winerror.mc:493
+#: dlls/kernelbase/winerror.mc:495
 msgid "No volume label.\n"
 msgstr "Jedinica nema oznaku.\n"
 
-#: dlls/kernelbase/winerror.mc:498
+#: dlls/kernelbase/winerror.mc:500
 msgid "Module not found.\n"
 msgstr "Modul nije pronađen.\n"
 
-#: dlls/kernelbase/winerror.mc:503
+#: dlls/kernelbase/winerror.mc:505
 msgid "Procedure not found.\n"
 msgstr "Procedura nije pronađena.\n"
 
-#: dlls/kernelbase/winerror.mc:508
+#: dlls/kernelbase/winerror.mc:510
 msgid "No children to wait for.\n"
 msgstr "Nema djece koju treba čekati.\n"
 
-#: dlls/kernelbase/winerror.mc:513
+#: dlls/kernelbase/winerror.mc:515
 msgid "Child process has not completed.\n"
 msgstr "Proces dijete nije završio.\n"
 
-#: dlls/kernelbase/winerror.mc:518
+#: dlls/kernelbase/winerror.mc:520
 msgid "Invalid use of direct access handle.\n"
 msgstr "Neispravno korištenje poveznice za direktan pristup.\n"
 
-#: dlls/kernelbase/winerror.mc:523
+#: dlls/kernelbase/winerror.mc:525
 msgid "Negative seek.\n"
 msgstr "Traženje unazad.\n"
 
-#: dlls/kernelbase/winerror.mc:533
+#: dlls/kernelbase/winerror.mc:535
 msgid "Drive is a JOIN target.\n"
 msgstr "Pogon je cilj pridruživanja.\n"
 
-#: dlls/kernelbase/winerror.mc:538
+#: dlls/kernelbase/winerror.mc:540
 msgid "Drive is already JOINed.\n"
 msgstr "Pogon je već pridružen.\n"
 
-#: dlls/kernelbase/winerror.mc:543
+#: dlls/kernelbase/winerror.mc:545
 msgid "Drive is already SUBSTed.\n"
 msgstr "Pogon je već zamijenjen.\n"
 
-#: dlls/kernelbase/winerror.mc:548
+#: dlls/kernelbase/winerror.mc:550
 msgid "Drive is not JOINed.\n"
 msgstr "Pogon nije pridružen.\n"
 
-#: dlls/kernelbase/winerror.mc:553
+#: dlls/kernelbase/winerror.mc:555
 msgid "Drive is not SUBSTed.\n"
 msgstr "Pogon nije zamijenjen.\n"
 
-#: dlls/kernelbase/winerror.mc:558
+#: dlls/kernelbase/winerror.mc:560
 msgid "Attempt to JOIN onto a JOINed drive.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:563
+#: dlls/kernelbase/winerror.mc:565
 msgid "Attempt to SUBST onto a SUBSTed drive.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:568
+#: dlls/kernelbase/winerror.mc:570
 msgid "Attempt to JOIN to a SUBSTed drive.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:573
+#: dlls/kernelbase/winerror.mc:575
 msgid "Attempt to SUBST to a JOINed drive.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:578
+#: dlls/kernelbase/winerror.mc:580
 msgid "Drive is busy.\n"
 msgstr "Pogon je zauzet.\n"
 
-#: dlls/kernelbase/winerror.mc:583
+#: dlls/kernelbase/winerror.mc:585
 msgid "Same drive.\n"
 msgstr "Isti pogon.\n"
 
-#: dlls/kernelbase/winerror.mc:588
+#: dlls/kernelbase/winerror.mc:590
 msgid "Not top-level directory.\n"
 msgstr "Nije direktorij gornje razine.\n"
 
-#: dlls/kernelbase/winerror.mc:593
+#: dlls/kernelbase/winerror.mc:595
 msgid "Directory is not empty.\n"
 msgstr "Direktorij nije prazan.\n"
 
-#: dlls/kernelbase/winerror.mc:598
+#: dlls/kernelbase/winerror.mc:600
 msgid "Path is in use as a SUBST.\n"
 msgstr "Putanje se već koristi kao SUBST.\n"
 
-#: dlls/kernelbase/winerror.mc:603
+#: dlls/kernelbase/winerror.mc:605
 msgid "Path is in use as a JOIN.\n"
 msgstr "Putanja se već koristi kao JOIN.\n"
 
-#: dlls/kernelbase/winerror.mc:608
+#: dlls/kernelbase/winerror.mc:610
 msgid "Path is busy.\n"
 msgstr "Putanja je zauzeta.\n"
 
-#: dlls/kernelbase/winerror.mc:613
+#: dlls/kernelbase/winerror.mc:615
 msgid "Already a SUBST target.\n"
 msgstr "Već je SUBST meta.\n"
 
-#: dlls/kernelbase/winerror.mc:618
+#: dlls/kernelbase/winerror.mc:620
 msgid "System trace not specified or disallowed.\n"
 msgstr "Sistemski trag nije naveden ili odbijen.\n"
 
-#: dlls/kernelbase/winerror.mc:623
+#: dlls/kernelbase/winerror.mc:625
 msgid "Event count for DosMuxSemWait incorrect.\n"
 msgstr "Netočan broj događaja za DosMuxSemWait.\n"
 
-#: dlls/kernelbase/winerror.mc:628
+#: dlls/kernelbase/winerror.mc:630
 msgid "Too many waiters for DosMuxSemWait.\n"
 msgstr "Previše subjekata čeka na DosMuxSemWait.\n"
 
-#: dlls/kernelbase/winerror.mc:633
+#: dlls/kernelbase/winerror.mc:635
 msgid "DosSemMuxWait list invalid.\n"
 msgstr "DosSemMuxWait popis neispravan.\n"
 
-#: dlls/kernelbase/winerror.mc:638
+#: dlls/kernelbase/winerror.mc:640
 msgid "Volume label too long.\n"
 msgstr "Oznaka jedinice je predugačka.\n"
 
-#: dlls/kernelbase/winerror.mc:643
+#: dlls/kernelbase/winerror.mc:645
 msgid "Too many TCBs.\n"
 msgstr "Previše TCBa.\n"
 
-#: dlls/kernelbase/winerror.mc:648
+#: dlls/kernelbase/winerror.mc:650
 msgid "Signal refused.\n"
 msgstr "Signal odbijen.\n"
 
-#: dlls/kernelbase/winerror.mc:653
+#: dlls/kernelbase/winerror.mc:655
 msgid "Segment discarded.\n"
 msgstr "Signal odbačen.\n"
 
-#: dlls/kernelbase/winerror.mc:658
+#: dlls/kernelbase/winerror.mc:660
 msgid "Segment not locked.\n"
 msgstr "Segment nije zaključan.\n"
 
-#: dlls/kernelbase/winerror.mc:663
+#: dlls/kernelbase/winerror.mc:665
 msgid "Bad thread ID address.\n"
 msgstr "Loša adresa ID dretve.\n"
 
-#: dlls/kernelbase/winerror.mc:668
+#: dlls/kernelbase/winerror.mc:670
 msgid "Bad arguments to DosExecPgm.\n"
 msgstr "Loši argumenti predani DosExecPgm.\n"
 
-#: dlls/kernelbase/winerror.mc:673
+#: dlls/kernelbase/winerror.mc:675
 msgid "Path is invalid.\n"
 msgstr "Putanja je neispravna.\n"
 
-#: dlls/kernelbase/winerror.mc:678
+#: dlls/kernelbase/winerror.mc:680
 msgid "Signal pending.\n"
 msgstr "Signal u tijeku.\n"
 
-#: dlls/kernelbase/winerror.mc:683
+#: dlls/kernelbase/winerror.mc:685
 msgid "Max system-wide thread count reached.\n"
 msgstr "Dostignut najveći sistemski broj dretvi.\n"
 
-#: dlls/kernelbase/winerror.mc:688
+#: dlls/kernelbase/winerror.mc:690
 msgid "Lock failed.\n"
 msgstr "Zaključavanje neuspjelo.\n"
 
-#: dlls/kernelbase/winerror.mc:693
+#: dlls/kernelbase/winerror.mc:695
 msgid "Resource in use.\n"
 msgstr "Resurs je u uporabi.\n"
 
-#: dlls/kernelbase/winerror.mc:698
+#: dlls/kernelbase/winerror.mc:700
 msgid "Cancel violation.\n"
 msgstr "Povreda otkazivanja.\n"
 
-#: dlls/kernelbase/winerror.mc:703
+#: dlls/kernelbase/winerror.mc:705
 msgid "Atomic locks not supported.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:708
+#: dlls/kernelbase/winerror.mc:710
 msgid "Invalid segment number.\n"
 msgstr "Neispravan broj segmenta.\n"
 
-#: dlls/kernelbase/winerror.mc:713
+#: dlls/kernelbase/winerror.mc:715
 msgid "Invalid ordinal for %1.\n"
 msgstr "Neispravan redni broj za %1.\n"
 
-#: dlls/kernelbase/winerror.mc:718
+#: dlls/kernelbase/winerror.mc:720
 msgid "File already exists.\n"
 msgstr "Datoteka već postoji.\n"
 
-#: dlls/kernelbase/winerror.mc:723
+#: dlls/kernelbase/winerror.mc:725
 msgid "Invalid flag number.\n"
 msgstr "Neispravan broj zastavica.\n"
 
-#: dlls/kernelbase/winerror.mc:728
+#: dlls/kernelbase/winerror.mc:730
 msgid "Semaphore name not found.\n"
 msgstr "Ime semafora nije pronađeno.\n"
 
-#: dlls/kernelbase/winerror.mc:733
+#: dlls/kernelbase/winerror.mc:735
 msgid "Invalid starting code segment for %1.\n"
 msgstr "Neisprravan početni segment koda za %1.\n"
 
-#: dlls/kernelbase/winerror.mc:738
+#: dlls/kernelbase/winerror.mc:740
 msgid "Invalid starting stack segment for %1.\n"
 msgstr "Neisprravan početni segment stoga za %1.\n"
 
-#: dlls/kernelbase/winerror.mc:743
+#: dlls/kernelbase/winerror.mc:745
 msgid "Invalid module type for %1.\n"
 msgstr "Neispravan tip modula za %1.\n"
 
-#: dlls/kernelbase/winerror.mc:748
+#: dlls/kernelbase/winerror.mc:750
 msgid "Invalid EXE signature in %1.\n"
 msgstr "Neispravan EXE potpis u %1.\n"
 
-#: dlls/kernelbase/winerror.mc:753
+#: dlls/kernelbase/winerror.mc:755
 msgid "EXE %1 is marked invalid.\n"
 msgstr "EXXE %1 je označen kao neispravan.\n"
 
-#: dlls/kernelbase/winerror.mc:758
+#: dlls/kernelbase/winerror.mc:760
 msgid "Bad EXE format for %1.\n"
 msgstr "Loš EXE format za %1.\n"
 
-#: dlls/kernelbase/winerror.mc:763
+#: dlls/kernelbase/winerror.mc:765
 msgid "Iterated data exceeds 64k in %1.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:768
+#: dlls/kernelbase/winerror.mc:770
 msgid "Invalid MinAllocSize in %1.\n"
 msgstr "Neispravan MinAllocSize u %1.\n"
 
-#: dlls/kernelbase/winerror.mc:773
+#: dlls/kernelbase/winerror.mc:775
 msgid "Dynlink from invalid ring.\n"
 msgstr "Dynlink iz neispravnog prstena.\n"
 
-#: dlls/kernelbase/winerror.mc:778
+#: dlls/kernelbase/winerror.mc:780
 msgid "IOPL not enabled.\n"
 msgstr "IOPL nije omogućen.\n"
 
-#: dlls/kernelbase/winerror.mc:783
+#: dlls/kernelbase/winerror.mc:785
 msgid "Invalid SEGDPL in %1.\n"
 msgstr "Neispravan SEGDPL u %1.\n"
 
-#: dlls/kernelbase/winerror.mc:788
+#: dlls/kernelbase/winerror.mc:790
 msgid "Auto data segment exceeds 64k.\n"
 msgstr "Automatski podatkovni segment prelazi 64k.\n"
 
-#: dlls/kernelbase/winerror.mc:793
+#: dlls/kernelbase/winerror.mc:795
 msgid "Ring 2 segment must be movable.\n"
 msgstr "Segment 2. prstena treba se moći pomaknuti.\n"
 
-#: dlls/kernelbase/winerror.mc:798
+#: dlls/kernelbase/winerror.mc:800
 msgid "Relocation chain exceeds segment limit in %1.\n"
 msgstr "Lanac relokacija prelazi ograničenje segmenata u %1.\n"
 
-#: dlls/kernelbase/winerror.mc:803
+#: dlls/kernelbase/winerror.mc:805
 msgid "Infinite loop in relocation chain in %1.\n"
 msgstr "Beskonačna petlja u lancu relokacija u %1.\n"
 
-#: dlls/kernelbase/winerror.mc:808
+#: dlls/kernelbase/winerror.mc:810
 msgid "Environment variable not found.\n"
 msgstr "Varijabla okoline nije pronađena.\n"
 
-#: dlls/kernelbase/winerror.mc:813
+#: dlls/kernelbase/winerror.mc:815
 msgid "No signal sent.\n"
 msgstr "Nijedan signal poslan.\n"
 
-#: dlls/kernelbase/winerror.mc:818 programs/cmd/cmd.rc:406
+#: dlls/kernelbase/winerror.mc:820 programs/cmd/cmd.rc:406
 msgid "File name is too long.\n"
 msgstr "Naziv datoteke je predugačak.\n"
 
-#: dlls/kernelbase/winerror.mc:823
+#: dlls/kernelbase/winerror.mc:825
 msgid "Ring 2 stack in use.\n"
 msgstr "Stog 2. prstena je u uporabi.\n"
 
-#: dlls/kernelbase/winerror.mc:828
+#: dlls/kernelbase/winerror.mc:830
 msgid "Error in use of filename wildcards.\n"
 msgstr "Greška u korištenju zamjenskih znakova za datoteke.\n"
 
-#: dlls/kernelbase/winerror.mc:833
+#: dlls/kernelbase/winerror.mc:835
 msgid "Invalid signal number.\n"
 msgstr "Neispravan broj signala.\n"
 
-#: dlls/kernelbase/winerror.mc:838
+#: dlls/kernelbase/winerror.mc:840
 msgid "Error setting signal handler.\n"
 msgstr "Greška prilikom postavljanja rukovatelja signala.\n"
 
-#: dlls/kernelbase/winerror.mc:843
+#: dlls/kernelbase/winerror.mc:845
 msgid "Segment locked.\n"
 msgstr "Segment zaključan.\n"
 
-#: dlls/kernelbase/winerror.mc:848
+#: dlls/kernelbase/winerror.mc:850
 msgid "Too many modules.\n"
 msgstr "Previše modula.\n"
 
-#: dlls/kernelbase/winerror.mc:853
+#: dlls/kernelbase/winerror.mc:855
 msgid "Nesting LoadModule calls not allowed.\n"
 msgstr "Gnježđenje poziva LoadMoudle nije dopušteno.\n"
 
-#: dlls/kernelbase/winerror.mc:858
+#: dlls/kernelbase/winerror.mc:860
 msgid "Machine type mismatch.\n"
 msgstr "Neslaganje vrste stroja.\n"
 
-#: dlls/kernelbase/winerror.mc:863
+#: dlls/kernelbase/winerror.mc:865
 msgid "Bad pipe.\n"
 msgstr "Loš cjevovod.\n"
 
-#: dlls/kernelbase/winerror.mc:868
+#: dlls/kernelbase/winerror.mc:870
 msgid "Pipe busy.\n"
 msgstr "Cjevovod zauzet.\n"
 
-#: dlls/kernelbase/winerror.mc:873
+#: dlls/kernelbase/winerror.mc:875
 msgid "Pipe closed.\n"
 msgstr "Cjevovod zatvoren.\n"
 
-#: dlls/kernelbase/winerror.mc:878
+#: dlls/kernelbase/winerror.mc:880
 msgid "Pipe not connected.\n"
 msgstr "Cjevovod nije spojen.\n"
 
-#: dlls/kernelbase/winerror.mc:883
+#: dlls/kernelbase/winerror.mc:885
 msgid "More data available.\n"
 msgstr "Još podataka dostupno.\n"
 
-#: dlls/kernelbase/winerror.mc:888
+#: dlls/kernelbase/winerror.mc:890
 msgid "Session canceled.\n"
 msgstr "Sjednica je otkazana.\n"
 
-#: dlls/kernelbase/winerror.mc:893
+#: dlls/kernelbase/winerror.mc:895
 msgid "Invalid extended attribute name.\n"
 msgstr "Neispravan naziv proširenog atributa.\n"
 
-#: dlls/kernelbase/winerror.mc:898
+#: dlls/kernelbase/winerror.mc:900
 msgid "Extended attribute list inconsistent.\n"
 msgstr "Nekonzistentan popis proširenih atributa.\n"
 
-#: dlls/kernelbase/winerror.mc:903
+#: dlls/kernelbase/winerror.mc:905
 msgid "No more data available.\n"
 msgstr "Nema više dostupnih podataka.\n"
 
-#: dlls/kernelbase/winerror.mc:908
+#: dlls/kernelbase/winerror.mc:910
 msgid "Cannot use Copy API.\n"
 msgstr "Copy API se ne može koristiti.\n"
 
-#: dlls/kernelbase/winerror.mc:913
+#: dlls/kernelbase/winerror.mc:915
 msgid "Directory name invalid.\n"
 msgstr "Neispravan naziv direktorija.\n"
 
-#: dlls/kernelbase/winerror.mc:918
+#: dlls/kernelbase/winerror.mc:920
 msgid "Extended attributes didn't fit.\n"
 msgstr "Prošireni atributi nisu stali.\n"
 
-#: dlls/kernelbase/winerror.mc:923
+#: dlls/kernelbase/winerror.mc:925
 msgid "Extended attribute file corrupt.\n"
 msgstr "Datotke proširenih atributa oštećena.\n"
 
-#: dlls/kernelbase/winerror.mc:928
+#: dlls/kernelbase/winerror.mc:930
 msgid "Extended attribute table full.\n"
 msgstr "Tablica proširenih atributa puna.\n"
 
-#: dlls/kernelbase/winerror.mc:933
+#: dlls/kernelbase/winerror.mc:935
 msgid "Invalid extended attribute handle.\n"
 msgstr "Neispravna poveznica proširenog atributa.\n"
 
-#: dlls/kernelbase/winerror.mc:938
+#: dlls/kernelbase/winerror.mc:940
 msgid "Extended attributes not supported.\n"
 msgstr "Prošireni atributi nisu podržani.\n"
 
-#: dlls/kernelbase/winerror.mc:943
+#: dlls/kernelbase/winerror.mc:945
 msgid "Mutex not owned by caller.\n"
 msgstr "Pozivač nije vlasnik mutexa.\n"
 
-#: dlls/kernelbase/winerror.mc:948
+#: dlls/kernelbase/winerror.mc:950
 msgid "Too many posts to semaphore.\n"
 msgstr "Previše postavljanja semafora.\n"
 
-#: dlls/kernelbase/winerror.mc:953
+#: dlls/kernelbase/winerror.mc:955
 msgid "Read/WriteProcessMemory partially completed.\n"
 msgstr "Read/WriteProcessMemory djelomično završeno.\n"
 
-#: dlls/kernelbase/winerror.mc:958
+#: dlls/kernelbase/winerror.mc:960
 msgid "The oplock wasn't granted.\n"
 msgstr "Oportunističko zaključavanje nije bilo odobreno.\n"
 
-#: dlls/kernelbase/winerror.mc:963
+#: dlls/kernelbase/winerror.mc:965
 msgid "Invalid oplock message received.\n"
 msgstr "Primljena neispravna poruka za oportunističko zaključavanje.\n"
 
-#: dlls/kernelbase/winerror.mc:968
+#: dlls/kernelbase/winerror.mc:970
+#, fuzzy
+#| msgid "Disk is corrupt.\n"
+msgid "Disk is too fragmented.\n"
+msgstr "Disk je oštećen.\n"
+
+#: dlls/kernelbase/winerror.mc:975
+msgid "File cannot be opened because it is in the process of being deleted.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:980
+msgid "Short name settings incompatible with global registry setting.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:985
+msgid "Short names are not enabled on this volume.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:990
+#, fuzzy
+#| msgid "Floppy registers inconsistent.\n"
+msgid "Security stream is inconsistent.\n"
+msgstr "Disketni registri su nekonzistenti.\n"
+
+#: dlls/kernelbase/winerror.mc:995
+msgid "File lock operation cannot be processed due to invalid byte range.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:1000
+msgid "Subsystem for supporting image type is not present.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:1005
+msgid "Notification GUID is already defined.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:1010
+#, fuzzy
+#| msgid "Invalid icon handle.\n"
+msgid "Invalid exception handler.\n"
+msgstr "Neispravna poveznica ikone.\n"
+
+#: dlls/kernelbase/winerror.mc:1015
+#, fuzzy
+#| msgid "Duplicate service name.\n"
+msgid "Duplicate privileges for the token.\n"
+msgstr "Dvostruko ime servisa.\n"
+
+#: dlls/kernelbase/winerror.mc:1020
+#, fuzzy
+#| msgid "Not all objects could be exported.\n"
+msgid "No ranges could be processed.\n"
+msgstr "Nisu se svi objekti mogli izvesti.\n"
+
+#: dlls/kernelbase/winerror.mc:1025
+#, fuzzy
+#| msgid "Operation canceled by user.\n"
+msgid "Operation not allowed on system file.\n"
+msgstr "Korisnik prekinuo operaciju.\n"
+
+#: dlls/kernelbase/winerror.mc:1030
+msgid "Disk resources have been exhausted.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:1035
+#, fuzzy
+#| msgid "Invalid key.\n"
+msgid "Invalid token.\n"
+msgstr "Neispravnui ključ.\n"
+
+#: dlls/kernelbase/winerror.mc:1040
+msgid "Command feature not supported on the device.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:1045
 msgid "Message 0x%1 not found in file %2.\n"
 msgstr "Poruka 0x%1 nije pronađena u datoteci %2.\n"
 
-#: dlls/kernelbase/winerror.mc:973
+#: dlls/kernelbase/winerror.mc:1050
+#, fuzzy
+#| msgid "Sector not found.\n"
+msgid "Scope not found.\n"
+msgstr "Sektor nije pronađen.\n"
+
+#: dlls/kernelbase/winerror.mc:1055
+#, fuzzy
+#| msgid "The specified device handle is invalid."
+msgid "The specified Central Access Policy is undefined.\n"
+msgstr "Navedena poveznica uređaja je neispravna."
+
+#: dlls/kernelbase/winerror.mc:1060
+msgid "Central Access Policy from Active Directory is invalid.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:1065
+#, fuzzy
+#| msgid "Host unreachable.\n"
+msgid "Device is unreachable.\n"
+msgstr "Domaćin nedohvatljiv.\n"
+
+#: dlls/kernelbase/winerror.mc:1070
+msgid "Target device has insufficient resources to complete the operation.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:1075
+msgid ""
+"A data integrity checksum error occurred. Data in the file stream is "
+"corrupt.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:1080
+msgid ""
+"Cannot modify both KERNEL and normal Extended Attributes in one operation.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:1085
+#, fuzzy
+#| msgid "Device does not exist.\n"
+msgid "Device does not support file-level TRIM.\n"
+msgstr "Uređaj ne postoji.\n"
+
+#: dlls/kernelbase/winerror.mc:1090
 msgid "Invalid address.\n"
 msgstr "Neispravna adresa.\n"
 
-#: dlls/kernelbase/winerror.mc:978
+#: dlls/kernelbase/winerror.mc:1095
 msgid "Arithmetic overflow.\n"
 msgstr "Aritmetički preljev.\n"
 
-#: dlls/kernelbase/winerror.mc:983
+#: dlls/kernelbase/winerror.mc:1100
 msgid "Pipe connected.\n"
 msgstr "Cjevovod spojen.\n"
 
-#: dlls/kernelbase/winerror.mc:988
+#: dlls/kernelbase/winerror.mc:1105
 msgid "Pipe listening.\n"
 msgstr "Cjevovod sluša.\n"
 
-#: dlls/kernelbase/winerror.mc:993
+#: dlls/kernelbase/winerror.mc:1110
 msgid "Extended attribute access denied.\n"
 msgstr "Odbijen pristup proširenom atributu.\n"
 
-#: dlls/kernelbase/winerror.mc:998
+#: dlls/kernelbase/winerror.mc:1115
 msgid "I/O operation aborted.\n"
 msgstr "U/I operacija prekinuta.\n"
 
-#: dlls/kernelbase/winerror.mc:1003
+#: dlls/kernelbase/winerror.mc:1120
 msgid "Overlapped I/O incomplete.\n"
 msgstr "Preklapajući U/I nepotpun.\n"
 
-#: dlls/kernelbase/winerror.mc:1008
+#: dlls/kernelbase/winerror.mc:1125
 msgid "Overlapped I/O pending.\n"
 msgstr "Preklapajući U/I u tijeku.\n"
 
-#: dlls/kernelbase/winerror.mc:1013
+#: dlls/kernelbase/winerror.mc:1130
 msgid "No access to memory location.\n"
 msgstr "Nema pristupa memorijskoj lokaciji.\n"
 
-#: dlls/kernelbase/winerror.mc:1018
+#: dlls/kernelbase/winerror.mc:1135
 msgid "Swap error.\n"
 msgstr "Greška u zamjeni.\n"
 
-#: dlls/kernelbase/winerror.mc:1023
+#: dlls/kernelbase/winerror.mc:1140
 msgid "Stack overflow.\n"
 msgstr "Preljev stoga.\n"
 
-#: dlls/kernelbase/winerror.mc:1028
+#: dlls/kernelbase/winerror.mc:1145
 msgid "Invalid message.\n"
 msgstr "Neispravna poruka.\n"
 
-#: dlls/kernelbase/winerror.mc:1033
+#: dlls/kernelbase/winerror.mc:1150
 msgid "Cannot complete.\n"
 msgstr "No može se dovršiti.\n"
 
-#: dlls/kernelbase/winerror.mc:1038
+#: dlls/kernelbase/winerror.mc:1155
 msgid "Invalid flags.\n"
 msgstr "Neispravne zastavice.\n"
 
-#: dlls/kernelbase/winerror.mc:1043
+#: dlls/kernelbase/winerror.mc:1160
 msgid "Unrecognized volume.\n"
 msgstr "Neprepoznata jedinica.\n"
 
-#: dlls/kernelbase/winerror.mc:1048
+#: dlls/kernelbase/winerror.mc:1165
 msgid "File invalid.\n"
 msgstr "Neispravna datoteka.\n"
 
-#: dlls/kernelbase/winerror.mc:1053
+#: dlls/kernelbase/winerror.mc:1170
 msgid "Cannot run full-screen.\n"
 msgstr "Full-screen se ne može pokrenuti.\n"
 
-#: dlls/kernelbase/winerror.mc:1058
+#: dlls/kernelbase/winerror.mc:1175
 msgid "Nonexistent token.\n"
 msgstr "Nepostojeći znak.\n"
 
-#: dlls/kernelbase/winerror.mc:1063
+#: dlls/kernelbase/winerror.mc:1180
 msgid "Registry corrupt.\n"
 msgstr "Registar oštećen.\n"
 
-#: dlls/kernelbase/winerror.mc:1068
+#: dlls/kernelbase/winerror.mc:1185
 msgid "Invalid key.\n"
 msgstr "Neispravnui ključ.\n"
 
-#: dlls/kernelbase/winerror.mc:1073
+#: dlls/kernelbase/winerror.mc:1190
 msgid "Can't open registry key.\n"
 msgstr "Registarski ključ se ne može otvoriti.\n"
 
-#: dlls/kernelbase/winerror.mc:1078
+#: dlls/kernelbase/winerror.mc:1195
 msgid "Can't read registry key.\n"
 msgstr "Registarski ključ se ne može čitati.\n"
 
-#: dlls/kernelbase/winerror.mc:1083
+#: dlls/kernelbase/winerror.mc:1200
 msgid "Can't write registry key.\n"
 msgstr "Registarski ključ se ne može pisati.\n"
 
-#: dlls/kernelbase/winerror.mc:1088
+#: dlls/kernelbase/winerror.mc:1205
 msgid "Registry has been recovered.\n"
 msgstr "Registar se obnovio.\n"
 
-#: dlls/kernelbase/winerror.mc:1093
+#: dlls/kernelbase/winerror.mc:1210
 msgid "Registry is corrupt.\n"
 msgstr "Registar je oštećen.\n"
 
-#: dlls/kernelbase/winerror.mc:1098
+#: dlls/kernelbase/winerror.mc:1215
 msgid "I/O to registry failed.\n"
 msgstr "U/I u registar neuspio.\n"
 
-#: dlls/kernelbase/winerror.mc:1103
+#: dlls/kernelbase/winerror.mc:1220
 msgid "Not registry file.\n"
 msgstr "Nije datoteka registra.\n"
 
-#: dlls/kernelbase/winerror.mc:1108
+#: dlls/kernelbase/winerror.mc:1225
 msgid "Key deleted.\n"
 msgstr "Ključ obrisan.\n"
 
-#: dlls/kernelbase/winerror.mc:1113
+#: dlls/kernelbase/winerror.mc:1230
 msgid "No registry log space.\n"
 msgstr "Nema prostora za zapisnik registra.\n"
 
-#: dlls/kernelbase/winerror.mc:1118
+#: dlls/kernelbase/winerror.mc:1235
 msgid "Registry key has subkeys.\n"
 msgstr "Registarki ključ ima podključeve.\n"
 
-#: dlls/kernelbase/winerror.mc:1123
+#: dlls/kernelbase/winerror.mc:1240
 msgid "Subkey must be volatile.\n"
 msgstr "Podključ treba biti promjenjiv.\n"
 
-#: dlls/kernelbase/winerror.mc:1128
+#: dlls/kernelbase/winerror.mc:1245
 msgid "Notify change request in progress.\n"
 msgstr "Zahtjev za obavijesti o promjeni u tijeku.\n"
 
-#: dlls/kernelbase/winerror.mc:1133
+#: dlls/kernelbase/winerror.mc:1250
 msgid "Dependent services are running.\n"
 msgstr "Zavisni servisi se izvode.\n"
 
-#: dlls/kernelbase/winerror.mc:1138
+#: dlls/kernelbase/winerror.mc:1255
 msgid "Invalid service control.\n"
 msgstr "Neispravna kontrola servisa.\n"
 
-#: dlls/kernelbase/winerror.mc:1143
+#: dlls/kernelbase/winerror.mc:1260
 msgid "Service request timeout.\n"
 msgstr "Isteklo vrijeme zahtjeva servisa.\n"
 
-#: dlls/kernelbase/winerror.mc:1148
+#: dlls/kernelbase/winerror.mc:1265
 msgid "Cannot create service thread.\n"
 msgstr "Dretva servisa se ne može pokrenuti.\n"
 
-#: dlls/kernelbase/winerror.mc:1153
+#: dlls/kernelbase/winerror.mc:1270
 msgid "Service database locked.\n"
 msgstr "Baza podataka servisa je zaključana.\n"
 
-#: dlls/kernelbase/winerror.mc:1158
+#: dlls/kernelbase/winerror.mc:1275
 msgid "Service already running.\n"
 msgstr "Servis se već izvodi.\n"
 
-#: dlls/kernelbase/winerror.mc:1163
+#: dlls/kernelbase/winerror.mc:1280
 msgid "Invalid service account.\n"
 msgstr "Neispravan račun servisa.\n"
 
-#: dlls/kernelbase/winerror.mc:1168
+#: dlls/kernelbase/winerror.mc:1285
 msgid "Service is disabled.\n"
 msgstr "Servis je onemogućen.\n"
 
-#: dlls/kernelbase/winerror.mc:1173
+#: dlls/kernelbase/winerror.mc:1290
 msgid "Circular dependency.\n"
 msgstr "Kružna ovisnost.\n"
 
-#: dlls/kernelbase/winerror.mc:1178
+#: dlls/kernelbase/winerror.mc:1295
 msgid "Service does not exist.\n"
 msgstr "Servis ne postoji.\n"
 
-#: dlls/kernelbase/winerror.mc:1183
+#: dlls/kernelbase/winerror.mc:1300
 msgid "Service cannot accept control message.\n"
 msgstr "Servis ne može prihvatiti kontrolnu poruku.\n"
 
-#: dlls/kernelbase/winerror.mc:1188
+#: dlls/kernelbase/winerror.mc:1305
 msgid "Service not active.\n"
 msgstr "Servis nije aktivan.\n"
 
-#: dlls/kernelbase/winerror.mc:1193
+#: dlls/kernelbase/winerror.mc:1310
 msgid "Service controller connect failed.\n"
 msgstr "Spajanje upravljača neuspjelo.\n"
 
-#: dlls/kernelbase/winerror.mc:1198
+#: dlls/kernelbase/winerror.mc:1315
 msgid "Exception in service.\n"
 msgstr "Iznimka u usluzi.\n"
 
-#: dlls/kernelbase/winerror.mc:1203
+#: dlls/kernelbase/winerror.mc:1320
 msgid "Database does not exist.\n"
 msgstr "Baza podataka ne postoji.\n"
 
-#: dlls/kernelbase/winerror.mc:1208
+#: dlls/kernelbase/winerror.mc:1325
 msgid "Service-specific error.\n"
 msgstr "Specifična greška servisa.\n"
 
-#: dlls/kernelbase/winerror.mc:1213
+#: dlls/kernelbase/winerror.mc:1330
 msgid "Process aborted.\n"
 msgstr "Proces prekinut.\n"
 
-#: dlls/kernelbase/winerror.mc:1218
+#: dlls/kernelbase/winerror.mc:1335
 msgid "Service dependency failed.\n"
 msgstr "Ovisnost servisa neuspjela.\n"
 
-#: dlls/kernelbase/winerror.mc:1223
+#: dlls/kernelbase/winerror.mc:1340
 msgid "Service login failed.\n"
 msgstr "Prijava servisa neuspjela.\n"
 
-#: dlls/kernelbase/winerror.mc:1228
+#: dlls/kernelbase/winerror.mc:1345
 msgid "Service start-hang.\n"
 msgstr "Servis zastao na pokretanju.\n"
 
-#: dlls/kernelbase/winerror.mc:1233
+#: dlls/kernelbase/winerror.mc:1350
 msgid "Invalid service lock.\n"
 msgstr "Neispravno zaključavanje servisa.\n"
 
-#: dlls/kernelbase/winerror.mc:1238
+#: dlls/kernelbase/winerror.mc:1355
 msgid "Service marked for delete.\n"
 msgstr "Servis označen za brisanje.\n"
 
-#: dlls/kernelbase/winerror.mc:1243
+#: dlls/kernelbase/winerror.mc:1360
 msgid "Service exists.\n"
 msgstr "Servis postoji.\n"
 
-#: dlls/kernelbase/winerror.mc:1248
+#: dlls/kernelbase/winerror.mc:1365
 msgid "System running last-known-good config.\n"
 msgstr "Sistem izvodi posljednju poznatu dobru konfiguraciju.\n"
 
-#: dlls/kernelbase/winerror.mc:1253
+#: dlls/kernelbase/winerror.mc:1370
 msgid "Service dependency deleted.\n"
 msgstr "Ovisnost servisa izbrisana.\n"
 
-#: dlls/kernelbase/winerror.mc:1258
+#: dlls/kernelbase/winerror.mc:1375
 msgid "Boot already accepted as last-good config.\n"
 msgstr "Pokretanje već prihvaćeno kao posljednja dobra konfiguracija.\n"
 
-#: dlls/kernelbase/winerror.mc:1263
+#: dlls/kernelbase/winerror.mc:1380
 msgid "Service not started since last boot.\n"
 msgstr "Servis nije pokrenut od posljednjeg pokretanja.\n"
 
-#: dlls/kernelbase/winerror.mc:1268
+#: dlls/kernelbase/winerror.mc:1385
 msgid "Duplicate service name.\n"
 msgstr "Dvostruko ime servisa.\n"
 
-#: dlls/kernelbase/winerror.mc:1273
+#: dlls/kernelbase/winerror.mc:1390
 msgid "Different service account.\n"
 msgstr "Drugi račun servisa.\n"
 
-#: dlls/kernelbase/winerror.mc:1278
+#: dlls/kernelbase/winerror.mc:1395
 msgid "Driver failure cannot be detected.\n"
 msgstr "Greška pogona se ne može detektirati.\n"
 
-#: dlls/kernelbase/winerror.mc:1283
+#: dlls/kernelbase/winerror.mc:1400
 msgid "Process abort cannot be detected.\n"
 msgstr "Prekid procesa se ne može detektirati.\n"
 
-#: dlls/kernelbase/winerror.mc:1288
+#: dlls/kernelbase/winerror.mc:1405
 msgid "No recovery program for service.\n"
 msgstr "Nema programa za obnovu servisa.\n"
 
-#: dlls/kernelbase/winerror.mc:1293
+#: dlls/kernelbase/winerror.mc:1410
 msgid "Service not implemented by exe.\n"
 msgstr "Servis nije implementiran u exe datoteci.\n"
 
-#: dlls/kernelbase/winerror.mc:1298
+#: dlls/kernelbase/winerror.mc:1415
 msgid "End of media.\n"
 msgstr "Kraj medija.\n"
 
-#: dlls/kernelbase/winerror.mc:1303
+#: dlls/kernelbase/winerror.mc:1420
 msgid "Filemark detected.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:1308
+#: dlls/kernelbase/winerror.mc:1425
 msgid "Beginning of media.\n"
 msgstr "Početak medija.\n"
 
-#: dlls/kernelbase/winerror.mc:1313
+#: dlls/kernelbase/winerror.mc:1430
 msgid "Setmark detected.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:1318
+#: dlls/kernelbase/winerror.mc:1435
 msgid "No data detected.\n"
 msgstr "Nisu otkriveni podaci.\n"
 
-#: dlls/kernelbase/winerror.mc:1323
+#: dlls/kernelbase/winerror.mc:1440
 msgid "Partition failure.\n"
 msgstr "Greška particije.\n"
 
-#: dlls/kernelbase/winerror.mc:1328
+#: dlls/kernelbase/winerror.mc:1445
 msgid "Invalid block length.\n"
 msgstr "Neispravna duljina bloka.\n"
 
-#: dlls/kernelbase/winerror.mc:1333
+#: dlls/kernelbase/winerror.mc:1450
 msgid "Device not partitioned.\n"
 msgstr "Uređaj nije particioniran.\n"
 
-#: dlls/kernelbase/winerror.mc:1338
+#: dlls/kernelbase/winerror.mc:1455
 msgid "Unable to lock media.\n"
 msgstr "Zaključavanje medija nije moguće.\n"
 
-#: dlls/kernelbase/winerror.mc:1343
+#: dlls/kernelbase/winerror.mc:1460
 msgid "Unable to unload media.\n"
 msgstr "Nije moguće izbaciti medij.\n"
 
-#: dlls/kernelbase/winerror.mc:1348
+#: dlls/kernelbase/winerror.mc:1465
 msgid "Media changed.\n"
 msgstr "Promijenjen medij.\n"
 
-#: dlls/kernelbase/winerror.mc:1353
+#: dlls/kernelbase/winerror.mc:1470
 msgid "I/O bus reset.\n"
 msgstr "Reset U/I sabirnice.\n"
 
-#: dlls/kernelbase/winerror.mc:1358
+#: dlls/kernelbase/winerror.mc:1475
 msgid "No media in drive.\n"
 msgstr "Nema medija u pogonu.\n"
 
-#: dlls/kernelbase/winerror.mc:1363
+#: dlls/kernelbase/winerror.mc:1480
 msgid "No Unicode translation.\n"
 msgstr "Nema Unicode prijevoda.\n"
 
-#: dlls/kernelbase/winerror.mc:1368
+#: dlls/kernelbase/winerror.mc:1485
 #, fuzzy
 #| msgid "DLL init failed.\n"
 msgid "DLL initialization failed.\n"
 msgstr "Incijalizacija DLLa neuspjela.\n"
 
-#: dlls/kernelbase/winerror.mc:1373
+#: dlls/kernelbase/winerror.mc:1490
 msgid "Shutdown in progress.\n"
 msgstr "Gašenje u tijeku.\n"
 
-#: dlls/kernelbase/winerror.mc:1378
+#: dlls/kernelbase/winerror.mc:1495
 msgid "No shutdown in progress.\n"
 msgstr "Nema gašenja u tijeku.\n"
 
-#: dlls/kernelbase/winerror.mc:1383
+#: dlls/kernelbase/winerror.mc:1500
 msgid "I/O device error.\n"
 msgstr "Greška U/I uređaja.\n"
 
-#: dlls/kernelbase/winerror.mc:1388
+#: dlls/kernelbase/winerror.mc:1505
 msgid "No serial devices found.\n"
 msgstr "Nisu nađeni serijski uređaju.\n"
 
-#: dlls/kernelbase/winerror.mc:1393
+#: dlls/kernelbase/winerror.mc:1510
 msgid "Shared IRQ busy.\n"
 msgstr "Dijeljeni IRQ je zauzet.\n"
 
-#: dlls/kernelbase/winerror.mc:1398
+#: dlls/kernelbase/winerror.mc:1515
 msgid "Serial I/O completed.\n"
 msgstr "Serijski U/I završen.\n"
 
-#: dlls/kernelbase/winerror.mc:1403
+#: dlls/kernelbase/winerror.mc:1520
 msgid "Serial I/O counter timeout.\n"
 msgstr "Istek vremena serijskog U/I brojača.\n"
 
-#: dlls/kernelbase/winerror.mc:1408
+#: dlls/kernelbase/winerror.mc:1525
 msgid "Floppy ID address mark not found.\n"
 msgstr "Adresa oznake disketnog pogona nije nađena.\n"
 
-#: dlls/kernelbase/winerror.mc:1413
+#: dlls/kernelbase/winerror.mc:1530
 msgid "Floppy reports wrong cylinder.\n"
 msgstr "Disketni pogon prijavljuje krivi cilindar.\n"
 
-#: dlls/kernelbase/winerror.mc:1418
+#: dlls/kernelbase/winerror.mc:1535
 msgid "Unknown floppy error.\n"
 msgstr "Nepoznata disketna greška.\n"
 
-#: dlls/kernelbase/winerror.mc:1423
+#: dlls/kernelbase/winerror.mc:1540
 msgid "Floppy registers inconsistent.\n"
 msgstr "Disketni registri su nekonzistenti.\n"
 
-#: dlls/kernelbase/winerror.mc:1428
+#: dlls/kernelbase/winerror.mc:1545
 msgid "Hard disk recalibrate failed.\n"
 msgstr "Neuspjelo rekalibriranje tvrdog diska.\n"
 
-#: dlls/kernelbase/winerror.mc:1433
+#: dlls/kernelbase/winerror.mc:1550
 msgid "Hard disk operation failed.\n"
 msgstr "Neuspjela operacija tvrdog diska.\n"
 
-#: dlls/kernelbase/winerror.mc:1438
+#: dlls/kernelbase/winerror.mc:1555
 msgid "Hard disk reset failed.\n"
 msgstr "Neuspjeli reset tvrdog diska.\n"
 
-#: dlls/kernelbase/winerror.mc:1443
+#: dlls/kernelbase/winerror.mc:1560
 msgid "End of tape media.\n"
 msgstr "Kraj medija s trakom.\n"
 
-#: dlls/kernelbase/winerror.mc:1448
+#: dlls/kernelbase/winerror.mc:1565
 msgid "Not enough server memory.\n"
 msgstr "Nema dovoljno poslužiteljske memorije.\n"
 
-#: dlls/kernelbase/winerror.mc:1453
+#: dlls/kernelbase/winerror.mc:1570
 msgid "Possible deadlock.\n"
 msgstr "Moguć zastoj.\n"
 
-#: dlls/kernelbase/winerror.mc:1458
+#: dlls/kernelbase/winerror.mc:1575
 msgid "Incorrect alignment.\n"
 msgstr "Netočno poravnanje.\n"
 
-#: dlls/kernelbase/winerror.mc:1463
+#: dlls/kernelbase/winerror.mc:1580
 msgid "Set-power-state vetoed.\n"
 msgstr "Stavljen veto na postavljanje stanja napajanja.\n"
 
-#: dlls/kernelbase/winerror.mc:1468
+#: dlls/kernelbase/winerror.mc:1585
 msgid "Set-power-state failed.\n"
 msgstr "Postavljanje stanja napjanja neuspjelo.\n"
 
-#: dlls/kernelbase/winerror.mc:1473
+#: dlls/kernelbase/winerror.mc:1590
 msgid "Too many links.\n"
 msgstr "Previše poveznica.\n"
 
-#: dlls/kernelbase/winerror.mc:1478
+#: dlls/kernelbase/winerror.mc:1595
 msgid "Newer Windows version needed.\n"
 msgstr "Potrebna novija verzija Windowsa.\n"
 
-#: dlls/kernelbase/winerror.mc:1483
+#: dlls/kernelbase/winerror.mc:1600
 msgid "Wrong operating system.\n"
 msgstr "Krivi operacijski sustav.\n"
 
-#: dlls/kernelbase/winerror.mc:1488
+#: dlls/kernelbase/winerror.mc:1605
 msgid "Single-instance application.\n"
 msgstr "Aplikacija može imati samo jednu instancu.\n"
 
-#: dlls/kernelbase/winerror.mc:1493
+#: dlls/kernelbase/winerror.mc:1610
 msgid "Real-mode application.\n"
 msgstr "Aplikacija u realnom vremenu.\n"
 
-#: dlls/kernelbase/winerror.mc:1498
+#: dlls/kernelbase/winerror.mc:1615
 msgid "Invalid DLL.\n"
 msgstr "Neispravan DLL.\n"
 
-#: dlls/kernelbase/winerror.mc:1503
+#: dlls/kernelbase/winerror.mc:1620
 msgid "No associated application.\n"
 msgstr "Nema povezane aplikacije.\n"
 
-#: dlls/kernelbase/winerror.mc:1508
+#: dlls/kernelbase/winerror.mc:1625
 msgid "DDE failure.\n"
 msgstr "DDE greška.\n"
 
-#: dlls/kernelbase/winerror.mc:1513
+#: dlls/kernelbase/winerror.mc:1630
 msgid "DLL not found.\n"
 msgstr "DLL nije pronađen.\n"
 
-#: dlls/kernelbase/winerror.mc:1518
+#: dlls/kernelbase/winerror.mc:1635
 msgid "Out of user handles.\n"
 msgstr "Nema više korisničkih poveznica.\n"
 
-#: dlls/kernelbase/winerror.mc:1523
+#: dlls/kernelbase/winerror.mc:1640
 msgid "Message can only be used in synchronous calls.\n"
 msgstr "Poruka se može koristiti samo kod sinkronih poziva.\n"
 
-#: dlls/kernelbase/winerror.mc:1528
+#: dlls/kernelbase/winerror.mc:1645
 msgid "The source element is empty.\n"
 msgstr "Izvorni element je prazan.\n"
 
-#: dlls/kernelbase/winerror.mc:1533
+#: dlls/kernelbase/winerror.mc:1650
 msgid "The destination element is full.\n"
 msgstr "Odredišni element je prazan.\n"
 
-#: dlls/kernelbase/winerror.mc:1538
+#: dlls/kernelbase/winerror.mc:1655
 msgid "The element address is invalid.\n"
 msgstr "Adresa element je neispravna.\n"
 
-#: dlls/kernelbase/winerror.mc:1543
+#: dlls/kernelbase/winerror.mc:1660
 msgid "The magazine is not present.\n"
 msgstr "Magazin nije prisutan.\n"
 
-#: dlls/kernelbase/winerror.mc:1548
+#: dlls/kernelbase/winerror.mc:1665
 msgid "The device needs reinitialization.\n"
 msgstr "Uređaju je potreban reinicijalizacija.\n"
 
-#: dlls/kernelbase/winerror.mc:1553
+#: dlls/kernelbase/winerror.mc:1670
 msgid "The device requires cleaning.\n"
 msgstr "Uređaju je potrebno čišćenje.\n"
 
-#: dlls/kernelbase/winerror.mc:1558
+#: dlls/kernelbase/winerror.mc:1675
 msgid "The device door is open.\n"
 msgstr "Vrata na uređaju su otvorena.\n"
 
-#: dlls/kernelbase/winerror.mc:1563
+#: dlls/kernelbase/winerror.mc:1680
 msgid "The device is not connected.\n"
 msgstr "Uređaj nije spojen.\n"
 
-#: dlls/kernelbase/winerror.mc:1568
+#: dlls/kernelbase/winerror.mc:1685
 msgid "Element not found.\n"
 msgstr "Element nije pronađen.\n"
 
-#: dlls/kernelbase/winerror.mc:1573
+#: dlls/kernelbase/winerror.mc:1690
 msgid "No match found.\n"
 msgstr "Nisu pronađene podudarnosti.\n"
 
-#: dlls/kernelbase/winerror.mc:1578
+#: dlls/kernelbase/winerror.mc:1695
 msgid "Property set not found.\n"
 msgstr "Svojstvo nije pronađeno.\n"
 
-#: dlls/kernelbase/winerror.mc:1583
+#: dlls/kernelbase/winerror.mc:1700
 msgid "Point not found.\n"
 msgstr "Točka nije pronađena.\n"
 
-#: dlls/kernelbase/winerror.mc:1588
+#: dlls/kernelbase/winerror.mc:1705
 msgid "No running tracking service.\n"
 msgstr "Nema pratećeg servisa koji se izvodi.\n"
 
-#: dlls/kernelbase/winerror.mc:1593
+#: dlls/kernelbase/winerror.mc:1710
 msgid "No such volume ID.\n"
 msgstr "Ne postoji takav ID jedinice.\n"
 
-#: dlls/kernelbase/winerror.mc:1598
+#: dlls/kernelbase/winerror.mc:1715
 msgid "Unable to remove the file to be replaced.\n"
 msgstr "Ne može se ukloniti datoteka koja će biti zamijenjena.\n"
 
-#: dlls/kernelbase/winerror.mc:1603
+#: dlls/kernelbase/winerror.mc:1720
 msgid "Unable to move the replacement file into place.\n"
 msgstr "Ne može se pomaknuti zamjenska datoteka na mjesto.\n"
 
-#: dlls/kernelbase/winerror.mc:1608
+#: dlls/kernelbase/winerror.mc:1725
 msgid "Moving the replacement file failed.\n"
 msgstr "Pomicanje zamjenske datoteke neuspjelo.\n"
 
-#: dlls/kernelbase/winerror.mc:1613
+#: dlls/kernelbase/winerror.mc:1730
 msgid "The journal is being deleted.\n"
 msgstr "Dnevnik se briše.\n"
 
-#: dlls/kernelbase/winerror.mc:1618
+#: dlls/kernelbase/winerror.mc:1735
 msgid "The journal is not active.\n"
 msgstr "Dnevnik nije aktivan.\n"
 
-#: dlls/kernelbase/winerror.mc:1623
+#: dlls/kernelbase/winerror.mc:1740
 msgid "Potential matching file found.\n"
 msgstr "Potencijalno odgovarajuća datoteka nađena.\n"
 
-#: dlls/kernelbase/winerror.mc:1628
+#: dlls/kernelbase/winerror.mc:1745
 msgid "The journal entry was deleted.\n"
 msgstr "Unos u dnevniku je izbrisan.\n"
 
-#: dlls/kernelbase/winerror.mc:1633
+#: dlls/kernelbase/winerror.mc:1750
 msgid "Invalid device name.\n"
 msgstr "Neispravno ime uređaja.\n"
 
-#: dlls/kernelbase/winerror.mc:1638
+#: dlls/kernelbase/winerror.mc:1755
 msgid "Connection unavailable.\n"
 msgstr "Veza nedostupna.\n"
 
-#: dlls/kernelbase/winerror.mc:1643
+#: dlls/kernelbase/winerror.mc:1760
 msgid "Device already remembered.\n"
 msgstr "Uređaj već zapamćen.\n"
 
-#: dlls/kernelbase/winerror.mc:1648
+#: dlls/kernelbase/winerror.mc:1765
 msgid "No network or bad path.\n"
 msgstr "Nema mreže ili neispravna putanja.\n"
 
-#: dlls/kernelbase/winerror.mc:1653
+#: dlls/kernelbase/winerror.mc:1770
 msgid "Invalid network provider name.\n"
 msgstr "Neispravno ime poslužitelja mreže.\n"
 
-#: dlls/kernelbase/winerror.mc:1658
+#: dlls/kernelbase/winerror.mc:1775
 msgid "Cannot open network connection profile.\n"
 msgstr "Ne može se otvoriti profil mrežne konekcije.\n"
 
-#: dlls/kernelbase/winerror.mc:1663
+#: dlls/kernelbase/winerror.mc:1780
 msgid "Corrupt network connection profile.\n"
 msgstr "Oštećen profil mrežne konekcije.\n"
 
-#: dlls/kernelbase/winerror.mc:1668
+#: dlls/kernelbase/winerror.mc:1785
 msgid "Not a container.\n"
 msgstr "Nije spremnik.\n"
 
-#: dlls/kernelbase/winerror.mc:1673
+#: dlls/kernelbase/winerror.mc:1790
 msgid "Extended error.\n"
 msgstr "Proširena pogreška.\n"
 
-#: dlls/kernelbase/winerror.mc:1678
+#: dlls/kernelbase/winerror.mc:1795
 msgid "Invalid group name.\n"
 msgstr "Neispravno ime grupe.\n"
 
-#: dlls/kernelbase/winerror.mc:1683
+#: dlls/kernelbase/winerror.mc:1800
 msgid "Invalid computer name.\n"
 msgstr "Neispravno ime računala.\n"
 
-#: dlls/kernelbase/winerror.mc:1688
+#: dlls/kernelbase/winerror.mc:1805
 msgid "Invalid event name.\n"
 msgstr "Neispravan naziv događaja.\n"
 
-#: dlls/kernelbase/winerror.mc:1693
+#: dlls/kernelbase/winerror.mc:1810
 msgid "Invalid domain name.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:1698
+#: dlls/kernelbase/winerror.mc:1815
 msgid "Invalid service name.\n"
 msgstr "Neispravno ime servisa.\n"
 
-#: dlls/kernelbase/winerror.mc:1703
+#: dlls/kernelbase/winerror.mc:1820
 msgid "Invalid network name.\n"
 msgstr "Neispravno ime mreže.\n"
 
-#: dlls/kernelbase/winerror.mc:1708
+#: dlls/kernelbase/winerror.mc:1825
 msgid "Invalid share name.\n"
 msgstr "Neispravan naziv dijeljenog.\n"
 
-#: dlls/kernelbase/winerror.mc:1718
+#: dlls/kernelbase/winerror.mc:1835
 msgid "Invalid message name.\n"
 msgstr "Neispravno ime poruke.\n"
 
-#: dlls/kernelbase/winerror.mc:1723
+#: dlls/kernelbase/winerror.mc:1840
 msgid "Invalid message destination.\n"
 msgstr "Neispravna destinacija poruke.\n"
 
-#: dlls/kernelbase/winerror.mc:1728
+#: dlls/kernelbase/winerror.mc:1845
 msgid "Session credential conflict.\n"
 msgstr "Sukob sjedničkih uvjerenja.\n"
 
-#: dlls/kernelbase/winerror.mc:1733
+#: dlls/kernelbase/winerror.mc:1850
 msgid "Remote session limit exceeded.\n"
 msgstr "Prevršeno ograničenje udaljenih sjednica.\n"
 
-#: dlls/kernelbase/winerror.mc:1738
+#: dlls/kernelbase/winerror.mc:1855
 msgid "Duplicate domain or workgroup name.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:1743
+#: dlls/kernelbase/winerror.mc:1860
 msgid "No network.\n"
 msgstr "Nema mreže.\n"
 
-#: dlls/kernelbase/winerror.mc:1748
+#: dlls/kernelbase/winerror.mc:1865
 msgid "Operation canceled by user.\n"
 msgstr "Korisnik prekinuo operaciju.\n"
 
-#: dlls/kernelbase/winerror.mc:1753
+#: dlls/kernelbase/winerror.mc:1870
 msgid "File has a user-mapped section.\n"
 msgstr "Datoteka ima korisnički mapiranu sekciju.\n"
 
-#: dlls/kernelbase/winerror.mc:1758 dlls/kernelbase/winerror.mc:3788
+#: dlls/kernelbase/winerror.mc:1875 dlls/kernelbase/winerror.mc:3910
 msgid "Connection refused.\n"
 msgstr "Povezivanje odbijeno.\n"
 
-#: dlls/kernelbase/winerror.mc:1763
+#: dlls/kernelbase/winerror.mc:1880
 msgid "Connection gracefully closed.\n"
 msgstr "Poveznica graciozno zatvorena.\n"
 
-#: dlls/kernelbase/winerror.mc:1768
+#: dlls/kernelbase/winerror.mc:1885
 msgid "Address already associated with transport endpoint.\n"
 msgstr "Adresa već povezana s transportnom završnom točkom.\n"
 
-#: dlls/kernelbase/winerror.mc:1773
+#: dlls/kernelbase/winerror.mc:1890
 msgid "Address not associated with transport endpoint.\n"
 msgstr "Adresa nije povezana s transportnom završnom točkom.\n"
 
-#: dlls/kernelbase/winerror.mc:1778
+#: dlls/kernelbase/winerror.mc:1895
 msgid "Connection invalid.\n"
 msgstr "Neispravna veza.\n"
 
-#: dlls/kernelbase/winerror.mc:1783
+#: dlls/kernelbase/winerror.mc:1900
 msgid "Connection is active.\n"
 msgstr "Konekcija je aktivna.\n"
 
-#: dlls/kernelbase/winerror.mc:1788
+#: dlls/kernelbase/winerror.mc:1905
 msgid "Network unreachable.\n"
 msgstr "Mreža nedostupna.\n"
 
-#: dlls/kernelbase/winerror.mc:1793
+#: dlls/kernelbase/winerror.mc:1910
 msgid "Host unreachable.\n"
 msgstr "Domaćin nedohvatljiv.\n"
 
-#: dlls/kernelbase/winerror.mc:1798
+#: dlls/kernelbase/winerror.mc:1915
 msgid "Protocol unreachable.\n"
 msgstr "Protokol nedostupan.\n"
 
-#: dlls/kernelbase/winerror.mc:1803
+#: dlls/kernelbase/winerror.mc:1920
 msgid "Port unreachable.\n"
 msgstr "Vrata nedostupna.\n"
 
-#: dlls/kernelbase/winerror.mc:1808
+#: dlls/kernelbase/winerror.mc:1925
 msgid "Request aborted.\n"
 msgstr "Zahtjev prekinut.\n"
 
-#: dlls/kernelbase/winerror.mc:1813
+#: dlls/kernelbase/winerror.mc:1930
 msgid "Connection aborted.\n"
 msgstr "Povezivanje prekinuto.\n"
 
-#: dlls/kernelbase/winerror.mc:1818
+#: dlls/kernelbase/winerror.mc:1935
 msgid "Please retry operation.\n"
 msgstr "Molimo ponovite operaciju.\n"
 
-#: dlls/kernelbase/winerror.mc:1823
+#: dlls/kernelbase/winerror.mc:1940
 msgid "Connection count limit reached.\n"
 msgstr "Dosegnut broj ograničenja konekcija.\n"
 
-#: dlls/kernelbase/winerror.mc:1828
+#: dlls/kernelbase/winerror.mc:1945
 msgid "Login time restriction.\n"
 msgstr "Ograničenje vrijeme prijave.\n"
 
-#: dlls/kernelbase/winerror.mc:1833
+#: dlls/kernelbase/winerror.mc:1950
 msgid "Login workstation restriction.\n"
 msgstr "Ograničenje prijave radne stanice.\n"
 
-#: dlls/kernelbase/winerror.mc:1838
+#: dlls/kernelbase/winerror.mc:1955
 msgid "Incorrect network address.\n"
 msgstr "Netočna mrežna adresa.\n"
 
-#: dlls/kernelbase/winerror.mc:1843
+#: dlls/kernelbase/winerror.mc:1960
 msgid "Service already registered.\n"
 msgstr "Servis već registriran.\n"
 
-#: dlls/kernelbase/winerror.mc:1848
+#: dlls/kernelbase/winerror.mc:1965
 msgid "Service not found.\n"
 msgstr "Servis nije pronađen.\n"
 
-#: dlls/kernelbase/winerror.mc:1853
+#: dlls/kernelbase/winerror.mc:1970
 msgid "User not authenticated.\n"
 msgstr "Korisnik nije ovjeren.\n"
 
-#: dlls/kernelbase/winerror.mc:1858
+#: dlls/kernelbase/winerror.mc:1975
 msgid "User not logged on.\n"
 msgstr "Korisnik nije prijavljen.\n"
 
-#: dlls/kernelbase/winerror.mc:1863
+#: dlls/kernelbase/winerror.mc:1980
 msgid "Continue work in progress.\n"
 msgstr "Nastavi rad u tijeku.\n"
 
-#: dlls/kernelbase/winerror.mc:1868
+#: dlls/kernelbase/winerror.mc:1985
 msgid "Already initialized.\n"
 msgstr "Već inicijaliziran.\n"
 
-#: dlls/kernelbase/winerror.mc:1873
+#: dlls/kernelbase/winerror.mc:1990
 msgid "No more local devices.\n"
 msgstr "Nema više lokalnih uređaja.\n"
 
-#: dlls/kernelbase/winerror.mc:1878
+#: dlls/kernelbase/winerror.mc:1995
 msgid "The site does not exist.\n"
 msgstr "Mjesto ne postoji.\n"
 
-#: dlls/kernelbase/winerror.mc:1883
+#: dlls/kernelbase/winerror.mc:2000
 msgid "The domain controller already exists.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:1888
+#: dlls/kernelbase/winerror.mc:2005
 msgid "Supported only when connected.\n"
 msgstr "Podržano samo dok veza traje.\n"
 
-#: dlls/kernelbase/winerror.mc:1893
+#: dlls/kernelbase/winerror.mc:2010
 msgid "Perform operation even when nothing changed.\n"
 msgstr "Obavi operaciju čak i kada se ništa nije promijenilo.\n"
 
-#: dlls/kernelbase/winerror.mc:1898
+#: dlls/kernelbase/winerror.mc:2015
 msgid "The user profile is invalid.\n"
 msgstr "Korisnički profil je neispravan.\n"
 
-#: dlls/kernelbase/winerror.mc:1903
+#: dlls/kernelbase/winerror.mc:2020
 msgid "Not supported on Small Business Server.\n"
 msgstr "Nije podržano na Small Business Server.\n"
 
-#: dlls/kernelbase/winerror.mc:1908
+#: dlls/kernelbase/winerror.mc:2025
 msgid "Not all privileges assigned.\n"
 msgstr "Nisu sva dopuštenja pridružene.\n"
 
-#: dlls/kernelbase/winerror.mc:1913
+#: dlls/kernelbase/winerror.mc:2030
 msgid "Some security IDs not mapped.\n"
 msgstr "Neki sigurnosni ID nisu mapirani.\n"
 
-#: dlls/kernelbase/winerror.mc:1918
+#: dlls/kernelbase/winerror.mc:2035
 msgid "No quotas for account.\n"
 msgstr "Nema kvota za račun.\n"
 
-#: dlls/kernelbase/winerror.mc:1923
+#: dlls/kernelbase/winerror.mc:2040
 msgid "Local user session key.\n"
 msgstr "Ključ sjednice lokanog korisnika.\n"
 
-#: dlls/kernelbase/winerror.mc:1928
+#: dlls/kernelbase/winerror.mc:2045
 msgid "Password too complex for LM.\n"
 msgstr "Lozinka presložena za LM.\n"
 
-#: dlls/kernelbase/winerror.mc:1933
+#: dlls/kernelbase/winerror.mc:2050
 msgid "Unknown revision.\n"
 msgstr "Nepoznata revizija.\n"
 
-#: dlls/kernelbase/winerror.mc:1938
+#: dlls/kernelbase/winerror.mc:2055
 msgid "Incompatible revision levels.\n"
 msgstr "Nekompatibilne razine revizije.\n"
 
-#: dlls/kernelbase/winerror.mc:1943
+#: dlls/kernelbase/winerror.mc:2060
 msgid "Invalid owner.\n"
 msgstr "Neispravan vlasnik.\n"
 
-#: dlls/kernelbase/winerror.mc:1948
+#: dlls/kernelbase/winerror.mc:2065
 msgid "Invalid primary group.\n"
 msgstr "Neispravna primarna grupa.\n"
 
-#: dlls/kernelbase/winerror.mc:1953
+#: dlls/kernelbase/winerror.mc:2070
 msgid "No impersonation token.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:1958
+#: dlls/kernelbase/winerror.mc:2075
 msgid "Can't disable mandatory group.\n"
 msgstr "Obaveznu grupu se ne može onemogućiti.\n"
 
-#: dlls/kernelbase/winerror.mc:1963
+#: dlls/kernelbase/winerror.mc:2080
 msgid "No logon servers available.\n"
 msgstr "Nema dostupnih poslužitelja za prijavu.\n"
 
-#: dlls/kernelbase/winerror.mc:1968
+#: dlls/kernelbase/winerror.mc:2085
 msgid "No such logon session.\n"
 msgstr "Ne postoji takva prijava sjednice.\n"
 
-#: dlls/kernelbase/winerror.mc:1973
+#: dlls/kernelbase/winerror.mc:2090
 msgid "No such privilege.\n"
 msgstr "Nema takvog dopuštenja.\n"
 
-#: dlls/kernelbase/winerror.mc:1978
+#: dlls/kernelbase/winerror.mc:2095
 msgid "Privilege not held.\n"
 msgstr "Nemate dopuštenje.\n"
 
-#: dlls/kernelbase/winerror.mc:1983
+#: dlls/kernelbase/winerror.mc:2100
 msgid "Invalid account name.\n"
 msgstr "Neispravno ime računa.\n"
 
-#: dlls/kernelbase/winerror.mc:1988
+#: dlls/kernelbase/winerror.mc:2105
 msgid "User already exists.\n"
 msgstr "Korisnik već postoji.\n"
 
-#: dlls/kernelbase/winerror.mc:1993
+#: dlls/kernelbase/winerror.mc:2110
 msgid "No such user.\n"
 msgstr "Ne postoji takav korisnik.\n"
 
-#: dlls/kernelbase/winerror.mc:1998
+#: dlls/kernelbase/winerror.mc:2115
 msgid "Group already exists.\n"
 msgstr "Grupa već postoji.\n"
 
-#: dlls/kernelbase/winerror.mc:2003
+#: dlls/kernelbase/winerror.mc:2120
 msgid "No such group.\n"
 msgstr "Ne postoji takva grupa.\n"
 
-#: dlls/kernelbase/winerror.mc:2008
+#: dlls/kernelbase/winerror.mc:2125
 msgid "User already in group.\n"
 msgstr "Korisnik je već u grupi.\n"
 
-#: dlls/kernelbase/winerror.mc:2013
+#: dlls/kernelbase/winerror.mc:2130
 msgid "User not in group.\n"
 msgstr "Korisnik nije u grupi.\n"
 
-#: dlls/kernelbase/winerror.mc:2018
+#: dlls/kernelbase/winerror.mc:2135
 msgid "Can't delete last admin user.\n"
 msgstr "Posljednji korisnik admin se ne može izbrisati.\n"
 
-#: dlls/kernelbase/winerror.mc:2023
+#: dlls/kernelbase/winerror.mc:2140
 msgid "Wrong password.\n"
 msgstr "Kriva lozinka.\n"
 
-#: dlls/kernelbase/winerror.mc:2028
+#: dlls/kernelbase/winerror.mc:2145
 msgid "Ill-formed password.\n"
 msgstr "Loše formirana lozinka.\n"
 
-#: dlls/kernelbase/winerror.mc:2033
+#: dlls/kernelbase/winerror.mc:2150
 msgid "Password restriction.\n"
 msgstr "Ograničenje lozinke.\n"
 
-#: dlls/kernelbase/winerror.mc:2038
+#: dlls/kernelbase/winerror.mc:2155
 msgid "Logon failure.\n"
 msgstr "Neuspješna prijava.\n"
 
-#: dlls/kernelbase/winerror.mc:2043
+#: dlls/kernelbase/winerror.mc:2160
 msgid "Account restriction.\n"
 msgstr "Ograničenje računa.\n"
 
-#: dlls/kernelbase/winerror.mc:2048
+#: dlls/kernelbase/winerror.mc:2165
 msgid "Invalid logon hours.\n"
 msgstr "Neispravni sati prijave.\n"
 
-#: dlls/kernelbase/winerror.mc:2053
+#: dlls/kernelbase/winerror.mc:2170
 msgid "Invalid workstation.\n"
 msgstr "Neispravna radna stanica.\n"
 
-#: dlls/kernelbase/winerror.mc:2058
+#: dlls/kernelbase/winerror.mc:2175
 msgid "Password expired.\n"
 msgstr "Lozinka istekla.\n"
 
-#: dlls/kernelbase/winerror.mc:2063
+#: dlls/kernelbase/winerror.mc:2180
 msgid "Account disabled.\n"
 msgstr "Račun isključen.\n"
 
-#: dlls/kernelbase/winerror.mc:2068
+#: dlls/kernelbase/winerror.mc:2185
 msgid "No security ID mapped.\n"
 msgstr "Nema mapiranog sigurnosog IDa.\n"
 
-#: dlls/kernelbase/winerror.mc:2073
+#: dlls/kernelbase/winerror.mc:2190
 msgid "Too many LUIDs requested.\n"
 msgstr "Previše LUIDa zatraženo.\n"
 
-#: dlls/kernelbase/winerror.mc:2078
+#: dlls/kernelbase/winerror.mc:2195
 msgid "LUIDs exhausted.\n"
 msgstr "LUIDi potrošeni.\n"
 
-#: dlls/kernelbase/winerror.mc:2083
+#: dlls/kernelbase/winerror.mc:2200
 msgid "Invalid sub authority.\n"
 msgstr "Neispravan podautoritet.\n"
 
-#: dlls/kernelbase/winerror.mc:2088
+#: dlls/kernelbase/winerror.mc:2205
 msgid "Invalid ACL.\n"
 msgstr "Neispravan ACL.\n"
 
-#: dlls/kernelbase/winerror.mc:2093
+#: dlls/kernelbase/winerror.mc:2210
 msgid "Invalid SID.\n"
 msgstr "Neispravan SID.\n"
 
-#: dlls/kernelbase/winerror.mc:2098
+#: dlls/kernelbase/winerror.mc:2215
 msgid "Invalid security descriptor.\n"
 msgstr "Neispravan sigurnosni opisnik.\n"
 
-#: dlls/kernelbase/winerror.mc:2103
+#: dlls/kernelbase/winerror.mc:2220
 msgid "Bad inherited ACL.\n"
 msgstr "Loš naslijeđen ACL.\n"
 
-#: dlls/kernelbase/winerror.mc:2108
+#: dlls/kernelbase/winerror.mc:2225
 msgid "Server disabled.\n"
 msgstr "Poslužitelj isključen.\n"
 
-#: dlls/kernelbase/winerror.mc:2113
+#: dlls/kernelbase/winerror.mc:2230
 msgid "Server not disabled.\n"
 msgstr "Poslužitelj nije onemogućen.\n"
 
-#: dlls/kernelbase/winerror.mc:2118
+#: dlls/kernelbase/winerror.mc:2235
 msgid "Invalid ID authority.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2123
+#: dlls/kernelbase/winerror.mc:2240
 msgid "Allotted space exceeded.\n"
 msgstr "Premašen dodijeljen prostor.\n"
 
-#: dlls/kernelbase/winerror.mc:2128
+#: dlls/kernelbase/winerror.mc:2245
 msgid "Invalid group attributes.\n"
 msgstr "Neispravni atributi grupe.\n"
 
-#: dlls/kernelbase/winerror.mc:2133
+#: dlls/kernelbase/winerror.mc:2250
 msgid "Bad impersonation level.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2138
+#: dlls/kernelbase/winerror.mc:2255
 msgid "Can't open anonymous security token.\n"
 msgstr "Anonimni sigurnosni žeton nije moguće otvoriti.\n"
 
-#: dlls/kernelbase/winerror.mc:2143
+#: dlls/kernelbase/winerror.mc:2260
 msgid "Bad validation class.\n"
 msgstr "Loša klasa validacije.\n"
 
-#: dlls/kernelbase/winerror.mc:2148
+#: dlls/kernelbase/winerror.mc:2265
 msgid "Bad token type.\n"
 msgstr "Loša vrsta žetona.\n"
 
-#: dlls/kernelbase/winerror.mc:2153
+#: dlls/kernelbase/winerror.mc:2270
 msgid "No security on object.\n"
 msgstr "Nema sigurnosti na objektu.\n"
 
-#: dlls/kernelbase/winerror.mc:2158
+#: dlls/kernelbase/winerror.mc:2275
 msgid "Can't access domain information.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2163
+#: dlls/kernelbase/winerror.mc:2280
 msgid "Invalid server state.\n"
 msgstr "Neispravno stanje poslužitelja.\n"
 
-#: dlls/kernelbase/winerror.mc:2168
+#: dlls/kernelbase/winerror.mc:2285
 msgid "Invalid domain state.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2173
+#: dlls/kernelbase/winerror.mc:2290
 msgid "Invalid domain role.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2178
+#: dlls/kernelbase/winerror.mc:2295
 msgid "No such domain.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2183
+#: dlls/kernelbase/winerror.mc:2300
 msgid "Domain already exists.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2188
+#: dlls/kernelbase/winerror.mc:2305
 msgid "Domain limit exceeded.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2193
+#: dlls/kernelbase/winerror.mc:2310
 msgid "Internal database corruption.\n"
 msgstr "Korupcija interne baze podataka.\n"
 
-#: dlls/kernelbase/winerror.mc:2198
+#: dlls/kernelbase/winerror.mc:2315
 msgid "Internal error.\n"
 msgstr "Interna greška.\n"
 
-#: dlls/kernelbase/winerror.mc:2203
+#: dlls/kernelbase/winerror.mc:2320
 msgid "Generic access types not mapped.\n"
 msgstr "Generički tipovi pristupa nisu mapirani.\n"
 
-#: dlls/kernelbase/winerror.mc:2208
+#: dlls/kernelbase/winerror.mc:2325
 msgid "Bad descriptor format.\n"
 msgstr "Loš format opisnika.\n"
 
-#: dlls/kernelbase/winerror.mc:2213
+#: dlls/kernelbase/winerror.mc:2330
 msgid "Not a logon process.\n"
 msgstr "Nije proces prijave.\n"
 
-#: dlls/kernelbase/winerror.mc:2218
+#: dlls/kernelbase/winerror.mc:2335
 msgid "Logon session ID exists.\n"
 msgstr "Postoji ID sjednice prijave.\n"
 
-#: dlls/kernelbase/winerror.mc:2223
+#: dlls/kernelbase/winerror.mc:2340
 msgid "Unknown authentication package.\n"
 msgstr "Nepoznat paket autentifikacije.\n"
 
-#: dlls/kernelbase/winerror.mc:2228
+#: dlls/kernelbase/winerror.mc:2345
 msgid "Bad logon session state.\n"
 msgstr "Loše stanje sjednice prijave.\n"
 
-#: dlls/kernelbase/winerror.mc:2233
+#: dlls/kernelbase/winerror.mc:2350
 msgid "Logon session ID collision.\n"
 msgstr "Kolizija ID sjednice prijave.\n"
 
-#: dlls/kernelbase/winerror.mc:2238
+#: dlls/kernelbase/winerror.mc:2355
 msgid "Invalid logon type.\n"
 msgstr "Neispravna vrsta prijave.\n"
 
-#: dlls/kernelbase/winerror.mc:2243
+#: dlls/kernelbase/winerror.mc:2360
 msgid "Cannot impersonate.\n"
 msgstr "Ne mogu oponašati.\n"
 
-#: dlls/kernelbase/winerror.mc:2248
+#: dlls/kernelbase/winerror.mc:2365
 msgid "Invalid transaction state.\n"
 msgstr "Neispravno stanje transakcije.\n"
 
-#: dlls/kernelbase/winerror.mc:2253
+#: dlls/kernelbase/winerror.mc:2370
 msgid "Security DB commit failure.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2258
+#: dlls/kernelbase/winerror.mc:2375
 msgid "Account is built-in.\n"
 msgstr "Račun je ugrađen.\n"
 
-#: dlls/kernelbase/winerror.mc:2263
+#: dlls/kernelbase/winerror.mc:2380
 msgid "Group is built-in.\n"
 msgstr "Grupa je ugrađena.\n"
 
-#: dlls/kernelbase/winerror.mc:2268
+#: dlls/kernelbase/winerror.mc:2385
 msgid "User is built-in.\n"
 msgstr "Korisnik je ugrađen.\n"
 
-#: dlls/kernelbase/winerror.mc:2273
+#: dlls/kernelbase/winerror.mc:2390
 msgid "Group is primary for user.\n"
 msgstr "Grupa je primarna za korisnika.\n"
 
-#: dlls/kernelbase/winerror.mc:2278
+#: dlls/kernelbase/winerror.mc:2395
 msgid "Token already in use.\n"
 msgstr "Žeton je već u uporabi.\n"
 
-#: dlls/kernelbase/winerror.mc:2283
+#: dlls/kernelbase/winerror.mc:2400
 msgid "No such local group.\n"
 msgstr "Nema takve lokalne grupe.\n"
 
-#: dlls/kernelbase/winerror.mc:2288
+#: dlls/kernelbase/winerror.mc:2405
 msgid "User not in local group.\n"
 msgstr "Korisnik nije u lokalnoj grupi.\n"
 
-#: dlls/kernelbase/winerror.mc:2293
+#: dlls/kernelbase/winerror.mc:2410
 msgid "User already in local group.\n"
 msgstr "Korisnik je već u lokalnoj grupi.\n"
 
-#: dlls/kernelbase/winerror.mc:2298
+#: dlls/kernelbase/winerror.mc:2415
 msgid "Local group already exists.\n"
 msgstr "Lokalna grupa već postoji.\n"
 
-#: dlls/kernelbase/winerror.mc:2303 dlls/kernelbase/winerror.mc:2328
+#: dlls/kernelbase/winerror.mc:2420 dlls/kernelbase/winerror.mc:2445
 msgid "Logon type not granted.\n"
 msgstr "Vrsta prijave nije odobrena.\n"
 
-#: dlls/kernelbase/winerror.mc:2308
+#: dlls/kernelbase/winerror.mc:2425
 msgid "Too many secrets.\n"
 msgstr "Previše tajni.\n"
 
-#: dlls/kernelbase/winerror.mc:2313
+#: dlls/kernelbase/winerror.mc:2430
 msgid "Secret too long.\n"
 msgstr "Tajna predugačka.\n"
 
-#: dlls/kernelbase/winerror.mc:2318
+#: dlls/kernelbase/winerror.mc:2435
 msgid "Internal security DB error.\n"
 msgstr "Interna sigurnosna pogreška baze pod.\n"
 
-#: dlls/kernelbase/winerror.mc:2323
+#: dlls/kernelbase/winerror.mc:2440
 msgid "Too many context IDs.\n"
 msgstr "Previše IDa konteksta.\n"
 
-#: dlls/kernelbase/winerror.mc:2333
+#: dlls/kernelbase/winerror.mc:2450
 msgid "Cross-encrypted NT password required.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2338
+#: dlls/kernelbase/winerror.mc:2455
 msgid "No such member.\n"
 msgstr "Ne postoji takav član.\n"
 
-#: dlls/kernelbase/winerror.mc:2343
+#: dlls/kernelbase/winerror.mc:2460
 msgid "Invalid member.\n"
 msgstr "Neispravan član.\n"
 
-#: dlls/kernelbase/winerror.mc:2348
+#: dlls/kernelbase/winerror.mc:2465
 msgid "Too many SIDs.\n"
 msgstr "Previše SIDova.\n"
 
-#: dlls/kernelbase/winerror.mc:2353
+#: dlls/kernelbase/winerror.mc:2470
 msgid "Cross-encrypted LM password required.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2358
+#: dlls/kernelbase/winerror.mc:2475
 msgid "No inheritable components.\n"
 msgstr "Nema nasljedivih komponenti.\n"
 
-#: dlls/kernelbase/winerror.mc:2363
+#: dlls/kernelbase/winerror.mc:2480
 msgid "File or directory corrupt.\n"
 msgstr "Datoteka ili direktorij oštećen.\n"
 
-#: dlls/kernelbase/winerror.mc:2368
+#: dlls/kernelbase/winerror.mc:2485
 msgid "Disk is corrupt.\n"
 msgstr "Disk je oštećen.\n"
 
-#: dlls/kernelbase/winerror.mc:2373
+#: dlls/kernelbase/winerror.mc:2490
 msgid "No user session key.\n"
 msgstr "Nema korisničkog ključa sjednice.\n"
 
-#: dlls/kernelbase/winerror.mc:2378
+#: dlls/kernelbase/winerror.mc:2495
 msgid "License quota exceeded.\n"
 msgstr "Premašena kvota licence.\n"
 
-#: dlls/kernelbase/winerror.mc:2383
+#: dlls/kernelbase/winerror.mc:2500
 msgid "Wrong target name.\n"
 msgstr "Krivo ime mete.\n"
 
-#: dlls/kernelbase/winerror.mc:2388
+#: dlls/kernelbase/winerror.mc:2505
 msgid "Mutual authentication failed.\n"
 msgstr "Obostrana autentifikacija neuspjela.\n"
 
-#: dlls/kernelbase/winerror.mc:2393
+#: dlls/kernelbase/winerror.mc:2510
 msgid "Time skew between client and server.\n"
 msgstr "Vremensko iskrivljenje između klijenta i poslužitelja.\n"
 
-#: dlls/kernelbase/winerror.mc:2398
+#: dlls/kernelbase/winerror.mc:2515
 msgid "Invalid window handle.\n"
 msgstr "Neispravna poveznica prozora.\n"
 
-#: dlls/kernelbase/winerror.mc:2403
+#: dlls/kernelbase/winerror.mc:2520
 msgid "Invalid menu handle.\n"
 msgstr "Neispravna poveznica izbornika.\n"
 
-#: dlls/kernelbase/winerror.mc:2408
+#: dlls/kernelbase/winerror.mc:2525
 msgid "Invalid cursor handle.\n"
 msgstr "Neispravna poveznica pokazivača.\n"
 
-#: dlls/kernelbase/winerror.mc:2413
+#: dlls/kernelbase/winerror.mc:2530
 msgid "Invalid accelerator table handle.\n"
 msgstr "Neispravna poveznica akceleratora tablice.\n"
 
-#: dlls/kernelbase/winerror.mc:2418
+#: dlls/kernelbase/winerror.mc:2535
 msgid "Invalid hook handle.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2423
+#: dlls/kernelbase/winerror.mc:2540
 msgid "Invalid DWP handle.\n"
 msgstr "Neispravna DWP poveznica.\n"
 
-#: dlls/kernelbase/winerror.mc:2428
+#: dlls/kernelbase/winerror.mc:2545
 msgid "Can't create top-level child window.\n"
 msgstr "Ne mogu stvoriti prozor dijete gornje razine.\n"
 
-#: dlls/kernelbase/winerror.mc:2433
+#: dlls/kernelbase/winerror.mc:2550
 msgid "Can't find window class.\n"
 msgstr "Ne mogu naći klasu prozora.\n"
 
-#: dlls/kernelbase/winerror.mc:2438
+#: dlls/kernelbase/winerror.mc:2555
 msgid "Window owned by another thread.\n"
 msgstr "Prozor je u vlasništvu druge dretve.\n"
 
-#: dlls/kernelbase/winerror.mc:2443
+#: dlls/kernelbase/winerror.mc:2560
 msgid "Hotkey already registered.\n"
 msgstr "Prečac već prijavljen.\n"
 
-#: dlls/kernelbase/winerror.mc:2448
+#: dlls/kernelbase/winerror.mc:2565
 msgid "Class already exists.\n"
 msgstr "Klasa već postoji.\n"
 
-#: dlls/kernelbase/winerror.mc:2453
+#: dlls/kernelbase/winerror.mc:2570
 msgid "Class does not exist.\n"
 msgstr "Klasa ne postoji.\n"
 
-#: dlls/kernelbase/winerror.mc:2458
+#: dlls/kernelbase/winerror.mc:2575
 msgid "Class has open windows.\n"
 msgstr "Klasa ima otvorene prozore.\n"
 
-#: dlls/kernelbase/winerror.mc:2463 dlls/mferror/mferror.mc:130
+#: dlls/kernelbase/winerror.mc:2580 dlls/mferror/mferror.mc:130
 msgid "Invalid index.\n"
 msgstr "Neispravan indeks.\n"
 
-#: dlls/kernelbase/winerror.mc:2468
+#: dlls/kernelbase/winerror.mc:2585
 msgid "Invalid icon handle.\n"
 msgstr "Neispravna poveznica ikone.\n"
 
-#: dlls/kernelbase/winerror.mc:2473
+#: dlls/kernelbase/winerror.mc:2590
 msgid "Private dialog index.\n"
 msgstr "Indeks privatnog dijaloga.\n"
 
-#: dlls/kernelbase/winerror.mc:2478
+#: dlls/kernelbase/winerror.mc:2595
 msgid "List box ID not found.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2483
+#: dlls/kernelbase/winerror.mc:2600
 msgid "No wildcard characters.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2488
+#: dlls/kernelbase/winerror.mc:2605
 msgid "Clipboard not open.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2493
+#: dlls/kernelbase/winerror.mc:2610
 msgid "Hotkey not registered.\n"
 msgstr "Prečac nije registriran.\n"
 
-#: dlls/kernelbase/winerror.mc:2498
+#: dlls/kernelbase/winerror.mc:2615
 msgid "Not a dialog window.\n"
 msgstr "Nije dijaloški prozor.\n"
 
-#: dlls/kernelbase/winerror.mc:2503
+#: dlls/kernelbase/winerror.mc:2620
 msgid "Control ID not found.\n"
 msgstr "ID kontrole nije pronađen.\n"
 
-#: dlls/kernelbase/winerror.mc:2508
+#: dlls/kernelbase/winerror.mc:2625
 msgid "Invalid combo box message.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2513
+#: dlls/kernelbase/winerror.mc:2630
 msgid "Not a combo box window.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2518
+#: dlls/kernelbase/winerror.mc:2635
 msgid "Invalid edit height.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2523
+#: dlls/kernelbase/winerror.mc:2640
 msgid "DC not found.\n"
 msgstr "DC nije pronađen.\n"
 
-#: dlls/kernelbase/winerror.mc:2528
+#: dlls/kernelbase/winerror.mc:2645
 msgid "Invalid hook filter.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2533
+#: dlls/kernelbase/winerror.mc:2650
 msgid "Invalid filter procedure.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2538
+#: dlls/kernelbase/winerror.mc:2655
 msgid "Hook procedure needs module handle.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2543
+#: dlls/kernelbase/winerror.mc:2660
 msgid "Global-only hook procedure.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2548
+#: dlls/kernelbase/winerror.mc:2665
 msgid "Journal hook already set.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2553
+#: dlls/kernelbase/winerror.mc:2670
 msgid "Hook procedure not installed.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2558
+#: dlls/kernelbase/winerror.mc:2675
 msgid "Invalid list box message.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2563
+#: dlls/kernelbase/winerror.mc:2680
 msgid "Invalid LB_SETCOUNT sent.\n"
 msgstr "Poslan neispravan LB_SETCOUNT.\n"
 
-#: dlls/kernelbase/winerror.mc:2568
+#: dlls/kernelbase/winerror.mc:2685
 msgid "No tab stops on this list box.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2573
+#: dlls/kernelbase/winerror.mc:2690
 msgid "Can't destroy object owned by another thread.\n"
 msgstr "Ne može se uništiti objekt u vlasništvu druge dretve.\n"
 
-#: dlls/kernelbase/winerror.mc:2578
+#: dlls/kernelbase/winerror.mc:2695
 msgid "Child window menus not allowed.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2583
+#: dlls/kernelbase/winerror.mc:2700
 msgid "Window has no system menu.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2588
+#: dlls/kernelbase/winerror.mc:2705
 msgid "Invalid message box style.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2593
+#: dlls/kernelbase/winerror.mc:2710
 msgid "Invalid SPI parameter.\n"
 msgstr "Neispravan SPI parametar.\n"
 
-#: dlls/kernelbase/winerror.mc:2598
+#: dlls/kernelbase/winerror.mc:2715
 msgid "Screen already locked.\n"
 msgstr "Ekran već zaključan.\n"
 
-#: dlls/kernelbase/winerror.mc:2603
+#: dlls/kernelbase/winerror.mc:2720
 msgid "Window handles have different parents.\n"
 msgstr "Poveznice prozora imaju druga roditelje.\n"
 
-#: dlls/kernelbase/winerror.mc:2608
+#: dlls/kernelbase/winerror.mc:2725
 msgid "Not a child window.\n"
 msgstr "Nije prozor dijete.\n"
 
-#: dlls/kernelbase/winerror.mc:2613
+#: dlls/kernelbase/winerror.mc:2730
 msgid "Invalid GW command.\n"
 msgstr "Neispravna GW naredba.\n"
 
-#: dlls/kernelbase/winerror.mc:2618
+#: dlls/kernelbase/winerror.mc:2735
 msgid "Invalid thread ID.\n"
 msgstr "Neispravan ID dretve.\n"
 
-#: dlls/kernelbase/winerror.mc:2623
+#: dlls/kernelbase/winerror.mc:2740
 msgid "Not an MDI child window.\n"
 msgstr "Prozor nije dijete MDI.\n"
 
-#: dlls/kernelbase/winerror.mc:2628
+#: dlls/kernelbase/winerror.mc:2745
 msgid "Popup menu already active.\n"
 msgstr "Iskočni izbornik već aktivan.\n"
 
-#: dlls/kernelbase/winerror.mc:2633
+#: dlls/kernelbase/winerror.mc:2750
 msgid "No scrollbars.\n"
 msgstr "Nema trake za pomicanje.\n"
 
-#: dlls/kernelbase/winerror.mc:2638
+#: dlls/kernelbase/winerror.mc:2755
 msgid "Invalid scrollbar range.\n"
 msgstr "Nevaljan raspon trake za pomicanje.\n"
 
-#: dlls/kernelbase/winerror.mc:2643
+#: dlls/kernelbase/winerror.mc:2760
 msgid "Invalid ShowWin command.\n"
 msgstr "Neispravna ShowWin naredba.\n"
 
-#: dlls/kernelbase/winerror.mc:2648
+#: dlls/kernelbase/winerror.mc:2765
 msgid "No system resources.\n"
 msgstr "Nema sistemskih resursa.\n"
 
-#: dlls/kernelbase/winerror.mc:2653
+#: dlls/kernelbase/winerror.mc:2770
 msgid "No non-paged system resources.\n"
 msgstr "Nema ne-straničenih sistemskih resursa.\n"
 
-#: dlls/kernelbase/winerror.mc:2658
+#: dlls/kernelbase/winerror.mc:2775
 msgid "No paged system resources.\n"
 msgstr "Nema straničenih sistemskih resursa.\n"
 
-#: dlls/kernelbase/winerror.mc:2663
+#: dlls/kernelbase/winerror.mc:2780
 msgid "No working set quota.\n"
 msgstr "Nema kvote radnog skupa.\n"
 
-#: dlls/kernelbase/winerror.mc:2668
+#: dlls/kernelbase/winerror.mc:2785
 msgid "No page file quota.\n"
 msgstr "Nema kvote stranične datoteke.\n"
 
-#: dlls/kernelbase/winerror.mc:2673
+#: dlls/kernelbase/winerror.mc:2790
 msgid "Exceeded commitment limit.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2678
+#: dlls/kernelbase/winerror.mc:2795
 msgid "Menu item not found.\n"
 msgstr "Stavka menija nije pronađena.\n"
 
-#: dlls/kernelbase/winerror.mc:2683
+#: dlls/kernelbase/winerror.mc:2800
 msgid "Invalid keyboard handle.\n"
 msgstr "Neispravna poveznica tipkovnice.\n"
 
-#: dlls/kernelbase/winerror.mc:2688
+#: dlls/kernelbase/winerror.mc:2805
 msgid "Hook type not allowed.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:2693
+#: dlls/kernelbase/winerror.mc:2810
 msgid "Interactive window station required.\n"
 msgstr "Potrebna interaktivna stanice prozora.\n"
 
-#: dlls/kernelbase/winerror.mc:2698
+#: dlls/kernelbase/winerror.mc:2815
 msgid "Timeout.\n"
 msgstr "Istek vremena.\n"
 
-#: dlls/kernelbase/winerror.mc:2703
+#: dlls/kernelbase/winerror.mc:2820
 msgid "Invalid monitor handle.\n"
 msgstr "Neispravna poveznica ekrana.\n"
 
-#: dlls/kernelbase/winerror.mc:2708
+#: dlls/kernelbase/winerror.mc:2825
 msgid "Event log file corrupt.\n"
 msgstr "Datoteka dnevnika dođagaja je oštećena.\n"
 
-#: dlls/kernelbase/winerror.mc:2713
+#: dlls/kernelbase/winerror.mc:2830
 msgid "Event log can't start.\n"
 msgstr "Dnevnik događaja se ne može pokrenuti.\n"
 
-#: dlls/kernelbase/winerror.mc:2718
+#: dlls/kernelbase/winerror.mc:2835
 msgid "Event log file full.\n"
 msgstr "Datoteka dnevnika događaja je puna.\n"
 
-#: dlls/kernelbase/winerror.mc:2723
+#: dlls/kernelbase/winerror.mc:2840
 msgid "Event log file changed.\n"
 msgstr "Datoteka dnevnika događaja je promijenjena.\n"
 
-#: dlls/kernelbase/winerror.mc:2728
+#: dlls/kernelbase/winerror.mc:2845
 msgid "Installer service failed.\n"
 msgstr "Instalacijski servis neuspio.\n"
 
-#: dlls/kernelbase/winerror.mc:2733
+#: dlls/kernelbase/winerror.mc:2850
 msgid "Installation aborted by user.\n"
 msgstr "Instalacija prekinuta od strane korisnika.\n"
 
-#: dlls/kernelbase/winerror.mc:2738
+#: dlls/kernelbase/winerror.mc:2855
 msgid "Installation failure.\n"
 msgstr "Installacija neuspjela.\n"
 
-#: dlls/kernelbase/winerror.mc:2743
+#: dlls/kernelbase/winerror.mc:2860
 msgid "Installation suspended.\n"
 msgstr "Instalacija suspednirana.\n"
 
-#: dlls/kernelbase/winerror.mc:2748
+#: dlls/kernelbase/winerror.mc:2865
 msgid "Unknown product.\n"
 msgstr "Nepoznat proizvod.\n"
 
-#: dlls/kernelbase/winerror.mc:2753
+#: dlls/kernelbase/winerror.mc:2870
 msgid "Unknown feature.\n"
 msgstr "Nepoznato svojstvo.\n"
 
-#: dlls/kernelbase/winerror.mc:2758
+#: dlls/kernelbase/winerror.mc:2875
 msgid "Unknown component.\n"
 msgstr "Nepoznata komponenta.\n"
 
-#: dlls/kernelbase/winerror.mc:2763
+#: dlls/kernelbase/winerror.mc:2880
 msgid "Unknown property.\n"
 msgstr "Nepoznato svojstvo.\n"
 
-#: dlls/kernelbase/winerror.mc:2768
+#: dlls/kernelbase/winerror.mc:2885
 msgid "Invalid handle state.\n"
 msgstr "Neispravno stanje poveznice.\n"
 
-#: dlls/kernelbase/winerror.mc:2773
+#: dlls/kernelbase/winerror.mc:2890
 msgid "Bad configuration.\n"
 msgstr "Neispravna konfiguracija.\n"
 
-#: dlls/kernelbase/winerror.mc:2778
+#: dlls/kernelbase/winerror.mc:2895
 msgid "Index is missing.\n"
 msgstr "Indeks nedostaje.\n"
 
-#: dlls/kernelbase/winerror.mc:2783
+#: dlls/kernelbase/winerror.mc:2900
 msgid "Installation source is missing.\n"
 msgstr "Izvor instalacije nedostaje.\n"
 
-#: dlls/kernelbase/winerror.mc:2788
+#: dlls/kernelbase/winerror.mc:2905
 msgid "Wrong installation package version.\n"
 msgstr "Kriva verzija instalacijskog paketa.\n"
 
-#: dlls/kernelbase/winerror.mc:2793
+#: dlls/kernelbase/winerror.mc:2910
 msgid "Product uninstalled.\n"
 msgstr "Proizvod uklonjen.\n"
 
-#: dlls/kernelbase/winerror.mc:2798
+#: dlls/kernelbase/winerror.mc:2915
 msgid "Invalid query syntax.\n"
 msgstr "Neispravna sintaksa upita.\n"
 
-#: dlls/kernelbase/winerror.mc:2803
+#: dlls/kernelbase/winerror.mc:2920
 msgid "Invalid field.\n"
 msgstr "Neispravno polje.\n"
 
-#: dlls/kernelbase/winerror.mc:2808
+#: dlls/kernelbase/winerror.mc:2925
 msgid "Device removed.\n"
 msgstr "Uređaj uklonjen.\n"
 
-#: dlls/kernelbase/winerror.mc:2813
+#: dlls/kernelbase/winerror.mc:2930
 msgid "Installation already running.\n"
 msgstr "Instalacija je već pokrenuta.\n"
 
-#: dlls/kernelbase/winerror.mc:2818
+#: dlls/kernelbase/winerror.mc:2935
 msgid "Installation package failed to open.\n"
 msgstr "Instalacijski paket se nije mogao otvoriti.\n"
 
-#: dlls/kernelbase/winerror.mc:2823
+#: dlls/kernelbase/winerror.mc:2940
 msgid "Installation package is invalid.\n"
 msgstr "Neispravan instalacijski paket.\n"
 
-#: dlls/kernelbase/winerror.mc:2828
+#: dlls/kernelbase/winerror.mc:2945
 msgid "Installer user interface failed.\n"
 msgstr "Korisničko sučelje instalacije nije uspjelo.\n"
 
-#: dlls/kernelbase/winerror.mc:2833
+#: dlls/kernelbase/winerror.mc:2950
 msgid "Failed to open installation log file.\n"
 msgstr "Neuspjelo otvaranje dnevnika instalacije.\n"
 
-#: dlls/kernelbase/winerror.mc:2838
+#: dlls/kernelbase/winerror.mc:2955
 msgid "Installation language not supported.\n"
 msgstr "Jezik instalacije nije podržan.\n"
 
-#: dlls/kernelbase/winerror.mc:2843
+#: dlls/kernelbase/winerror.mc:2960
 msgid "Installation transform failed to apply.\n"
 msgstr "Instalacijska tranformacija nije uspjela.\n"
 
-#: dlls/kernelbase/winerror.mc:2848
+#: dlls/kernelbase/winerror.mc:2965
 msgid "Installation package rejected.\n"
 msgstr "Instalacijski paket je odbijen.\n"
 
-#: dlls/kernelbase/winerror.mc:2853
+#: dlls/kernelbase/winerror.mc:2970
 msgid "Function could not be called.\n"
 msgstr "Funckija nije mogla biti pozvana.\n"
 
-#: dlls/kernelbase/winerror.mc:2858
+#: dlls/kernelbase/winerror.mc:2975
 msgid "Function failed.\n"
 msgstr "Funkcija nije uspjela.\n"
 
-#: dlls/kernelbase/winerror.mc:2863
+#: dlls/kernelbase/winerror.mc:2980
 msgid "Invalid table.\n"
 msgstr "Neispravna tablica.\n"
 
-#: dlls/kernelbase/winerror.mc:2868
+#: dlls/kernelbase/winerror.mc:2985
 msgid "Data type mismatch.\n"
 msgstr "Nepodudarnost tipova podataka.\n"
 
-#: dlls/kernelbase/winerror.mc:2873 dlls/kernelbase/winerror.mc:3083
+#: dlls/kernelbase/winerror.mc:2990 dlls/kernelbase/winerror.mc:3200
 msgid "Unsupported type.\n"
 msgstr "Nepodržan tip.\n"
 
-#: dlls/kernelbase/winerror.mc:2878
+#: dlls/kernelbase/winerror.mc:2995
 msgid "Creation failed.\n"
 msgstr "Stvaranje neuspjelo.\n"
 
-#: dlls/kernelbase/winerror.mc:2883
+#: dlls/kernelbase/winerror.mc:3000
 msgid "Temporary directory not writable.\n"
 msgstr "U privremeni direktorij nije moguće pisati.\n"
 
-#: dlls/kernelbase/winerror.mc:2888
+#: dlls/kernelbase/winerror.mc:3005
 msgid "Installation platform not supported.\n"
 msgstr "Instalacijska platforma nije podržana.\n"
 
-#: dlls/kernelbase/winerror.mc:2893
+#: dlls/kernelbase/winerror.mc:3010
 msgid "Installer not used.\n"
 msgstr "Instalacijski progrma nije korišten.\n"
 
-#: dlls/kernelbase/winerror.mc:2898
+#: dlls/kernelbase/winerror.mc:3015
 msgid "Failed to open the patch package.\n"
 msgstr "Neuspješno otvaranje paketa zakrpi.\n"
 
-#: dlls/kernelbase/winerror.mc:2903
+#: dlls/kernelbase/winerror.mc:3020
 msgid "Invalid patch package.\n"
 msgstr "Neispravan paket zakrpi.\n"
 
-#: dlls/kernelbase/winerror.mc:2908
+#: dlls/kernelbase/winerror.mc:3025
 msgid "Unsupported patch package.\n"
 msgstr "Nepodržan paket zakripi.\n"
 
-#: dlls/kernelbase/winerror.mc:2913
+#: dlls/kernelbase/winerror.mc:3030
 msgid "Another version is installed.\n"
 msgstr "Druga inačica je instalirana.\n"
 
-#: dlls/kernelbase/winerror.mc:2918
+#: dlls/kernelbase/winerror.mc:3035
 msgid "Invalid command line.\n"
 msgstr "Neispravna naredbena linija.\n"
 
-#: dlls/kernelbase/winerror.mc:2923
+#: dlls/kernelbase/winerror.mc:3040
 msgid "Remote installation not allowed.\n"
 msgstr "Udaljena instalacija nije podržana.\n"
 
-#: dlls/kernelbase/winerror.mc:2928
+#: dlls/kernelbase/winerror.mc:3045
 msgid "Reboot initiated after successful install.\n"
 msgstr "Ponovno pokretanje pokrenuto nakon uspješne instalacije.\n"
 
-#: dlls/kernelbase/winerror.mc:2933
+#: dlls/kernelbase/winerror.mc:3050
 msgid "Invalid string binding.\n"
 msgstr "Neispravno vezivanje znakovnog niza.\n"
 
-#: dlls/kernelbase/winerror.mc:2938
+#: dlls/kernelbase/winerror.mc:3055
 msgid "Wrong kind of binding.\n"
 msgstr "Kriva vrsta vezivanja.\n"
 
-#: dlls/kernelbase/winerror.mc:2943
+#: dlls/kernelbase/winerror.mc:3060
 msgid "Invalid binding.\n"
 msgstr "Neispravno vezivanje.\n"
 
-#: dlls/kernelbase/winerror.mc:2948
+#: dlls/kernelbase/winerror.mc:3065
 msgid "RPC protocol sequence not supported.\n"
 msgstr "Sekvenca RPC protokola nije podržana.\n"
 
-#: dlls/kernelbase/winerror.mc:2953
+#: dlls/kernelbase/winerror.mc:3070
 msgid "Invalid RPC protocol sequence.\n"
 msgstr "Neispravna sekvenca RPC protokola.\n"
 
-#: dlls/kernelbase/winerror.mc:2958
+#: dlls/kernelbase/winerror.mc:3075
 msgid "Invalid string UUID.\n"
 msgstr "Neispravan UUID znakovnog niza.\n"
 
-#: dlls/kernelbase/winerror.mc:2963
+#: dlls/kernelbase/winerror.mc:3080
 msgid "Invalid endpoint format.\n"
 msgstr "Neispravan format završne točke.\n"
 
-#: dlls/kernelbase/winerror.mc:2968
+#: dlls/kernelbase/winerror.mc:3085
 msgid "Invalid network address.\n"
 msgstr "Neispravna mrežna adresa.\n"
 
-#: dlls/kernelbase/winerror.mc:2973
+#: dlls/kernelbase/winerror.mc:3090
 msgid "No endpoint found.\n"
 msgstr "Nije nađena završna točka.\n"
 
-#: dlls/kernelbase/winerror.mc:2978
+#: dlls/kernelbase/winerror.mc:3095
 msgid "Invalid timeout value.\n"
 msgstr "Neispravna vrijednost vremenskog isteka.\n"
 
-#: dlls/kernelbase/winerror.mc:2983
+#: dlls/kernelbase/winerror.mc:3100
 msgid "Object UUID not found.\n"
 msgstr "UUID objekta nije pronađen.\n"
 
-#: dlls/kernelbase/winerror.mc:2988
+#: dlls/kernelbase/winerror.mc:3105
 msgid "UUID already registered.\n"
 msgstr "UUID već registriran.\n"
 
-#: dlls/kernelbase/winerror.mc:2993
+#: dlls/kernelbase/winerror.mc:3110
 msgid "UUID type already registered.\n"
 msgstr "UUID tip već registriran.\n"
 
-#: dlls/kernelbase/winerror.mc:2998
+#: dlls/kernelbase/winerror.mc:3115
 msgid "Server already listening.\n"
 msgstr "Poslužitelj već sluša.\n"
 
-#: dlls/kernelbase/winerror.mc:3003
+#: dlls/kernelbase/winerror.mc:3120
 msgid "No protocol sequences registered.\n"
 msgstr "Sekvence protokola nisu registirane.\n"
 
-#: dlls/kernelbase/winerror.mc:3008
+#: dlls/kernelbase/winerror.mc:3125
 msgid "RPC server not listening.\n"
 msgstr "RPC poslužitelj ne sluša.\n"
 
-#: dlls/kernelbase/winerror.mc:3013
+#: dlls/kernelbase/winerror.mc:3130
 msgid "Unknown manager type.\n"
 msgstr "Nepoznata vrsta upravitelja.\n"
 
-#: dlls/kernelbase/winerror.mc:3018
+#: dlls/kernelbase/winerror.mc:3135
 msgid "Unknown interface.\n"
 msgstr "Nepoznato sučelje.\n"
 
-#: dlls/kernelbase/winerror.mc:3023
+#: dlls/kernelbase/winerror.mc:3140
 msgid "No bindings.\n"
 msgstr "Nema vezivanja.\n"
 
-#: dlls/kernelbase/winerror.mc:3028
+#: dlls/kernelbase/winerror.mc:3145
 msgid "No protocol sequences.\n"
 msgstr "Nema sekvenci protokola.\n"
 
-#: dlls/kernelbase/winerror.mc:3033
+#: dlls/kernelbase/winerror.mc:3150
 msgid "Can't create endpoint.\n"
 msgstr "Ne mogu stvoriti završnu točku.\n"
 
-#: dlls/kernelbase/winerror.mc:3038
+#: dlls/kernelbase/winerror.mc:3155
 msgid "Out of resources.\n"
 msgstr "Nema više resursa.\n"
 
-#: dlls/kernelbase/winerror.mc:3043
+#: dlls/kernelbase/winerror.mc:3160
 msgid "RPC server unavailable.\n"
 msgstr "RPC poslužitelj nedostupan.\n"
 
-#: dlls/kernelbase/winerror.mc:3048
+#: dlls/kernelbase/winerror.mc:3165
 msgid "RPC server too busy.\n"
 msgstr "RPC poslužitelj prezauzet.\n"
 
-#: dlls/kernelbase/winerror.mc:3053
+#: dlls/kernelbase/winerror.mc:3170
 msgid "Invalid network options.\n"
 msgstr "Neispravne postavke mreže.\n"
 
-#: dlls/kernelbase/winerror.mc:3058
+#: dlls/kernelbase/winerror.mc:3175
 msgid "No RPC call active.\n"
 msgstr "Nema aktivnih RPC poziva.\n"
 
-#: dlls/kernelbase/winerror.mc:3063
+#: dlls/kernelbase/winerror.mc:3180
 msgid "RPC call failed.\n"
 msgstr "RPC poziv neuspio.\n"
 
-#: dlls/kernelbase/winerror.mc:3068
+#: dlls/kernelbase/winerror.mc:3185
 msgid "RPC call failed and didn't execute.\n"
 msgstr "RPC poziv nije uspio i nije se izvršio.\n"
 
-#: dlls/kernelbase/winerror.mc:3073
+#: dlls/kernelbase/winerror.mc:3190
 msgid "RPC protocol error.\n"
 msgstr "Greška u RPC protokolu.\n"
 
-#: dlls/kernelbase/winerror.mc:3078
+#: dlls/kernelbase/winerror.mc:3195
 msgid "Unsupported transfer syntax.\n"
 msgstr "Nepodržana sintaksa prijenosa.\n"
 
-#: dlls/kernelbase/winerror.mc:3088
+#: dlls/kernelbase/winerror.mc:3205
 msgid "Invalid tag.\n"
 msgstr "Neispravna oznaka.\n"
 
-#: dlls/kernelbase/winerror.mc:3093
+#: dlls/kernelbase/winerror.mc:3210
 msgid "Invalid array bounds.\n"
 msgstr "Neispravne granice niza.\n"
 
-#: dlls/kernelbase/winerror.mc:3098
+#: dlls/kernelbase/winerror.mc:3215
 msgid "No entry name.\n"
 msgstr "Nema naziva unosa.\n"
 
-#: dlls/kernelbase/winerror.mc:3103
+#: dlls/kernelbase/winerror.mc:3220
 msgid "Invalid name syntax.\n"
 msgstr "Neispravna sintaksa imena.\n"
 
-#: dlls/kernelbase/winerror.mc:3108
+#: dlls/kernelbase/winerror.mc:3225
 msgid "Unsupported name syntax.\n"
 msgstr "Nepodržana sintaksa naziva.\n"
 
-#: dlls/kernelbase/winerror.mc:3113
+#: dlls/kernelbase/winerror.mc:3230
 msgid "No network address.\n"
 msgstr "Nema mrežne adrese.\n"
 
-#: dlls/kernelbase/winerror.mc:3118
+#: dlls/kernelbase/winerror.mc:3235
 msgid "Duplicate endpoint.\n"
 msgstr "Dvostruka završna točka.\n"
 
-#: dlls/kernelbase/winerror.mc:3123
+#: dlls/kernelbase/winerror.mc:3240
 msgid "Unknown authentication type.\n"
 msgstr "Nepoznata vrsta autentifikacije.\n"
 
-#: dlls/kernelbase/winerror.mc:3128
+#: dlls/kernelbase/winerror.mc:3245
 msgid "Maximum calls too low.\n"
 msgstr "Maksimalan broj poziva prenizak.\n"
 
-#: dlls/kernelbase/winerror.mc:3133
+#: dlls/kernelbase/winerror.mc:3250
 msgid "String too long.\n"
 msgstr "Znakovni niz predugačak.\n"
 
-#: dlls/kernelbase/winerror.mc:3138
+#: dlls/kernelbase/winerror.mc:3255
 msgid "Protocol sequence not found.\n"
 msgstr "Sekvenca protokola nije nađena.\n"
 
-#: dlls/kernelbase/winerror.mc:3143
+#: dlls/kernelbase/winerror.mc:3260
 msgid "Procedure number out of range.\n"
 msgstr "Broj procedure izvan dometa.\n"
 
-#: dlls/kernelbase/winerror.mc:3148
+#: dlls/kernelbase/winerror.mc:3265
 msgid "Binding has no authentication data.\n"
 msgstr "Vezivanje nema podatke autentifikacije.\n"
 
-#: dlls/kernelbase/winerror.mc:3153
+#: dlls/kernelbase/winerror.mc:3270
 msgid "Unknown authentication service.\n"
 msgstr "Nepoznati servis autentifikacije.\n"
 
-#: dlls/kernelbase/winerror.mc:3158
+#: dlls/kernelbase/winerror.mc:3275
 msgid "Unknown authentication level.\n"
 msgstr "Nepoznata razina autentifikacije.\n"
 
-#: dlls/kernelbase/winerror.mc:3163
+#: dlls/kernelbase/winerror.mc:3280
 msgid "Invalid authentication identity.\n"
 msgstr "Neispravan identitet autentifikacije.\n"
 
-#: dlls/kernelbase/winerror.mc:3168
+#: dlls/kernelbase/winerror.mc:3285
 msgid "Unknown authorization service.\n"
 msgstr "Nepoznati servis autorizacije.\n"
 
-#: dlls/kernelbase/winerror.mc:3173
+#: dlls/kernelbase/winerror.mc:3290
 msgid "Invalid entry.\n"
 msgstr "Neispravan unos.\n"
 
-#: dlls/kernelbase/winerror.mc:3178
+#: dlls/kernelbase/winerror.mc:3295
 msgid "Can't perform operation.\n"
 msgstr "Ne mogu obaviti operaciju.\n"
 
-#: dlls/kernelbase/winerror.mc:3183
+#: dlls/kernelbase/winerror.mc:3300
 msgid "Endpoints not registered.\n"
 msgstr "Završne točke nisu registrirane.\n"
 
-#: dlls/kernelbase/winerror.mc:3188
+#: dlls/kernelbase/winerror.mc:3305
 msgid "Nothing to export.\n"
 msgstr "Ništa za izvoz.\n"
 
-#: dlls/kernelbase/winerror.mc:3193
+#: dlls/kernelbase/winerror.mc:3310
 msgid "Incomplete name.\n"
 msgstr "Nepotpun naziv.\n"
 
-#: dlls/kernelbase/winerror.mc:3198
+#: dlls/kernelbase/winerror.mc:3315
 msgid "Invalid version option.\n"
 msgstr "Neispravna opcija inačice.\n"
 
-#: dlls/kernelbase/winerror.mc:3203
+#: dlls/kernelbase/winerror.mc:3320
 msgid "No more members.\n"
 msgstr "Nema više članova.\n"
 
-#: dlls/kernelbase/winerror.mc:3208
+#: dlls/kernelbase/winerror.mc:3325
 msgid "Not all objects unexported.\n"
 msgstr "Nisu svi objekti neizvezeni.\n"
 
-#: dlls/kernelbase/winerror.mc:3213
+#: dlls/kernelbase/winerror.mc:3330
 msgid "Interface not found.\n"
 msgstr "Sučelje nije pronađeno.\n"
 
-#: dlls/kernelbase/winerror.mc:3218
+#: dlls/kernelbase/winerror.mc:3335
 msgid "Entry already exists.\n"
 msgstr "Unos već postoji.\n"
 
-#: dlls/kernelbase/winerror.mc:3223
+#: dlls/kernelbase/winerror.mc:3340
 msgid "Entry not found.\n"
 msgstr "Unos nije pronađen.\n"
 
-#: dlls/kernelbase/winerror.mc:3228
+#: dlls/kernelbase/winerror.mc:3345
 msgid "Name service unavailable.\n"
 msgstr "Servis nazivlja nedostupan.\n"
 
-#: dlls/kernelbase/winerror.mc:3233
+#: dlls/kernelbase/winerror.mc:3350
 msgid "Invalid network address family.\n"
 msgstr "Neispravna obitelj mrežnih adresa.\n"
 
-#: dlls/kernelbase/winerror.mc:3238
+#: dlls/kernelbase/winerror.mc:3355
 msgid "Operation not supported.\n"
 msgstr "Operacija nije podržana.\n"
 
-#: dlls/kernelbase/winerror.mc:3243
+#: dlls/kernelbase/winerror.mc:3360
 msgid "No security context available.\n"
 msgstr "Nema dostupnih sigurnosnih konteksta.\n"
 
-#: dlls/kernelbase/winerror.mc:3248
+#: dlls/kernelbase/winerror.mc:3365
 msgid "RPCInternal error.\n"
 msgstr "RPCInternal greška.\n"
 
-#: dlls/kernelbase/winerror.mc:3253
+#: dlls/kernelbase/winerror.mc:3370
 msgid "RPC divide-by-zero.\n"
 msgstr "RPC dijeljenje s nulom.\n"
 
-#: dlls/kernelbase/winerror.mc:3258
+#: dlls/kernelbase/winerror.mc:3375
 msgid "Address error.\n"
 msgstr "Greška u adresi.\n"
 
-#: dlls/kernelbase/winerror.mc:3263
+#: dlls/kernelbase/winerror.mc:3380
 msgid "Floating-point divide-by-zero.\n"
 msgstr "Dijeljenje s nulom kod brojeva s pomičnim zarezom.\n"
 
-#: dlls/kernelbase/winerror.mc:3268
+#: dlls/kernelbase/winerror.mc:3385
 msgid "Floating-point underflow.\n"
 msgstr "Podljev kod brojeva s pomičnim zarezom.\n"
 
-#: dlls/kernelbase/winerror.mc:3273
+#: dlls/kernelbase/winerror.mc:3390
 msgid "Floating-point overflow.\n"
 msgstr "Preljev kod brojeva s pomičnim zarezom.\n"
 
-#: dlls/kernelbase/winerror.mc:3278
+#: dlls/kernelbase/winerror.mc:3395
 msgid "No more entries.\n"
 msgstr "Nema više unosa.\n"
 
-#: dlls/kernelbase/winerror.mc:3283
+#: dlls/kernelbase/winerror.mc:3400
 msgid "Character translation table open failed.\n"
 msgstr "Neuspjelo otvaranje tablice prijevoda znakova.\n"
 
-#: dlls/kernelbase/winerror.mc:3288
+#: dlls/kernelbase/winerror.mc:3405
 msgid "Character translation table file too small.\n"
 msgstr "Datoteka tablice prijevoda znakova je premala.\n"
 
-#: dlls/kernelbase/winerror.mc:3293
+#: dlls/kernelbase/winerror.mc:3410
 msgid "Null context handle.\n"
 msgstr "Null poveznica konteksta.\n"
 
-#: dlls/kernelbase/winerror.mc:3298
+#: dlls/kernelbase/winerror.mc:3415
 msgid "Context handle damaged.\n"
 msgstr "Oštećena poveznica konteksta.\n"
 
-#: dlls/kernelbase/winerror.mc:3303
+#: dlls/kernelbase/winerror.mc:3420
 msgid "Binding handle mismatch.\n"
 msgstr "Neslaganje poveznice vezivanja.\n"
 
-#: dlls/kernelbase/winerror.mc:3308
+#: dlls/kernelbase/winerror.mc:3425
 msgid "Cannot get call handle.\n"
 msgstr "Ne mogu dobiti poveznicu pozivanja.\n"
 
-#: dlls/kernelbase/winerror.mc:3313
+#: dlls/kernelbase/winerror.mc:3430
 msgid "Null reference pointer.\n"
 msgstr "Null referntni pokazivač.\n"
 
-#: dlls/kernelbase/winerror.mc:3318
+#: dlls/kernelbase/winerror.mc:3435
 msgid "Enumeration value out of range.\n"
 msgstr "Vrijednost pobrojenja izvan granica.\n"
 
-#: dlls/kernelbase/winerror.mc:3323
+#: dlls/kernelbase/winerror.mc:3440
 msgid "Byte count too small.\n"
 msgstr "Broj okteta premalen.\n"
 
-#: dlls/kernelbase/winerror.mc:3328
+#: dlls/kernelbase/winerror.mc:3445
 msgid "Bad stub data.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:3333
+#: dlls/kernelbase/winerror.mc:3450
 msgid "Invalid user buffer.\n"
 msgstr "Neispravan korisnički međuspremnik.\n"
 
-#: dlls/kernelbase/winerror.mc:3338
+#: dlls/kernelbase/winerror.mc:3455
 msgid "Unrecognized media.\n"
 msgstr "Neprepoznat medij.\n"
 
-#: dlls/kernelbase/winerror.mc:3343
+#: dlls/kernelbase/winerror.mc:3460
 msgid "No trust secret.\n"
 msgstr "Nema tajne povjerenja.\n"
 
-#: dlls/kernelbase/winerror.mc:3348
+#: dlls/kernelbase/winerror.mc:3465
 msgid "No trust SAM account.\n"
 msgstr "Nema SAM račun povjerenja.\n"
 
-#: dlls/kernelbase/winerror.mc:3353
+#: dlls/kernelbase/winerror.mc:3470
 msgid "Trusted domain failure.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:3358
+#: dlls/kernelbase/winerror.mc:3475
 msgid "Trusted relationship failure.\n"
 msgstr "Neuspjela veza povjerenja.\n"
 
-#: dlls/kernelbase/winerror.mc:3363
+#: dlls/kernelbase/winerror.mc:3480
 msgid "Trust logon failure.\n"
 msgstr "Neuspjeh prijave povjerenja.\n"
 
-#: dlls/kernelbase/winerror.mc:3368
+#: dlls/kernelbase/winerror.mc:3485
 msgid "RPC call already in progress.\n"
 msgstr "RPC poziv već u tijeku.\n"
 
-#: dlls/kernelbase/winerror.mc:3373
+#: dlls/kernelbase/winerror.mc:3490
 msgid "NETLOGON is not started.\n"
 msgstr "NETLOGON nije pokrenut.\n"
 
-#: dlls/kernelbase/winerror.mc:3378
+#: dlls/kernelbase/winerror.mc:3495
 msgid "Account expired.\n"
 msgstr "Račun istekao.\n"
 
-#: dlls/kernelbase/winerror.mc:3383
+#: dlls/kernelbase/winerror.mc:3500
 msgid "Redirector has open handles.\n"
 msgstr "Preusmjerivač ima otvorene poveznice.\n"
 
-#: dlls/kernelbase/winerror.mc:3388
+#: dlls/kernelbase/winerror.mc:3505
 msgid "Printer driver already installed.\n"
 msgstr "Driver pisača već instaliran.\n"
 
-#: dlls/kernelbase/winerror.mc:3393
+#: dlls/kernelbase/winerror.mc:3510
 msgid "Unknown port.\n"
 msgstr "Nepoznata vrata.\n"
 
-#: dlls/kernelbase/winerror.mc:3398
+#: dlls/kernelbase/winerror.mc:3515
 msgid "Unknown printer driver.\n"
 msgstr "Nepoznat driver za pisač.\n"
 
-#: dlls/kernelbase/winerror.mc:3403
+#: dlls/kernelbase/winerror.mc:3520
 msgid "Unknown print processor.\n"
 msgstr "Nepoznat procesor za ispis.\n"
 
-#: dlls/kernelbase/winerror.mc:3408
+#: dlls/kernelbase/winerror.mc:3525
 msgid "Invalid separator file.\n"
 msgstr "Neispravna datoteka odvajač.\n"
 
-#: dlls/kernelbase/winerror.mc:3413
+#: dlls/kernelbase/winerror.mc:3530
 msgid "Invalid priority.\n"
 msgstr "Neispravni prioritet.\n"
 
-#: dlls/kernelbase/winerror.mc:3418
+#: dlls/kernelbase/winerror.mc:3535
 msgid "Invalid printer name.\n"
 msgstr "Neispravno ime pisača.\n"
 
-#: dlls/kernelbase/winerror.mc:3423
+#: dlls/kernelbase/winerror.mc:3540
 msgid "Printer already exists.\n"
 msgstr "Pisač već postoji.\n"
 
-#: dlls/kernelbase/winerror.mc:3428
+#: dlls/kernelbase/winerror.mc:3545
 msgid "Invalid printer command.\n"
 msgstr "Neispravna naredba pisača.\n"
 
-#: dlls/kernelbase/winerror.mc:3433
+#: dlls/kernelbase/winerror.mc:3550
 msgid "Invalid data type.\n"
 msgstr "Neispravni tip podataka.\n"
 
-#: dlls/kernelbase/winerror.mc:3438
+#: dlls/kernelbase/winerror.mc:3555
 msgid "Invalid environment.\n"
 msgstr "Neispravna okolina.\n"
 
-#: dlls/kernelbase/winerror.mc:3443
+#: dlls/kernelbase/winerror.mc:3560
 msgid "No more bindings.\n"
 msgstr "Nema više vezivanja.\n"
 
-#: dlls/kernelbase/winerror.mc:3448
+#: dlls/kernelbase/winerror.mc:3565
 msgid "Can't log on with inter-domain trust account.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:3453
+#: dlls/kernelbase/winerror.mc:3570
 msgid "Can't log on with workstation trust account.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:3458
+#: dlls/kernelbase/winerror.mc:3575
 msgid "Can't log on with server trust account.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:3463
+#: dlls/kernelbase/winerror.mc:3580
 msgid "Domain trust information inconsistent.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:3468
+#: dlls/kernelbase/winerror.mc:3585
 msgid "Server has open handles.\n"
 msgstr "Poslužitelj ima otvorena poveznice.\n"
 
-#: dlls/kernelbase/winerror.mc:3473
+#: dlls/kernelbase/winerror.mc:3590
 msgid "Resource data not found.\n"
 msgstr "Podaci resursa nisu nađeni.\n"
 
-#: dlls/kernelbase/winerror.mc:3478
+#: dlls/kernelbase/winerror.mc:3595
 msgid "Resource type not found.\n"
 msgstr "Tip resursa nije nađen.\n"
 
-#: dlls/kernelbase/winerror.mc:3483
+#: dlls/kernelbase/winerror.mc:3600
 msgid "Resource name not found.\n"
 msgstr "Naziv resursa nije nađen.\n"
 
-#: dlls/kernelbase/winerror.mc:3488
+#: dlls/kernelbase/winerror.mc:3605
 msgid "Resource language not found.\n"
 msgstr "Jezik resursa nije nađen.\n"
 
-#: dlls/kernelbase/winerror.mc:3493
+#: dlls/kernelbase/winerror.mc:3610
 msgid "Not enough quota.\n"
 msgstr "Nedovoljna kvota.\n"
 
-#: dlls/kernelbase/winerror.mc:3498
+#: dlls/kernelbase/winerror.mc:3615
 msgid "No interfaces.\n"
 msgstr "Nema sučelja.\n"
 
-#: dlls/kernelbase/winerror.mc:3503
+#: dlls/kernelbase/winerror.mc:3620
 msgid "RPC call canceled.\n"
 msgstr "RPC poziv otkazan.\n"
 
-#: dlls/kernelbase/winerror.mc:3508
+#: dlls/kernelbase/winerror.mc:3625
 msgid "Binding incomplete.\n"
 msgstr "Vezivanje nepotpuno.\n"
 
-#: dlls/kernelbase/winerror.mc:3513
+#: dlls/kernelbase/winerror.mc:3630
 msgid "RPC comm failure.\n"
 msgstr "RPC comm neuspjeh.\n"
 
-#: dlls/kernelbase/winerror.mc:3518
+#: dlls/kernelbase/winerror.mc:3635
 msgid "Unsupported authorization level.\n"
 msgstr "Nepodržana razina autorizacije.\n"
 
-#: dlls/kernelbase/winerror.mc:3523
+#: dlls/kernelbase/winerror.mc:3640
 msgid "No principal name registered.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:3528
+#: dlls/kernelbase/winerror.mc:3645
 msgid "Not an RPC error.\n"
 msgstr "Nije RPC greška.\n"
 
-#: dlls/kernelbase/winerror.mc:3533
+#: dlls/kernelbase/winerror.mc:3650
 msgid "UUID is local only.\n"
 msgstr "UUID je samo lokalan.\n"
 
-#: dlls/kernelbase/winerror.mc:3538
+#: dlls/kernelbase/winerror.mc:3655
 msgid "Security package error.\n"
 msgstr "Greška sigurnosnog paketa.\n"
 
-#: dlls/kernelbase/winerror.mc:3543
+#: dlls/kernelbase/winerror.mc:3660
 msgid "Thread not canceled.\n"
 msgstr "Dretva nije otkazana.\n"
 
-#: dlls/kernelbase/winerror.mc:3548
+#: dlls/kernelbase/winerror.mc:3665
 msgid "Invalid handle operation.\n"
 msgstr "Neispravna operacija poveznice.\n"
 
-#: dlls/kernelbase/winerror.mc:3553
+#: dlls/kernelbase/winerror.mc:3670
 msgid "Wrong serializing package version.\n"
 msgstr "Kriva inačica paketa za serijalizaciju.\n"
 
-#: dlls/kernelbase/winerror.mc:3558
+#: dlls/kernelbase/winerror.mc:3675
 msgid "Wrong stub version.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:3563
+#: dlls/kernelbase/winerror.mc:3680
 msgid "Invalid pipe object.\n"
 msgstr "Neispravan cjevovodni objekt.\n"
 
-#: dlls/kernelbase/winerror.mc:3568
+#: dlls/kernelbase/winerror.mc:3685
 msgid "Wrong pipe order.\n"
 msgstr "Krivi redoslijed cjevovoda.\n"
 
-#: dlls/kernelbase/winerror.mc:3573
+#: dlls/kernelbase/winerror.mc:3690
 msgid "Wrong pipe version.\n"
 msgstr "Kriva inačica cjevovoda.\n"
 
-#: dlls/kernelbase/winerror.mc:3578
+#: dlls/kernelbase/winerror.mc:3695
 msgid "Group member not found.\n"
 msgstr "Član grupe nije pronađen.\n"
 
-#: dlls/kernelbase/winerror.mc:3583
+#: dlls/kernelbase/winerror.mc:3700
 msgid "Can't create endpoint mapper DB.\n"
 msgstr "Ne mogu stvoriti bazu podataka o vezivanju krajnih točaka.\n"
 
-#: dlls/kernelbase/winerror.mc:3588
+#: dlls/kernelbase/winerror.mc:3705
 msgid "Invalid object.\n"
 msgstr "Neispravan objekt.\n"
 
-#: dlls/kernelbase/winerror.mc:3593
+#: dlls/kernelbase/winerror.mc:3710
 msgid "Invalid time.\n"
 msgstr "Neispravno vrijeme.\n"
 
-#: dlls/kernelbase/winerror.mc:3598
+#: dlls/kernelbase/winerror.mc:3715
 msgid "Invalid form name.\n"
 msgstr "Neispravna ime forme.\n"
 
-#: dlls/kernelbase/winerror.mc:3603
+#: dlls/kernelbase/winerror.mc:3720
 msgid "Invalid form size.\n"
 msgstr "Neispravna veličina forme.\n"
 
-#: dlls/kernelbase/winerror.mc:3608
+#: dlls/kernelbase/winerror.mc:3725
 msgid "Already awaiting printer handle.\n"
 msgstr "Već se čeka poveznica printera.\n"
 
-#: dlls/kernelbase/winerror.mc:3613
+#: dlls/kernelbase/winerror.mc:3730
 msgid "Printer deleted.\n"
 msgstr "Pisač obrisan.\n"
 
-#: dlls/kernelbase/winerror.mc:3618
+#: dlls/kernelbase/winerror.mc:3735
 msgid "Invalid printer state.\n"
 msgstr "Neispravno stanje pisača.\n"
 
-#: dlls/kernelbase/winerror.mc:3623
+#: dlls/kernelbase/winerror.mc:3740
 msgid "User must change password.\n"
 msgstr "Korisnik mora promijeniti lozinku.\n"
 
-#: dlls/kernelbase/winerror.mc:3628
+#: dlls/kernelbase/winerror.mc:3745
 msgid "Domain controller not found.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:3633
+#: dlls/kernelbase/winerror.mc:3750
 msgid "Account locked out.\n"
 msgstr "Račun izbačen.\n"
 
-#: dlls/kernelbase/winerror.mc:3638
+#: dlls/kernelbase/winerror.mc:3755
 msgid "Invalid pixel format.\n"
 msgstr "Neispravan format piksela.\n"
 
-#: dlls/kernelbase/winerror.mc:3643
+#: dlls/kernelbase/winerror.mc:3760
 msgid "Invalid driver.\n"
 msgstr "Neispravan driver.\n"
 
-#: dlls/kernelbase/winerror.mc:3648
+#: dlls/kernelbase/winerror.mc:3765
 msgid "Invalid object resolver set.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:3653
+#: dlls/kernelbase/winerror.mc:3770
 msgid "Incomplete RPC send.\n"
 msgstr "Nepotpun RPC send.\n"
 
-#: dlls/kernelbase/winerror.mc:3658
+#: dlls/kernelbase/winerror.mc:3775
 msgid "Invalid asynchronous RPC handle.\n"
 msgstr "Neispravna asinkrona RPC poveznica.\n"
 
-#: dlls/kernelbase/winerror.mc:3663
+#: dlls/kernelbase/winerror.mc:3780
 msgid "Invalid asynchronous RPC call.\n"
 msgstr "Neispravan asinkroni RPC poziv.\n"
 
-#: dlls/kernelbase/winerror.mc:3668
+#: dlls/kernelbase/winerror.mc:3785
 msgid "RPC pipe closed.\n"
 msgstr "RPC cjevovod zatvoren.\n"
 
-#: dlls/kernelbase/winerror.mc:3673
+#: dlls/kernelbase/winerror.mc:3790
 msgid "Discipline error on RPC pipe.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:3678
+#: dlls/kernelbase/winerror.mc:3795
 msgid "No data on RPC pipe.\n"
 msgstr "Nema podataka na RPC cjevovodu.\n"
 
-#: dlls/kernelbase/winerror.mc:3683
+#: dlls/kernelbase/winerror.mc:3800
 msgid "No site name available.\n"
 msgstr "Nedostupan naziv stranice.\n"
 
-#: dlls/kernelbase/winerror.mc:3688
+#: dlls/kernelbase/winerror.mc:3805
 msgid "The file cannot be accessed.\n"
 msgstr "Datoteci se ne može pristupiti.\n"
 
-#: dlls/kernelbase/winerror.mc:3693
+#: dlls/kernelbase/winerror.mc:3810
 msgid "The filename cannot be resolved.\n"
 msgstr "Naziv datoteke se ne može dohvatit.\n"
 
-#: dlls/kernelbase/winerror.mc:3698
+#: dlls/kernelbase/winerror.mc:3815
 msgid "RPC entry type mismatch.\n"
 msgstr "Neslaganje tipova RPC unosa.\n"
 
-#: dlls/kernelbase/winerror.mc:3703
+#: dlls/kernelbase/winerror.mc:3820
 msgid "Not all objects could be exported.\n"
 msgstr "Nisu se svi objekti mogli izvesti.\n"
 
-#: dlls/kernelbase/winerror.mc:3708
+#: dlls/kernelbase/winerror.mc:3825
 msgid "The interface could not be exported.\n"
 msgstr "Sučelje se nije mogli izvesti.\n"
 
-#: dlls/kernelbase/winerror.mc:3713
+#: dlls/kernelbase/winerror.mc:3830
 msgid "The profile could not be added.\n"
 msgstr "Profil se nije mogao dodati.\n"
 
-#: dlls/kernelbase/winerror.mc:3718
+#: dlls/kernelbase/winerror.mc:3835
 msgid "The profile element could not be added.\n"
 msgstr "Element profila se nije mogao dodati.\n"
 
-#: dlls/kernelbase/winerror.mc:3723
+#: dlls/kernelbase/winerror.mc:3840
 msgid "The profile element could not be removed.\n"
 msgstr "Element profila se nije mogao ukloniti.\n"
 
-#: dlls/kernelbase/winerror.mc:3728
+#: dlls/kernelbase/winerror.mc:3845
 msgid "The group element could not be added.\n"
 msgstr "Element grupe se nije mogao dodati.\n"
 
-#: dlls/kernelbase/winerror.mc:3733
+#: dlls/kernelbase/winerror.mc:3850
 msgid "The group element could not be removed.\n"
 msgstr "Element grupe se nije mogao ukloniti.\n"
 
-#: dlls/kernelbase/winerror.mc:3738
+#: dlls/kernelbase/winerror.mc:3855
 msgid "The username could not be found.\n"
 msgstr "Korisničko ime nije moglo biti pronađeno.\n"
 
-#: dlls/kernelbase/winerror.mc:3743
+#: dlls/kernelbase/winerror.mc:3860
 #, fuzzy
 #| msgid "The site does not exist.\n"
 msgid "This network connection does not exist.\n"
 msgstr "Mjesto ne postoji.\n"
 
-#: dlls/kernelbase/winerror.mc:3748
+#: dlls/kernelbase/winerror.mc:3865
+#, fuzzy
+#| msgid "File or directory corrupt.\n"
+msgid "File or directory is not a reparse point.\n"
+msgstr "Datoteka ili direktorij oštećen.\n"
+
+#: dlls/kernelbase/winerror.mc:3870
 #, fuzzy
 #| msgid "Invalid at interrupt time.\n"
 msgid "Call interrupted.\n"
 msgstr "Neispravan u trenutku prekida.\n"
 
-#: dlls/kernelbase/winerror.mc:3753
+#: dlls/kernelbase/winerror.mc:3875
 #, fuzzy
 #| msgid "Invalid handle.\n"
 msgid "Invalid file handle.\n"
 msgstr "Neispravna poveznica.\n"
 
-#: dlls/kernelbase/winerror.mc:3763
+#: dlls/kernelbase/winerror.mc:3885
 #, fuzzy
 #| msgid "Invalid network address.\n"
 msgid "Invalid pointer address.\n"
 msgstr "Neispravna mrežna adresa.\n"
 
-#: dlls/kernelbase/winerror.mc:3768
+#: dlls/kernelbase/winerror.mc:3890
 #, fuzzy
 #| msgid "Invalid name.\n"
 msgid "Invalid argument.\n"
 msgstr "Neispravno ime.\n"
 
-#: dlls/kernelbase/winerror.mc:3778
+#: dlls/kernelbase/winerror.mc:3900
 msgid "Cannot assign requested address.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:3783
+#: dlls/kernelbase/winerror.mc:3905
 #, fuzzy
 #| msgid "Connection refused.\n"
 msgid "Connection reset by peer.\n"
 msgstr "Povezivanje odbijeno.\n"
 
-#: dlls/kernelbase/winerror.mc:3793
+#: dlls/kernelbase/winerror.mc:3915
 #, fuzzy
 #| msgid "Point not found.\n"
 msgid "Host not found.\n"
 msgstr "Točka nije pronađena.\n"
 
-#: dlls/kernelbase/winerror.mc:3798
+#: dlls/kernelbase/winerror.mc:3920
 #, fuzzy
 #| msgid "File not found.\n"
 msgid "Nonauthoritative host not found.\n"
 msgstr "Datoteka nije pronađena.\n"
 
-#: dlls/kernelbase/winerror.mc:3803
+#: dlls/kernelbase/winerror.mc:3925
 #, fuzzy
 #| msgid "A printer error occurred."
 msgid "Nonrecoverable error.\n"
 msgstr "Došlo je do greške kod pisača."
 
-#: dlls/kernelbase/winerror.mc:3808
+#: dlls/kernelbase/winerror.mc:3930
 msgid "Name valid, no data record.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:3822
+#: dlls/kernelbase/winerror.mc:3951
 #, fuzzy
 #| msgid "Not implemented"
 msgid "Not implemented.\n"
 msgstr "Nije još implementirano"
 
-#: dlls/kernelbase/winerror.mc:3843
+#: dlls/kernelbase/winerror.mc:3972
 #, fuzzy
 #| msgid "RPC call failed.\n"
 msgid "Call failed.\n"
 msgstr "RPC poziv neuspio.\n"
 
-#: dlls/kernelbase/winerror.mc:3815
+#: dlls/kernelbase/winerror.mc:3937
+#, fuzzy
+#| msgid "Unable to unload media.\n"
+msgid "Unable to find matching object.\n"
+msgstr "Nije moguće izbaciti medij.\n"
+
+#: dlls/kernelbase/winerror.mc:3944
 #, fuzzy
 #| msgid "Message 0x%1 not found in file %2.\n"
 msgid "No Signature found in file.\n"
 msgstr "Poruka 0x%1 nije pronađena u datoteci %2.\n"
 
-#: dlls/kernelbase/winerror.mc:3829
+#: dlls/kernelbase/winerror.mc:3958
 #, fuzzy
 #| msgid "Invalid level.\n"
 msgid "Invalid call.\n"
 msgstr "Neispravna razina.\n"
 
-#: dlls/kernelbase/winerror.mc:3836
+#: dlls/kernelbase/winerror.mc:3965
 #, fuzzy
 #| msgid "Help not available."
 msgid "Resource is not currently available.\n"
 msgstr "Pomoć nije dostupna."
-
-#: dlls/light.msstyles/light.rc:41 dlls/light.msstyles/light.rc:47
-#: programs/winhlp32/winhlp32.rc:53 programs/winhlp32/winhlp32.rc:73
-msgid "Normal"
-msgstr "Normalan"
 
 #: dlls/localspl/localspl.rc:37
 #, fuzzy
@@ -8631,7 +8768,7 @@ msgstr "Hiperveza"
 msgid "Hyperlink Information"
 msgstr "Podaci o hipervezi"
 
-#: dlls/mshtml/mshtml.rc:43 programs/winecfg/winecfg.rc:249
+#: dlls/mshtml/mshtml.rc:43 programs/winecfg/winecfg.rc:250
 msgid "&Type:"
 msgstr "&Tip:"
 
@@ -9297,6 +9434,228 @@ msgstr "Puni kadrovi (nesažeto)"
 #: dlls/msvidc32/msvidc32.rc:29
 msgid "Wine Video 1 video codec"
 msgstr "Wine Video 1 video codec"
+
+#: dlls/msxml3/msxml.mc:31
+#, fuzzy
+#| msgid "Undefined external error."
+msgid "Undefined reference\n"
+msgstr "Nedefinirana vanjska greška."
+
+#: dlls/msxml3/msxml.mc:38
+msgid "Found self-referential entity\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:45
+msgid "Unparsed entity reference\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:52
+msgid "Name text contains colon ':'\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:59
+msgid "Namespace prefix hasn't been declared\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:66
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected '=' character\n"
+msgstr "Očekivano ';'"
+
+#: dlls/msxml3/msxml.mc:73
+#, fuzzy
+#| msgid "Expected an operator.\n"
+msgid "Expected a quote character\n"
+msgstr "Očekivan operator.\n"
+
+#: dlls/msxml3/msxml.mc:80
+msgid "Malformed comment\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:87
+#, fuzzy
+#| msgid "Invalid character"
+msgid "Invalid name start character\n"
+msgstr "Neispravan znak"
+
+#: dlls/msxml3/msxml.mc:94
+#, fuzzy
+#| msgid "Invalid character"
+msgid "Invalid name character\n"
+msgstr "Neispravan znak"
+
+#: dlls/msxml3/msxml.mc:101
+msgid "The '<' character found in attribute value\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:108
+#, fuzzy
+#| msgid "Expected an operator.\n"
+msgid "Expected whitespace character\n"
+msgstr "Očekivan operator.\n"
+
+#: dlls/msxml3/msxml.mc:115
+#, fuzzy
+#| msgid "Expected an operator.\n"
+msgid "Expected end tag character '>'\n"
+msgstr "Očekivan operator.\n"
+
+#: dlls/msxml3/msxml.mc:122
+#, fuzzy
+#| msgid "Invalid character(s) in path"
+msgid "Invalid character in DTD content\n"
+msgstr "Neispravan(vni) znak(ovi) u putanji"
+
+#: dlls/msxml3/msxml.mc:129
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected ';' character\n"
+msgstr "Očekivano ';'"
+
+#: dlls/msxml3/msxml.mc:136
+#, fuzzy
+#| msgid "Invalid character(s) in path"
+msgid "Invalid character in entity reference\n"
+msgstr "Neispravan(vni) znak(ovi) u putanji"
+
+#: dlls/msxml3/msxml.mc:143
+#, fuzzy
+#| msgid "Invalid character(s) in path"
+msgid "Invalid character in mixed DTD content\n"
+msgstr "Neispravan(vni) znak(ovi) u putanji"
+
+#: dlls/msxml3/msxml.mc:150
+#, fuzzy
+#| msgid "Expected an operator.\n"
+msgid "Expected '*' character\n"
+msgstr "Očekivan operator.\n"
+
+#: dlls/msxml3/msxml.mc:157
+#, fuzzy
+#| msgid "Expected an operator.\n"
+msgid "Expected parenthesis character\n"
+msgstr "Očekivan operator.\n"
+
+#: dlls/msxml3/msxml.mc:164
+#, fuzzy
+#| msgid "Invalid character(s) in path"
+msgid "Invalid character in DTD enumeration\n"
+msgstr "Neispravan(vni) znak(ovi) u putanji"
+
+#: dlls/msxml3/msxml.mc:171
+#, fuzzy
+#| msgid "Invalid name syntax.\n"
+msgid "Invalid PI syntax\n"
+msgstr "Neispravna sintaksa imena.\n"
+
+#: dlls/msxml3/msxml.mc:178
+#, fuzzy
+#| msgid "Expected an operator.\n"
+msgid "Expected closing quote character\n"
+msgstr "Očekivan operator.\n"
+
+#: dlls/msxml3/msxml.mc:185
+msgid "Multiple colon character found\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:192
+#, fuzzy
+#| msgid "Invalid character"
+msgid "Invalid Unicode character\n"
+msgstr "Neispravan znak"
+
+#: dlls/msxml3/msxml.mc:199
+msgid "Expected whitespace or '?' character\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:206
+msgid "Unexpected end tag '>' character\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:213
+#, fuzzy
+#| msgid "Invalid group attributes.\n"
+msgid "Found duplicate attribute\n"
+msgstr "Neispravni atributi grupe.\n"
+
+#: dlls/msxml3/msxml.mc:220
+#, fuzzy
+#| msgid "Path is invalid.\n"
+msgid "Document root is invalid\n"
+msgstr "Putanja je neispravna.\n"
+
+#: dlls/msxml3/msxml.mc:227
+#, fuzzy
+#| msgid "Invalid handle operation.\n"
+msgid "Invalid xml declaration\n"
+msgstr "Neispravna operacija poveznice.\n"
+
+#: dlls/msxml3/msxml.mc:234
+#, fuzzy
+#| msgid "Index is missing.\n"
+msgid "Document root is missing\n"
+msgstr "Indeks nedostaje.\n"
+
+#: dlls/msxml3/msxml.mc:241
+msgid "Unexpected end of input data stream\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:248
+msgid "Found unexpected CDATA closing markup ']]>'\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:255
+msgid "Found unterminated PI declaration\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:262
+msgid "Found unterminated end tag\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:269
+msgid "Found unterminated CDATA block\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:276
+msgid "Use namespace prefix is reserved\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:283
+#, fuzzy
+#| msgid "The passwords do not match."
+msgid "End tag does not match\n"
+msgstr "Lozinke se ne poklapaju."
+
+#: dlls/msxml3/msxml.mc:290
+#, fuzzy
+#| msgid "Invalid account name.\n"
+msgid "Invalid encoding name\n"
+msgstr "Neispravno ime računa.\n"
+
+#: dlls/msxml3/msxml.mc:297
+#, fuzzy
+#| msgid "Invalid data type.\n"
+msgid "Invalid model in DTD contentspec\n"
+msgstr "Neispravni tip podataka.\n"
+
+#: dlls/msxml3/msxml.mc:304
+#, fuzzy
+#| msgid "Invalid group attributes.\n"
+msgid "Invalid DTD attribute type\n"
+msgstr "Neispravni atributi grupe.\n"
+
+#: dlls/msxml3/msxml.mc:311
+#, fuzzy
+#| msgid "Invalid handle operation.\n"
+msgid "Invalid standalone declaration\n"
+msgstr "Neispravna operacija poveznice.\n"
+
+#: dlls/msxml3/msxml.mc:318
+#, fuzzy
+#| msgid "Invalid version option.\n"
+msgid "Invalid xml version\n"
+msgstr "Neispravna opcija inačice.\n"
 
 #: dlls/oleacc/oleacc.rc:31
 msgid "unknown object"
@@ -10209,7 +10568,7 @@ msgid "b"
 msgstr "b"
 
 #: dlls/sane.ds/sane.rc:34 dlls/wineps.drv/wineps.rc:52
-#: programs/winecfg/winecfg.rc:188
+#: programs/winecfg/winecfg.rc:189
 msgctxt "unit: dots/inch"
 msgid "dpi"
 msgstr "dpi"
@@ -10750,7 +11109,7 @@ msgstr "&Otvori:"
 
 #: dlls/shell32/shell32.rc:345 programs/progman/progman.rc:182
 #: programs/progman/progman.rc:201 programs/progman/progman.rc:218
-#: programs/winecfg/winecfg.rc:247 programs/winefile/winefile.rc:129
+#: programs/winecfg/winecfg.rc:248 programs/winefile/winefile.rc:129
 msgid "&Browse..."
 msgstr "&Nađi..."
 
@@ -10850,7 +11209,7 @@ msgstr "Originalna lokacija"
 msgid "Date deleted"
 msgstr "Datum brisanja"
 
-#: dlls/shell32/shell32.rc:151 programs/winecfg/winecfg.rc:106
+#: dlls/shell32/shell32.rc:151 programs/winecfg/winecfg.rc:107
 #: programs/winefile/winefile.rc:99
 msgctxt "display name"
 msgid "Desktop"
@@ -13799,132 +14158,368 @@ msgstr ""
 
 #: dlls/vbscript/vbscript.rc:34
 #, fuzzy
+#| msgid "Division by zero error.\n"
+msgid "Division by zero"
+msgstr "Greška dijeljenja sa nulom.\n"
+
+#: dlls/vbscript/vbscript.rc:35
+#, fuzzy
 #| msgid "Data type mismatch.\n"
 msgid "Type mismatch"
 msgstr "Nepodudarnost tipova podataka.\n"
 
-#: dlls/vbscript/vbscript.rc:36
+#: dlls/vbscript/vbscript.rc:38
 #, fuzzy
 #| msgid "I/O device error.\n"
 msgid "Device I/O error"
 msgstr "Greška U/I uređaja.\n"
 
-#: dlls/vbscript/vbscript.rc:37
+#: dlls/vbscript/vbscript.rc:39
 #, fuzzy
 #| msgid "File already exists.\n"
 msgid "File already exists"
 msgstr "Datoteka već postoji.\n"
 
-#: dlls/vbscript/vbscript.rc:38
+#: dlls/vbscript/vbscript.rc:40
 #, fuzzy
 #| msgid "Disk full.\n"
 msgid "Disk full"
 msgstr "Disk pun.\n"
 
-#: dlls/vbscript/vbscript.rc:39
+#: dlls/vbscript/vbscript.rc:41
 #, fuzzy
 #| msgid "Too many open files.\n"
 msgid "Too many files"
 msgstr "Previše otvorenih datoteka.\n"
 
-#: dlls/vbscript/vbscript.rc:40
+#: dlls/vbscript/vbscript.rc:42
 #, fuzzy
 #| msgid "Access denied.\n"
 msgid "Permission denied"
 msgstr "Pristup odbijen.\n"
 
-#: dlls/vbscript/vbscript.rc:41
+#: dlls/vbscript/vbscript.rc:43
 msgid "Path/File access error"
 msgstr ""
 
-#: dlls/vbscript/vbscript.rc:42
+#: dlls/vbscript/vbscript.rc:44
 #, fuzzy
 #| msgid "Path not found.\n"
 msgid "Path not found"
 msgstr "Putanja nije pronađena.\n"
 
-#: dlls/vbscript/vbscript.rc:43
+#: dlls/vbscript/vbscript.rc:45
 #, fuzzy
 #| msgid "(value not set)"
 msgid "Object variable not set"
 msgstr "(vrijednost nije postavljena)"
 
-#: dlls/vbscript/vbscript.rc:44
+#: dlls/vbscript/vbscript.rc:46
+#, fuzzy
+#| msgid "Object UUID not found.\n"
+msgid "For loop not initialized"
+msgstr "UUID objekta nije pronađen.\n"
+
+#: dlls/vbscript/vbscript.rc:47
 #, fuzzy
 #| msgid "Invalid user buffer.\n"
 msgid "Invalid use of Null"
 msgstr "Neispravan korisnički međuspremnik.\n"
 
-#: dlls/vbscript/vbscript.rc:45
+#: dlls/vbscript/vbscript.rc:48
 msgid "Can't create necessary temporary file"
 msgstr ""
 
-#: dlls/vbscript/vbscript.rc:46
+#: dlls/vbscript/vbscript.rc:50
 #, fuzzy
 #| msgid "Automation server can't create object"
 msgid "ActiveX component can't create object"
 msgstr "Poslužitelj automatizacije ne može stvoriti objekt"
 
-#: dlls/vbscript/vbscript.rc:47
+#: dlls/vbscript/vbscript.rc:51
 #, fuzzy
 #| msgid "Object doesn't support this action"
 msgid "Class doesn't support Automation"
 msgstr "Objekt ne podržava ovu radnju"
 
-#: dlls/vbscript/vbscript.rc:48
+#: dlls/vbscript/vbscript.rc:52
 msgid "File name or class name not found during Automation operation"
 msgstr ""
 
-#: dlls/vbscript/vbscript.rc:51
+#: dlls/vbscript/vbscript.rc:55
 #, fuzzy
 #| msgid "Object doesn't support this action"
 msgid "Object doesn't support named arguments"
 msgstr "Objekt ne podržava ovu radnju"
 
-#: dlls/vbscript/vbscript.rc:52
+#: dlls/vbscript/vbscript.rc:56
 #, fuzzy
 #| msgid "Object doesn't support this action"
 msgid "Object doesn't support current locale setting"
 msgstr "Objekt ne podržava ovu radnju"
 
-#: dlls/vbscript/vbscript.rc:53
+#: dlls/vbscript/vbscript.rc:57
 #, fuzzy
 #| msgid "Element not found.\n"
 msgid "Named argument not found"
 msgstr "Element nije pronađen.\n"
 
-#: dlls/vbscript/vbscript.rc:55
+#: dlls/vbscript/vbscript.rc:59
 msgid "Wrong number of arguments or invalid property assignment"
 msgstr ""
 
-#: dlls/vbscript/vbscript.rc:57
+#: dlls/vbscript/vbscript.rc:62
 #, fuzzy
 #| msgid "Specified control was not found in message"
 msgid "Specified DLL function not found"
 msgstr "Navedena kontrola nije pronađena u poruci"
 
-#: dlls/vbscript/vbscript.rc:58
-msgid "Variable uses an Automation type not supported in VBScript"
-msgstr ""
-
-#: dlls/vbscript/vbscript.rc:59
-msgid "The remote server machine does not exist or is unavailable"
-msgstr ""
-
-#: dlls/vbscript/vbscript.rc:60
-msgid "Invalid or unqualified reference"
-msgstr ""
-
-#: dlls/vbscript/vbscript.rc:62
-msgid "Microsoft VBScript compilation error"
+#: dlls/vbscript/vbscript.rc:61
+msgid "This key is already associated with an element of this collection"
 msgstr ""
 
 #: dlls/vbscript/vbscript.rc:63
+msgid "Variable uses an Automation type not supported in VBScript"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:64
+msgid "The remote server machine does not exist or is unavailable"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:65
+#, fuzzy
+#| msgid "'|' is undefined"
+msgid "Variable is undefined"
+msgstr "'|' nije definiran"
+
+#: dlls/vbscript/vbscript.rc:67
+msgid "Invalid or unqualified reference"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:68
+#, fuzzy
+#| msgid "Class does not exist.\n"
+msgid "Class not defined"
+msgstr "Klasa ne postoji.\n"
+
+#: dlls/vbscript/vbscript.rc:71
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected ']'"
+msgstr "Očekivano ';'"
+
+#: dlls/vbscript/vbscript.rc:75
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'If'"
+msgstr "Očekivano ';'"
+
+#: dlls/vbscript/vbscript.rc:76
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'To'"
+msgstr "Očekivano ';'"
+
+#: dlls/vbscript/vbscript.rc:77
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'End'"
+msgstr "Očekivano ';'"
+
+#: dlls/vbscript/vbscript.rc:78
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'Function'"
+msgstr "Očekivano ';'"
+
+#: dlls/vbscript/vbscript.rc:79
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'Sub'"
+msgstr "Očekivano ';'"
+
+#: dlls/vbscript/vbscript.rc:80
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'Then'"
+msgstr "Očekivano ';'"
+
+#: dlls/vbscript/vbscript.rc:81
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'Wend'"
+msgstr "Očekivano ';'"
+
+#: dlls/vbscript/vbscript.rc:82
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'Loop'"
+msgstr "Očekivano ';'"
+
+#: dlls/vbscript/vbscript.rc:83
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'Next'"
+msgstr "Očekivano ';'"
+
+#: dlls/vbscript/vbscript.rc:84
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'Case'"
+msgstr "Očekivano ';'"
+
+#: dlls/vbscript/vbscript.rc:85
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'Select'"
+msgstr "Očekivano ';'"
+
+#: dlls/vbscript/vbscript.rc:86
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected statement"
+msgstr "Očekivano ';'"
+
+#: dlls/vbscript/vbscript.rc:87
+#, fuzzy
+#| msgid "Expected an operand.\n"
+msgid "Expected end of statement"
+msgstr "Očekivan operand.\n"
+
+#: dlls/vbscript/vbscript.rc:88
+#, fuzzy
+#| msgid "Unterminated string constant"
+msgid "Expected integer constant"
+msgstr "Nezavršen niz znakova"
+
+#: dlls/vbscript/vbscript.rc:89
+msgid "Expected 'While', 'Until' or end of statement"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:91
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'With'"
+msgstr "Očekivano ';'"
+
+#: dlls/vbscript/vbscript.rc:90
+#, fuzzy
+#| msgid "Secret too long.\n"
+msgid "Identifier too long"
+msgstr "Tajna predugačka.\n"
+
+#: dlls/vbscript/vbscript.rc:92
+#, fuzzy
+#| msgid "Invalid flag number.\n"
+msgid "Invalid number"
+msgstr "Neispravan broj zastavica.\n"
+
+#: dlls/vbscript/vbscript.rc:95
+#, fuzzy
+#| msgid "Invalid user buffer.\n"
+msgid "Invalid use of 'Me' keyword"
+msgstr "Neispravan korisnički međuspremnik.\n"
+
+#: dlls/vbscript/vbscript.rc:96
+msgid "'loop' without 'do'"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:97
+#, fuzzy
+#| msgid "Invalid printer state.\n"
+msgid "Invalid 'exit' statement"
+msgstr "Neispravno stanje pisača.\n"
+
+#: dlls/vbscript/vbscript.rc:98
+msgid "Invalid 'for' loop control variable"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:99
+#, fuzzy
+#| msgid "Label redefined"
+msgid "Name redefined"
+msgstr "Oznaka redefinirana"
+
+#: dlls/vbscript/vbscript.rc:100
+msgid "Must be first statement on the line"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:101
+msgid "Cannot use parentheses when calling a Sub"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:102
+#, fuzzy
+#| msgid "Expected an operator.\n"
+msgid "Expected literal constant"
+msgstr "Očekivan operator.\n"
+
+#: dlls/vbscript/vbscript.rc:103
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'In'"
+msgstr "Očekivano ';'"
+
+#: dlls/vbscript/vbscript.rc:104
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'Class'"
+msgstr "Očekivano ';'"
+
+#: dlls/vbscript/vbscript.rc:105
+msgid "Must be defined inside a Class"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:106
+msgid "Expected Let or Set or Get in property declaration"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:107
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'Property'"
+msgstr "Očekivano ';'"
+
+#: dlls/vbscript/vbscript.rc:108
+msgid "Number of arguments must be consistent across properties specification"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:109
+msgid "Cannot have multiple default property/method in a Class"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:110
+msgid "Class initialize or terminate do not have arguments"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:111
+msgid "Property set or let must have at least one argument"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:112
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Unexpected 'Next'"
+msgstr "Očekivano ';'"
+
+#: dlls/vbscript/vbscript.rc:113
+msgid "'Default' specification must also specify 'Public'"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:114
+msgid "'Default' specification can only be on Property Get"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:116
+msgid "Microsoft VBScript compilation error"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:117
 msgid "Microsoft VBScript runtime error"
 msgstr ""
 
 #: dlls/winemac.drv/winemac.rc:32 programs/wineboot/wineboot.rc:42
-#: programs/winecfg/winecfg.rc:143
+#: programs/winecfg/winecfg.rc:144
 msgid "Wine"
 msgstr "Wine"
 
@@ -14964,7 +15559,7 @@ msgid "Digi&tal"
 msgstr "&Digitalni"
 
 #: programs/clock/clock.rc:35 programs/notepad/notepad.rc:59
-#: programs/winecfg/winecfg.rc:315 programs/winefile/winefile.rc:63
+#: programs/winecfg/winecfg.rc:316 programs/winefile/winefile.rc:63
 #: programs/wordpad/wordpad.rc:84
 msgid "&Font..."
 msgstr "&Font..."
@@ -15784,6 +16379,45 @@ msgstr "Svaki znak je %1!u! piksela širok i %2!u! piksela visok"
 #: programs/conhost/conhost.rc:42
 msgid "This is a test"
 msgstr "Ovo je proba"
+
+#: programs/wscript/wscript.rc:45
+msgid ""
+"Usage: CScript scriptname.extension [option...] [arguments...]\n"
+"\n"
+"Options:\n"
+"//B         Batch mode: Suppresses script errors and prompts from "
+"displaying\n"
+"//D         Enable Active Debugging\n"
+"//E:engine  Use engine for executing script\n"
+"//H:CScript Changes the default script host to CScript.exe\n"
+"//H:WScript Changes the default script host to WScript.exe (default)\n"
+"//I         Interactive mode (default, opposite of //B)\n"
+"//Job:xxxx  Execute a WSF job\n"
+"//Logo      Display logo (default)\n"
+"//Nologo    Prevent logo display: No banner will be shown at execution time\n"
+"//S         Save current command line options for this user\n"
+"//T:nn      Time out in seconds:  Maximum time a script is permitted to run\n"
+"//X         Execute script in debugger\n"
+"//U         Use Unicode for redirected I/O from the console\n"
+msgstr ""
+
+#: programs/wscript/wscript.rc:47
+msgid "Input Error: There is no script file specified.\n"
+msgstr ""
+
+#: programs/wscript/wscript.rc:48
+msgid "Input Error: Can not find script file \"%1\".\n"
+msgstr ""
+
+#: programs/wscript/wscript.rc:49
+msgid "CScript Error: Loading script \"%1\" failed (%2).\n"
+msgstr ""
+
+#: programs/wscript/wscript.rc:52
+msgid ""
+"Script execution time was exceeded on script \"%1\".\n"
+"Script execution was terminated.\n"
+msgstr ""
 
 #: programs/dxdiag/dxdiag.rc:30
 msgid "DirectX Diagnostic Tool"
@@ -19252,7 +19886,7 @@ msgstr ""
 msgid "The Wine configuration in %s is being updated, please wait..."
 msgstr "Wine postavke u %s se ažuriraju. Molimo, pričekajte..."
 
-#: programs/winecfg/winecfg.rc:146
+#: programs/winecfg/winecfg.rc:147
 msgid ""
 "This program is free software; you can redistribute it and/or modify it "
 "under the terms of the GNU Lesser General Public License as published by the "
@@ -19263,23 +19897,23 @@ msgstr ""
 "uvjetima GNU Lesser General Public License koja je izdana pod Free Software "
 "Foundation; verzija 2.1 licence ili (po svom izboru) neka kasnija verzija."
 
-#: programs/winecfg/winecfg.rc:148
+#: programs/winecfg/winecfg.rc:149
 msgid "Windows registration information"
 msgstr "Informacija o Windows registraciji"
 
-#: programs/winecfg/winecfg.rc:149
+#: programs/winecfg/winecfg.rc:150
 msgid "&Owner:"
 msgstr "&Vlasnik:"
 
-#: programs/winecfg/winecfg.rc:151
+#: programs/winecfg/winecfg.rc:152
 msgid "Organi&zation:"
 msgstr "Organi&zacija:"
 
-#: programs/winecfg/winecfg.rc:159
+#: programs/winecfg/winecfg.rc:160
 msgid "Application settings"
 msgstr "Postavke aplikacije"
 
-#: programs/winecfg/winecfg.rc:160
+#: programs/winecfg/winecfg.rc:161
 msgid ""
 "Wine can mimic different Windows versions for each application. This tab is "
 "linked to the Libraries and Graphics tabs to allow you to change system-wide "
@@ -19289,57 +19923,57 @@ msgstr ""
 "je povezan sa tabovima Biblioteke i Grafika kako bi dozvolio sistemske "
 "promjene ili za podešavanje aplikacija u tim istim tabovima."
 
-#: programs/winecfg/winecfg.rc:164
+#: programs/winecfg/winecfg.rc:165
 #, fuzzy
 #| msgid "&Add application..."
 msgid "Add appli&cation..."
 msgstr "&Dodaj aplikaciju..."
 
-#: programs/winecfg/winecfg.rc:165
+#: programs/winecfg/winecfg.rc:166
 msgid "&Remove application"
 msgstr "&Ukloni aplikaciju"
 
-#: programs/winecfg/winecfg.rc:166
+#: programs/winecfg/winecfg.rc:167
 msgid "&Windows Version:"
 msgstr "&Verzija Windowsa:"
 
-#: programs/winecfg/winecfg.rc:174
+#: programs/winecfg/winecfg.rc:175
 msgid "Window settings"
 msgstr "Postavke prozora"
 
-#: programs/winecfg/winecfg.rc:175
+#: programs/winecfg/winecfg.rc:176
 msgid "Automatically capture the &mouse in full-screen windows"
 msgstr "Automatski uhvati miš u ful&l-screen prozorima"
 
-#: programs/winecfg/winecfg.rc:176
+#: programs/winecfg/winecfg.rc:177
 msgid "Allow the window manager to &decorate the windows"
 msgstr "Dozvoli upravitelju prozora &ukrašavanje prozora"
 
-#: programs/winecfg/winecfg.rc:177
+#: programs/winecfg/winecfg.rc:178
 msgid "Allow the &window manager to control the windows"
 msgstr "Dozvoli upravitelju &prozora upravljanje prozorom"
 
-#: programs/winecfg/winecfg.rc:178
+#: programs/winecfg/winecfg.rc:179
 msgid "&Emulate a virtual desktop"
 msgstr "&Emulacija virutalnoe radne površine"
 
-#: programs/winecfg/winecfg.rc:180
+#: programs/winecfg/winecfg.rc:181
 msgid "Desktop &size:"
 msgstr "&Veličina radne površine:"
 
-#: programs/winecfg/winecfg.rc:185
+#: programs/winecfg/winecfg.rc:186
 msgid "Screen resolution"
 msgstr "Rezolucija ekrana"
 
-#: programs/winecfg/winecfg.rc:189
+#: programs/winecfg/winecfg.rc:190
 msgid "This is a sample text using 10 point Tahoma"
 msgstr "Ovo je primjer teksta koristeći 10 Tahoma"
 
-#: programs/winecfg/winecfg.rc:196
+#: programs/winecfg/winecfg.rc:197
 msgid "DLL overrides"
 msgstr "DLL nadjačavanja"
 
-#: programs/winecfg/winecfg.rc:197
+#: programs/winecfg/winecfg.rc:198
 msgid ""
 "Dynamic Link Libraries can be specified individually to be either builtin "
 "(provided by Wine) or native (taken from Windows or provided by the "
@@ -19348,59 +19982,59 @@ msgstr ""
 "Biblioteke mogu biti podešene zasebno da budu ili ugrađene (omogućene od "
 "Wine-a) ili nativne (uzete od Windowsa ili od aplikacije)."
 
-#: programs/winecfg/winecfg.rc:199
+#: programs/winecfg/winecfg.rc:200
 msgid "&New override for library:"
 msgstr "&Novo nadjačavanje biblioteke:"
 
-#: programs/winecfg/winecfg.rc:201
+#: programs/winecfg/winecfg.rc:202
 msgid "A&dd"
 msgstr ""
 
-#: programs/winecfg/winecfg.rc:202
+#: programs/winecfg/winecfg.rc:203
 msgid "Existing &overrides:"
 msgstr "Postojeća nad&jačavanja:"
 
-#: programs/winecfg/winecfg.rc:204
+#: programs/winecfg/winecfg.rc:205
 msgid "&Edit..."
 msgstr "&Izmjeni..."
 
-#: programs/winecfg/winecfg.rc:210
+#: programs/winecfg/winecfg.rc:211
 msgid "Edit Override"
 msgstr "Izmjeni podešavanje"
 
-#: programs/winecfg/winecfg.rc:213
+#: programs/winecfg/winecfg.rc:214
 msgid "Load order"
 msgstr "Redoslijed učitavanja"
 
-#: programs/winecfg/winecfg.rc:214
+#: programs/winecfg/winecfg.rc:215
 msgid "&Builtin (Wine)"
 msgstr "&Ugrađeno (Wine)"
 
-#: programs/winecfg/winecfg.rc:215
+#: programs/winecfg/winecfg.rc:216
 msgid "&Native (Windows)"
 msgstr "&Nativno (Windows)"
 
-#: programs/winecfg/winecfg.rc:216
+#: programs/winecfg/winecfg.rc:217
 #, fuzzy
 #| msgid "Bui&ltin then Native"
 msgid "Buil&tin then Native"
 msgstr "Ugrađe&no pa nativno"
 
-#: programs/winecfg/winecfg.rc:217
+#: programs/winecfg/winecfg.rc:218
 msgid "Nati&ve then Builtin"
 msgstr "Nativno &pa ugrađeno"
 
-#: programs/winecfg/winecfg.rc:225
+#: programs/winecfg/winecfg.rc:226
 msgid "Select Drive Letter"
 msgstr "Izaberi slovo pogona"
 
-#: programs/winecfg/winecfg.rc:237
+#: programs/winecfg/winecfg.rc:238
 #, fuzzy
 #| msgid "Wine configuration"
 msgid "Drive configuration"
 msgstr "Wine konfiguracija"
 
-#: programs/winecfg/winecfg.rc:238
+#: programs/winecfg/winecfg.rc:239
 #, fuzzy
 #| msgid ""
 #| "Failed to connect to the mount manager, the drive configuration cannot be "
@@ -19412,127 +20046,127 @@ msgstr ""
 "Nije uspjelo povezivanje sa mount upraviteljem, konfiguracija pogona se ne "
 "može izmijeniti."
 
-#: programs/winecfg/winecfg.rc:241
+#: programs/winecfg/winecfg.rc:242
 #, fuzzy
 #| msgid "&Add..."
 msgid "A&dd..."
 msgstr "&Dodaj..."
 
-#: programs/winecfg/winecfg.rc:245
+#: programs/winecfg/winecfg.rc:246
 msgid "&Path:"
 msgstr "&Putanja:"
 
-#: programs/winecfg/winecfg.rc:252 programs/winecfg/winecfg.rc:37
+#: programs/winecfg/winecfg.rc:253 programs/winecfg/winecfg.rc:37
 #, fuzzy
 #| msgid "Show &Advanced"
 msgid "Show Advan&ced"
 msgstr "Pokaži &napredno"
 
-#: programs/winecfg/winecfg.rc:253
+#: programs/winecfg/winecfg.rc:254
 msgid "De&vice:"
 msgstr "U&ređaj:"
 
-#: programs/winecfg/winecfg.rc:255
+#: programs/winecfg/winecfg.rc:256
 msgid "Bro&wse..."
 msgstr "Na&đi..."
 
-#: programs/winecfg/winecfg.rc:257
+#: programs/winecfg/winecfg.rc:258
 msgid "&Label:"
 msgstr "&Oznaka:"
 
-#: programs/winecfg/winecfg.rc:259
+#: programs/winecfg/winecfg.rc:260
 msgid "S&erial:"
 msgstr "S&erijski:"
 
-#: programs/winecfg/winecfg.rc:262
+#: programs/winecfg/winecfg.rc:263
 #, fuzzy
 #| msgid "Show &dot files"
 msgid "&Show dot files"
 msgstr "Prikaži &dot datoteke"
 
-#: programs/winecfg/winecfg.rc:269
+#: programs/winecfg/winecfg.rc:270
 msgid "Driver diagnostics"
 msgstr "Driver dijagnostika"
 
-#: programs/winecfg/winecfg.rc:271
+#: programs/winecfg/winecfg.rc:272
 msgid "&Test Sound"
 msgstr "Is&probaj zvuk"
 
-#: programs/winecfg/winecfg.rc:272
+#: programs/winecfg/winecfg.rc:273
 msgid "Defaults"
 msgstr "Podrazumijevano"
 
-#: programs/winecfg/winecfg.rc:273
+#: programs/winecfg/winecfg.rc:274
 msgid "Output device:"
 msgstr "Izlazni uređaj:"
 
-#: programs/winecfg/winecfg.rc:274
+#: programs/winecfg/winecfg.rc:275
 msgid "Voice output device:"
 msgstr "Izlazni uređaj za glas:"
 
-#: programs/winecfg/winecfg.rc:275
+#: programs/winecfg/winecfg.rc:276
 msgid "Input device:"
 msgstr "Ulazni uređaj:"
 
-#: programs/winecfg/winecfg.rc:276
+#: programs/winecfg/winecfg.rc:277
 msgid "Voice input device:"
 msgstr "Ulazni uređdaj za glas:"
 
-#: programs/winecfg/winecfg.rc:277
+#: programs/winecfg/winecfg.rc:278
 #, fuzzy
 #| msgid "Output device:"
 msgid "MIDI output device:"
 msgstr "Izlazni uređaj:"
 
-#: programs/winecfg/winecfg.rc:283 programs/winecfg/winecfg.rc:89
+#: programs/winecfg/winecfg.rc:284 programs/winecfg/winecfg.rc:89
 #, fuzzy
 #| msgid "Wine configuration"
 msgid "Speaker configuration"
 msgstr "Wine konfiguracija"
 
-#: programs/winecfg/winecfg.rc:286
+#: programs/winecfg/winecfg.rc:287
 msgid "Speakers:"
 msgstr ""
 
-#: programs/winecfg/winecfg.rc:294
+#: programs/winecfg/winecfg.rc:295
 msgid "Appearance"
 msgstr "Izgled"
 
-#: programs/winecfg/winecfg.rc:295
+#: programs/winecfg/winecfg.rc:296
 msgid "&Theme:"
 msgstr "&Tema:"
 
-#: programs/winecfg/winecfg.rc:297
+#: programs/winecfg/winecfg.rc:298
 #, fuzzy
 #| msgid "&Theme:"
 msgid "&WinRT theme:"
 msgstr "&Tema:"
 
-#: programs/winecfg/winecfg.rc:299
+#: programs/winecfg/winecfg.rc:300
 msgid "&Install theme..."
 msgstr "&Instaliraj temu..."
 
-#: programs/winecfg/winecfg.rc:304
+#: programs/winecfg/winecfg.rc:305
 msgid "It&em:"
 msgstr "Stavka:"
 
-#: programs/winecfg/winecfg.rc:306
+#: programs/winecfg/winecfg.rc:307
 msgid "C&olor:"
 msgstr "B&oja:"
 
-#: programs/winecfg/winecfg.rc:312
+#: programs/winecfg/winecfg.rc:313
 msgid "MIME types"
 msgstr ""
 
-#: programs/winecfg/winecfg.rc:313
+#: programs/winecfg/winecfg.rc:314
 msgid "Manage file and protocol &associations"
 msgstr ""
 
-#: programs/winecfg/winecfg.rc:316
+#: programs/winecfg/winecfg.rc:317
 msgid "Folders"
 msgstr "Mape"
 
-#: programs/winecfg/winecfg.rc:319
+#: programs/winecfg/winecfg.rc:320
 msgid "&Link to:"
 msgstr "&Veza do:"
 
@@ -19615,30 +20249,34 @@ msgid "(System default)"
 msgstr "(Sistemska putanja)"
 
 #: programs/winecfg/winecfg.rc:90
-msgid "5.1 Surround"
+msgid "7.1 Surround"
 msgstr ""
 
 #: programs/winecfg/winecfg.rc:91
+msgid "5.1 Surround"
+msgstr ""
+
+#: programs/winecfg/winecfg.rc:92
 #, fuzzy
 #| msgid "graphic"
 msgid "Quadraphonic"
 msgstr "grafika"
 
-#: programs/winecfg/winecfg.rc:92
+#: programs/winecfg/winecfg.rc:93
 msgid "Stereo"
 msgstr ""
 
-#: programs/winecfg/winecfg.rc:93
+#: programs/winecfg/winecfg.rc:94
 msgid "Mono"
 msgstr ""
 
-#: programs/winecfg/winecfg.rc:98
+#: programs/winecfg/winecfg.rc:99
 #, fuzzy
 #| msgid "Right"
 msgid "Light"
 msgstr "Desno"
 
-#: programs/winecfg/winecfg.rc:99
+#: programs/winecfg/winecfg.rc:100
 msgid "Dark"
 msgstr ""
 
@@ -19764,127 +20402,127 @@ msgstr ""
 "\n"
 "Kliknite 'Dodaj' u Pogoni tabu kako bi ga napravili!\n"
 
-#: programs/winecfg/winecfg.rc:104
+#: programs/winecfg/winecfg.rc:105
 msgid "Controls Background"
 msgstr "Kontrole pozadine"
 
-#: programs/winecfg/winecfg.rc:105
+#: programs/winecfg/winecfg.rc:106
 msgid "Controls Text"
 msgstr "Kontrole teksta"
 
-#: programs/winecfg/winecfg.rc:107
+#: programs/winecfg/winecfg.rc:108
 msgid "Menu Background"
 msgstr "Pozadina menija"
 
-#: programs/winecfg/winecfg.rc:108
+#: programs/winecfg/winecfg.rc:109
 msgid "Menu Text"
 msgstr "Tekst menija"
 
-#: programs/winecfg/winecfg.rc:109
+#: programs/winecfg/winecfg.rc:110
 msgid "Scrollbar"
 msgstr "Scrollbar"
 
-#: programs/winecfg/winecfg.rc:110
+#: programs/winecfg/winecfg.rc:111
 msgid "Selection Background"
 msgstr "Odabir pozadine"
 
-#: programs/winecfg/winecfg.rc:111
+#: programs/winecfg/winecfg.rc:112
 msgid "Selection Text"
 msgstr "Odabir teksta"
 
-#: programs/winecfg/winecfg.rc:112
+#: programs/winecfg/winecfg.rc:113
 msgid "Tooltip Background"
 msgstr "Tooltip pozadine"
 
-#: programs/winecfg/winecfg.rc:113
+#: programs/winecfg/winecfg.rc:114
 msgid "Tooltip Text"
 msgstr "Tooltip teksta"
 
-#: programs/winecfg/winecfg.rc:114
+#: programs/winecfg/winecfg.rc:115
 msgid "Window Background"
 msgstr "Pozadina prozora"
 
-#: programs/winecfg/winecfg.rc:115
+#: programs/winecfg/winecfg.rc:116
 msgid "Window Text"
 msgstr "Text prozora"
 
-#: programs/winecfg/winecfg.rc:116
+#: programs/winecfg/winecfg.rc:117
 msgid "Active Title Bar"
 msgstr "Aktivni nazivni Bar"
 
-#: programs/winecfg/winecfg.rc:117
+#: programs/winecfg/winecfg.rc:118
 msgid "Active Title Text"
 msgstr "Aktivni nazivni Text"
 
-#: programs/winecfg/winecfg.rc:118
+#: programs/winecfg/winecfg.rc:119
 msgid "Inactive Title Bar"
 msgstr "Neaktivni nazivni Bar"
 
-#: programs/winecfg/winecfg.rc:119
+#: programs/winecfg/winecfg.rc:120
 msgid "Inactive Title Text"
 msgstr "Neaktivni nazivni Text"
 
-#: programs/winecfg/winecfg.rc:120
+#: programs/winecfg/winecfg.rc:121
 msgid "Message Box Text"
 msgstr "Poruka Box Text"
 
-#: programs/winecfg/winecfg.rc:121
+#: programs/winecfg/winecfg.rc:122
 msgid "Application Workspace"
 msgstr "Radni prostor aplikacije"
 
-#: programs/winecfg/winecfg.rc:122
+#: programs/winecfg/winecfg.rc:123
 msgid "Window Frame"
 msgstr "Okvir prozora"
 
-#: programs/winecfg/winecfg.rc:123
+#: programs/winecfg/winecfg.rc:124
 msgid "Active Border"
 msgstr "Aktivni rub"
 
-#: programs/winecfg/winecfg.rc:124
+#: programs/winecfg/winecfg.rc:125
 msgid "Inactive Border"
 msgstr "Neaktivni rub"
 
-#: programs/winecfg/winecfg.rc:125
+#: programs/winecfg/winecfg.rc:126
 msgid "Controls Shadow"
 msgstr "Kontrola sjene"
 
-#: programs/winecfg/winecfg.rc:126
+#: programs/winecfg/winecfg.rc:127
 msgid "Gray Text"
 msgstr "Sivi Text"
 
-#: programs/winecfg/winecfg.rc:127
+#: programs/winecfg/winecfg.rc:128
 msgid "Controls Highlight"
 msgstr "Kontrola odabranog"
 
-#: programs/winecfg/winecfg.rc:128
+#: programs/winecfg/winecfg.rc:129
 msgid "Controls Dark Shadow"
 msgstr "Kontrola tamne sjene"
 
-#: programs/winecfg/winecfg.rc:129
+#: programs/winecfg/winecfg.rc:130
 msgid "Controls Light"
 msgstr "Kontrola svijetla"
 
-#: programs/winecfg/winecfg.rc:130
+#: programs/winecfg/winecfg.rc:131
 msgid "Controls Alternate Background"
 msgstr "Kontrola alternativne pozadine"
 
-#: programs/winecfg/winecfg.rc:131
+#: programs/winecfg/winecfg.rc:132
 msgid "Hot Tracked Item"
 msgstr ""
 
-#: programs/winecfg/winecfg.rc:132
+#: programs/winecfg/winecfg.rc:133
 msgid "Active Title Bar Gradient"
 msgstr "Gradijent aktivne naslovne trake"
 
-#: programs/winecfg/winecfg.rc:133
+#: programs/winecfg/winecfg.rc:134
 msgid "Inactive Title Bar Gradient"
 msgstr "Gradijent neaktivne naslovne trake"
 
-#: programs/winecfg/winecfg.rc:134
+#: programs/winecfg/winecfg.rc:135
 msgid "Menu Highlight"
 msgstr "Isticanje izbornika"
 
-#: programs/winecfg/winecfg.rc:135
+#: programs/winecfg/winecfg.rc:136
 msgid "Menu Bar"
 msgstr "Traka izbornika"
 

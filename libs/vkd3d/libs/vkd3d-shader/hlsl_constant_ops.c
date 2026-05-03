@@ -142,6 +142,7 @@ static bool fold_cast(struct hlsl_ctx *ctx, struct hlsl_constant_value *dst,
         const struct hlsl_type *dst_type, const struct hlsl_ir_constant *src)
 {
     unsigned int k;
+    bool b = false;
     uint32_t u = 0;
     double d = 0.0;
     float f = 0.0f;
@@ -157,6 +158,7 @@ static bool fold_cast(struct hlsl_ctx *ctx, struct hlsl_constant_value *dst,
                 i = float_to_int(src->value.u[k].f);
                 f = src->value.u[k].f;
                 d = src->value.u[k].f;
+                b = src->value.u[k].f != 0.0f;
                 break;
 
             case HLSL_TYPE_DOUBLE:
@@ -164,6 +166,7 @@ static bool fold_cast(struct hlsl_ctx *ctx, struct hlsl_constant_value *dst,
                 i = double_to_int(src->value.u[k].d);
                 f = src->value.u[k].d;
                 d = src->value.u[k].d;
+                b = src->value.u[k].d != 0.0;
                 break;
 
             case HLSL_TYPE_INT:
@@ -171,6 +174,7 @@ static bool fold_cast(struct hlsl_ctx *ctx, struct hlsl_constant_value *dst,
                 i = src->value.u[k].i;
                 f = src->value.u[k].i;
                 d = src->value.u[k].i;
+                b = src->value.u[k].i;
                 break;
 
             case HLSL_TYPE_UINT:
@@ -179,6 +183,7 @@ static bool fold_cast(struct hlsl_ctx *ctx, struct hlsl_constant_value *dst,
                 i = src->value.u[k].u;
                 f = src->value.u[k].u;
                 d = src->value.u[k].u;
+                b = src->value.u[k].u;
                 break;
 
             case HLSL_TYPE_BOOL:
@@ -186,6 +191,7 @@ static bool fold_cast(struct hlsl_ctx *ctx, struct hlsl_constant_value *dst,
                 i = !!src->value.u[k].u;
                 f = !!src->value.u[k].u;
                 d = !!src->value.u[k].u;
+                b = !!src->value.u[k].u;
                 break;
         }
 
@@ -210,7 +216,7 @@ static bool fold_cast(struct hlsl_ctx *ctx, struct hlsl_constant_value *dst,
                 break;
 
             case HLSL_TYPE_BOOL:
-                dst->u[k].u = u ? ~0u : 0u;
+                dst->u[k].u = b ? ~0u : 0u;
                 break;
         }
     }

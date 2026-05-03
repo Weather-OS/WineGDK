@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Rémi Bernon for CodeWeavers
+ * Copyright 2026 Alistair Leslie-Hughes
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -31,6 +31,16 @@ struct data_transfer_manager_statics
 static inline struct data_transfer_manager_statics *impl_from_IActivationFactory( IActivationFactory *iface )
 {
     return CONTAINING_RECORD( iface, struct data_transfer_manager_statics, IActivationFactory_iface );
+}
+
+static inline struct data_transfer_manager_statics *impl_from_IDataTransferManagerStatics( IDataTransferManagerStatics *iface )
+{
+    return CONTAINING_RECORD( iface, struct data_transfer_manager_statics, IDataTransferManagerStatics_iface );
+}
+
+static inline struct data_transfer_manager_statics *impl_from_IDataTransferManagerInterop( IDataTransferManagerInterop *iface )
+{
+    return CONTAINING_RECORD( iface, struct data_transfer_manager_statics, IDataTransferManagerInterop_iface );
 }
 
 static HRESULT WINAPI factory_QueryInterface( IActivationFactory *iface, REFIID iid, void **out )
@@ -83,25 +93,25 @@ static ULONG WINAPI factory_Release( IActivationFactory *iface )
 
 static HRESULT WINAPI factory_GetIids( IActivationFactory *iface, ULONG *iid_count, IID **iids )
 {
-    FIXME( "iface %p, iid_count %p, iids %p stub!\n", iface, iid_count, iids );
+    FIXME( "iface %p, iid_count %p, iids %p\n", iface, iid_count, iids );
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI factory_GetRuntimeClassName( IActivationFactory *iface, HSTRING *class_name )
 {
-    FIXME( "iface %p, class_name %p stub!\n", iface, class_name );
+    FIXME( "iface %p, class_name %p\n", iface, class_name );
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI factory_GetTrustLevel( IActivationFactory *iface, TrustLevel *trust_level )
 {
-    FIXME( "iface %p, trust_level %p stub!\n", iface, trust_level );
+    FIXME( "iface %p, trust_level %p\n", iface, trust_level );
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI factory_ActivateInstance( IActivationFactory *iface, IInspectable **instance )
 {
-    FIXME( "iface %p, instance %p stub!\n", iface, instance );
+    FIXME( "iface %p, instance %p\n", iface, instance );
     return E_NOTIMPL;
 }
 
@@ -117,11 +127,6 @@ static const struct IActivationFactoryVtbl factory_vtbl =
     /* IActivationFactory methods */
     factory_ActivateInstance,
 };
-
-static inline struct data_transfer_manager_statics *impl_from_IDataTransferManagerStatics( IDataTransferManagerStatics *iface )
-{
-    return CONTAINING_RECORD( iface, struct data_transfer_manager_statics, IDataTransferManagerStatics_iface );
-}
 
 static HRESULT WINAPI data_transfer_manager_statics_QueryInterface( IDataTransferManagerStatics *iface,
                                                                 REFIID iid, void **out )
@@ -156,37 +161,36 @@ static ULONG WINAPI data_transfer_manager_statics_Release( IDataTransferManagerS
     struct data_transfer_manager_statics *impl = impl_from_IDataTransferManagerStatics( iface );
     ULONG ref = InterlockedDecrement( &impl->ref );
     TRACE( "iface %p decreasing refcount to %lu.\n", iface, ref );
-    if (!ref) free( impl );
     return ref;
 }
 
 static HRESULT WINAPI data_transfer_manager_statics_GetIids( IDataTransferManagerStatics *iface, ULONG *iid_count, IID **iids )
 {
-    FIXME( "iface %p, iid_count %p, iids %p stub!\n", iface, iid_count, iids );
+    FIXME( "iface %p, iid_count %p, iids %p\n", iface, iid_count, iids );
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI data_transfer_manager_statics_GetRuntimeClassName( IDataTransferManagerStatics *iface, HSTRING *class_name )
 {
-    FIXME( "iface %p, class_name %p stub!\n", iface, class_name );
+    FIXME( "iface %p, class_name %p\n", iface, class_name );
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI data_transfer_manager_statics_GetTrustLevel( IDataTransferManagerStatics *iface, TrustLevel *trust_level )
 {
-    FIXME( "iface %p, trust_level %p stub!\n", iface, trust_level );
+    FIXME( "iface %p, trust_level %p\n", iface, trust_level );
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI data_transfer_manager_statics_ShowShareUI( IDataTransferManagerStatics *iface )
 {
-    FIXME( "iface %p stub!\n", iface );
+    FIXME( "iface %p\n", iface );
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI data_transfer_manager_statics_GetForCurrentView( IDataTransferManagerStatics *iface, IDataTransferManager **result )
 {
-    FIXME( "iface %p, result %p stub!\n", iface, result );
+    FIXME( "iface %p, result %p\n", iface, result );
     return E_NOTIMPL;
 }
 
@@ -203,11 +207,6 @@ static IDataTransferManagerStaticsVtbl data_transfer_manager_statics_vtbl =
     data_transfer_manager_statics_ShowShareUI,
     data_transfer_manager_statics_GetForCurrentView
 };
-
-static inline struct data_transfer_manager_statics *impl_from_IDataTransferManagerInterop( IDataTransferManagerInterop *iface )
-{
-    return CONTAINING_RECORD( iface, struct data_transfer_manager_statics, IDataTransferManagerInterop_iface );
-}
 
 static HRESULT WINAPI data_transfer_manager_interop_QueryInterface( IDataTransferManagerInterop *iface,
                                                                 REFIID iid, void **out )
@@ -242,19 +241,18 @@ static ULONG WINAPI data_transfer_manager_interop_Release( IDataTransferManagerI
     struct data_transfer_manager_statics *impl = impl_from_IDataTransferManagerInterop( iface );
     ULONG ref = InterlockedDecrement( &impl->ref );
     TRACE( "iface %p decreasing refcount to %lu.\n", iface, ref );
-    if (!ref) free( impl );
     return ref;
 }
 
 static HRESULT WINAPI data_transfer_manager_interop_GetForWindow( IDataTransferManagerInterop *iface, HWND appWindow, REFIID iid, void **result )
 {
-    FIXME( "iface %p, appWindow %p, iid %s, result %p stub!\n", iface, appWindow, debugstr_guid( iid ), result );
+    FIXME( "iface %p, appWindow %p, iid %s, result %p\n", iface, appWindow, debugstr_guid( iid ), result );
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI data_transfer_manager_interop_ShowShareUIForWindow( IDataTransferManagerInterop *iface, HWND appWindow )
 {
-    FIXME( "iface %p, appWindow %p stub!\n", iface, appWindow );
+    FIXME( "iface %p, appWindow %p\n", iface, appWindow );
     return E_NOTIMPL;
 }
 

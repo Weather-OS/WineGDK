@@ -64,6 +64,8 @@ typedef struct {
     DWORD_PTR cookie;
     unsigned line;
     unsigned character;
+    vbscode_t *code;
+    unsigned loc;
 } VBScriptError;
 
 static inline WCHAR *heap_pool_strdup(heap_pool_t *heap, const WCHAR *str)
@@ -91,7 +93,7 @@ static inline BOOL is_started(VBScript *This)
         || This->state == SCRIPTSTATE_DISCONNECTED;
 }
 
-static HRESULT exec_global_code(script_ctx_t *ctx, vbscode_t *code, VARIANT *res)
+HRESULT exec_global_code(script_ctx_t *ctx, vbscode_t *code, VARIANT *res, BOOL extern_caller)
 {
     ScriptDisp *obj = ctx->script_obj;
     function_t *func_iter, **new_funcs;
@@ -138,6 +140,9 @@ static HRESULT exec_global_code(script_ctx_t *ctx, vbscode_t *code, VARIANT *res
 
     for (i = 0; i < code->main_code.var_cnt; i++)
     {
+        if (script_disp_find_var(obj, code->main_code.vars[i].name))
+            continue;
+
         if (!(var = heap_pool_alloc(&obj->heap, sizeof(*var))))
             return E_OUTOFMEMORY;
 
@@ -147,25 +152,32 @@ static HRESULT exec_global_code(script_ctx_t *ctx, vbscode_t *code, VARIANT *res
         V_VT(&var->v) = VT_EMPTY;
         var->is_const = FALSE;
         var->array = NULL;
+        var->index = obj->global_vars_cnt;
+        rb_put(&obj->var_tree, var->name, &var->entry);
 
-        obj->global_vars[obj->global_vars_cnt + i] = var;
+        obj->global_vars[obj->global_vars_cnt++] = var;
     }
-
-    obj->global_vars_cnt += code->main_code.var_cnt;
 
     for (func_iter = code->funcs; func_iter; func_iter = func_iter->next)
     {
-        for (i = 0; i < obj->global_funcs_cnt; i++)
+        struct rb_entry *entry = rb_get(&obj->func_tree, func_iter->name);
+
+        if (entry)
         {
-            if (!wcsicmp(obj->global_funcs[i]->name, func_iter->name))
-            {
-                /* global function already exists, replace it */
-                obj->global_funcs[i] = func_iter;
-                break;
-            }
+            function_t *old_func = RB_ENTRY_VALUE(entry, function_t, entry);
+            size_t old_index = old_func->index;
+            /* global function already exists, replace it */
+            rb_remove(&obj->func_tree, &old_func->entry);
+            func_iter->index = old_index;
+            obj->global_funcs[old_index] = func_iter;
+            rb_put(&obj->func_tree, func_iter->name, &func_iter->entry);
         }
-        if (i == obj->global_funcs_cnt)
+        else
+        {
+            func_iter->index = obj->global_funcs_cnt;
             obj->global_funcs[obj->global_funcs_cnt++] = func_iter;
+            rb_put(&obj->func_tree, func_iter->name, &func_iter->entry);
+        }
     }
 
     if (code->classes)
@@ -189,7 +201,7 @@ static HRESULT exec_global_code(script_ctx_t *ctx, vbscode_t *code, VARIANT *res
 
     prev_caller = ctx->vbcaller->caller;
     ctx->vbcaller->caller = SP_CALLER_UNINITIALIZED;
-    hres = exec_script(ctx, TRUE, &code->main_code, NULL, NULL, res);
+    hres = exec_script(ctx, extern_caller, &code->main_code, NULL, NULL, res);
     ctx->vbcaller->caller = prev_caller;
     return hres;
 }
@@ -200,7 +212,7 @@ static void exec_queued_code(script_ctx_t *ctx)
 
     LIST_FOR_EACH_ENTRY(iter, &ctx->code_list, vbscode_t, entry) {
         if(iter->pending_exec)
-            exec_global_code(ctx, iter, NULL);
+            exec_global_code(ctx, iter, NULL, TRUE);
     }
 }
 
@@ -231,7 +243,7 @@ named_item_t *lookup_named_item(script_ctx_t *ctx, const WCHAR *name, unsigned f
     HRESULT hres;
 
     LIST_FOR_EACH_ENTRY(item, &ctx->named_items, named_item_t, entry) {
-        if((item->flags & flags) == flags && !wcsicmp(item->name, name)) {
+        if((item->flags & flags) == flags && !vbs_wcsicmp(item->name, name)) {
             if(!item->script_obj && !(item->flags & SCRIPTITEM_GLOBALMEMBERS)) {
                 hres = create_script_disp(ctx, &item->script_obj);
                 if(FAILED(hres)) return NULL;
@@ -505,8 +517,12 @@ static ULONG WINAPI VBScriptError_Release(IActiveScriptError *iface)
 
     TRACE("(%p) ref=%ld\n", This, ref);
 
-    if(!ref)
+    if(!ref) {
+        clear_ei(&This->ei);
+        if(This->code)
+            release_vbscode(This->code);
         free(This);
+    }
 
     return ref;
 }
@@ -542,8 +558,28 @@ static HRESULT WINAPI VBScriptError_GetSourcePosition(IActiveScriptError *iface,
 static HRESULT WINAPI VBScriptError_GetSourceLineText(IActiveScriptError *iface, BSTR *source)
 {
     VBScriptError *This = impl_from_IActiveScriptError(iface);
-    FIXME("(%p)->(%p)\n", This, source);
-    return E_NOTIMPL;
+    const WCHAR *nl, *line_end;
+
+    TRACE("(%p)->(%p)\n", This, source);
+
+    if(!source)
+        return E_POINTER;
+
+    if(!This->code) {
+        *source = NULL;
+        return E_FAIL;
+    }
+
+    nl = This->code->source + This->loc;
+    while(nl > This->code->source && nl[-1] != '\n')
+        nl--;
+
+    line_end = This->code->source + This->loc;
+    while(*line_end && *line_end != '\n' && *line_end != '\r')
+        line_end++;
+
+    *source = SysAllocStringLen(nl, line_end - nl);
+    return *source ? S_OK : E_OUTOFMEMORY;
 }
 
 static const IActiveScriptErrorVtbl VBScriptErrorVtbl = {
@@ -555,7 +591,7 @@ static const IActiveScriptErrorVtbl VBScriptErrorVtbl = {
     VBScriptError_GetSourceLineText
 };
 
-HRESULT report_script_error(script_ctx_t *ctx, const vbscode_t *code, unsigned loc)
+HRESULT report_script_error(script_ctx_t *ctx, vbscode_t *code, unsigned loc, BOOL store_source)
 {
     VBScriptError *error;
     const WCHAR *p, *nl;
@@ -579,6 +615,15 @@ HRESULT report_script_error(script_ctx_t *ctx, const vbscode_t *code, unsigned l
         nl = p + 1;
     }
     error->character = code->source + loc - nl;
+
+    if(store_source) {
+        grab_vbscode(code);
+        error->code = code;
+        error->loc = loc;
+    }else {
+        error->code = NULL;
+        error->loc = 0;
+    }
 
     hres = IActiveScriptSite_OnScriptError(ctx->site, &error->IActiveScriptError_iface);
     IActiveScriptError_Release(&error->IActiveScriptError_iface);
@@ -690,6 +735,7 @@ static HRESULT WINAPI VBScript_SetScriptSite(IActiveScript *iface, IActiveScript
 
     IActiveScriptSite_GetLCID(This->ctx->site, &lcid);
     This->ctx->lcid = IsValidLocale(lcid, 0) ? lcid : GetUserDefaultLCID();
+    This->ctx->host_lcid = This->ctx->lcid;
     GetLocaleInfoW(lcid, LOCALE_IDEFAULTANSICODEPAGE | LOCALE_RETURN_NUMBER, (WCHAR *)&This->ctx->codepage,
             sizeof(This->ctx->codepage)/sizeof(WCHAR));
     if (!This->ctx->codepage)
@@ -859,7 +905,7 @@ static HRESULT WINAPI VBScript_GetScriptDispatch(IActiveScript *iface, LPCOLESTR
     }
 
     script_obj = This->ctx->script_obj;
-    if(pstrItemName) {
+    if(pstrItemName && *pstrItemName) {
         named_item_t *item = lookup_named_item(This->ctx, pstrItemName, 0);
         if(!item) return E_INVALIDARG;
         if(item->script_obj) script_obj = item->script_obj;
@@ -1055,16 +1101,22 @@ static HRESULT WINAPI VBScriptParse_ParseScriptText(IActiveScriptParse *iface,
         return E_UNEXPECTED;
 
     hres = compile_script(This->ctx, pstrCode, pstrItemName, pstrDelimiter, dwSourceContextCookie,
-                          ulStartingLine, dwFlags, &code);
-    if(FAILED(hres))
+                          ulStartingLine, dwFlags, FALSE, &code);
+    if(FAILED(hres)) {
+        if(hres == SCRIPT_E_RECORDED) {
+            hres = report_script_error(This->ctx, This->ctx->error_loc_code,
+                                       This->ctx->error_loc_offset, TRUE);
+            clear_error_loc(This->ctx);
+        }
         return hres;
+    }
 
     if(!(dwFlags & SCRIPTTEXT_ISEXPRESSION) && !is_started(This)) {
         code->pending_exec = TRUE;
         return S_OK;
     }
 
-    return exec_global_code(This->ctx, code, pvarResult);
+    return exec_global_code(This->ctx, code, pvarResult, TRUE);
 }
 
 static const IActiveScriptParseVtbl VBScriptParseVtbl = {
@@ -1118,8 +1170,14 @@ static HRESULT WINAPI VBScriptParseProcedure_ParseProcedureText(IActiveScriptPar
 
     hres = compile_procedure(This->ctx, pstrCode, pstrItemName, pstrDelimiter, dwSourceContextCookie,
                              ulStartingLineNumber, dwFlags, &desc);
-    if(FAILED(hres))
+    if(FAILED(hres)) {
+        if(hres == SCRIPT_E_RECORDED) {
+            hres = report_script_error(This->ctx, This->ctx->error_loc_code,
+                                       This->ctx->error_loc_offset, TRUE);
+            clear_error_loc(This->ctx);
+        }
         return hres;
+    }
 
     hres = create_vbdisp(desc, &vbdisp);
     if(FAILED(hres))

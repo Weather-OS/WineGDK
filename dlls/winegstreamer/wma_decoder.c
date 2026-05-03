@@ -552,7 +552,7 @@ static HRESULT WINAPI transform_ProcessOutput(IMFTransform *iface, DWORD flags, 
         return MF_E_TRANSFORM_NEED_MORE_INPUT;
     }
 
-    if (SUCCEEDED(hr = wg_transform_read_mf(decoder->wg_transform, samples->pSample, &samples->dwStatus, NULL)))
+    if (SUCCEEDED(hr = wg_transform_read_mf(decoder->wg_transform, samples->pSample, 0, &samples->dwStatus, NULL)))
         wg_sample_queue_flush(decoder->wg_sample_queue, false);
 
     return hr;
@@ -974,7 +974,10 @@ static HRESULT WINAPI media_object_ProcessOutput(IMediaObject *iface, DWORD flag
         wg_sample_queue_flush(decoder->wg_sample_queue, false);
     }
     else if (hr == MF_E_TRANSFORM_NEED_MORE_INPUT)
+    {
+        buffers[0].dwStatus = 0;
         hr = S_FALSE;
+    }
 
 
     return hr;

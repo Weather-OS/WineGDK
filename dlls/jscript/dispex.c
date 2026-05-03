@@ -2137,7 +2137,7 @@ static HRESULT WINAPI DispatchEx_InvokeEx(IWineJSDispatch *iface, DISPID id, LCI
         IServiceProvider_AddRef(pspCaller);
 
     if(wFlags == (DISPATCH_METHOD | DISPATCH_PROPERTYGET))
-        wFlags = (This->ctx->version < SCRIPTLANGUAGEVERSION_ES5) ? DISPATCH_METHOD : DISPATCH_PROPERTYGET;
+        wFlags = (This->ctx->version < SCRIPTLANGUAGEVERSION_ES5 || pdp->cArgs) ? DISPATCH_METHOD : DISPATCH_PROPERTYGET;
 
     switch(wFlags) {
     case DISPATCH_METHOD:

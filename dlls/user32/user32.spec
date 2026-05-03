@@ -14,8 +14,8 @@
 
 2010 stub -noname SlicerControl  # NtUserSlicerControl
 
-2503 stub DelegateInput  # NtUserDelegateInput
-2504 stub UndelegateInput  # NtUserUndelegateInput
+2503 stdcall DelegateInput(ptr ptr ptr ptr ptr ptr)  # NtUserDelegateInput
+2504 stdcall UndelegateInput(ptr ptr)  # NtUserUndelegateInput
 2505 stub HandleDelegatedInput  # NtUserHandleDelegatedInput
 2506 stub @
 2507 stub -noname SetAutoRotation  # NtUserSetAutoRotation
@@ -749,7 +749,7 @@
 # @ stub InitializeLpkHooks
 # @ stub InitializePointerDeviceInjection
 # @ stub InitializePointerDeviceInjectionEx
-# @ stub InitializeTouchInjection
+@ stdcall InitializeTouchInjection(long long) NtUserInitializeTouchInjection
 # @ stub InjectDeviceInput
 # @ stub InjectGenericHidInput
 # @ stub InjectKeyboardInput

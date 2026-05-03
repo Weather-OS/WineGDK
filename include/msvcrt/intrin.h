@@ -43,6 +43,38 @@ static inline void __cpuid(int info[4], int ax)
 
 #endif
 
+#if __has_builtin(__popcnt) || (defined(_MSC_VER) && !defined(__clang__))
+unsigned int __popcnt(unsigned int);
+#pragma intrinsic(__popcnt)
+#else
+static inline unsigned int __popcnt(unsigned int i)
+{
+    return __builtin_popcount( i );
+}
+#endif
+
+#if __has_builtin(__popcnt16) || (defined(_MSC_VER) && !defined(__clang__))
+unsigned short __popcnt16(unsigned short);
+#pragma intrinsic(__popcnt16)
+#else
+static inline unsigned short __popcnt16(unsigned short i)
+{
+    return __builtin_popcount( i );
+}
+#endif
+
+#if defined(__x86_64__) || defined(__aarch64__)
+#if __has_builtin(__popcnt64) || (defined(_MSC_VER) && !defined(__clang__))
+unsigned __int64 __popcnt64(unsigned __int64);
+#pragma intrinsic(__popcnt64)
+#else
+static inline unsigned __int64 __popcnt64(unsigned __int64 i)
+{
+    return __builtin_popcountll( i );
+}
+#endif
+#endif
+
 #if defined(__aarch64__) || defined(__arm64ec__)
 typedef enum _tag_ARM64INTR_BARRIER_TYPE
 {
@@ -92,10 +124,12 @@ unsigned __int64 __getReg(int);
 
 #if defined(_MSC_VER)
 unsigned char _BitScanForward(unsigned long*,unsigned long);
+unsigned char _BitScanReverse(unsigned long*,unsigned long);
 #endif
 
 #if defined(_MSC_VER) && (defined(__x86_64__) || defined(__aarch64__))
 unsigned char _BitScanForward64(unsigned long*,unsigned __int64);
+unsigned char _BitScanReverse64(unsigned long*,unsigned __int64);
 #endif
 
 #if defined(_MSC_VER) && defined(__x86_64__)

@@ -319,7 +319,7 @@ F:	dlls/scrrun/
 
 Theming
 M:	Zhiyi Zhang <zzhang@codeweavers.com> @zhiyi
-F:	dlls/light.msstyles/
+F:	dlls/aero.msstyles/
 F:	dlls/uxtheme/
 
 TWAIN

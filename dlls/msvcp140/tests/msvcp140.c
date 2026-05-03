@@ -353,6 +353,14 @@ static int (__thiscall * p_codecvt_char16_do_in)(const codecvt_char16 *this, _Mb
         const char *from, const char *from_end, const char **from_next,
         char16_t *to, char16_t *to_end, char16_t **to_next);
 
+typedef struct
+{
+    EXCEPTION_RECORD *rec;
+    LONG *ref;
+} exception_ptr;
+
+static void (__cdecl *p___ExceptionPtrSwap)(exception_ptr *a, exception_ptr *b);
+
 static HMODULE msvcp;
 #define SETNOFAIL(x,y) x = (void*)GetProcAddress(msvcp,y)
 #define SET(x,y) do { SETNOFAIL(x,y); ok(x != NULL, "Export '%s' not found\n", y); } while(0)
@@ -374,6 +382,7 @@ static BOOL init(void)
 
     if(sizeof(void*) == 8) { /* 64-bit initialization */
         SET(p_task_continuation_context_ctor, "??0task_continuation_context@Concurrency@@AEAA@XZ");
+        SET(p___ExceptionPtrSwap, "?__ExceptionPtrSwap@@YAXPEAX0@Z");
         SET(p__ContextCallback__Assign, "?_Assign@_ContextCallback@details@Concurrency@@AEAAXPEAX@Z");
         SET(p__ContextCallback__CallInContext, "?_CallInContext@_ContextCallback@details@Concurrency@@QEBAXV?$function@$$A6AXXZ@std@@_N@Z");
         SET(p__ContextCallback__Capture, "?_Capture@_ContextCallback@details@Concurrency@@AEAAXXZ");
@@ -436,6 +445,7 @@ static BOOL init(void)
         SET(p_codecvt_char16_do_out, "?do_out@?$codecvt@_SDU_Mbstatet@@@std@@MBEHAAU_Mbstatet@@PB_S1AAPB_SPAD3AAPAD@Z");
         SET(p_codecvt_char16_do_in, "?do_in@?$codecvt@_SDU_Mbstatet@@@std@@MBEHAAU_Mbstatet@@PBD1AAPBDPA_S3AAPA_S@Z");
 #endif
+        SET(p___ExceptionPtrSwap, "?__ExceptionPtrSwap@@YAXPAX0@Z");
         SET(p__Schedule_chore, "?_Schedule_chore@details@Concurrency@@YAHPAU_Threadpool_chore@12@@Z");
         SET(p__Reschedule_chore, "?_Reschedule_chore@details@Concurrency@@YAHPBU_Threadpool_chore@12@@Z");
         SET(p__Release_chore, "?_Release_chore@details@Concurrency@@YAXPAU_Threadpool_chore@12@@Z");
@@ -704,7 +714,8 @@ static void test__TaskEventLogger(void)
 static void __cdecl chore_callback(void *arg)
 {
     HANDLE event = arg;
-    SetEvent(event);
+    if (event)
+        SetEvent(event);
 }
 
 static void test_chore(void)
@@ -715,11 +726,14 @@ static void test_chore(void)
     int ret;
 
     memset(&chore, 0, sizeof(chore));
+    chore.callback = chore_callback;
     ret = p__Schedule_chore(&chore);
     ok(!ret, "_Schedule_chore returned %d\n", ret);
     ok(chore.work != NULL, "chore.work == NULL\n");
-    ok(!chore.callback, "chore.callback != NULL\n");
+    ok(chore.callback == chore_callback, "chore.callback != chore_callback\n");
     p__Release_chore(&chore);
+    ok(!chore.work, "chore.work != NULL\n");
+    ok(chore.callback == chore_callback, "chore.callback != chore_callback\n");
 
     chore.work = NULL;
     chore.callback = chore_callback;
@@ -2453,6 +2467,21 @@ static void test_thread_library_reference(void)
     CloseHandle(detach_event);
 }
 
+static void test_exception_pointer(void)
+{
+    exception_ptr ptr1, ptr2;
+
+    ptr1.rec = (void *)1;
+    ptr1.ref = (void *)2;
+    ptr2.rec = (void *)3;
+    ptr2.ref = (void *)4;
+    p___ExceptionPtrSwap(&ptr1, &ptr2);
+    ok(ptr1.rec == (void *)3, "ptr1.rec = %p\n", ptr1.rec);
+    ok(ptr1.ref == (void *)4, "ptr1.ref = %p\n", ptr1.ref);
+    ok(ptr2.rec == (void *)1, "ptr2.rec = %p\n", ptr2.rec);
+    ok(ptr2.ref == (void *)2, "ptr2.ref = %p\n", ptr2.ref);
+}
+
 START_TEST(msvcp140)
 {
     if(!init()) return;
@@ -2484,5 +2513,6 @@ START_TEST(msvcp140)
     test__Fiopen();
     test_codecvt_char16();
     test_thread_library_reference();
+    test_exception_pointer();
     FreeLibrary(msvcp);
 }

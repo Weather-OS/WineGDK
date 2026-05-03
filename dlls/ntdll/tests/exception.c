@@ -2782,6 +2782,7 @@ static const struct exception
     NTSTATUS alt_status;    /* alternative status code */
     DWORD    alt_nb_params; /* alternative number of parameters */
     ULONG64  alt_params[4]; /* alternative parameters */
+    DWORD    access;
 } exceptions[] =
 {
 /* 0 */
@@ -2941,6 +2942,11 @@ static const struct exception
         0x30, 0x00, 0x00, 0x00,
         0xc3 },                                /* ret */
       8, 0, STATUS_SUCCESS, 0 },
+    { { 0x65, 0x48, 0x8b, 0x04, 0x25,          /* movq %gs:0x30,%rax (NtCurrentTeb) */
+        0x30, 0x00, 0x00, 0x00,
+        0xc3 },                                /* ret */
+      0, 0, STATUS_ACCESS_VIOLATION, 2, { EXCEPTION_EXECUTE_FAULT },
+      0, 0, { 0 }, PAGE_READONLY },
 };
 
 static int got_exception;
@@ -3065,6 +3071,17 @@ static DWORD WINAPI prot_fault_handler( EXCEPTION_RECORD *rec, ULONG64 frame,
         goto skip_params;
     }
 
+    if (except->nb_params == 2 && except->params[0] == EXCEPTION_EXECUTE_FAULT)
+    {
+        ok( rec->ExceptionInformation[0] == except->params[0],
+            "Wrong parameter 0: %Ix/%Ix\n",
+            rec->ExceptionInformation[0], except->params[0] );
+        ok( rec->ExceptionInformation[1] == (DWORD_PTR)code_mem + except->offset,
+            "Wrong parameter 1: %Ix/%Ix\n",
+            rec->ExceptionInformation[1], (DWORD_PTR)code_mem + except->offset);
+        goto skip_params;
+    }
+
     if (except->alt_status == 0 || rec->ExceptionCode != except->alt_status)
     {
         for (i = 0; i < rec->NumberParameters; i++)
@@ -3082,6 +3099,13 @@ static DWORD WINAPI prot_fault_handler( EXCEPTION_RECORD *rec, ULONG64 frame,
 
 skip_params:
     winetest_pop_context();
+
+    if (except->access == PAGE_READONLY)
+    {
+        DWORD old_prot;
+
+        VirtualProtect(code_mem, 1, PAGE_EXECUTE_READ, &old_prot);
+    }
 
     context->Rip = (DWORD_PTR)code_mem + except->offset + except->length;
     return ExceptionContinueExecution;
@@ -3518,7 +3542,7 @@ static void test_prot_fault(void)
     {
         got_exception = 0;
         run_exception_test(prot_fault_handler, &exceptions[i], &exceptions[i].code,
-                           sizeof(exceptions[i].code), 0);
+                           sizeof(exceptions[i].code), exceptions[i].access);
         ok( got_exception == (exceptions[i].status != 0),
             "%u: bad exception count %d\n", i, got_exception );
     }
@@ -6213,7 +6237,6 @@ static void test_direct_syscalls(void)
     func = code_mem;
     func(find_syscall_nr("NtSetEvent"), event, NULL);
 
-    todo_wine
     ok(WaitForSingleObject(event, 0) == WAIT_OBJECT_0, "Event not signaled.\n");
     CloseHandle(event);
 }
@@ -6447,6 +6470,146 @@ static void test_backtrace_without_runtime_function(void)
     todo_wine ok( !count, "got %d.\n", count );
     ret = pRtlDeleteFunctionTable( (PRUNTIME_FUNCTION)table );
     ok( ret, "RtlDeleteFunctionTable failed.\n" );
+}
+
+static DWORD WINAPI test_set_context_mxcsr_thread_proc( void *dummy )
+{
+    return 0;
+}
+
+static int set_context_mxcsr_test_ctx_flags;
+
+static LONG WINAPI test_set_context_mxcsr_handler(struct _EXCEPTION_POINTERS *e)
+{
+    EXCEPTION_RECORD *rec = e->ExceptionRecord;
+    CONTEXT *ctx = e->ContextRecord;
+
+    ok( rec->ExceptionCode == 0x80000003, "got %#lx.\n", rec->ExceptionCode );
+    ++ctx->Rip;
+
+    ctx->MxCsr = 0x1f81;
+    ctx->FltSave.MxCsr = 0x1f82;
+    if (set_context_mxcsr_test_ctx_flags) ctx->ContextFlags = set_context_mxcsr_test_ctx_flags;
+    else                                  set_context_mxcsr_test_ctx_flags = ctx->ContextFlags;
+
+    return EXCEPTION_CONTINUE_EXECUTION;
+}
+
+static void test_set_context_mxcsr(void)
+{
+    static BYTE func[] =
+    {
+        0x51,               /* push %rcx */
+        0x0f, 0xae, 0x11,   /* ldmxcsr (%rcx) */
+        0xcc,               /* int3 */
+        0x59,               /* pop %rcx */
+        0x0f, 0xae, 0x19,   /* stmxcsr (%rcx) */
+        0xc3,               /* ret */
+    };
+    char context_buffer[sizeof(CONTEXT) + sizeof(CONTEXT_EX) + sizeof(XSTATE) + 4096];
+    NTSTATUS (*func_ptr)( DWORD *mxcsr );
+    CONTEXT_EX *c_ex;
+    XSAVE_FORMAT *xs;
+    XSTATE *xstate;
+    void *handler;
+    HANDLE thread;
+    CONTEXT *ctx;
+    DWORD length;
+    DWORD mxcsr;
+    BOOL bret;
+
+    if (!pRtlGetEnabledExtendedFeatures || !pRtlGetEnabledExtendedFeatures( 1 << XSTATE_LEGACY_FLOATING_POINT ))
+    {
+        skip( "XState legacy FP is not supported.\n" );
+        return;
+    }
+
+    length = sizeof(context_buffer);
+    bret = pInitializeContext (context_buffer, CONTEXT_ALL | CONTEXT_XSTATE, &ctx, &length );
+    ok( bret, "got error %lu.\n", GetLastError() );
+
+    xs = LocateXStateFeature( ctx, XSTATE_LEGACY_FLOATING_POINT, NULL );
+    ok( xs == &ctx->FltSave, "got %p, %p.\n", xs, &ctx->FltSave );
+
+    thread = CreateThread( NULL, 0, test_set_context_mxcsr_thread_proc, NULL, CREATE_SUSPENDED, NULL );
+    ok( !!thread, "got NULL.\n" );
+
+    memset( ctx, 0xcc, sizeof(*ctx) );
+    ctx->ContextFlags = CONTEXT_ALL | CONTEXT_XSTATE;
+    bret = GetThreadContext( thread, ctx );
+    ok( bret, "got error %lu.\n", GetLastError() );
+
+    ok( ctx->MxCsr == 0x1f80, "got %#lx.\n", ctx->MxCsr );
+    ok( xs->MxCsr == 0x1f80, "got %#lx.\n", ctx->MxCsr );
+
+    ctx->MxCsr = 0x1f81;
+    xs->MxCsr = 0x1f82;
+
+    ctx->ContextFlags = CONTEXT_FLOATING_POINT;
+    bret = SetThreadContext( thread, ctx );
+    ok( bret, "got error %lu.\n", GetLastError() );
+    ctx->ContextFlags = CONTEXT_ALL | CONTEXT_XSTATE;
+    bret = GetThreadContext( thread, ctx );
+    ok( bret, "got error %lu.\n", GetLastError() );
+    ok( ctx->MxCsr == 0x1f81, "got %#lx.\n", ctx->MxCsr );
+    ok( xs->MxCsr == 0x1f81, "got %#lx.\n", ctx->MxCsr );
+
+    ctx->MxCsr = 0x1f83;
+    xs->MxCsr = 0x1f84;
+    ctx->ContextFlags = CONTEXT_CONTROL;
+    bret = SetThreadContext( thread, ctx );
+    ok( bret, "got error %lu.\n", GetLastError() );
+    ctx->ContextFlags = CONTEXT_ALL | CONTEXT_XSTATE;
+    bret = GetThreadContext( thread, ctx );
+    ok( bret, "got error %lu.\n", GetLastError() );
+    ok( ctx->MxCsr == 0x1f81, "got %#lx.\n", ctx->MxCsr );
+    ok( xs->MxCsr == 0x1f81, "got %#lx.\n", ctx->MxCsr );
+
+    ctx->MxCsr = 0x1f83;
+    xs->MxCsr = 0x1f84;
+    c_ex = (CONTEXT_EX *)(ctx + 1);
+    xstate = (XSTATE *)((char *)c_ex + c_ex->XState.Offset);
+    xstate->Mask |= XSTATE_MASK_LEGACY;
+    ctx->ContextFlags = CONTEXT_XSTATE;
+    bret = SetThreadContext( thread, ctx );
+    ok( bret, "got error %lu.\n", GetLastError() );
+    ctx->ContextFlags = CONTEXT_ALL | CONTEXT_XSTATE;
+    bret = GetThreadContext( thread, ctx );
+    ok( bret, "got error %lu.\n", GetLastError() );
+    ok( ctx->MxCsr == 0x1f81, "got %#lx.\n", ctx->MxCsr );
+    ok( xs->MxCsr == 0x1f81, "got %#lx.\n", ctx->MxCsr );
+
+    ctx->MxCsr = 0x1f83;
+    xs->MxCsr = 0x1f84;
+    ctx->ContextFlags = (CONTEXT_ALL & ~CONTEXT_FLOATING_POINT) | CONTEXT_AMD64;
+    bret = SetThreadContext( thread, ctx );
+    ok( bret, "got error %lu.\n", GetLastError() );
+    ctx->ContextFlags = CONTEXT_ALL | CONTEXT_XSTATE;
+    bret = GetThreadContext( thread, ctx );
+    ok( bret, "got error %lu.\n", GetLastError() );
+    ok( ctx->MxCsr == 0x1f81, "got %#lx.\n", ctx->MxCsr );
+    ok( xs->MxCsr == 0x1f81, "got %#lx.\n", ctx->MxCsr );
+
+    ResumeThread( thread );
+    WaitForSingleObject( thread, INFINITE );
+    CloseHandle( thread );
+
+    handler = AddVectoredExceptionHandler( TRUE, test_set_context_mxcsr_handler );
+
+    memcpy( code_mem, func, sizeof(func) );
+    func_ptr = code_mem;
+
+    set_context_mxcsr_test_ctx_flags = 0;
+    mxcsr = 0x1f85;
+    func_ptr( &mxcsr );
+    ok( mxcsr == 0x1f81, "got %#lx.\n", mxcsr );
+
+    set_context_mxcsr_test_ctx_flags &= ~CONTEXT_FLOATING_POINT | CONTEXT_AMD64;
+    mxcsr = 0x1f85;
+    func_ptr( &mxcsr );
+    ok( mxcsr == 0x1f85, "got %#lx.\n", mxcsr );
+
+    RemoveVectoredExceptionHandler( handler );
 }
 
 #elif defined(__arm__)
@@ -12747,6 +12910,7 @@ START_TEST(exception)
     test_single_step_address();
     test_base_init_thunk_unwind();
     test_backtrace_without_runtime_function();
+    test_set_context_mxcsr();
 
 #elif defined(__aarch64__)
 

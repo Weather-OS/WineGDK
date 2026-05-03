@@ -21,7 +21,6 @@
 #include <stdarg.h>
 
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 #include "windef.h"
 #include "winbase.h"
 #include "ntuser.h"
@@ -3283,6 +3282,14 @@ NTSTATUS WINAPI wow64_NtUserInitializeClientPfnArrays( UINT *args )
     return NtUserInitializeClientPfnArrays( procsA, procsW, workers, user_module );
 }
 
+NTSTATUS WINAPI wow64_NtUserInitializeTouchInjection( UINT *args )
+{
+    UINT max_count = get_ulong( &args );
+    UINT mode = get_ulong( &args );
+
+    return NtUserInitializeTouchInjection( max_count, mode );
+}
+
 NTSTATUS WINAPI wow64_NtUserInternalGetWindowIcon( UINT *args )
 {
     HWND hwnd = get_handle( &args );
@@ -4623,6 +4630,14 @@ NTSTATUS WINAPI wow64_NtUserSetWindowContextHelpId( UINT *args )
     return NtUserSetWindowContextHelpId( hwnd, id );
 }
 
+NTSTATUS WINAPI wow64_NtUserSetWindowFNID( UINT *args )
+{
+    HWND hwnd = get_handle( &args );
+    WORD fnid = get_ulong( &args );
+
+    return NtUserSetWindowFNID( hwnd, fnid );
+}
+
 NTSTATUS WINAPI wow64_NtUserSetWindowLong( UINT *args )
 {
     HWND hwnd = get_handle( &args );
@@ -4850,6 +4865,17 @@ NTSTATUS WINAPI wow64_NtUserSystemParametersInfo( UINT *args )
             if (!NtUserSystemParametersInfo( action, val, &info, winini )) return FALSE;
             info32->dwFlags = info.dwFlags;
             info32->lpszDefaultScheme = PtrToUlong( info.lpszDefaultScheme );
+            return TRUE;
+        }
+        break;
+
+    case SPI_GETDEFAULTINPUTLANG:
+        if (ptr)
+        {
+            HKL hkl = 0;
+
+            if (!NtUserSystemParametersInfo( action, val, &hkl, winini )) return FALSE;
+            *(ULONG *)ptr = PtrToUlong( hkl );
             return TRUE;
         }
         break;

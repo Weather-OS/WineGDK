@@ -855,7 +855,6 @@ BOOL WINAPI NtGdiTransparentBlt( HDC hdcDest, int xDest, int yDest, int widthDes
     COLORREF oldBackground;
     COLORREF oldForeground;
     int oldStretchMode;
-    DIBSECTION dib;
     DC *dc_src;
     DC *dc_work;
 
@@ -874,12 +873,9 @@ BOOL WINAPI NtGdiTransparentBlt( HDC hdcDest, int xDest, int yDest, int widthDes
     if (oldStretchMode == BLACKONWHITE || oldStretchMode == WHITEONBLACK)
         dc_src->attr->stretch_blt_mode = COLORONCOLOR;
     hdcWork = NtGdiCreateCompatibleDC( hdcDest );
-    if ((get_gdi_object_type( hdcDest ) != NTGDI_OBJ_MEMDC ||
-         NtGdiExtGetObjectW( NtGdiGetDCObject( hdcDest, NTGDI_OBJ_SURF ),
-                             sizeof(dib), &dib ) == sizeof(BITMAP)) &&
-        NtGdiGetDeviceCaps( hdcDest, BITSPIXEL ) == 32)
+    if (NtGdiGetDeviceCaps( hdcDest, BITSPIXEL ) == 32)
     {
-        /* screen DCs or DDBs are not supposed to have an alpha channel, so use a 24-bpp bitmap as copy */
+        /* the alpha channel should be ignored. use a 24-bpp bitmap as copy */
         BITMAPINFO info;
         info.bmiHeader.biSize = sizeof(info.bmiHeader);
         info.bmiHeader.biWidth = widthDest;

@@ -211,6 +211,21 @@ INT_SUFFIX      [uUlL]{0,2}
 
 %%
 
+static void preproc_func_state_cleanup_arg_values(struct preproc_func_state *f)
+{
+    const struct preproc_macro *m;
+    size_t i;
+
+    if (!(m = f->macro))
+        return;
+
+    for (i = 0; i < m->arg_count; ++i)
+    {
+        vkd3d_string_buffer_cleanup(&f->arg_values[i].text);
+    }
+    free(f->arg_values);
+}
+
 static void update_location(struct preproc_ctx *ctx)
 {
     struct preproc_buffer *buffer = &preproc_get_top_file(ctx)->buffer;
@@ -725,6 +740,12 @@ int yylex(YYSTYPE *lval, YYLTYPE *lloc, yyscan_t scanner)
                     case '}':
                         if (!--func_state->paren_depth)
                         {
+                            /* Not only can you end a macro with ] or }, if
+                             * you do, it's treated as part of the last
+                             * argument. */
+                            if (token != ')' && current_arg)
+                                preproc_text_add(current_arg, text);
+
                             if (++func_state->arg_count == func_state->macro->arg_count)
                             {
                                 preproc_push_expansion(ctx, &func_state->macro->body,
@@ -740,6 +761,7 @@ int yylex(YYSTYPE *lval, YYLTYPE *lloc, yyscan_t scanner)
                                     return return_token(T_IDENTIFIER, lval, func_state->macro->name);
 
                                 vkd3d_string_buffer_printf(&ctx->buffer, "%s ", func_state->macro->name);
+                                preproc_func_state_cleanup_arg_values(func_state);
                             }
                             func_state->macro = NULL;
                             func_state->state = STATE_NONE;
@@ -821,6 +843,7 @@ int preproc_lexer_parse(const struct vkd3d_shader_compile_info *compile_info,
         struct vkd3d_shader_code *out, struct vkd3d_shader_message_context *message_context)
 {
     static const struct vkd3d_shader_preprocess_info default_preprocess_info = {0};
+    struct vkd3d_shader_location loc = {0};
     struct preproc_ctx ctx = {0};
     char *source_name = NULL;
     unsigned int i;
@@ -831,12 +854,12 @@ int preproc_lexer_parse(const struct vkd3d_shader_compile_info *compile_info,
         ctx.preprocess_info = &default_preprocess_info;
     ctx.message_context = message_context;
 
-    if (!(source_name = vkd3d_strdup(compile_info->source_name ? compile_info->source_name : "<anonymous>")))
+    loc.source_name = compile_info->source_name ? compile_info->source_name : "<anonymous>";
+    if (!(source_name = vkd3d_strdup(loc.source_name)))
         goto fail;
 
     for (i = 0; i < ctx.preprocess_info->macro_count; ++i)
     {
-        const struct vkd3d_shader_location loc = {.source_name = source_name};
         struct vkd3d_string_buffer body;
         char *name;
 
@@ -870,20 +893,16 @@ int preproc_lexer_parse(const struct vkd3d_shader_compile_info *compile_info,
             break;
 
         case STATE_ARGS:
-        {
-            const struct vkd3d_shader_location loc = {.source_name = source_name};
-
             preproc_warning(&ctx, &loc, VKD3D_SHADER_WARNING_PP_UNTERMINATED_MACRO,
                     "Unterminated macro invocation.");
-        }
         /* fall through */
-
         case STATE_IDENTIFIER:
             if (preproc_is_writing(&ctx))
                 vkd3d_string_buffer_printf(&ctx.buffer, "%s ", ctx.text_func.macro->name);
             break;
     }
 
+    preproc_func_state_cleanup_arg_values(&ctx.text_func);
     while (ctx.file_count)
         preproc_pop_buffer(&ctx);
     yylex_destroy(ctx.scanner);

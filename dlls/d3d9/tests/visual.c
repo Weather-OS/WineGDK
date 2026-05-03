@@ -4470,8 +4470,6 @@ static void stretchrect_test(void)
             ok(hr == test->allowed ? D3D_OK : D3DERR_INVALIDCALL, "Test %u, got unexpected hr %#lx.\n", i, hr);
     }
 
-    /* TODO: Test format conversions. */
-
     for (i = 0; i < ARRAY_SIZE(surfaces); ++i)
     {
         IDirect3DSurface9_Release(surfaces[i]);
@@ -12853,7 +12851,24 @@ static void yuv_color_test(void)
         /* A pixel is effectively 16 bit large, but two pixels are stored together, so the minimum size is 2x1.
          * However, Nvidia Windows drivers have problems with 2x1 YUY2/UYVY surfaces, so use a 4x1 surface and
          * fill the second block with dummy data. If the surface has a size of 2x1, those drivers ignore the
-         * second luminance value, resulting in an incorrect color in the right pixel. */
+         * second luminance value, resulting in an incorrect color in the right pixel.
+         *
+         * What appears to be happening at least on Nvidia is that the driver internally loads the 4x1
+         * YUV surface into a 2x1 ARGB surface - and not a 4x1 RG surface - and then makes a filtering
+         * decision based on the 2x1 vs destination size. The chroma channels from two adjacent, but
+         * supposedly independent pixels, get averaged together. So store the same chroma in the left
+         * (tested) and right (ignored) blocks.
+         *
+         * Nvidia, but also some VM drivers insist on doing linear filtering although we asked for point
+         * filtering. Be careful when reading the results and use the pixel centers. In the future we may
+         * want to add tests for the filtered pixels as well. Blitting to a 4x1 destination doesn't work
+         * properly either on Nvidia, for the 4x1->2x1 map reason outlined above. Blitting a 4x1 YUV source
+         * to a 2x1 destination applies minification filters after YUV->RGB conversion, which we don't want
+         * either.
+         *
+         * Unfortunately different implementations(Windows-Nvidia and Mac-AMD tested) interpret some colors
+         * vastly differently, so we need a max diff of 18. */
+
         hr = IDirect3DDevice9_CreateOffscreenPlainSurface(device, 4, 1, test_data[i].format,
                 D3DPOOL_DEFAULT, &surface, NULL);
         ok(SUCCEEDED(hr), "Failed to create surface, hr %#lx.\n", hr);
@@ -12862,7 +12877,16 @@ static void yuv_color_test(void)
         hr = IDirect3DSurface9_LockRect(surface, &lr, NULL, 0);
         ok(SUCCEEDED(hr), "Failed to lock surface, hr %#lx.\n", hr);
         ((DWORD *)lr.pBits)[0] = test_data[i].in;
-        ((DWORD *)lr.pBits)[1] = 0x00800080;
+        if (test_data[i].format == D3DFMT_UYVY)
+        {
+            ((DWORD *)lr.pBits)[1] = 0xff000000;
+            ((DWORD *)lr.pBits)[1] |= test_data[i].in & 0x00ff00ff;
+        }
+        else
+        {
+            ((DWORD*)lr.pBits)[1] = 0x00ff0000;
+            ((DWORD*)lr.pBits)[1] |= test_data[i].in & 0xff00ff00;
+        }
         hr = IDirect3DSurface9_UnlockRect(surface);
         ok(SUCCEEDED(hr), "Failed to unlock surface, hr %#lx.\n", hr);
 
@@ -12871,12 +12895,6 @@ static void yuv_color_test(void)
         hr = IDirect3DDevice9_StretchRect(device, surface, NULL, target, NULL, D3DTEXF_POINT);
         ok(SUCCEEDED(hr), "Failed to draw surface onto backbuffer, hr %#lx.\n", hr);
 
-        /* Some Windows drivers (mostly Nvidia, but also some VM drivers) insist on doing linear filtering
-         * although we asked for point filtering. Be careful when reading the results and use the pixel
-         * centers. In the future we may want to add tests for the filtered pixels as well.
-         *
-         * Unfortunately different implementations(Windows-Nvidia and Mac-AMD tested) interpret some colors
-         * vastly differently, so we need a max diff of 18. */
         color = getPixelColor(device, 1, 240);
         ok(color_match(color, test_data[i].left, 18),
                 "Input 0x%08x: Got color 0x%08x for pixel 1/1, expected 0x%08x, format %s.\n",
@@ -15861,7 +15879,7 @@ done:
 
 static void shadow_test(void)
 {
-    static const DWORD ps_code[] =
+    static const DWORD ps2_code[] =
     {
         0xffff0200,                                                             /* ps_2_0                       */
         0x0200001f, 0x90000000, 0xa00f0800,                                     /* dcl_2d s0                    */
@@ -15874,6 +15892,22 @@ static void shadow_test(void)
         0x02000001, 0x800f0800, 0x80e40000,                                     /* mov oC0, r0                  */
         0x0000ffff,                                                             /* end                          */
     };
+
+    static const DWORD ps14_code[] =
+    {
+        0xffff0104,                                                             /* ps_1_4                       */
+        0x00000042, 0x800f0000, 0xb0e40000,                                     /* texld r0, t0                 */
+        0x0000ffff,                                                             /* end                          */
+    };
+
+    static const DWORD ps1_code[] =
+    {
+        0xffff0101,                                                             /* ps_1_1                       */
+        0x00000042, 0xb00f0000,                                                 /* tex t0                       */
+        0x00000001, 0x800f0000, 0xb0e40000,                                     /* mov r0, t0                   */
+        0x0000ffff,                                                             /* end                          */
+    };
+
     struct
     {
         D3DFORMAT format;
@@ -15905,23 +15939,23 @@ static void shadow_test(void)
     };
     struct
     {
-        unsigned int x, y, color;
+        unsigned int x, y, color, ps2_color;
     }
     expected_colors[] =
     {
-        {400,  60, 0x00000000},
-        {560, 180, 0xffff00ff},
-        {560, 300, 0xffff00ff},
-        {400, 420, 0xffffffff},
-        {240, 420, 0xffffffff},
-        { 80, 300, 0x00000000},
-        { 80, 180, 0x00000000},
-        {240,  60, 0x00000000},
+        {400,  60, 0x00000000, 0x00000000},
+        {560, 180, 0xffffffff, 0xffff00ff},
+        {560, 300, 0xffffffff, 0xffff00ff},
+        {400, 420, 0xffffffff, 0xffffffff},
+        {240, 420, 0xffffffff, 0xffffffff},
+        { 80, 300, 0x00000000, 0x00000000},
+        { 80, 180, 0x00000000, 0x00000000},
+        {240,  60, 0x00000000, 0x00000000},
     };
 
     IDirect3DSurface9 *original_ds, *original_rt, *rt;
+    IDirect3DPixelShader9 *ps[4];
     struct surface_readback rb;
-    IDirect3DPixelShader9 *ps;
     IDirect3DDevice9 *device;
     IDirect3D9 *d3d;
     ULONG refcount;
@@ -15956,8 +15990,13 @@ static void shadow_test(void)
     hr = IDirect3DDevice9_CreateRenderTarget(device, 1024, 1024, D3DFMT_A8R8G8B8,
             D3DMULTISAMPLE_NONE, 0, FALSE, &rt, NULL);
     ok(SUCCEEDED(hr), "CreateRenderTarget failed, hr %#lx.\n", hr);
-    hr = IDirect3DDevice9_CreatePixelShader(device, ps_code, &ps);
+    hr = IDirect3DDevice9_CreatePixelShader(device, ps2_code, &ps[0]);
     ok(SUCCEEDED(hr), "CreatePixelShader failed, hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_CreatePixelShader(device, ps14_code, &ps[1]);
+    ok(SUCCEEDED(hr), "CreatePixelShader failed, hr %#lx.\n", hr);
+    hr = IDirect3DDevice9_CreatePixelShader(device, ps1_code, &ps[2]);
+    ok(SUCCEEDED(hr), "CreatePixelShader failed, hr %#lx.\n", hr);
+    ps[3] = NULL;
 
     hr = IDirect3DDevice9_SetFVF(device, D3DFVF_XYZ | D3DFVF_TEX1 | D3DFVF_TEXCOORDSIZE4(0));
     ok(SUCCEEDED(hr), "SetFVF failed, hr %#lx.\n", hr);
@@ -15991,6 +16030,8 @@ static void shadow_test(void)
         if (FAILED(IDirect3D9_CheckDeviceFormat(d3d, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL,
                 D3DFMT_X8R8G8B8, D3DUSAGE_DEPTHSTENCIL, D3DRTYPE_TEXTURE, format)))
             continue;
+
+        winetest_push_context("%s", formats[i].name);
 
         hr = IDirect3DDevice9_CreateTexture(device, 1024, 1024, 1,
                 D3DUSAGE_DEPTHSTENCIL, format, D3DPOOL_DEFAULT, &texture, NULL);
@@ -16029,41 +16070,48 @@ static void shadow_test(void)
         hr = IDirect3DDevice9_SetTexture(device, 0, (IDirect3DBaseTexture9 *)texture);
         ok(SUCCEEDED(hr), "SetTexture failed, hr %#lx.\n", hr);
 
-        hr = IDirect3DDevice9_SetPixelShader(device, ps);
-        ok(SUCCEEDED(hr), "SetPixelShader failed, hr %#lx.\n", hr);
+        for (unsigned int p = 0; p < 4; ++p)
+        {
+            winetest_push_context("ps %u", p);
 
-        /* Do the actual shadow mapping. */
-        hr = IDirect3DDevice9_BeginScene(device);
-        ok(SUCCEEDED(hr), "BeginScene failed, hr %#lx.\n", hr);
-        hr = IDirect3DDevice9_DrawPrimitiveUP(device, D3DPT_TRIANGLESTRIP, 2, quad, sizeof(*quad));
-        ok(SUCCEEDED(hr), "DrawPrimitiveUP failed, hr %#lx.\n", hr);
-        hr = IDirect3DDevice9_EndScene(device);
-        ok(SUCCEEDED(hr), "EndScene failed, hr %#lx.\n", hr);
+            hr = IDirect3DDevice9_SetPixelShader(device, ps[p]);
+            ok(SUCCEEDED(hr), "SetPixelShader failed, hr %#lx.\n", hr);
+
+            /* Do the actual shadow mapping. */
+            hr = IDirect3DDevice9_BeginScene(device);
+            ok(SUCCEEDED(hr), "BeginScene failed, hr %#lx.\n", hr);
+            hr = IDirect3DDevice9_DrawPrimitiveUP(device, D3DPT_TRIANGLESTRIP, 2, quad, sizeof(*quad));
+            ok(SUCCEEDED(hr), "DrawPrimitiveUP failed, hr %#lx.\n", hr);
+            hr = IDirect3DDevice9_EndScene(device);
+            ok(SUCCEEDED(hr), "EndScene failed, hr %#lx.\n", hr);
+
+            get_rt_readback(original_rt, &rb);
+            for (j = 0; j < ARRAY_SIZE(expected_colors); ++j)
+            {
+                unsigned int color = get_readback_color(&rb, expected_colors[j].x, expected_colors[j].y);
+                unsigned int expect = (p == 0 ? expected_colors[j].ps2_color : expected_colors[j].color);
+
+                /* Geforce 7 on Windows returns 1.0 in alpha when the depth format is D24S8 or D24X8,
+                 * whereas other GPUs (all AMD, newer Nvidia) return the same value they return in .rgb.
+                 * Accept alpha mismatches as broken but make sure to check the color channels. */
+                todo_wine_if (p == 3) ok(color_match(color, expect, 0)
+                        || broken(color_match(color & 0x00ffffff, expect & 0x00ffffff, 0)),
+                        "Expected color 0x%08x at (%u, %u), got 0x%08x.\n",
+                        expect, expected_colors[j].x, expected_colors[j].y, color);
+            }
+            release_surface_readback(&rb);
+
+            winetest_pop_context();
+        }
 
         hr = IDirect3DDevice9_SetTexture(device, 0, NULL);
         ok(SUCCEEDED(hr), "SetTexture failed, hr %#lx.\n", hr);
         IDirect3DTexture9_Release(texture);
-
-        get_rt_readback(original_rt, &rb);
-        for (j = 0; j < ARRAY_SIZE(expected_colors); ++j)
-        {
-            unsigned int color = get_readback_color(&rb, expected_colors[j].x, expected_colors[j].y);
-            /* Geforce 7 on Windows returns 1.0 in alpha when the depth format is D24S8 or D24X8,
-             * whereas other GPUs (all AMD, newer Nvidia) return the same value they return in .rgb.
-             * Accept alpha mismatches as broken but make sure to check the color channels. */
-            ok(color_match(color, expected_colors[j].color, 0)
-                    || broken(color_match(color & 0x00ffffff, expected_colors[j].color & 0x00ffffff, 0)),
-                    "Expected color 0x%08x at (%u, %u) for format %s, got 0x%08x.\n",
-                    expected_colors[j].color, expected_colors[j].x, expected_colors[j].y,
-                    formats[i].name, color);
-        }
-        release_surface_readback(&rb);
-
-        hr = IDirect3DDevice9_Present(device, NULL, NULL, NULL, NULL);
-        ok(SUCCEEDED(hr), "Present failed, hr %#lx.\n", hr);
+        winetest_pop_context();
     }
 
-    IDirect3DPixelShader9_Release(ps);
+    for (unsigned int p = 0; p < 3; ++p)
+        IDirect3DPixelShader9_Release(ps[p]);
     IDirect3DSurface9_Release(original_ds);
     IDirect3DSurface9_Release(original_rt);
     IDirect3DSurface9_Release(rt);
@@ -29111,6 +29159,94 @@ static void test_generated_texcoords(void)
     release_test_context(&context);
 }
 
+static void test_blit_format_conversion(void)
+{
+    IDirect3DSurface9 *src_surface, *dst_surface;
+    struct d3d9_test_context context;
+    IDirect3DTexture9 *src, *dst;
+    struct surface_readback rb;
+    IDirect3DDevice9 *device;
+    HRESULT hr;
+
+    static const struct
+    {
+        D3DFORMAT src_format;
+        uint32_t src_colour;
+        D3DFORMAT dst_format;
+        unsigned int dst_size;
+        union
+        {
+            float f[4];
+            uint32_t u;
+        } dst_data;
+    }
+    tests[] =
+    {
+        {D3DFMT_A8R8G8B8,      0x12345678, D3DFMT_X8R8G8B8,       3, {.u = 0x12345678}},
+        {D3DFMT_X8R8G8B8,      0x12345678, D3DFMT_A8R8G8B8,       3, {.u = 0x12345678}},
+        {D3DFMT_A8R8G8B8,      0x12345678, D3DFMT_R5G6B5,         2, {.u = 0x32af}},
+        {D3DFMT_A8R8G8B8,      0x12345678, D3DFMT_A32B32G32R32F, 16, {.f = {0x34/255.0f, 0x56/255.0f, 0x78/255.0f, 0x12/255.0f}}},
+        {D3DFMT_A32B32G32R32F, 0x12345678, D3DFMT_A8R8G8B8,       4, {.u = 0x12345678}},
+    };
+
+    if (!init_test_context(&context))
+        return;
+    device = context.device;
+
+    for (unsigned int i = 0; i < ARRAY_SIZE(tests); ++i)
+    {
+        /* Use a nontrivial clear rect to defeat a wined3d optimization and
+         * ensure that we are actually testing format conversion blits. */
+        static const RECT rect = {0, 0, 2, 2};
+
+        winetest_push_context("Test %u", i);
+
+        hr = IDirect3DDevice9_CreateTexture(device, 4, 4, 1, D3DUSAGE_RENDERTARGET,
+                tests[i].src_format, D3DPOOL_DEFAULT, &src, NULL);
+        ok(hr == S_OK, "Got hr %#lx.\n", hr);
+
+        hr = IDirect3DDevice9_CreateTexture(device, 4, 4, 1, D3DUSAGE_RENDERTARGET,
+                tests[i].dst_format, D3DPOOL_DEFAULT, &dst, NULL);
+        ok(hr == S_OK, "Got hr %#lx.\n", hr);
+
+        hr = IDirect3DTexture9_GetSurfaceLevel(src, 0, &src_surface);
+        ok(hr == S_OK, "Got hr %#lx.\n", hr);
+        hr = IDirect3DTexture9_GetSurfaceLevel(dst, 0, &dst_surface);
+        ok(hr == S_OK, "Got hr %#lx.\n", hr);
+
+        hr = IDirect3DDevice9_ColorFill(device, src_surface, &rect, tests[i].src_colour);
+        ok(hr == S_OK, "Got hr %#lx.\n", hr);
+
+        hr = IDirect3DDevice9_StretchRect(device, src_surface, NULL, dst_surface, NULL, D3DTEXF_LINEAR);
+        ok(hr == S_OK, "Got hr %#lx.\n", hr);
+
+        get_rt_readback(dst_surface, &rb);
+        if (tests[i].dst_format == D3DFMT_A32B32G32R32F)
+        {
+            const struct vec4 *data = rb.locked_rect.pBits;
+
+            ok(compare_vec4(data, tests[i].dst_data.f[0], tests[i].dst_data.f[1],
+                    tests[i].dst_data.f[2], tests[i].dst_data.f[3], 1),
+                    "Got %.8e, %.8e, %.8e, %.8e.\n", data->x, data->y, data->z, data->w);
+        }
+        else
+        {
+            ok(!memcmp(rb.locked_rect.pBits, &tests[i].dst_data, tests[i].dst_size),
+                    "Got data %08x.\n", *(uint32_t *)rb.locked_rect.pBits);
+        }
+        release_surface_readback(&rb);
+
+        IDirect3DSurface9_Release(src_surface);
+        IDirect3DSurface9_Release(dst_surface);
+        IDirect3DTexture9_Release(src);
+        IDirect3DTexture9_Release(dst);
+
+        winetest_pop_context();
+    }
+
+    release_test_context(&context);
+}
+
 START_TEST(visual)
 {
     D3DADAPTER_IDENTIFIER9 identifier;
@@ -29272,4 +29408,5 @@ START_TEST(visual)
     test_texture_transform_flags();
     test_lighting_matrices();
     test_generated_texcoords();
+    test_blit_format_conversion();
 }

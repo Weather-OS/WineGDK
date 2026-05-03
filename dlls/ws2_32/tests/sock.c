@@ -14595,10 +14595,16 @@ static void test_valid_handle(void)
     ok(ret == -1, "got %d\n", ret);
     ok(WSAGetLastError() == WSAENOTSOCK, "got error %u\n", WSAGetLastError());
 
-    CloseHandle(invalid);
-    CloseHandle(duplicated);
-    closesocket(client);
-    closesocket(server);
+    ret = closesocket((SOCKET)invalid);
+    ok(ret == SOCKET_ERROR, "got %d, expected SOCKET_ERROR.\n", ret);
+    ret = CloseHandle(invalid);
+    ok(ret, "CloseHandle failed unexpectedly: %d\n", ret);
+    ret = closesocket((SOCKET)duplicated);
+    ok(!ret, "closesocket failed unexpectedly: %d\n", ret);
+    ret = closesocket(client);
+    ok(!ret, "closesocket failed unexpectedly: %d\n", ret);
+    ret = closesocket(server);
+    ok(!ret, "closesocket failed unexpectedly: %d\n", ret);
 }
 
 static void test_afunix_path( const char *path )

@@ -4147,9 +4147,12 @@ size_t CDECL fwrite(const void *ptr, size_t size, size_t nmemb, FILE* file)
 size_t CDECL _fwrite_nolock(const void *ptr, size_t size, size_t nmemb, FILE* file)
 {
     size_t wrcnt=size * nmemb;
-    int written = 0;
+    int written = 0, bufsize = 1;
     if (size == 0)
         return 0;
+
+    if ((file->_flag & (MSVCRT__NOBUF | _IOMYBUF | MSVCRT__USERBUF)) || msvcrt_alloc_buffer(file))
+        bufsize = file->_bufsiz;
 
     while(wrcnt) {
         if(file->_cnt < 0) {
@@ -4164,20 +4167,9 @@ size_t CDECL _fwrite_nolock(const void *ptr, size_t size, size_t nmemb, FILE* fi
             written += pcnt;
             wrcnt -= pcnt;
             ptr = (const char*)ptr + pcnt;
-        } else if((file->_flag & MSVCRT__NOBUF)
-                || ((file->_flag & (_IOMYBUF | MSVCRT__USERBUF)) && wrcnt >= file->_bufsiz)
-                || (!(file->_flag & (_IOMYBUF | MSVCRT__USERBUF)) && wrcnt >= MSVCRT_INTERNAL_BUFSIZ)) {
+        } else if(wrcnt >= bufsize) {
             size_t pcnt;
-            int bufsiz;
-
-            if(file->_flag & MSVCRT__NOBUF)
-                bufsiz = 1;
-            else if(!(file->_flag & (_IOMYBUF | MSVCRT__USERBUF)))
-                bufsiz = MSVCRT_INTERNAL_BUFSIZ;
-            else
-                bufsiz = file->_bufsiz;
-
-            pcnt = (wrcnt / bufsiz) * bufsiz;
+            pcnt = (wrcnt / bufsize) * bufsize;
 
             if(msvcrt_flush_buffer(file) == EOF)
                 break;
@@ -5540,6 +5532,14 @@ int CDECL vwprintf(const wchar_t *format, va_list valist)
 }
 
 /*********************************************************************
+ *              _vwprintf_l (MSVCRT.@)
+ */
+int CDECL _vwprintf_l(const wchar_t *format, _locale_t locale, va_list valist)
+{
+    return _vfwprintf_l(stdout, format, locale, valist);
+}
+
+/*********************************************************************
  *		vwprintf_s (MSVCRT.@)
  */
 int CDECL vwprintf_s(const wchar_t *format, va_list valist)
@@ -5843,6 +5843,19 @@ int WINAPIV wprintf(const wchar_t *format, ...)
     int res;
     va_start(valist, format);
     res = vwprintf(format, valist);
+    va_end(valist);
+    return res;
+}
+
+/*********************************************************************
+ *              _wprintf_l (MSVCRT.@)
+ */
+int WINAPIV _wprintf_l(const wchar_t *format, _locale_t locale, ...)
+{
+    va_list valist;
+    int res;
+    va_start(valist, locale);
+    res = _vwprintf_l(format, locale, valist);
     va_end(valist);
     return res;
 }

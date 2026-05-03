@@ -42,7 +42,6 @@
 #endif
 
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 
 #include "x11drv.h"
 #include "winreg.h"
@@ -427,7 +426,7 @@ static void setup_options(void)
 
     /* open the app-specific key */
 
-    appname = NtCurrentTeb()->Peb->ProcessParameters->ImagePathName.Buffer;
+    appname = RtlGetCurrentPeb()->ProcessParameters->ImagePathName.Buffer;
     if ((p = wcsrchr( appname, '/' ))) appname = p + 1;
     if ((p = wcsrchr( appname, '\\' ))) appname = p + 1;
     len = lstrlenW( appname );
@@ -622,7 +621,7 @@ static void init_visuals( Display *display, int screen )
 /***********************************************************************
  *           X11DRV process initialisation routine
  */
-static NTSTATUS x11drv_init( void *arg )
+NTSTATUS __wine_unix_lib_init(void)
 {
     Display *display;
     void *libx11 = dlopen( SONAME_LIBX11, RTLD_NOW|RTLD_GLOBAL );
@@ -673,8 +672,7 @@ static NTSTATUS x11drv_init( void *arg )
 #endif
     x11drv_xinput2_load();
 
-    XkbUseExtension( gdi_display, NULL, NULL );
-    X11DRV_InitKeyboard( gdi_display );
+    x11drv_init_keyboard( gdi_display );
     if (use_xim) use_xim = xim_init( input_style );
 
     init_icm_profile();
@@ -804,17 +802,3 @@ BOOL X11DRV_SystemParametersInfo( UINT action, UINT int_param, void *ptr_param, 
     }
     return FALSE;  /* let user32 handle it */
 }
-
-const unixlib_entry_t __wine_unix_call_funcs[] =
-{
-    x11drv_init,
-};
-
-#ifdef _WIN64
-
-const unixlib_entry_t __wine_unix_call_wow64_funcs[] =
-{
-    x11drv_init,
-};
-
-#endif /* _WIN64 */

@@ -1,4 +1,4 @@
-EXTLIB    = libvkd3d.a
+STATICLIB = libvkd3d.a
 EXTRAINCL = $(VKD3D_PE_CFLAGS) -I$(srcdir)/include/private -I$(srcdir)/libs/vkd3d -I$(srcdir)/libs/vkd3d-shader
 EXTRADEFS = \
 	-DWINE_NO_NAMELESS_EXTENSION \

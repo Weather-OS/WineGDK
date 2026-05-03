@@ -1686,7 +1686,7 @@
 @ cdecl -arch=win64 ?_Xout_of_range@std@@YAXPEBD@Z(str) msvcp140.?_Xout_of_range@std@@YAXPEBD@Z
 @ stub -arch=win32 ?_Xoverflow_error@std@@YAXPBD@Z
 @ stub -arch=win64 ?_Xoverflow_error@std@@YAXPEBD@Z
-@ stub ?_Xregex_error@std@@YAXW4error_type@regex_constants@1@@Z
+@ cdecl ?_Xregex_error@std@@YAXW4error_type@regex_constants@1@@Z(long) msvcp140.?_Xregex_error@std@@YAXW4error_type@regex_constants@1@@Z
 @ cdecl -arch=win32 ?_Xruntime_error@std@@YAXPBD@Z(str) msvcp140.?_Xruntime_error@std@@YAXPBD@Z
 @ cdecl -arch=win64 ?_Xruntime_error@std@@YAXPEBD@Z(str) msvcp140.?_Xruntime_error@std@@YAXPEBD@Z
 @ cdecl -arch=win32 ?__ExceptionPtrAssign@@YAXPAXPBX@Z(ptr ptr) msvcp140.?__ExceptionPtrAssign@@YAXPAXPBX@Z
@@ -1705,8 +1705,8 @@
 @ cdecl -arch=win64 ?__ExceptionPtrDestroy@@YAXPEAX@Z(ptr) msvcp140.?__ExceptionPtrDestroy@@YAXPEAX@Z
 @ cdecl -arch=win32 ?__ExceptionPtrRethrow@@YAXPBX@Z(ptr) msvcp140.?__ExceptionPtrRethrow@@YAXPBX@Z
 @ cdecl -arch=win64 ?__ExceptionPtrRethrow@@YAXPEBX@Z(ptr) msvcp140.?__ExceptionPtrRethrow@@YAXPEBX@Z
-@ stub -arch=win32 ?__ExceptionPtrSwap@@YAXPAX0@Z
-@ stub -arch=win64 ?__ExceptionPtrSwap@@YAXPEAX0@Z
+@ cdecl -arch=win32 ?__ExceptionPtrSwap@@YAXPAX0@Z(ptr ptr) msvcp140.?__ExceptionPtrSwap@@YAXPAX0@Z
+@ cdecl -arch=win64 ?__ExceptionPtrSwap@@YAXPEAX0@Z(ptr ptr) msvcp140.?__ExceptionPtrSwap@@YAXPEAX0@Z
 @ cdecl -arch=win32 ?__ExceptionPtrToBool@@YA_NPBX@Z(ptr) msvcp140.?__ExceptionPtrToBool@@YA_NPBX@Z
 @ cdecl -arch=win64 ?__ExceptionPtrToBool@@YA_NPEBX@Z(ptr) msvcp140.?__ExceptionPtrToBool@@YA_NPEBX@Z
 @ cdecl -arch=arm ?always_noconv@codecvt_base@std@@QBA_NXZ(ptr) msvcp140.?always_noconv@codecvt_base@std@@QBA_NXZ

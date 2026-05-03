@@ -31,6 +31,43 @@ static void d3d12_command_queue_submit_locked(struct d3d12_command_queue *queue)
 static HRESULT d3d12_command_queue_flush_ops(struct d3d12_command_queue *queue, bool *flushed_any);
 static HRESULT d3d12_command_queue_flush_ops_locked(struct d3d12_command_queue *queue, bool *flushed_any);
 
+static void vkd3d_resource_list_cleanup(struct vkd3d_resource_list *list)
+{
+    vkd3d_free(list->resources);
+}
+
+static void vkd3d_resource_list_init(struct vkd3d_resource_list *list)
+{
+    list->resources = NULL;
+    list->count = 0;
+    list->capacity = 0;
+}
+
+static bool vkd3d_resource_list_contains(const struct vkd3d_resource_list *list, struct d3d12_resource *resource)
+{
+    size_t i;
+
+    for (i = 0; i < list->count; i++)
+    {
+        if (list->resources[i] == resource)
+            return true;
+    }
+
+    return false;
+}
+
+static void vkd3d_resource_list_append(struct vkd3d_resource_list *list, struct d3d12_resource *resource)
+{
+    if (!vkd3d_array_reserve((void **)&list->resources, &list->capacity, list->count + 1, sizeof(*list->resources)))
+        ERR("Failed to grow resource list.\n");
+    list->resources[list->count++] = resource;
+}
+
+static void vkd3d_resource_list_clear(struct vkd3d_resource_list *list)
+{
+    list->count = 0;
+}
+
 static void vkd3d_null_event_signal(struct vkd3d_null_event *e)
 {
     vkd3d_mutex_lock(&e->mutex);
@@ -1234,6 +1271,7 @@ static HRESULT d3d12_fence_init(struct d3d12_fence *fence, struct d3d12_device *
     fence->timeline_semaphore = VK_NULL_HANDLE;
     fence->timeline_value = 0;
     fence->pending_timeline_value = 0;
+    fence->last_waited_value = 0;
     if (device->vk_info.KHR_timeline_semaphore && (vr = vkd3d_create_timeline_semaphore(device, 0,
             &fence->timeline_semaphore)) < 0)
     {
@@ -2533,6 +2571,9 @@ static ULONG STDMETHODCALLTYPE d3d12_command_list_Release(ID3D12GraphicsCommandL
         vkd3d_pipeline_bindings_cleanup(&list->pipeline_bindings[VKD3D_PIPELINE_BIND_POINT_COMPUTE]);
         vkd3d_pipeline_bindings_cleanup(&list->pipeline_bindings[VKD3D_PIPELINE_BIND_POINT_GRAPHICS]);
 
+        vkd3d_resource_list_cleanup(&list->rtv_resources_since_last_barrier);
+        vkd3d_resource_list_cleanup(&list->dsv_resources_since_last_barrier);
+
         vkd3d_free(list);
 
         d3d12_device_release(device);
@@ -2659,6 +2700,10 @@ static void d3d12_command_list_reset_state(struct d3d12_command_list *list,
     list->fb_width = 0;
     list->fb_height = 0;
     list->fb_layer_count = 0;
+    memset(list->rtv_resources, 0, sizeof(list->rtv_resources));
+    list->dsv_resource = NULL;
+    vkd3d_resource_list_clear(&list->rtv_resources_since_last_barrier);
+    vkd3d_resource_list_clear(&list->dsv_resources_since_last_barrier);
 
     list->xfb_enabled = false;
     list->has_depth_bounds = false;
@@ -3469,6 +3514,82 @@ static bool d3d12_command_list_update_compute_state(struct d3d12_command_list *l
     return true;
 }
 
+/* Add a barrier to prevent hazards between multiple render passes to the same image. */
+static void d3d12_command_list_emit_rt_barrier(struct d3d12_command_list *list, bool colour, bool depth)
+{
+    const struct vkd3d_vk_device_procs *vk_procs = &list->device->vk_procs;
+    VkMemoryBarrier barrier = { VK_STRUCTURE_TYPE_MEMORY_BARRIER };
+    VkPipelineStageFlags srcStage = 0;
+    VkPipelineStageFlags dstStage = 0;
+
+    if (colour)
+    {
+        srcStage |= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dstStage |= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        barrier.srcAccessMask |= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        barrier.dstAccessMask |= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
+    }
+
+    if (depth)
+    {
+        srcStage |= VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+        dstStage |= VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+        barrier.srcAccessMask |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        barrier.dstAccessMask |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
+                | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+    }
+
+    VK_CALL(vkCmdPipelineBarrier(list->vk_command_buffer, srcStage, dstStage,
+            VK_DEPENDENCY_BY_REGION_BIT, 1, &barrier, 0, NULL, 0, NULL));
+    if (colour)
+        vkd3d_resource_list_clear(&list->rtv_resources_since_last_barrier);
+    if (depth)
+        vkd3d_resource_list_clear(&list->rtv_resources_since_last_barrier);
+}
+
+static void d3d12_command_list_check_render_pass_hazards(struct d3d12_command_list *list)
+{
+    struct d3d12_graphics_pipeline_state *graphics = &list->state->u.graphics;
+    bool rtv_hazard = false;
+    bool dsv_hazard = false;
+    unsigned int i;
+
+    for (i = 0; i < graphics->rt_count; ++i)
+    {
+        if (graphics->null_attachment_mask & (1u << i))
+            continue;
+
+        if (!list->rtv_resources[i])
+            continue;
+
+        if (vkd3d_resource_list_contains(&list->rtv_resources_since_last_barrier, list->rtv_resources[i]))
+        {
+            rtv_hazard = true;
+            break;
+        }
+    }
+
+    dsv_hazard = d3d12_command_list_has_depth_stencil_view(list) && list->dsv_resource
+            && vkd3d_resource_list_contains(&list->dsv_resources_since_last_barrier, list->dsv_resource);
+
+    if (rtv_hazard || dsv_hazard)
+        d3d12_command_list_emit_rt_barrier(list, rtv_hazard, dsv_hazard);
+
+    for (i = 0; i < graphics->rt_count; ++i)
+    {
+        if (graphics->null_attachment_mask & (1u << i))
+            continue;
+
+        if (!list->rtv_resources[i])
+            continue;
+
+        vkd3d_resource_list_append(&list->rtv_resources_since_last_barrier, list->rtv_resources[i]);
+    }
+
+    if (d3d12_command_list_has_depth_stencil_view(list) && list->dsv_resource)
+        vkd3d_resource_list_append(&list->dsv_resources_since_last_barrier, list->dsv_resource);
+}
+
 static bool d3d12_command_list_begin_render_pass(struct d3d12_command_list *list)
 {
     const struct vkd3d_vk_device_procs *vk_procs = &list->device->vk_procs;
@@ -3485,6 +3606,8 @@ static bool d3d12_command_list_begin_render_pass(struct d3d12_command_list *list
 
     if (list->current_render_pass != VK_NULL_HANDLE)
         return true;
+
+    d3d12_command_list_check_render_pass_hazards(list);
 
     vk_render_pass = list->pso_render_pass;
     VKD3D_ASSERT(vk_render_pass);
@@ -5137,6 +5260,7 @@ static void STDMETHODCALLTYPE d3d12_command_list_OMSetRenderTargets(ID3D12Graphi
         {
             WARN("RTV descriptor %u is not initialized.\n", i);
             list->rtvs[i] = VK_NULL_HANDLE;
+            list->rtv_resources[i] = NULL;
             continue;
         }
 
@@ -5150,6 +5274,7 @@ static void STDMETHODCALLTYPE d3d12_command_list_OMSetRenderTargets(ID3D12Graphi
         }
 
         list->rtvs[i] = view->v.u.vk_image_view;
+        list->rtv_resources[i] = rtv_desc->resource;
         list->fb_width = max(list->fb_width, rtv_desc->width);
         list->fb_height = max(list->fb_height, rtv_desc->height);
         list->fb_layer_count = max(list->fb_layer_count, rtv_desc->layer_count);
@@ -5171,9 +5296,11 @@ static void STDMETHODCALLTYPE d3d12_command_list_OMSetRenderTargets(ID3D12Graphi
             {
                 WARN("Failed to add view.\n");
                 list->dsv = VK_NULL_HANDLE;
+                list->dsv_resource = NULL;
             }
 
             list->dsv = view->v.u.vk_image_view;
+            list->dsv_resource = dsv_desc->resource;
             list->fb_width = max(list->fb_width, dsv_desc->width);
             list->fb_height = max(list->fb_height, dsv_desc->height);
             list->fb_layer_count = max(list->fb_layer_count, dsv_desc->layer_count);
@@ -5208,8 +5335,6 @@ static void d3d12_command_list_clear(struct d3d12_command_list *list,
     D3D12_RECT full_rect;
     unsigned int i;
     VkResult vr;
-
-    d3d12_command_list_end_current_render_pass(list);
 
     if (!rect_count)
     {
@@ -5344,6 +5469,12 @@ static void STDMETHODCALLTYPE d3d12_command_list_ClearDepthStencilView(ID3D12Gra
     ds_reference.attachment = 0;
     ds_reference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
+    d3d12_command_list_end_current_render_pass(list);
+
+    if (vkd3d_resource_list_contains(&list->dsv_resources_since_last_barrier, dsv_desc->resource))
+        d3d12_command_list_emit_rt_barrier(list, false, true);
+    vkd3d_resource_list_append(&list->dsv_resources_since_last_barrier, dsv_desc->resource);
+
     d3d12_command_list_clear(list, &attachment_desc, NULL, &ds_reference,
             dsv_desc->view, dsv_desc->width, dsv_desc->height, dsv_desc->layer_count,
             &clear_value, rect_count, rects);
@@ -5397,6 +5528,12 @@ static void STDMETHODCALLTYPE d3d12_command_list_ClearRenderTargetView(ID3D12Gra
         clear_value.color.float32[2] = color[2];
         clear_value.color.float32[3] = color[3];
     }
+
+    d3d12_command_list_end_current_render_pass(list);
+
+    if (vkd3d_resource_list_contains(&list->rtv_resources_since_last_barrier, rtv_desc->resource))
+        d3d12_command_list_emit_rt_barrier(list, true, false);
+    vkd3d_resource_list_append(&list->rtv_resources_since_last_barrier, rtv_desc->resource);
 
     d3d12_command_list_clear(list, &attachment_desc, &color_reference, NULL,
             rtv_desc->view, rtv_desc->width, rtv_desc->height, rtv_desc->layer_count,
@@ -6395,6 +6532,9 @@ static HRESULT d3d12_command_list_init(struct d3d12_command_list *list,
 
     list->type = type;
 
+    vkd3d_resource_list_init(&list->rtv_resources_since_last_barrier);
+    vkd3d_resource_list_init(&list->dsv_resources_since_last_barrier);
+
     if (FAILED(hr = vkd3d_private_store_init(&list->private_store)))
         return hr;
 
@@ -7195,6 +7335,7 @@ static HRESULT d3d12_command_queue_wait_binary_semaphore_locked(struct d3d12_com
 
         command_queue->last_waited_fence = fence;
         command_queue->last_waited_fence_value = value;
+        fence->last_waited_value = value;
     }
 
     vkd3d_queue_release(queue);
@@ -7521,8 +7662,14 @@ static HRESULT d3d12_command_queue_flush_ops_locked(struct d3d12_command_queue *
                     vkd3d_mutex_lock(&fence->mutex);
                     if (op->u.wait.value > fence->max_pending_value)
                     {
+                        uint64_t last_waited_value = fence->last_waited_value;
+
                         vkd3d_mutex_unlock(&fence->mutex);
                         d3d12_command_queue_delete_aux_ops(queue, i);
+                        if (op->u.wait.value <= last_waited_value)
+                            ERR("Waiting on a value already waited on by a fence (%p %"PRIx64" <= %"PRIx64").  "
+                                "This application probably requires Vulkan timeline semaphores to work correctly.\n",
+                                fence, op->u.wait.value, last_waited_value);
                         vkd3d_mutex_lock(&queue->op_mutex);
                         return d3d12_command_queue_fixup_after_flush_locked(queue);
                     }

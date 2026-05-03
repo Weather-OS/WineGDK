@@ -19,6 +19,8 @@
 #ifndef __MSXML_DISPEX__
 #define __MSXML_DISPEX__
 
+#include <stdbool.h>
+
 #include "dispex.h"
 
 #include "wine/list.h"

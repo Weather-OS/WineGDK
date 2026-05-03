@@ -43,7 +43,7 @@
 #include <intrin.h>
 #endif
 
-#define VKD3D_SHADER_API_VERSION_CURRENT VKD3D_SHADER_API_VERSION_1_18
+#define VKD3D_SHADER_API_VERSION_CURRENT VKD3D_SHADER_API_VERSION_1_19
 
 #ifndef ARRAY_SIZE
 # define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))

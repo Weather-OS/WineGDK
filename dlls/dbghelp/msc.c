@@ -2295,7 +2295,7 @@ static struct symt_compiland* codeview_new_compiland(const struct msc_debug_info
         if (symt_check_tag(&p->symt, SymTagCompiland) && !strcmp(p->filename, objname))
             return p;
     }
-    return symt_new_compiland(msc_dbg->module, objname);
+    return symt_new_compiland(msc_dbg->module, symt_ptr_to_symref(&msc_dbg->module->top->symt), objname);
 }
 
 static BOOL codeview_snarf(const struct msc_debug_info* msc_dbg,
@@ -2404,7 +2404,7 @@ static BOOL codeview_snarf(const struct msc_debug_info* msc_dbg,
 	case S_GPROC32_16t:
 	case S_LPROC32_16t:
             if (top_func) FIXME("nested function\n");
-            if ((top_func = symt_new_function(msc_dbg->module, compiland,
+            if ((top_func = symt_new_function(msc_dbg->module, symt_ptr_to_symref(&compiland->symt),
                                               terminate_string(&sym->proc_v1.p_name),
                                               codeview_get_address(msc_dbg, sym->proc_v1.segment, sym->proc_v1.offset),
                                               sym->proc_v1.proc_len,
@@ -2421,7 +2421,7 @@ static BOOL codeview_snarf(const struct msc_debug_info* msc_dbg,
 	case S_GPROC32_ST:
 	case S_LPROC32_ST:
             if (top_func) FIXME("nested function\n");
-            if ((top_func = symt_new_function(msc_dbg->module, compiland,
+            if ((top_func = symt_new_function(msc_dbg->module, symt_ptr_to_symref(&compiland->symt),
                                               terminate_string(&sym->proc_v2.p_name),
                                               codeview_get_address(msc_dbg, sym->proc_v2.segment, sym->proc_v2.offset),
                                               sym->proc_v2.proc_len,
@@ -2438,7 +2438,7 @@ static BOOL codeview_snarf(const struct msc_debug_info* msc_dbg,
 	case S_GPROC32:
 	case S_LPROC32:
             if (top_func) FIXME("nested function\n");
-            if ((top_func = symt_new_function(msc_dbg->module, compiland,
+            if ((top_func = symt_new_function(msc_dbg->module, symt_ptr_to_symref(&compiland->symt),
                                               sym->proc_v3.name,
                                               codeview_get_address(msc_dbg, sym->proc_v3.segment, sym->proc_v3.offset),
                                               sym->proc_v3.proc_len,
@@ -2790,7 +2790,7 @@ static BOOL codeview_snarf(const struct msc_debug_info* msc_dbg,
                 if (symt_check_tag(&parent->symt, SymTagFunction))
                 {
                     struct symt_function* pfunc = (struct symt_function*)parent;
-                    top_func = symt_new_function(msc_dbg->module, compiland, pfunc->hash_elt.name,
+                    top_func = symt_new_function(msc_dbg->module, symt_ptr_to_symref(&compiland->symt), pfunc->hash_elt.name,
                                                  codeview_get_address(msc_dbg, sym->sepcode_v3.sect, sym->sepcode_v3.off),
                                                  sym->sepcode_v3.length, pfunc->type, i);
                     curr_func = top_func;

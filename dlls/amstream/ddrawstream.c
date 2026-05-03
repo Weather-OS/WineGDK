@@ -92,10 +92,13 @@ struct ddraw_sample
     struct list entry;
     HRESULT update_hr;
     bool pending;
+    bool needs_mt;
 };
 
 static HRESULT ddrawstreamsample_create(struct ddraw_stream *parent, IDirectDrawSurface *surface,
     const RECT *rect, IDirectDrawStreamSample **ddraw_stream_sample);
+
+static HRESULT WINAPI ddrawstream_check_pixel_format(const DDSURFACEDESC *format);
 
 static void remove_queued_update(struct ddraw_sample *sample)
 {
@@ -326,6 +329,7 @@ static HRESULT WINAPI ddraw_IAMMediaStream_Initialize(IAMMediaStream *iface, IUn
                                                     REFMSPID purpose_id, const STREAM_TYPE stream_type)
 {
     struct ddraw_stream *stream = impl_from_IAMMediaStream(iface);
+    DDSURFACEDESC desc = { .dwSize = sizeof(desc) };
     HRESULT hr;
 
     TRACE("stream %p, source_object %p, flags %lx, purpose_id %s, stream_type %u.\n", stream, source_object, flags,
@@ -347,6 +351,14 @@ static HRESULT WINAPI ddraw_IAMMediaStream_Initialize(IAMMediaStream *iface, IUn
     if (source_object
             && FAILED(hr = IUnknown_QueryInterface(source_object, &IID_IDirectDraw, (void **)&stream->ddraw)))
         FIXME("Stream object doesn't implement IDirectDraw interface, hr %#lx.\n", hr);
+
+    if (stream->ddraw
+            && SUCCEEDED(IDirectDraw_GetDisplayMode(stream->ddraw, &desc))
+            && SUCCEEDED(ddrawstream_check_pixel_format(&desc)))
+    {
+        stream->format.flags |= DDSD_PIXELFORMAT;
+        stream->format.pf = desc.ddpfPixelFormat;
+    }
 
     if (!source_object)
     {
@@ -553,6 +565,22 @@ static unsigned int align(unsigned int n, unsigned int alignment)
     return (n + alignment - 1) & ~(alignment - 1);
 }
 
+static void subtype_from_pf(GUID *subtype, const DDPIXELFORMAT *pf)
+{
+    if (pf->dwRGBBitCount == 16 && pf->dwRBitMask == 0x7c00)
+        *subtype = MEDIASUBTYPE_RGB555;
+    else if (pf->dwRGBBitCount == 16 && pf->dwRBitMask == 0xf800)
+        *subtype = MEDIASUBTYPE_RGB565;
+    else if (pf->dwRGBBitCount == 24)
+        *subtype = MEDIASUBTYPE_RGB24;
+    else if (pf->dwRGBBitCount == 32)
+        *subtype = MEDIASUBTYPE_RGB32;
+    else if (pf->dwRGBBitCount == 8 && (pf->dwFlags & DDPF_PALETTEINDEXED8))
+        *subtype = MEDIASUBTYPE_RGB8;
+    else
+        FIXME("Unknown flags %#lx, bit count %lu.\n", pf->dwFlags, pf->dwRGBBitCount);
+}
+
 static void set_mt_from_desc(AM_MEDIA_TYPE *mt, const DDSURFACEDESC *format, unsigned int pitch)
 {
     VIDEOINFO *videoinfo = CoTaskMemAlloc(sizeof(VIDEOINFO));
@@ -577,53 +605,24 @@ static void set_mt_from_desc(AM_MEDIA_TYPE *mt, const DDSURFACEDESC *format, uns
     mt->lSampleSize = videoinfo->bmiHeader.biSizeImage;
     mt->bFixedSizeSamples = TRUE;
 
-    if (format->ddpfPixelFormat.dwRGBBitCount == 16 && format->ddpfPixelFormat.dwRBitMask == 0x7c00)
+    subtype_from_pf(&mt->subtype, &format->ddpfPixelFormat);
+
+    if (format->ddpfPixelFormat.dwRGBBitCount == 16 && format->ddpfPixelFormat.dwRBitMask == 0xf800)
     {
-        mt->subtype = MEDIASUBTYPE_RGB555;
-    }
-    else if (format->ddpfPixelFormat.dwRGBBitCount == 16 && format->ddpfPixelFormat.dwRBitMask == 0xf800)
-    {
-        mt->subtype = MEDIASUBTYPE_RGB565;
-        videoinfo = (VIDEOINFO *)mt->pbFormat;
         videoinfo->bmiHeader.biCompression = BI_BITFIELDS;
         videoinfo->dwBitMasks[iRED]   = 0xf800;
         videoinfo->dwBitMasks[iGREEN] = 0x07e0;
         videoinfo->dwBitMasks[iBLUE]  = 0x001f;
     }
-    else if (format->ddpfPixelFormat.dwRGBBitCount == 24)
-    {
-        mt->subtype = MEDIASUBTYPE_RGB24;
-    }
-    else if (format->ddpfPixelFormat.dwRGBBitCount == 32)
-    {
-        mt->subtype = MEDIASUBTYPE_RGB32;
-    }
     else if (format->ddpfPixelFormat.dwRGBBitCount == 8 && (format->ddpfPixelFormat.dwFlags & DDPF_PALETTEINDEXED8))
     {
-        mt->subtype = MEDIASUBTYPE_RGB8;
         videoinfo->bmiHeader.biClrUsed = 256;
         /* FIXME: Translate the palette. */
     }
-    else
-    {
-        FIXME("Unknown flags %#lx, bit count %lu.\n",
-                format->ddpfPixelFormat.dwFlags, format->ddpfPixelFormat.dwRGBBitCount);
-    }
 }
 
-static HRESULT WINAPI ddraw_IDirectDrawMediaStream_SetFormat(IDirectDrawMediaStream *iface,
-        const DDSURFACEDESC *format, IDirectDrawPalette *palette)
+static HRESULT WINAPI ddrawstream_check_pixel_format(const DDSURFACEDESC *format)
 {
-    struct ddraw_stream *stream = impl_from_IDirectDrawMediaStream(iface);
-    struct format old_format;
-    IPin *old_peer;
-    HRESULT hr;
-
-    TRACE("stream %p, format %p, palette %p.\n", stream, format, palette);
-
-    if (palette)
-        FIXME("Setting palette is not yet supported.\n");
-
     if (!format)
         return E_POINTER;
 
@@ -718,6 +717,25 @@ static HRESULT WINAPI ddraw_IDirectDrawMediaStream_SetFormat(IDirectDrawMediaStr
             }
         }
     }
+
+    return S_OK;
+}
+
+static HRESULT WINAPI ddraw_IDirectDrawMediaStream_SetFormat(IDirectDrawMediaStream *iface,
+        const DDSURFACEDESC *format, IDirectDrawPalette *palette)
+{
+    struct ddraw_stream *stream = impl_from_IDirectDrawMediaStream(iface);
+    struct format old_format;
+    IPin *old_peer;
+    HRESULT hr;
+
+    TRACE("stream %p, format %p, palette %p.\n", stream, format, palette);
+
+    if (palette)
+        FIXME("Setting palette is not yet supported.\n");
+
+    if (FAILED(hr = ddrawstream_check_pixel_format(format)))
+        return hr;
 
     EnterCriticalSection(&stream->cs);
 
@@ -904,6 +922,8 @@ struct enum_media_types
     IEnumMediaTypes IEnumMediaTypes_iface;
     LONG refcount;
     unsigned int index;
+
+    struct ddraw_stream *stream;
 };
 
 static const IEnumMediaTypesVtbl enum_media_types_vtbl;
@@ -943,13 +963,19 @@ static ULONG WINAPI enum_media_types_Release(IEnumMediaTypes *iface)
     ULONG refcount = InterlockedDecrement(&enum_media_types->refcount);
     TRACE("%p decreasing refcount to %lu.\n", enum_media_types, refcount);
     if (!refcount)
+    {
+        IAMMediaStream_Release(&enum_media_types->stream->IAMMediaStream_iface);
         free(enum_media_types);
+    }
     return refcount;
 }
 
 static HRESULT WINAPI enum_media_types_Next(IEnumMediaTypes *iface, ULONG count, AM_MEDIA_TYPE **mts, ULONG *ret_count)
 {
     struct enum_media_types *enum_media_types = impl_from_IEnumMediaTypes(iface);
+    struct format *format;
+    DWORD bytes_per_pixel;
+    GUID *subtype;
 
     TRACE("iface %p, count %lu, mts %p, ret_count %p.\n", iface, count, mts, ret_count);
 
@@ -958,12 +984,31 @@ static HRESULT WINAPI enum_media_types_Next(IEnumMediaTypes *iface, ULONG count,
 
     if (count && !enum_media_types->index)
     {
+        format = &enum_media_types->stream->format;
         mts[0] = CoTaskMemAlloc(sizeof(AM_MEDIA_TYPE));
         memset(mts[0], 0, sizeof(AM_MEDIA_TYPE));
         mts[0]->majortype = MEDIATYPE_Video;
-        mts[0]->subtype = MEDIASUBTYPE_RGB8;
+        if (enum_media_types->stream->peer)
+            mts[0]->subtype = enum_media_types->stream->mt.subtype;
+        else if (enum_media_types->stream->format.flags & DDSD_PIXELFORMAT)
+            subtype_from_pf(&mts[0]->subtype, &format->pf);
+        else
+            mts[0]->subtype = MEDIASUBTYPE_RGB8;
+
         mts[0]->bFixedSizeSamples = TRUE;
-        mts[0]->lSampleSize = 10000;
+
+        subtype = &mts[0]->subtype;
+        if (IsEqualGUID(subtype, &MEDIASUBTYPE_RGB8))
+            bytes_per_pixel = 1;
+        if (IsEqualGUID(subtype, &MEDIASUBTYPE_RGB555)
+                || IsEqualGUID(subtype, &MEDIASUBTYPE_RGB565))
+            bytes_per_pixel = 2;
+        else if (IsEqualGUID(subtype, &MEDIASUBTYPE_RGB24))
+            bytes_per_pixel = 3;
+        else if (IsEqualGUID(subtype, &MEDIASUBTYPE_RGB32))
+            bytes_per_pixel = 4;
+
+        mts[0]->lSampleSize = format->width * format->height * bytes_per_pixel;
         ++enum_media_types->index;
         *ret_count = 1;
         return count == 1 ? S_OK : S_FALSE;
@@ -1007,6 +1052,8 @@ static HRESULT WINAPI enum_media_types_Clone(IEnumMediaTypes *iface, IEnumMediaT
     object->IEnumMediaTypes_iface.lpVtbl = &enum_media_types_vtbl;
     object->refcount = 1;
     object->index = enum_media_types->index;
+    object->stream = enum_media_types->stream;
+    IAMMediaStream_AddRef(&object->stream->IAMMediaStream_iface);
 
     *out = &object->IEnumMediaTypes_iface;
     return S_OK;
@@ -1060,6 +1107,7 @@ static HRESULT WINAPI ddraw_sink_ReceiveConnection(IPin *iface, IPin *peer, cons
     DWORD width;
     DWORD height;
     DDPIXELFORMAT pf = {sizeof(DDPIXELFORMAT)};
+    HRESULT hr;
 
     TRACE("stream %p, peer %p, mt %p.\n", stream, peer, mt);
     strmbase_dump_media_type(mt);
@@ -1137,6 +1185,21 @@ static HRESULT WINAPI ddraw_sink_ReceiveConnection(IPin *iface, IPin *peer, cons
         return VFW_E_INVALID_DIRECTION;
     }
 
+    if (video_info->bmiHeader.biHeight > 0)
+    {
+        AM_MEDIA_TYPE top_down_mt;
+        CopyMediaType(&top_down_mt, mt);
+        ((VIDEOINFOHEADER*)top_down_mt.pbFormat)->bmiHeader.biHeight = -height;
+        hr = IPin_QueryAccept(peer, &top_down_mt);
+        FreeMediaType(&top_down_mt);
+        if (hr != S_OK)
+        {
+            TRACE("Rejecting filter that can't produce top-down images.\n");
+            LeaveCriticalSection(&stream->cs);
+            return VFW_E_TYPE_NOT_ACCEPTED;
+        }
+    }
+
     CopyMediaType(&stream->mt, mt);
     IPin_AddRef(stream->peer = peer);
 
@@ -1161,7 +1224,9 @@ static HRESULT WINAPI ddraw_sink_Disconnect(IPin *iface)
     if (!stream->peer)
     {
         LeaveCriticalSection(&stream->cs);
-        return S_FALSE;
+        /* The MS documentation for IPin::Disconnect says to return S_FALSE
+         * when not connected, but the MS implementation returns S_OK */
+        return S_OK;
     }
 
     IPin_Release(stream->peer);
@@ -1258,11 +1323,33 @@ static HRESULT WINAPI ddraw_sink_QueryId(IPin *iface, WCHAR **id)
 
 static HRESULT WINAPI ddraw_sink_QueryAccept(IPin *iface, const AM_MEDIA_TYPE *mt)
 {
+    struct ddraw_stream *stream = impl_from_IPin(iface);
+    GUID subtype;
+
     TRACE("iface %p, mt %p.\n", iface, mt);
 
-    if (IsEqualGUID(&mt->majortype, &MEDIATYPE_Video)
-            && IsEqualGUID(&mt->subtype, &MEDIASUBTYPE_RGB8)
-            && IsEqualGUID(&mt->formattype, &FORMAT_VideoInfo))
+    if (!IsEqualGUID(&mt->majortype, &MEDIATYPE_Video)
+            || !IsEqualGUID(&mt->formattype, &FORMAT_VideoInfo)
+            || ((VIDEOINFOHEADER *)mt->pbFormat)->bmiHeader.biHeight < 0)
+        return VFW_E_TYPE_NOT_ACCEPTED;
+
+    if (stream->format.flags & DDSD_PIXELFORMAT)
+    {
+        subtype_from_pf(&subtype, &stream->format.pf);
+
+        return IsEqualGUID(&mt->subtype, &subtype) ? S_OK : VFW_E_TYPE_NOT_ACCEPTED;
+    }
+
+    if (IsEqualGUID(&mt->subtype, &MEDIASUBTYPE_RGB8))
+        return S_OK;
+
+    if (!stream->peer)
+        return VFW_E_TYPE_NOT_ACCEPTED;
+
+    if (IsEqualGUID(&mt->subtype, &MEDIASUBTYPE_RGB555)
+            || IsEqualGUID(&mt->subtype, &MEDIASUBTYPE_RGB565)
+            || IsEqualGUID(&mt->subtype, &MEDIASUBTYPE_RGB24)
+            || IsEqualGUID(&mt->subtype, &MEDIASUBTYPE_RGB32))
         return S_OK;
 
     return VFW_E_TYPE_NOT_ACCEPTED;
@@ -1270,6 +1357,7 @@ static HRESULT WINAPI ddraw_sink_QueryAccept(IPin *iface, const AM_MEDIA_TYPE *m
 
 static HRESULT WINAPI ddraw_sink_EnumMediaTypes(IPin *iface, IEnumMediaTypes **enum_media_types)
 {
+    struct ddraw_stream *stream = impl_from_IPin(iface);
     struct enum_media_types *object;
 
     TRACE("iface %p, enum_media_types %p.\n", iface, enum_media_types);
@@ -1283,6 +1371,8 @@ static HRESULT WINAPI ddraw_sink_EnumMediaTypes(IPin *iface, IEnumMediaTypes **e
     object->IEnumMediaTypes_iface.lpVtbl = &enum_media_types_vtbl;
     object->refcount = 1;
     object->index = 0;
+    object->stream = stream;
+    IAMMediaStream_AddRef(&stream->IAMMediaStream_iface);
 
     *enum_media_types = &object->IEnumMediaTypes_iface;
     return S_OK;
@@ -2136,6 +2226,7 @@ static ULONG WINAPI media_sample_Release(IMediaSample *iface)
     if (!refcount)
     {
         IDirectDrawSurface_Unlock(sample->surface, NULL);
+        sample->needs_mt = false;
 
         WakeConditionVariable(&sample->update_cv);
 
@@ -2288,6 +2379,12 @@ static HRESULT WINAPI media_sample_GetMediaType(IMediaSample *iface, AM_MEDIA_TY
 
     TRACE("sample %p, ret_mt %p.\n", sample, ret_mt);
 
+    if (!sample->needs_mt)
+    {
+        *ret_mt = NULL;
+        return S_FALSE;
+    }
+
     /* Note that this usually matches the media type we pass to QueryAccept(),
      * but not if there's a sub-rect.
      * That's amstream just breaking the DirectShow rules.
@@ -2415,6 +2512,7 @@ static HRESULT ddrawstreamsample_create(struct ddraw_stream *parent, IDirectDraw
     object->ref = 1;
     object->parent = parent;
     object->mmstream = parent->parent;
+    object->needs_mt = true;
     InitializeConditionVariable(&object->update_cv);
     IAMMediaStream_AddRef(&parent->IAMMediaStream_iface);
     if (object->mmstream)

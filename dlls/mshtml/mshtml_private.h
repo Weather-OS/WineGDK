@@ -160,6 +160,7 @@ struct constructor;
     XDIID(DispHTMLWindow2) \
     XDIID(DispHTMLXMLHttpRequest) \
     XDIID(DispXDomainRequest) \
+    XDIID(DispXMLSerializer) \
     XDIID(DispSVGCircleElement) \
     XDIID(DispSVGSVGElement) \
     XDIID(DispSVGTSpanElement) \
@@ -176,6 +177,7 @@ struct constructor;
     XIID(IDOMUIEvent) \
     XIID(IDOMDocumentType) \
     XIID(IDOMParser) \
+    XIID(IDOMXmlSerializer) \
     XIID(IDocumentEvent) \
     XIID(IDocumentRange) \
     XIID(IDocumentSelector) \
@@ -530,7 +532,8 @@ typedef struct {
     X(Window)                              \
     X(XDomainRequest)                      \
     X(XMLDocument)                         \
-    X(XMLHttpRequest)
+    X(XMLHttpRequest)                      \
+    X(XMLSerializer)
 
 typedef enum {
     OBJID_NONE,

@@ -1152,7 +1152,7 @@
     SYSCALL_ENTRY( 0x147c, NtUserInitializeInputDeviceInjection, 0 ) \
     SYSCALL_ENTRY( 0x147d, NtUserInitializePointerDeviceInjection, 0 ) \
     SYSCALL_ENTRY( 0x147e, NtUserInitializePointerDeviceInjectionEx, 0 ) \
-    SYSCALL_ENTRY( 0x147f, NtUserInitializeTouchInjection, 0 ) \
+    SYSCALL_ENTRY( 0x147f, NtUserInitializeTouchInjection, 8 ) \
     SYSCALL_ENTRY( 0x1480, NtUserInjectDeviceInput, 0 ) \
     SYSCALL_ENTRY( 0x1481, NtUserInjectGenericHidInput, 0 ) \
     SYSCALL_ENTRY( 0x1482, NtUserInjectGesture, 0 ) \
@@ -1441,7 +1441,7 @@
     SYSCALL_ENTRY( 0x159d, NtUserSetWindowCompositionTransition, 0 ) \
     SYSCALL_ENTRY( 0x159e, NtUserSetWindowContextHelpId, 8 ) \
     SYSCALL_ENTRY( 0x159f, NtUserSetWindowDisplayAffinity, 0 ) \
-    SYSCALL_ENTRY( 0x15a0, NtUserSetWindowFNID, 0 ) \
+    SYSCALL_ENTRY( 0x15a0, NtUserSetWindowFNID, 8 ) \
     SYSCALL_ENTRY( 0x15a1, NtUserSetWindowFeedbackSetting, 0 ) \
     SYSCALL_ENTRY( 0x15a2, NtUserSetWindowGroup, 0 ) \
     SYSCALL_ENTRY( 0x15a3, NtUserSetWindowLong, 16 ) \
@@ -2694,7 +2694,7 @@
     SYSCALL_ENTRY( 0x147c, NtUserInitializeInputDeviceInjection, 0 ) \
     SYSCALL_ENTRY( 0x147d, NtUserInitializePointerDeviceInjection, 0 ) \
     SYSCALL_ENTRY( 0x147e, NtUserInitializePointerDeviceInjectionEx, 0 ) \
-    SYSCALL_ENTRY( 0x147f, NtUserInitializeTouchInjection, 0 ) \
+    SYSCALL_ENTRY( 0x147f, NtUserInitializeTouchInjection, 16 ) \
     SYSCALL_ENTRY( 0x1480, NtUserInjectDeviceInput, 0 ) \
     SYSCALL_ENTRY( 0x1481, NtUserInjectGenericHidInput, 0 ) \
     SYSCALL_ENTRY( 0x1482, NtUserInjectGesture, 0 ) \
@@ -2983,7 +2983,7 @@
     SYSCALL_ENTRY( 0x159d, NtUserSetWindowCompositionTransition, 0 ) \
     SYSCALL_ENTRY( 0x159e, NtUserSetWindowContextHelpId, 16 ) \
     SYSCALL_ENTRY( 0x159f, NtUserSetWindowDisplayAffinity, 0 ) \
-    SYSCALL_ENTRY( 0x15a0, NtUserSetWindowFNID, 0 ) \
+    SYSCALL_ENTRY( 0x15a0, NtUserSetWindowFNID, 16 ) \
     SYSCALL_ENTRY( 0x15a1, NtUserSetWindowFeedbackSetting, 0 ) \
     SYSCALL_ENTRY( 0x15a2, NtUserSetWindowGroup, 0 ) \
     SYSCALL_ENTRY( 0x15a3, NtUserSetWindowLong, 32 ) \
@@ -3887,7 +3887,6 @@
     SYSCALL_STUB( NtUserInitializeInputDeviceInjection ) \
     SYSCALL_STUB( NtUserInitializePointerDeviceInjection ) \
     SYSCALL_STUB( NtUserInitializePointerDeviceInjectionEx ) \
-    SYSCALL_STUB( NtUserInitializeTouchInjection ) \
     SYSCALL_STUB( NtUserInjectDeviceInput ) \
     SYSCALL_STUB( NtUserInjectGenericHidInput ) \
     SYSCALL_STUB( NtUserInjectGesture ) \
@@ -4086,7 +4085,6 @@
     SYSCALL_STUB( NtUserSetWindowCompositionAttribute ) \
     SYSCALL_STUB( NtUserSetWindowCompositionTransition ) \
     SYSCALL_STUB( NtUserSetWindowDisplayAffinity ) \
-    SYSCALL_STUB( NtUserSetWindowFNID ) \
     SYSCALL_STUB( NtUserSetWindowFeedbackSetting ) \
     SYSCALL_STUB( NtUserSetWindowGroup ) \
     SYSCALL_STUB( NtUserSetWindowMessageCapability ) \

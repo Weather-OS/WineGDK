@@ -402,7 +402,14 @@ static HRESULT compile_error(script_ctx_t *ctx, compile_ctx_t *compiler, HRESULT
     ctx->ei.scode = error;
     ctx->ei.bstrSource = get_vbscript_string(VBS_COMPILE_ERROR);
     map_vbs_exception(&ctx->ei);
-    return report_script_error(ctx, compiler->code, compiler->loc);
+
+    if(!ctx->error_loc_code) {
+        grab_vbscode(compiler->code);
+        ctx->error_loc_code = compiler->code;
+        ctx->error_loc_offset = compiler->loc;
+    }
+
+    return SCRIPT_E_RECORDED;
 }
 
 static expression_t *lookup_const_decls(compile_ctx_t *ctx, const WCHAR *name, BOOL lookup_global)
@@ -410,7 +417,7 @@ static expression_t *lookup_const_decls(compile_ctx_t *ctx, const WCHAR *name, B
     const_decl_t *decl;
 
     for(decl = ctx->const_decls; decl; decl = decl->next) {
-        if(!wcsicmp(decl->name, name))
+        if(!vbs_wcsicmp(decl->name, name))
             return decl->value_expr;
     }
 
@@ -418,8 +425,20 @@ static expression_t *lookup_const_decls(compile_ctx_t *ctx, const WCHAR *name, B
         return NULL;
 
     for(decl = ctx->global_consts; decl; decl = decl->next) {
-        if(!wcsicmp(decl->name, name))
+        if(!vbs_wcsicmp(decl->name, name))
             return decl->value_expr;
+    }
+
+    return NULL;
+}
+
+static const_decl_t *find_const_decl(compile_ctx_t *ctx, const WCHAR *name)
+{
+    const_decl_t *decl;
+
+    for(decl = ctx->const_decls; decl; decl = decl->next) {
+        if(!vbs_wcsicmp(decl->name, name))
+            return decl;
     }
 
     return NULL;
@@ -430,7 +449,7 @@ static BOOL lookup_args_name(compile_ctx_t *ctx, const WCHAR *name)
     unsigned i;
 
     for(i = 0; i < ctx->func->arg_cnt; i++) {
-        if(!wcsicmp(ctx->func->args[i].name, name))
+        if(!vbs_wcsicmp(ctx->func->args[i].name, name))
             return TRUE;
     }
 
@@ -442,7 +461,19 @@ static BOOL lookup_dim_decls(compile_ctx_t *ctx, const WCHAR *name)
     dim_decl_t *dim_decl;
 
     for(dim_decl = ctx->dim_decls; dim_decl; dim_decl = dim_decl->next) {
-        if(!wcsicmp(dim_decl->name, name))
+        if(!vbs_wcsicmp(dim_decl->name, name))
+            return TRUE;
+    }
+
+    return FALSE;
+}
+
+static BOOL lookup_func_decls(compile_ctx_t *ctx, const WCHAR *name)
+{
+    function_decl_t *func_decl;
+
+    for(func_decl = ctx->func_decls; func_decl; func_decl = func_decl->next) {
+        if(!vbs_wcsicmp(func_decl->name, name))
             return TRUE;
     }
 
@@ -863,8 +894,8 @@ static HRESULT compile_foreach_statement(compile_ctx_t *ctx, foreach_statement_t
 
 static HRESULT compile_forto_statement(compile_ctx_t *ctx, forto_statement_t *stat)
 {
-    statement_ctx_t loop_ctx = {2};
-    unsigned step_instr, instr;
+    statement_ctx_t loop_ctx = {3};
+    unsigned step_instr, instr, expr_err_label, past_err_label, body_label, from_offset;
     BSTR identifier;
     HRESULT hres;
 
@@ -872,23 +903,32 @@ static HRESULT compile_forto_statement(compile_ctx_t *ctx, forto_statement_t *st
     if(!identifier)
         return E_OUTOFMEMORY;
 
+    expr_err_label = alloc_label(ctx);
+    if(!expr_err_label)
+        return E_OUTOFMEMORY;
+
+    past_err_label = alloc_label(ctx);
+    if(!past_err_label)
+        return E_OUTOFMEMORY;
+
+    body_label = alloc_label(ctx);
+    if(!body_label)
+        return E_OUTOFMEMORY;
+
+    /* Evaluate all three expressions (from, to, step) before assignment,
+     * so that the control variable is not modified if any expression fails.
+     * Stack layout after evaluation: [from, to, step] (step on top). */
+    from_offset = stack_offset(ctx);
+
     hres = compile_expression(ctx, stat->from_expr);
     if(FAILED(hres))
         return hres;
     if(!push_instr(ctx, OP_numval))
         return E_OUTOFMEMORY;
 
-    /* FIXME: Assign should happen after both expressions evaluation. */
-    instr = push_instr(ctx, OP_assign_ident);
-    if(!instr)
-        return E_OUTOFMEMORY;
-    instr_ptr(ctx, instr)->arg1.bstr = identifier;
-    instr_ptr(ctx, instr)->arg2.uint = 0;
-
     hres = compile_expression(ctx, stat->to_expr);
     if(FAILED(hres))
         return hres;
-
     if(!push_instr(ctx, OP_numval))
         return E_OUTOFMEMORY;
 
@@ -905,6 +945,24 @@ static HRESULT compile_forto_statement(compile_ctx_t *ctx, forto_statement_t *st
             return hres;
     }
 
+    /* If any expression failed, clean up and enter body with empty sentinels. */
+    if(!emit_catch_jmp(ctx, 0, expr_err_label))
+        return E_OUTOFMEMORY;
+
+    /* Copy from (buried at depth 2) to top and assign to control variable. */
+    hres = push_instr_uint(ctx, OP_stack, from_offset);
+    if(FAILED(hres))
+        return hres;
+
+    instr = push_instr(ctx, OP_assign_ident);
+    if(!instr)
+        return E_OUTOFMEMORY;
+    instr_ptr(ctx, instr)->arg1.bstr = identifier;
+    instr_ptr(ctx, instr)->arg2.uint = 0;
+
+    if(!emit_catch_jmp(ctx, 0, expr_err_label))
+        return E_OUTOFMEMORY;
+
     loop_ctx.for_end_label = alloc_label(ctx);
     if(!loop_ctx.for_end_label)
         return E_OUTOFMEMORY;
@@ -915,32 +973,61 @@ static HRESULT compile_forto_statement(compile_ctx_t *ctx, forto_statement_t *st
     instr_ptr(ctx, step_instr)->arg2.bstr = identifier;
     instr_ptr(ctx, step_instr)->arg1.uint = loop_ctx.for_end_label;
 
-    if(!emit_catch(ctx, 2))
+    if(!emit_catch(ctx, 3))
         return E_OUTOFMEMORY;
+
+    label_set_addr(ctx, body_label);
 
     hres = compile_statement(ctx, &loop_ctx, stat->body);
     if(FAILED(hres))
         return hres;
 
-    /* FIXME: Error handling can't be done compatible with native using OP_incc here. */
+
     instr = push_instr(ctx, OP_incc);
     if(!instr)
         return E_OUTOFMEMORY;
     instr_ptr(ctx, instr)->arg1.bstr = identifier;
 
+    instr = push_instr(ctx, OP_step);
+    if(!instr)
+        return E_OUTOFMEMORY;
+    instr_ptr(ctx, instr)->arg2.bstr = identifier;
+    instr_ptr(ctx, instr)->arg1.uint = loop_ctx.for_end_label;
+
     hres = push_instr_addr(ctx, OP_jmp, step_instr);
     if(FAILED(hres))
         return hres;
 
-    hres = push_instr_uint(ctx, OP_pop, 2);
+    hres = push_instr_uint(ctx, OP_pop, 3);
     if(FAILED(hres))
         return hres;
 
     label_set_addr(ctx, loop_ctx.for_end_label);
 
-    /* FIXME: reconsider after OP_incc fixup. */
     if(!emit_catch(ctx, 0))
         return E_OUTOFMEMORY;
+
+    hres = push_instr_addr(ctx, OP_jmp, past_err_label);
+    if(FAILED(hres))
+        return hres;
+
+    /* Expression error path: push empty from/to/step sentinels and enter body. */
+    label_set_addr(ctx, expr_err_label);
+
+    if(!push_instr(ctx, OP_empty))
+        return E_OUTOFMEMORY;
+
+    if(!push_instr(ctx, OP_empty))
+        return E_OUTOFMEMORY;
+
+    if(!push_instr(ctx, OP_empty))
+        return E_OUTOFMEMORY;
+
+    hres = push_instr_addr(ctx, OP_jmp, body_label);
+    if(FAILED(hres))
+        return hres;
+
+    label_set_addr(ctx, past_err_label);
 
     return S_OK;
 }
@@ -953,6 +1040,9 @@ static HRESULT compile_with_statement(compile_ctx_t *ctx, with_statement_t *stat
     hres = compile_expression(ctx, stat->expr);
     if(FAILED(hres))
         return hres;
+
+    if(!push_instr(ctx, OP_with))
+        return E_OUTOFMEMORY;
 
     if(!emit_catch(ctx, 1))
         return E_OUTOFMEMORY;
@@ -1137,9 +1227,19 @@ static HRESULT compile_dim_statement(compile_ctx_t *ctx, dim_statement_t *stat)
 
     while(1) {
         if(lookup_dim_decls(ctx, dim_decl->name) || lookup_args_name(ctx, dim_decl->name)
-           || lookup_const_decls(ctx, dim_decl->name, FALSE)) {
-            FIXME("dim %s name redefined\n", debugstr_w(dim_decl->name));
-            return E_FAIL;
+           || (ctx->func->type == FUNC_GLOBAL && lookup_func_decls(ctx, dim_decl->name))) {
+            ctx->loc = dim_decl->loc;
+            WARN("dim %s name redefined\n", debugstr_w(dim_decl->name));
+            return MAKE_VBSERROR(VBSE_NAME_REDEFINED);
+        }
+
+        {
+            const_decl_t *const_decl = find_const_decl(ctx, dim_decl->name);
+            if(const_decl) {
+                ctx->loc = dim_decl->loc > const_decl->loc ? dim_decl->loc : const_decl->loc;
+                WARN("dim %s name redefined\n", debugstr_w(dim_decl->name));
+                return MAKE_VBSERROR(VBSE_NAME_REDEFINED);
+            }
         }
 
         ctx->func->var_cnt++;
@@ -1192,6 +1292,21 @@ static HRESULT compile_redim_statement(compile_ctx_t *ctx, redim_statement_t *st
     return S_OK;
 }
 
+static HRESULT compile_erase_statement(compile_ctx_t *ctx, erase_statement_t *stat)
+{
+    HRESULT hres;
+
+    hres = push_instr_bstr(ctx, OP_erase, stat->identifier);
+    if(FAILED(hres))
+        return hres;
+
+    if(!emit_catch(ctx, 0))
+        return E_OUTOFMEMORY;
+
+
+    return S_OK;
+}
+
 static HRESULT compile_const_statement(compile_ctx_t *ctx, const_statement_t *stat)
 {
     const_decl_t *decl, *next_decl = stat->decls;
@@ -1199,10 +1314,18 @@ static HRESULT compile_const_statement(compile_ctx_t *ctx, const_statement_t *st
     do {
         decl = next_decl;
 
-        if(lookup_const_decls(ctx, decl->name, FALSE) || lookup_args_name(ctx, decl->name)
-                || lookup_dim_decls(ctx, decl->name)) {
-            FIXME("%s redefined\n", debugstr_w(decl->name));
-            return E_FAIL;
+        if(!lookup_const_decls(ctx, decl->name, FALSE)) {
+            if(lookup_args_name(ctx, decl->name) || lookup_dim_decls(ctx, decl->name)) {
+                ctx->loc = decl->loc;
+                WARN("%s redefined\n", debugstr_w(decl->name));
+                return MAKE_VBSERROR(VBSE_NAME_REDEFINED);
+            }
+        }
+
+        if(lookup_func_decls(ctx, decl->name)) {
+            ctx->loc = decl->loc;
+            WARN("%s redefined\n", debugstr_w(decl->name));
+            return MAKE_VBSERROR(VBSE_NAME_REDEFINED);
         }
 
         if(ctx->func->type == FUNC_GLOBAL) {
@@ -1221,8 +1344,10 @@ static HRESULT compile_const_statement(compile_ctx_t *ctx, const_statement_t *st
         }
 
         next_decl = decl->next;
-        decl->next = ctx->const_decls;
-        ctx->const_decls = decl;
+        if(!lookup_const_decls(ctx, decl->name, FALSE)) {
+            decl->next = ctx->const_decls;
+            ctx->const_decls = decl;
+        }
     } while(next_decl);
 
     return S_OK;
@@ -1251,8 +1376,7 @@ static HRESULT compile_exitdo_statement(compile_ctx_t *ctx)
             break;
     }
     if(!iter) {
-        FIXME("Exit Do outside Do Loop\n");
-        return E_FAIL;
+        return MAKE_VBSERROR(VBSE_INVALID_EXIT);
     }
 
     if(pop_cnt) {
@@ -1277,8 +1401,7 @@ static HRESULT compile_exitfor_statement(compile_ctx_t *ctx)
             break;
     }
     if(!iter) {
-        FIXME("Exit For outside For loop\n");
-        return E_FAIL;
+        return MAKE_VBSERROR(VBSE_INVALID_EXIT);
     }
 
     if(pop_cnt) {
@@ -1310,8 +1433,7 @@ static HRESULT exit_label(compile_ctx_t *ctx, unsigned jmp_label)
 static HRESULT compile_exitsub_statement(compile_ctx_t *ctx)
 {
     if(!ctx->sub_end_label) {
-        FIXME("Exit Sub outside Sub?\n");
-        return E_FAIL;
+        return MAKE_VBSERROR(VBSE_INVALID_EXIT);
     }
 
     return exit_label(ctx, ctx->sub_end_label);
@@ -1320,8 +1442,7 @@ static HRESULT compile_exitsub_statement(compile_ctx_t *ctx)
 static HRESULT compile_exitfunc_statement(compile_ctx_t *ctx)
 {
     if(!ctx->func_end_label) {
-        FIXME("Exit Function outside Function?\n");
-        return E_FAIL;
+        return MAKE_VBSERROR(VBSE_INVALID_EXIT);
     }
 
     return exit_label(ctx, ctx->func_end_label);
@@ -1330,8 +1451,7 @@ static HRESULT compile_exitfunc_statement(compile_ctx_t *ctx)
 static HRESULT compile_exitprop_statement(compile_ctx_t *ctx)
 {
     if(!ctx->prop_end_label) {
-        FIXME("Exit Property outside Property?\n");
-        return E_FAIL;
+        return MAKE_VBSERROR(VBSE_INVALID_EXIT);
     }
 
     return exit_label(ctx, ctx->prop_end_label);
@@ -1354,6 +1474,112 @@ static HRESULT compile_retval_statement(compile_ctx_t *ctx, retval_statement_t *
     if(FAILED(hres))
         return hres;
 
+    return S_OK;
+}
+
+static HRESULT collect_const_decls(compile_ctx_t *ctx, statement_t *stat)
+{
+    HRESULT hres;
+
+    while(stat) {
+        switch(stat->type) {
+        case STAT_CONST: {
+            const_statement_t *const_stat = (const_statement_t*)stat;
+            const_decl_t *decl;
+
+            for(decl = const_stat->decls; decl; decl = decl->next) {
+                const_decl_t *new_decl;
+
+                if(lookup_const_decls(ctx, decl->name, FALSE)) {
+                    ctx->loc = decl->loc;
+                    WARN("%s: const redefined\n", debugstr_w(decl->name));
+                    return MAKE_VBSERROR(VBSE_NAME_REDEFINED);
+                }
+
+                if(lookup_args_name(ctx, decl->name) || lookup_dim_decls(ctx, decl->name)) {
+                    ctx->loc = decl->loc;
+                    WARN("%s redefined\n", debugstr_w(decl->name));
+                    return MAKE_VBSERROR(VBSE_NAME_REDEFINED);
+                }
+
+                new_decl = compiler_alloc(ctx->code, sizeof(*new_decl));
+                if(!new_decl)
+                    return E_OUTOFMEMORY;
+                new_decl->name = decl->name;
+                new_decl->loc = decl->loc;
+                new_decl->value_expr = decl->value_expr;
+                new_decl->next = ctx->const_decls;
+                ctx->const_decls = new_decl;
+            }
+            break;
+        }
+        case STAT_IF: {
+            if_statement_t *if_stat = (if_statement_t*)stat;
+            elseif_decl_t *elseif;
+
+            hres = collect_const_decls(ctx, if_stat->if_stat);
+            if(FAILED(hres))
+                return hres;
+            for(elseif = if_stat->elseifs; elseif; elseif = elseif->next) {
+                hres = collect_const_decls(ctx, elseif->stat);
+                if(FAILED(hres))
+                    return hres;
+            }
+            hres = collect_const_decls(ctx, if_stat->else_stat);
+            if(FAILED(hres))
+                return hres;
+            break;
+        }
+        case STAT_WHILE:
+        case STAT_WHILELOOP:
+        case STAT_DOWHILE:
+        case STAT_DOUNTIL:
+        case STAT_UNTIL: {
+            while_statement_t *while_stat = (while_statement_t*)stat;
+            hres = collect_const_decls(ctx, while_stat->body);
+            if(FAILED(hres))
+                return hres;
+            break;
+        }
+        case STAT_FORTO: {
+            forto_statement_t *forto_stat = (forto_statement_t*)stat;
+            hres = collect_const_decls(ctx, forto_stat->body);
+            if(FAILED(hres))
+                return hres;
+            break;
+        }
+        case STAT_FOREACH: {
+            foreach_statement_t *foreach_stat = (foreach_statement_t*)stat;
+            hres = collect_const_decls(ctx, foreach_stat->body);
+            if(FAILED(hres))
+                return hres;
+            break;
+        }
+        case STAT_SELECT: {
+            select_statement_t *select_stat = (select_statement_t*)stat;
+            case_clausule_t *clause;
+            for(clause = select_stat->case_clausules; clause; clause = clause->next) {
+                hres = collect_const_decls(ctx, clause->stat);
+                if(FAILED(hres))
+                    return hres;
+            }
+            break;
+        }
+        case STAT_WITH: {
+            with_statement_t *with_stat = (with_statement_t*)stat;
+            hres = collect_const_decls(ctx, with_stat->body);
+            if(FAILED(hres))
+                return hres;
+            break;
+        }
+        case STAT_FUNC:
+            /* Don't recurse into sub/function bodies; they are compiled separately */
+            break;
+        default:
+            break;
+        }
+        stat = stat->next;
+    }
     return S_OK;
 }
 
@@ -1415,6 +1641,9 @@ static HRESULT compile_statement(compile_ctx_t *ctx, statement_ctx_t *stat_ctx, 
             break;
         case STAT_ONERROR:
             hres = compile_onerror_statement(ctx, (onerror_statement_t*)stat);
+            break;
+        case STAT_ERASE:
+            hres = compile_erase_statement(ctx, (erase_statement_t*)stat);
             break;
         case STAT_REDIM:
             hres = compile_redim_statement(ctx, (redim_statement_t*)stat);
@@ -1529,6 +1758,11 @@ static HRESULT compile_func(compile_ctx_t *ctx, statement_t *stat, function_t *f
     ctx->func = func;
     ctx->dim_decls = ctx->dim_decls_tail = NULL;
     ctx->const_decls = NULL;
+
+    hres = collect_const_decls(ctx, stat);
+    if(FAILED(hres))
+        return hres;
+
     hres = compile_statement(ctx, NULL, stat);
     ctx->func = NULL;
     if(FAILED(hres))
@@ -1590,7 +1824,7 @@ static BOOL lookup_funcs_name(compile_ctx_t *ctx, const WCHAR *name)
     function_t *iter;
 
     for(iter = ctx->code->funcs; iter; iter = iter->next) {
-        if(!wcsicmp(iter->name, name))
+        if(!vbs_wcsicmp(iter->name, name))
             return TRUE;
     }
 
@@ -1603,8 +1837,9 @@ static HRESULT create_function(compile_ctx_t *ctx, function_decl_t *decl, functi
     HRESULT hres;
 
     if(lookup_dim_decls(ctx, decl->name) || lookup_const_decls(ctx, decl->name, FALSE)) {
-        FIXME("%s: redefinition\n", debugstr_w(decl->name));
-        return E_FAIL;
+        ctx->loc = decl->name_loc;
+        WARN("%s: redefinition\n", debugstr_w(decl->name));
+        return MAKE_VBSERROR(VBSE_NAME_REDEFINED);
     }
 
     func = compiler_alloc(ctx->code, sizeof(*func));
@@ -1657,7 +1892,7 @@ static BOOL lookup_class_name(compile_ctx_t *ctx, const WCHAR *name)
     class_desc_t *iter;
 
     for(iter = ctx->code->classes; iter; iter = iter->next) {
-        if(!wcsicmp(iter->name, name))
+        if(!vbs_wcsicmp(iter->name, name))
             return TRUE;
     }
 
@@ -1708,7 +1943,7 @@ static BOOL lookup_class_funcs(class_desc_t *class_desc, const WCHAR *name)
     unsigned i;
 
     for(i=0; i < class_desc->func_cnt; i++) {
-        if(class_desc->funcs[i].name && !wcsicmp(class_desc->funcs[i].name, name))
+        if(class_desc->funcs[i].name && !vbs_wcsicmp(class_desc->funcs[i].name, name))
             return TRUE;
     }
 
@@ -1726,8 +1961,9 @@ static HRESULT compile_class(compile_ctx_t *ctx, class_decl_t *class_decl)
 
     if(lookup_dim_decls(ctx, class_decl->name) || lookup_funcs_name(ctx, class_decl->name)
             || lookup_const_decls(ctx, class_decl->name, FALSE) || lookup_class_name(ctx, class_decl->name)) {
-        FIXME("%s: redefinition\n", debugstr_w(class_decl->name));
-        return E_FAIL;
+        ctx->loc = class_decl->loc;
+        WARN("%s: redefinition\n", debugstr_w(class_decl->name));
+        return MAKE_VBSERROR(VBSE_NAME_REDEFINED);
     }
 
     class_desc = compiler_alloc_zero(ctx->code, sizeof(*class_desc));
@@ -1769,17 +2005,25 @@ static HRESULT compile_class(compile_ctx_t *ctx, class_decl_t *class_decl)
             }
         }
 
-        if(!wcsicmp(L"class_initialize", func_decl->name)) {
+        if(!vbs_wcsicmp(L"class_initialize", func_decl->name)) {
             if(func_decl->type != FUNC_SUB) {
                 FIXME("class initializer is not sub\n");
                 return E_FAIL;
             }
+            if(func_decl->args) {
+                ctx->loc = func_decl->loc;
+                return MAKE_VBSERROR(VBSE_CLASS_INIT_NO_ARGS);
+            }
 
             class_desc->class_initialize_id = i;
-        }else  if(!wcsicmp(L"class_terminate", func_decl->name)) {
+        }else  if(!vbs_wcsicmp(L"class_terminate", func_decl->name)) {
             if(func_decl->type != FUNC_SUB) {
                 FIXME("class terminator is not sub\n");
                 return E_FAIL;
+            }
+            if(func_decl->args) {
+                ctx->loc = func_decl->loc;
+                return MAKE_VBSERROR(VBSE_CLASS_INIT_NO_ARGS);
             }
 
             class_desc->class_terminate_id = i;
@@ -1799,8 +2043,15 @@ static HRESULT compile_class(compile_ctx_t *ctx, class_decl_t *class_decl)
 
     for(prop_decl = class_decl->props, i=0; prop_decl; prop_decl = prop_decl->next, i++) {
         if(lookup_class_funcs(class_desc, prop_decl->name)) {
-            FIXME("Property %s redefined\n", debugstr_w(prop_decl->name));
-            return E_FAIL;
+            function_decl_t *func_iter;
+            unsigned loc = prop_decl->loc;
+            for(func_iter = class_decl->funcs; func_iter; func_iter = func_iter->next) {
+                if(!vbs_wcsicmp(func_iter->name, prop_decl->name) && func_iter->name_loc > loc)
+                    loc = func_iter->name_loc;
+            }
+            WARN("%s: redefined\n", debugstr_w(prop_decl->name));
+            ctx->loc = loc;
+            return MAKE_VBSERROR(VBSE_NAME_REDEFINED);
         }
 
         class_desc->props[i].name = compiler_alloc_string(ctx->code, prop_decl->name);
@@ -1846,18 +2097,16 @@ static BOOL lookup_script_identifier(compile_ctx_t *ctx, script_ctx_t *script, c
     for(c = 0; c < ARRAY_SIZE(contexts); c++) {
         if(!contexts[c]) continue;
 
-        for(i = 0; i < contexts[c]->global_vars_cnt; i++) {
-            if(!wcsicmp(contexts[c]->global_vars[i]->name, identifier))
-                return TRUE;
-        }
+        if(script_disp_find_var(contexts[c], identifier))
+            return TRUE;
 
         for(i = 0; i < contexts[c]->global_funcs_cnt; i++) {
-            if(!wcsicmp(contexts[c]->global_funcs[i]->name, identifier))
+            if(!vbs_wcsicmp(contexts[c]->global_funcs[i]->name, identifier))
                 return TRUE;
         }
 
         for(class = contexts[c]->classes; class; class = class->next) {
-            if(!wcsicmp(class->name, identifier))
+            if(!vbs_wcsicmp(class->name, identifier))
                 return TRUE;
         }
     }
@@ -1871,17 +2120,17 @@ static BOOL lookup_script_identifier(compile_ctx_t *ctx, script_ctx_t *script, c
             continue;
 
         for(i = 0; i < var_cnt; i++) {
-            if(!wcsicmp(vars[i].name, identifier))
+            if(!vbs_wcsicmp(vars[i].name, identifier))
                 return TRUE;
         }
 
         for(func = code->funcs; func; func = func->next) {
-            if(!wcsicmp(func->name, identifier))
+            if(!vbs_wcsicmp(func->name, identifier))
                 return TRUE;
         }
 
         for(class = code->classes; class; class = class->next) {
-            if(!wcsicmp(class->name, identifier))
+            if(!vbs_wcsicmp(class->name, identifier))
                 return TRUE;
         }
     }
@@ -1897,15 +2146,13 @@ static HRESULT check_script_collisions(compile_ctx_t *ctx, script_ctx_t *script)
 
     for(i = 0; i < var_cnt; i++) {
         if(lookup_script_identifier(ctx, script, vars[i].name)) {
-            FIXME("%s: redefined\n", debugstr_w(vars[i].name));
-            return E_FAIL;
+            return MAKE_VBSERROR(VBSE_NAME_REDEFINED);
         }
     }
 
     for(class = ctx->code->classes; class; class = class->next) {
         if(lookup_script_identifier(ctx, script, class->name)) {
-            FIXME("%s: redefined\n", debugstr_w(class->name));
-            return E_FAIL;
+            return MAKE_VBSERROR(VBSE_NAME_REDEFINED);
         }
     }
 
@@ -1984,7 +2231,7 @@ static void release_compiler(compile_ctx_t *ctx)
 }
 
 HRESULT compile_script(script_ctx_t *script, const WCHAR *src, const WCHAR *item_name, const WCHAR *delimiter,
-                       DWORD_PTR cookie, unsigned start_line, DWORD flags, vbscode_t **ret)
+                       DWORD_PTR cookie, unsigned start_line, DWORD flags, BOOL skip_collisions, vbscode_t **ret)
 {
     function_decl_t *func_decl;
     named_item_t *item = NULL;
@@ -2056,7 +2303,7 @@ HRESULT compile_script(script_ctx_t *script, const WCHAR *src, const WCHAR *item
     }
 
     hres = check_script_collisions(&ctx, script);
-    if(FAILED(hres)) {
+    if(FAILED(hres) && !skip_collisions) {
         hres = compile_error(script, &ctx, hres);
         release_compiler(&ctx);
         return hres;
@@ -2083,7 +2330,7 @@ HRESULT compile_procedure(script_ctx_t *script, const WCHAR *src, const WCHAR *i
     HRESULT hres;
 
     hres = compile_script(script, src, item_name, delimiter, cookie, start_line,
-                          flags & ~SCRIPTTEXT_ISPERSISTENT, &code);
+                          flags & ~SCRIPTTEXT_ISPERSISTENT, FALSE, &code);
     if(FAILED(hres))
         return hres;
 

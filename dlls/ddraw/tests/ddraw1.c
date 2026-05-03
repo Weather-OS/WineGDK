@@ -1719,10 +1719,10 @@ static void test_zenable(const GUID *device_guid)
     static D3DRECT clear_rect = {{0}, {0}, {640}, {480}};
     static D3DTLVERTEX tquad[] =
     {
-        {{  0.0f}, {480.0f}, {-0.5f}, {1.0f}, {0xff00ff00}, {0x00000000}, {0.0f}, {0.0f}},
         {{  0.0f}, {  0.0f}, {-0.5f}, {1.0f}, {0xff00ff00}, {0x00000000}, {0.0f}, {0.0f}},
-        {{640.0f}, {480.0f}, { 1.5f}, {1.0f}, {0xff00ff00}, {0x00000000}, {0.0f}, {0.0f}},
         {{640.0f}, {  0.0f}, { 1.5f}, {1.0f}, {0xff00ff00}, {0x00000000}, {0.0f}, {0.0f}},
+        {{  0.0f}, {480.0f}, {-0.5f}, {1.0f}, {0xff00ff00}, {0x00000000}, {0.0f}, {0.0f}},
+        {{640.0f}, {480.0f}, { 1.5f}, {1.0f}, {0xff00ff00}, {0x00000000}, {0.0f}, {0.0f}},
     };
     unsigned int inst_length, color, x, y, i, j;
     IDirect3DExecuteBuffer *execute_buffer;
@@ -1810,14 +1810,14 @@ static void test_ck_rgba(const GUID *device_guid)
     static D3DRECT clear_rect = {{0}, {0}, {640}, {480}};
     static D3DTLVERTEX tquad[] =
     {
-        {{  0.0f}, {480.0f}, {0.25f}, {1.0f}, {0xffffffff}, {0x00000000}, {0.0f}, {0.0f}},
         {{  0.0f}, {  0.0f}, {0.25f}, {1.0f}, {0xffffffff}, {0x00000000}, {0.0f}, {1.0f}},
-        {{640.0f}, {480.0f}, {0.25f}, {1.0f}, {0xffffffff}, {0x00000000}, {1.0f}, {0.0f}},
         {{640.0f}, {  0.0f}, {0.25f}, {1.0f}, {0xffffffff}, {0x00000000}, {1.0f}, {1.0f}},
-        {{  0.0f}, {480.0f}, {0.75f}, {1.0f}, {0xffffffff}, {0x00000000}, {0.0f}, {0.0f}},
+        {{  0.0f}, {480.0f}, {0.25f}, {1.0f}, {0xffffffff}, {0x00000000}, {0.0f}, {0.0f}},
+        {{640.0f}, {480.0f}, {0.25f}, {1.0f}, {0xffffffff}, {0x00000000}, {1.0f}, {0.0f}},
         {{  0.0f}, {  0.0f}, {0.75f}, {1.0f}, {0xffffffff}, {0x00000000}, {0.0f}, {1.0f}},
-        {{640.0f}, {480.0f}, {0.75f}, {1.0f}, {0xffffffff}, {0x00000000}, {1.0f}, {0.0f}},
         {{640.0f}, {  0.0f}, {0.75f}, {1.0f}, {0xffffffff}, {0x00000000}, {1.0f}, {1.0f}},
+        {{  0.0f}, {480.0f}, {0.75f}, {1.0f}, {0xffffffff}, {0x00000000}, {0.0f}, {0.0f}},
+        {{640.0f}, {480.0f}, {0.75f}, {1.0f}, {0xffffffff}, {0x00000000}, {1.0f}, {0.0f}},
     };
     /* Supposedly there was no D3DRENDERSTATE_COLORKEYENABLE in D3D < 5.
      * Maybe the WARP driver on Windows 8 ignores setting it via the older
@@ -2664,6 +2664,7 @@ static void test_window_style(void)
     RECT fullscreen_rect, r;
     HWND window, window2;
     IDirectDraw *ddraw;
+    unsigned int i;
     HRESULT hr;
     ULONG ref;
     BOOL ret;
@@ -2874,10 +2875,19 @@ static void test_window_style(void)
     ok(tmp & WS_VISIBLE, "Expected WS_VISIBLE.\n");
     tmp = GetWindowLongA(window, GWL_EXSTYLE);
     ok(tmp & WS_EX_TOPMOST, "Expected WS_EX_TOPMOST.\n");
-    ret = ShowWindow(window, SW_HIDE);
-    ok(ret, "ShowWindow failed, error %#lx.\n", GetLastError());
-    ret = SetWindowPos(window, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
-    ok(ret, "SetWindowPos failed, error %#lx.\n", GetLastError());
+    for (i = 0; i < 5; ++i)
+    {
+        /* Try a few times to hide the window. Something in Win11 26H1 shows it again and makes it
+         * topmost. This is in addition to the ddraw periodic check below, which only makes it
+         * topmost but not visible */
+        ret = SetWindowPos(window, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_HIDEWINDOW);
+        ok(ret, "SetWindowPos failed, error %#lx.\n", GetLastError());
+        tmp = GetWindowLongA(window, GWL_STYLE);
+        if (!(tmp & WS_VISIBLE))
+            break;
+        Sleep(100);
+    }
+    ok(i < 5, "Failed to hide the window.\n");
     tmp = GetWindowLongA(window, GWL_STYLE);
     ok(!(tmp & WS_VISIBLE), "Got unexpected WS_VISIBLE.\n");
     tmp = GetWindowLongA(window, GWL_EXSTYLE);
@@ -14409,7 +14419,10 @@ static void test_caps(void)
         {
             .dwSize = sizeof(DDSURFACEDESC),
             .dwFlags = DDSD_CAPS | DDSD_ZBUFFERBITDEPTH | DDSD_WIDTH | DDSD_HEIGHT,
-            .ddsCaps.dwCaps = DDSCAPS_ZBUFFER,
+            .ddsCaps =
+            {
+                .dwCaps = DDSCAPS_ZBUFFER,
+            },
             .dwZBufferBitDepth = depth_caps[i].depth,
             .dwWidth = 64,
             .dwHeight = 64,
@@ -14496,7 +14509,10 @@ static void test_caps(void)
             {
                 .dwSize = sizeof(DDSURFACEDESC),
                 .dwFlags = DDSD_CAPS | DDSD_ZBUFFERBITDEPTH | DDSD_WIDTH | DDSD_HEIGHT,
-                .ddsCaps.dwCaps = DDSCAPS_ZBUFFER,
+                .ddsCaps =
+                {
+                    .dwCaps = DDSCAPS_ZBUFFER,
+                },
                 .dwZBufferBitDepth = depth_caps[i].depth,
                 .dwWidth = 64,
                 .dwHeight = 64,
@@ -14971,10 +14987,10 @@ static void test_texture_wrong_caps(const GUID *device_guid)
 {
     static D3DTLVERTEX quad[] =
     {
-        {{  0.0f}, {480.0f}, {0.0f}, {1.0f}, {0xffffffff}, {0x00000000}, {0.0f}, {0.0f}},
         {{  0.0f}, {  0.0f}, {0.0f}, {1.0f}, {0xffffffff}, {0x00000000}, {0.0f}, {1.0f}},
-        {{640.0f}, {480.0f}, {0.0f}, {1.0f}, {0xffffffff}, {0x00000000}, {1.0f}, {0.0f}},
         {{640.0f}, {  0.0f}, {0.0f}, {1.0f}, {0xffffffff}, {0x00000000}, {1.0f}, {1.0f}},
+        {{  0.0f}, {480.0f}, {0.0f}, {1.0f}, {0xffffffff}, {0x00000000}, {0.0f}, {0.0f}},
+        {{640.0f}, {480.0f}, {0.0f}, {1.0f}, {0xffffffff}, {0x00000000}, {1.0f}, {0.0f}},
     };
     static DDPIXELFORMAT fmt =
     {

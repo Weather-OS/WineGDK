@@ -30,7 +30,6 @@
 
 #include "wcmd.h"
 #include <shellapi.h>
-#define WIN32_NO_STATUS
 #include "winternl.h"
 #include "winioctl.h"
 #include "ddk/ntifs.h"
@@ -1601,10 +1600,10 @@ RETURN_CODE WCMD_echo(const WCHAR *args)
     trimmed = WCMD_skip_leading_spaces((WCHAR *)args);
 
     if (CompareStringW(LOCALE_USER_DEFAULT, NORM_IGNORECASE | SORT_STRINGSORT, trimmed, 2, L"ON", 2) == CSTR_EQUAL &&
-        *WCMD_skip_leading_spaces(trimmed + 2) == L'\0')
+        *WCMD_skip_leading_spaces(trimmed + 2) == L'\0' && !skipped)
         echo_mode = TRUE;
     else if (CompareStringW(LOCALE_USER_DEFAULT, NORM_IGNORECASE | SORT_STRINGSORT, trimmed, 3, L"OFF", 3) == CSTR_EQUAL &&
-             *WCMD_skip_leading_spaces(trimmed + 3) == L'\0')
+             *WCMD_skip_leading_spaces(trimmed + 3) == L'\0' && !skipped)
         echo_mode = FALSE;
     else if (!trimmed[0] && !skipped)
         WCMD_output(WCMD_LoadMessage(WCMD_ECHOPROMPT), echo_mode ? L"ON" : L"OFF");

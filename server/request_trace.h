@@ -53,6 +53,7 @@ static void dump_varargs_unicode_str( const char *prefix, data_size_t size );
 static void dump_varargs_unicode_strings( const char *prefix, data_size_t size );
 static void dump_varargs_user_handles( const char *prefix, data_size_t size );
 static void dump_varargs_ushorts( const char *prefix, data_size_t size );
+static void dump_varargs_version_res( const char *prefix, data_size_t size );
 
 static const void *cur_data;
 static data_size_t cur_size;
@@ -884,8 +885,10 @@ static void dump_get_mapping_info_reply( const struct get_mapping_info_reply *re
     fprintf( stderr, ", flags=%08x", req->flags );
     fprintf( stderr, ", shared_file=%04x", req->shared_file );
     fprintf( stderr, ", name_len=%u", req->name_len );
+    fprintf( stderr, ", ver_len=%u", req->ver_len );
     fprintf( stderr, ", total=%u", req->total );
     dump_varargs_pe_image_info( ", image=", cur_size );
+    dump_varargs_version_res( ", version=", min( cur_size, req->ver_len ));
     dump_varargs_unicode_str( ", name=", min( cur_size, req->name_len ));
     dump_varargs_string( ", exp_name=", cur_size );
 }
@@ -2211,11 +2214,12 @@ static void dump_get_thread_input_reply( const struct get_thread_input_reply *re
     dump_obj_locator( " locator=", &req->locator );
 }
 
-static void dump_get_last_input_time_request( const struct get_last_input_time_request *req )
+static void dump_set_user_input_time_request( const struct set_user_input_time_request *req )
 {
+    fprintf( stderr, " set=%d", req->set );
 }
 
-static void dump_get_last_input_time_reply( const struct get_last_input_time_reply *req )
+static void dump_set_user_input_time_reply( const struct set_user_input_time_reply *req )
 {
     fprintf( stderr, " time=%08x", req->time );
 }
@@ -3701,7 +3705,7 @@ static const dump_func req_dumpers[REQ_NB_REQUESTS] =
     (dump_func)dump_unregister_hotkey_request,
     (dump_func)dump_attach_thread_input_request,
     (dump_func)dump_get_thread_input_request,
-    (dump_func)dump_get_last_input_time_request,
+    (dump_func)dump_set_user_input_time_request,
     (dump_func)dump_get_key_state_request,
     (dump_func)dump_set_key_state_request,
     (dump_func)dump_set_foreground_window_request,
@@ -4011,7 +4015,7 @@ static const dump_func reply_dumpers[REQ_NB_REQUESTS] =
     (dump_func)dump_unregister_hotkey_reply,
     NULL,
     (dump_func)dump_get_thread_input_reply,
-    (dump_func)dump_get_last_input_time_reply,
+    (dump_func)dump_set_user_input_time_reply,
     (dump_func)dump_get_key_state_reply,
     NULL,
     (dump_func)dump_set_foreground_window_reply,
@@ -4321,7 +4325,7 @@ static const char * const req_names[REQ_NB_REQUESTS] =
     "unregister_hotkey",
     "attach_thread_input",
     "get_thread_input",
-    "get_last_input_time",
+    "set_user_input_time",
     "get_key_state",
     "set_key_state",
     "set_foreground_window",

@@ -99,8 +99,7 @@ static struct android_win_data *alloc_win_data( HWND hwnd )
     if ((data = calloc( 1, sizeof(*data) )))
     {
         data->hwnd = hwnd;
-        data->window = create_ioctl_window( hwnd, FALSE,
-                                            (float)NtUserGetWinMonitorDpi( hwnd, MDT_RAW_DPI ) / NtUserGetDpiForWindow( hwnd ));
+        data->window = create_ioctl_window( hwnd, FALSE );
         pthread_mutex_lock( &win_data_mutex );
         win_data_context[context_idx(hwnd)] = data;
     }
@@ -247,11 +246,12 @@ void surface_changed( JNIEnv *env, jobject obj, jint win, jobject surface, jbool
 
         if (win->query( win, NATIVE_WINDOW_WIDTH, &width ) < 0) width = 0;
         if (win->query( win, NATIVE_WINDOW_HEIGHT, &height ) < 0) height = 0;
-        data.surface.window = win;
         data.surface.width = width;
         data.surface.height = height;
-        p__android_log_print( ANDROID_LOG_INFO, "wine", "surface_changed: %p %s %ux%u",
-                              data.surface.hwnd, client ? "client" : "whole", width, height );
+        p__android_log_print( ANDROID_LOG_INFO, "wine", "surface_changed: %p %p %s %ux%u",
+                              data.surface.hwnd, win, client ? "client" : "whole", width, height );
+
+        register_native_window( data.surface.hwnd, win, data.surface.client );
     }
     data.type = SURFACE_CHANGED;
     send_event( &data );
@@ -453,11 +453,11 @@ static int process_events( DWORD mask )
             break;
 
         case SURFACE_CHANGED:
-            TRACE("SURFACE_CHANGED %p %p %s size %ux%u\n", event->data.surface.hwnd,
-                  event->data.surface.window, event->data.surface.client ? "client" : "whole",
+            TRACE("SURFACE_CHANGED %p %s size %ux%u\n", event->data.surface.hwnd,
+                  event->data.surface.client ? "client" : "whole",
                   event->data.surface.width, event->data.surface.height );
 
-            register_native_window( event->data.surface.hwnd, event->data.surface.window, event->data.surface.client );
+            NtUserPostMessage( event->data.surface.hwnd, WM_ANDROID_REFRESH, event->data.surface.client, 0 );
             break;
 
         case MOTION_EVENT:
@@ -975,8 +975,6 @@ BOOL ANDROID_CreateWindow( HWND hwnd )
     {
         struct android_win_data *data;
 
-        init_event_queue();
-        start_android_device();
         if (!(data = alloc_win_data( hwnd ))) return FALSE;
         release_win_data( data );
     }
@@ -1107,7 +1105,7 @@ void ANDROID_SetParent( HWND hwnd, HWND parent, HWND old_parent )
     TRACE( "win %p parent %p -> %p\n", hwnd, old_parent, parent );
 
     data->parent = (parent == NtUserGetDesktopWindow()) ? 0 : parent;
-    ioctl_set_window_parent( hwnd, parent, (float)NtUserGetWinMonitorDpi( hwnd, MDT_RAW_DPI ) / NtUserGetDpiForWindow( hwnd ));
+    ioctl_set_window_parent( hwnd, parent );
     release_win_data( data );
 }
 
@@ -1216,7 +1214,7 @@ ANativeWindow *get_client_window( HWND hwnd )
     ANativeWindow *client;
 
     if (!(data = get_win_data( hwnd ))) return NULL;
-    if (!data->client) data->client = create_ioctl_window( hwnd, TRUE, 1.0f );
+    if (!data->client) data->client = create_ioctl_window( hwnd, TRUE );
     client = grab_ioctl_window( data->client );
     release_win_data( data );
 
@@ -1240,6 +1238,8 @@ BOOL has_client_surface( HWND hwnd )
  */
 BOOL ANDROID_CreateDesktop( const WCHAR *name, UINT width, UINT height )
 {
+    init_event_queue();
+    start_android_device();
     /* wait until we receive the surface changed event */
     while (!screen_width)
     {
@@ -1250,5 +1250,5 @@ BOOL ANDROID_CreateDesktop( const WCHAR *name, UINT width, UINT height )
         }
         process_events( QS_ALLINPUT );
     }
-    return 0;
+    return TRUE;
 }

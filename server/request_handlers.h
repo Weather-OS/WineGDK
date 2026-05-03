@@ -196,7 +196,7 @@ DECL_HANDLER(register_hotkey);
 DECL_HANDLER(unregister_hotkey);
 DECL_HANDLER(attach_thread_input);
 DECL_HANDLER(get_thread_input);
-DECL_HANDLER(get_last_input_time);
+DECL_HANDLER(set_user_input_time);
 DECL_HANDLER(get_key_state);
 DECL_HANDLER(set_key_state);
 DECL_HANDLER(set_foreground_window);
@@ -506,7 +506,7 @@ static const req_handler req_handlers[REQ_NB_REQUESTS] =
     (req_handler)req_unregister_hotkey,
     (req_handler)req_attach_thread_input,
     (req_handler)req_get_thread_input,
-    (req_handler)req_get_last_input_time,
+    (req_handler)req_set_user_input_time,
     (req_handler)req_get_key_state,
     (req_handler)req_set_key_state,
     (req_handler)req_set_foreground_window,
@@ -1093,8 +1093,9 @@ C_ASSERT( offsetof(struct get_mapping_info_reply, size) == 8 );
 C_ASSERT( offsetof(struct get_mapping_info_reply, flags) == 16 );
 C_ASSERT( offsetof(struct get_mapping_info_reply, shared_file) == 20 );
 C_ASSERT( offsetof(struct get_mapping_info_reply, name_len) == 24 );
-C_ASSERT( offsetof(struct get_mapping_info_reply, total) == 28 );
-C_ASSERT( sizeof(struct get_mapping_info_reply) == 32 );
+C_ASSERT( offsetof(struct get_mapping_info_reply, ver_len) == 28 );
+C_ASSERT( offsetof(struct get_mapping_info_reply, total) == 32 );
+C_ASSERT( sizeof(struct get_mapping_info_reply) == 40 );
 C_ASSERT( offsetof(struct get_image_map_address_request, handle) == 12 );
 C_ASSERT( sizeof(struct get_image_map_address_request) == 16 );
 C_ASSERT( offsetof(struct get_image_map_address_reply, addr) == 8 );
@@ -1738,9 +1739,10 @@ C_ASSERT( offsetof(struct get_thread_input_request, tid) == 12 );
 C_ASSERT( sizeof(struct get_thread_input_request) == 16 );
 C_ASSERT( offsetof(struct get_thread_input_reply, locator) == 8 );
 C_ASSERT( sizeof(struct get_thread_input_reply) == 24 );
-C_ASSERT( sizeof(struct get_last_input_time_request) == 16 );
-C_ASSERT( offsetof(struct get_last_input_time_reply, time) == 8 );
-C_ASSERT( sizeof(struct get_last_input_time_reply) == 16 );
+C_ASSERT( offsetof(struct set_user_input_time_request, set) == 12 );
+C_ASSERT( sizeof(struct set_user_input_time_request) == 16 );
+C_ASSERT( offsetof(struct set_user_input_time_reply, time) == 8 );
+C_ASSERT( sizeof(struct set_user_input_time_reply) == 16 );
 C_ASSERT( offsetof(struct get_key_state_request, async) == 12 );
 C_ASSERT( offsetof(struct get_key_state_request, key) == 16 );
 C_ASSERT( sizeof(struct get_key_state_request) == 24 );

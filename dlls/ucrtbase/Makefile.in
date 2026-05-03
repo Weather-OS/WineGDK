@@ -9,6 +9,7 @@ VER_FILEDESCRIPTION_STR = "Wine runtime library"
 VER_PRODUCTVERSION      = 10,0,14393,2247
 
 SOURCES = \
+	atexit.c \
 	console.c \
 	cpp.c \
 	crt_gccmain.c \

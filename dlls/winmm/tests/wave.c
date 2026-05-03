@@ -22,6 +22,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <assert.h>
+#include <intrin.h>
 
 #include "wine/test.h"
 #include "windef.h"
@@ -865,6 +867,14 @@ EXIT:
     free(frags);
 }
 
+static void CALLBACK no_message_callback_func(HWAVEOUT hwo, UINT uMsg,
+                                              DWORD_PTR dwInstance,
+                                              DWORD_PTR dwParam1,
+                                              DWORD_PTR dwParam2)
+{
+    ok(FALSE, "Received message %x when none is expected\n", uMsg);
+}
+
 static void wave_out_test_device(UINT_PTR device)
 {
     WAVEOUTCAPSA capsA;
@@ -1440,6 +1450,15 @@ static void wave_out_test_device(UINT_PTR device)
               dev_name(device));
 
     /* Test invalid parameters */
+    rc = waveOutOpen(&wout, device, NULL, (DWORD_PTR)no_message_callback_func, 0,
+                     CALLBACK_FUNCTION);
+    ok(rc == MMSYSERR_INVALPARAM,
+       "waveOutOpen(%s): returned %s\n",dev_name(device),wave_out_error(rc));
+
+    rc = waveOutOpen(&wout, device, NULL, (DWORD_PTR)no_message_callback_func, 0,
+                     CALLBACK_FUNCTION | WAVE_FORMAT_QUERY);
+    ok(rc == MMSYSERR_INVALPARAM,
+       "waveOutOpen(%s): returned %s\n",dev_name(device),wave_out_error(rc));
 
     format.wFormatTag = WAVE_FORMAT_PCM;
     format.nChannels = 1;
@@ -1754,8 +1773,7 @@ static void test_reentrant_callback(void)
     CloseHandle(hevent);
 }
 
-static void create_wav_file(char *temp_file, WORD format_tag, unsigned int channels,
-        unsigned int bits_per_sample, unsigned int samples_per_sec)
+static void create_wav_file(char *temp_file)
 {
     WAVEFORMATEX format;
     HMMIO h;
@@ -1765,13 +1783,13 @@ static void create_wav_file(char *temp_file, WORD format_tag, unsigned int chann
     DWORD length;
     char *buffer;
 
-    format.wFormatTag = format_tag;
+    format.wFormatTag=WAVE_FORMAT_PCM;
     format.cbSize = 0;
-    format.nChannels = channels;
-    format.wBitsPerSample = bits_per_sample;
-    format.nSamplesPerSec = samples_per_sec;
-    format.nBlockAlign = format.nChannels * format.wBitsPerSample / 8;
-    format.nAvgBytesPerSec = format.nSamplesPerSec * format.nBlockAlign;
+    format.nChannels=1;
+    format.wBitsPerSample=8;
+    format.nSamplesPerSec=8000;
+    format.nBlockAlign=format.nChannels*format.wBitsPerSample/8;
+    format.nAvgBytesPerSec=format.nSamplesPerSec*format.nBlockAlign;
 
     h = mmioOpenA(temp_file, NULL, MMIO_ALLOCBUF | MMIO_WRITE | MMIO_CREATE);
     ok(h != NULL, "Can't open temp_file\n");
@@ -1807,11 +1825,6 @@ static void create_wav_file(char *temp_file, WORD format_tag, unsigned int chann
     ok(rc == MMSYSERR_NOERROR, "mmioClose failed, got %u\n", rc);
 }
 
-static const unsigned int sampling_rates[] = { 8000, 44100, 96000 };
-static const unsigned int channel_counts[] = { 1, 2 };
-static const unsigned int sample_formats[][2] = { {WAVE_FORMAT_PCM, 8}, {WAVE_FORMAT_PCM, 16},
-                                                  {WAVE_FORMAT_PCM, 32}, {WAVE_FORMAT_IEEE_FLOAT, 32} };
-
 static void test_PlaySound(void)
 {
     BOOL br;
@@ -1830,10 +1843,7 @@ static void test_PlaySound(void)
 
     GetTempPathA(sizeof(test_file), test_file);
     strcat(test_file, "mysound.wav");
-
-    /* Test some filename quirks. */
-
-    create_wav_file(test_file, WAVE_FORMAT_PCM, 1, 8, 8000);
+    create_wav_file(test_file);
 
     br = PlaySoundA(test_file, NULL, SND_FILENAME | SND_NODEFAULT);
     ok(br, "PlaySound failed, got %d\n", br);
@@ -1857,42 +1867,15 @@ static void test_PlaySound(void)
 
     DeleteFileA(test_file);
 
-    /* Test many different formats. */
-    for (unsigned int i = 0; i < ARRAY_SIZE(sampling_rates); ++i)
-    {
-        winetest_push_context("rate %u", sampling_rates[i]);
+    /* Test a few exotic formats. */
+    br = PlaySoundA("test_s24le.wav", GetModuleHandleA(NULL), SND_RESOURCE | SND_NODEFAULT);
+    ok(br, "PlaySound failed, got %d\n", br);
 
-        for (unsigned int j = 0; j < ARRAY_SIZE(channel_counts); ++j)
-        {
-            winetest_push_context("channel count %u", channel_counts[j]);
+    br = PlaySoundA("test_s24_32le.wav", GetModuleHandleA(NULL), SND_RESOURCE | SND_NODEFAULT);
+    /* Not supported on some Wine drivers. */
+    todo_wine_if(!br)
+    ok(br, "PlaySound failed, got %d\n", br);
 
-            for (unsigned int k = 0; k < ARRAY_SIZE(sample_formats); ++k)
-            {
-                winetest_push_context("type %s, depth %u", sample_formats[k][0] == WAVE_FORMAT_PCM ? "PCM" : "float",
-                        sample_formats[k][1]);
-
-                create_wav_file(test_file, sample_formats[k][0], channel_counts[j],
-                        sample_formats[k][1], sampling_rates[i]);
-
-                br = PlaySoundA(test_file, NULL, SND_FILENAME | SND_NODEFAULT);
-                ok(br, "PlaySound failed, got %d\n", br);
-
-                /* SND_ALIAS fallbacks to SND_FILENAME */
-                br = PlaySoundA(test_file, NULL, SND_ALIAS | SND_NODEFAULT);
-                ok(br, "PlaySound failed, got %d\n", br);
-
-                DeleteFileA(test_file);
-
-                winetest_pop_context();
-            }
-
-            winetest_pop_context();
-        }
-
-        winetest_pop_context();
-    }
-
-    /* Test a few more exotic formats. */
     br = PlaySoundA("test_alaw.wav", GetModuleHandleA(NULL), SND_RESOURCE | SND_NODEFAULT);
     ok(br, "PlaySound failed, got %d\n", br);
 
@@ -1916,6 +1899,585 @@ static void test_PlaySound(void)
     ok(br, "PlaySound failed, got %d\n", br);
 }
 
+static MMRESULT validate_fmt(const WAVEFORMATEXTENSIBLE *fmt, BOOL direct)
+{
+    WAVEFORMATEXTENSIBLE fmt2;
+    BOOL extensible = TRUE;
+    MMRESULT ret;
+
+    /* Reduce non-extensible formats to extensible ones. */
+    if (fmt->Format.wFormatTag != WAVE_FORMAT_EXTENSIBLE)
+    {
+        fmt2.Format = fmt->Format;
+        extensible = FALSE;
+
+        switch (fmt2.Format.wFormatTag)
+        {
+            case WAVE_FORMAT_PCM: fmt2.SubFormat = KSDATAFORMAT_SUBTYPE_PCM; break;
+            case WAVE_FORMAT_IEEE_FLOAT: fmt2.SubFormat = KSDATAFORMAT_SUBTYPE_IEEE_FLOAT; break;
+            case WAVE_FORMAT_ALAW: fmt2.SubFormat = KSDATAFORMAT_SUBTYPE_ALAW; break;
+            case WAVE_FORMAT_MULAW: fmt2.SubFormat = KSDATAFORMAT_SUBTYPE_MULAW; break;
+            default: return WAVERR_BADFORMAT;
+        }
+
+        if (fmt2.Format.nChannels > 2)
+            return WAVERR_BADFORMAT;
+
+        fmt2.dwChannelMask = (1u << fmt2.Format.nChannels) - 1;
+        fmt2.Samples.wValidBitsPerSample = fmt2.Format.wBitsPerSample;
+        fmt2.Format.cbSize = sizeof(fmt2) - sizeof(fmt2.Format);
+    }
+    else
+    {
+        if (fmt->Format.cbSize < sizeof(fmt2) - sizeof(fmt2.Format))
+            return WAVERR_BADFORMAT;
+        fmt2 = *fmt;
+    }
+
+    if ((fmt2.Format.nChannels == 0) || fmt2.Format.nSamplesPerSec == 0)
+        ret = WAVERR_BADFORMAT;
+    else if (fmt2.Format.nBlockAlign != fmt2.Format.nChannels * fmt2.Format.wBitsPerSample / 8)
+        ret = WAVERR_BADFORMAT;
+    else if (extensible && fmt2.Format.nAvgBytesPerSec != fmt2.Format.nBlockAlign * fmt2.Format.nSamplesPerSec)
+        ret = direct ? MMSYSERR_INVALPARAM : WAVERR_BADFORMAT;
+    else if (IsEqualGUID(&fmt2.SubFormat, &KSDATAFORMAT_SUBTYPE_PCM))
+    {
+        if (fmt2.Format.wBitsPerSample % 8 != 0)
+            ret = WAVERR_BADFORMAT;
+        else if (fmt2.Format.wBitsPerSample == 0)
+            ret = WAVERR_BADFORMAT;
+        else if (fmt2.Format.wBitsPerSample == 32 && fmt2.Samples.wValidBitsPerSample == 0)
+            ret = WAVERR_BADFORMAT;
+        else if (fmt2.Format.wBitsPerSample == 32 && fmt2.Samples.wValidBitsPerSample > fmt2.Format.wBitsPerSample)
+            ret = WAVERR_BADFORMAT;
+        else if (fmt2.Format.wBitsPerSample != 8 && fmt2.Format.wBitsPerSample != 16
+                && fmt2.Format.wBitsPerSample != 24 && fmt2.Format.wBitsPerSample != 32)
+            ret = direct ? MMSYSERR_INVALPARAM : WAVERR_BADFORMAT;
+        else if (fmt2.Format.wBitsPerSample == 32 && fmt2.Samples.wValidBitsPerSample == 24)
+            ret = MMSYSERR_NOERROR;
+        else if (fmt2.Samples.wValidBitsPerSample != fmt2.Format.wBitsPerSample)
+            ret = WAVERR_BADFORMAT;
+        else
+            ret = MMSYSERR_NOERROR;
+    }
+    else if (IsEqualGUID(&fmt2.SubFormat, &KSDATAFORMAT_SUBTYPE_IEEE_FLOAT))
+    {
+        if (fmt2.Format.wBitsPerSample % 8 != 0)
+            ret = WAVERR_BADFORMAT;
+        else if (fmt2.Format.wBitsPerSample == 0)
+            ret = WAVERR_BADFORMAT;
+        else if (fmt2.Samples.wValidBitsPerSample == 0)
+            ret = WAVERR_BADFORMAT;
+        else if (fmt2.Samples.wValidBitsPerSample > fmt2.Format.wBitsPerSample)
+            ret = WAVERR_BADFORMAT;
+        else if (fmt2.Format.wBitsPerSample != 32 && fmt2.Format.wBitsPerSample != 64)
+            ret = direct ? MMSYSERR_INVALPARAM : WAVERR_BADFORMAT;
+        else if (fmt2.Format.wBitsPerSample != 32)
+            ret = WAVERR_BADFORMAT;
+        else if (fmt2.Samples.wValidBitsPerSample != fmt2.Format.wBitsPerSample)
+            ret = WAVERR_BADFORMAT;
+        else
+            ret = MMSYSERR_NOERROR;
+    }
+    else if (IsEqualGUID(&fmt2.SubFormat, &KSDATAFORMAT_SUBTYPE_ALAW) || IsEqualGUID(&fmt2.SubFormat, &KSDATAFORMAT_SUBTYPE_MULAW))
+    {
+        if (direct || extensible)
+            ret = WAVERR_BADFORMAT;
+        else if (fmt2.Format.wBitsPerSample != 8)
+            ret = WAVERR_BADFORMAT;
+        else if (fmt2.Samples.wValidBitsPerSample != fmt2.Format.wBitsPerSample)
+            ret = WAVERR_BADFORMAT;
+        else
+            ret = MMSYSERR_NOERROR;
+    }
+    else
+        ret = WAVERR_BADFORMAT;
+
+    return ret;
+}
+
+static void test_format(WAVEFORMATEXTENSIBLE *fmt)
+{
+    BOOL bit_mismatch = FALSE, channel_mismatch = FALSE;
+    MMRESULT mmr, expected;
+    HWAVEOUT hwo;
+
+    bit_mismatch |= fmt->Format.wFormatTag == WAVE_FORMAT_PCM && fmt->Format.wBitsPerSample == 64;
+    bit_mismatch |= fmt->Format.wFormatTag == WAVE_FORMAT_IEEE_FLOAT && fmt->Format.wBitsPerSample != 32;
+    bit_mismatch |= fmt->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE
+            && fmt->Samples.wValidBitsPerSample != fmt->Format.wBitsPerSample;
+
+    if (fmt->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+    {
+        switch (fmt->Format.nChannels)
+        {
+            case 1:
+                channel_mismatch = fmt->dwChannelMask != KSAUDIO_SPEAKER_MONO;
+                break;
+
+            case 2:
+                channel_mismatch = fmt->dwChannelMask != KSAUDIO_SPEAKER_STEREO;
+                break;
+
+            case 4:
+                channel_mismatch = fmt->dwChannelMask != KSAUDIO_SPEAKER_QUAD;
+                break;
+
+            case 6:
+                channel_mismatch = fmt->dwChannelMask != KSAUDIO_SPEAKER_5POINT1;
+                break;
+
+            case 8:
+                channel_mismatch = fmt->dwChannelMask != KSAUDIO_SPEAKER_7POINT1_SURROUND
+                        && fmt->dwChannelMask != KSAUDIO_SPEAKER_7POINT1;
+                break;
+        }
+    }
+
+
+    hwo = (void *)0xdeadf00d;
+    expected = validate_fmt(fmt, FALSE);
+    mmr = waveOutOpen(&hwo, WAVE_MAPPER, (const WAVEFORMATEX *)fmt, 0, 0, CALLBACK_NULL | WAVE_FORMAT_QUERY);
+    ok(hwo == (void *)0xdeadf00d, "Unexpected waveout %p\n", hwo);
+    if (expected == MMSYSERR_NOERROR)
+    {
+        /* Correct formats should be accepted. */
+        todo_wine_if(mmr != expected &&
+                /* Wine currently rejects more aggressively formats with broken bitness. */
+                (bit_mismatch
+                /* winecoreaudio.drv specifically doesn't like having zero channels. */
+                || fmt->Format.nChannels == 0
+                /* Wine's G.711 decoder only accept some standard sampling rates. */
+                || fmt->Format.wFormatTag == WAVE_FORMAT_ALAW || fmt->Format.wFormatTag == WAVE_FORMAT_MULAW
+                /* Wine needs cbSize to be precise, native accepts it when it's too large. */
+                || fmt->Format.cbSize > sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX)))
+        ok(mmr == expected, "waveOutOpen(QUERY) got result %#08x, expected %#08x\n", mmr, expected);
+    }
+    else
+    {
+        /* With incorrect formats it's a mess. Native emits all sorts of possible
+         * error codes, including MMSYSERR_NOERROR, without any apparent logic.
+         * I tried to find some regularity, but it seems hopeless. */
+        ok(mmr == MMSYSERR_NOERROR || mmr == WAVERR_BADFORMAT || mmr == MMSYSERR_INVALPARAM,
+                "waveOutOpen(QUERY) got result %#08x\n", mmr);
+    }
+
+    hwo = (void *)0xdeadf00d;
+    expected = validate_fmt(fmt, TRUE);
+    mmr = waveOutOpen(&hwo, WAVE_MAPPER, (const WAVEFORMATEX *)fmt, 0, 0, CALLBACK_NULL | WAVE_FORMAT_QUERY | WAVE_FORMAT_DIRECT);
+    ok(hwo == (void *)0xdeadf00d, "Unexpected waveout %p\n", hwo);
+    if (expected == MMSYSERR_NOERROR)
+    {
+        todo_wine_if(mmr != expected &&
+                /* Wine currently rejects more aggressively formats with broken bitness. */
+                (bit_mismatch
+                /* winecoreaudio.drv specifically doesn't like having zero channels. */
+                || fmt->Format.nChannels == 0
+                /* Wine's G.711 decoder only accept some standard sampling rates. */
+                || fmt->Format.wFormatTag == WAVE_FORMAT_ALAW || fmt->Format.wFormatTag == WAVE_FORMAT_MULAW
+                /* Wine needs cbSize to be precise, native accepts it when it's too large. */
+                || fmt->Format.cbSize > sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX)))
+        ok(mmr == expected, "waveOutOpen(QUERY | DIRECT) got result %#08x, expected %#08x\n", mmr, expected);
+    }
+    else
+    {
+        ok(mmr == MMSYSERR_NOERROR || mmr == WAVERR_BADFORMAT || mmr == MMSYSERR_INVALPARAM,
+                "waveOutOpen(QUERY | DIRECT) got result %#08x\n", mmr);
+    }
+
+    hwo = (void *)0xdeadf00d;
+    expected = validate_fmt(fmt, FALSE);
+    mmr = waveOutOpen(&hwo, WAVE_MAPPER, (const WAVEFORMATEX *)fmt, 0, 0, CALLBACK_NULL);
+    todo_wine_if(mmr != expected &&
+            (expected != MMSYSERR_NOERROR
+            || fmt->Format.wFormatTag == WAVE_FORMAT_ALAW || fmt->Format.wFormatTag == WAVE_FORMAT_MULAW
+            || fmt->Format.cbSize > sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX)
+            /* Native seems to largely ignore when the channel mask has nonsensical values, while Wine is more picky. */
+            || (fmt->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE && __popcnt(fmt->dwChannelMask) != fmt->Format.nChannels)
+            /* Some drivers do not support 24-on-32 bits samples. */
+            || (fmt->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE && fmt->Format.wBitsPerSample == 32 && fmt->Samples.wValidBitsPerSample == 24)))
+    ok(mmr == expected || broken(channel_mismatch), "waveOutOpen(0) got result %#08x, expected %#08x\n", mmr, expected);
+    ok((mmr == MMSYSERR_NOERROR) == !!hwo, "Unexpected waveout %p\n", hwo);
+
+    if (hwo && hwo != (void *)0xdeadf00d)
+    {
+        mmr = waveOutClose(hwo);
+        ok(mmr == MMSYSERR_NOERROR, "Unexpected result %#08x\n", mmr);
+    }
+
+    hwo = (void *)0xdeadf00d;
+    expected = validate_fmt(fmt, TRUE);
+    mmr = waveOutOpen(&hwo, WAVE_MAPPER, (const WAVEFORMATEX *)fmt, 0, 0, CALLBACK_NULL | WAVE_FORMAT_DIRECT);
+    todo_wine_if(mmr != expected && !(mmr == MMSYSERR_INVALPARAM && expected == WAVERR_BADFORMAT) &&
+            (expected != MMSYSERR_NOERROR
+            || fmt->Format.cbSize > sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX)
+            /* Wine currently doesn't accept 24-bit PCM in direct mode. */
+            || fmt->Format.wBitsPerSample == 24
+            || (fmt->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE && __popcnt(fmt->dwChannelMask) != fmt->Format.nChannels)
+            /* Some drivers do not support 24-on-32 bits samples. */
+            || (fmt->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE && fmt->Format.wBitsPerSample == 32 && fmt->Samples.wValidBitsPerSample == 24)))
+    ok(mmr == expected || (mmr == MMSYSERR_INVALPARAM && expected == WAVERR_BADFORMAT) || broken(channel_mismatch),
+            "waveOutOpen(DIRECT) got result %#08x, expected %#08x\n", mmr, expected);
+    ok((mmr == MMSYSERR_NOERROR) == !!hwo, "Unexpected waveout %p\n", hwo);
+
+    if (hwo && hwo != (void *)0xdeadf00d)
+    {
+        mmr = waveOutClose(hwo);
+        ok(mmr == MMSYSERR_NOERROR, "Unexpected result %#08x\n", mmr);
+    }
+}
+
+static void push_format_context(const WAVEFORMATEXTENSIBLE *fmt)
+{
+    static const char *format_str[] =
+    {
+        [WAVE_FORMAT_PCM] = "P",
+        [WAVE_FORMAT_IEEE_FLOAT] = "F",
+        [WAVE_FORMAT_ALAW] = "A",
+        [WAVE_FORMAT_MULAW] = "MU",
+    };
+
+    if (fmt->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+    {
+        winetest_push_context("%sX%u(%u)x%lux%u:%lx", format_str[fmt->SubFormat.Data1],
+                fmt->Format.wBitsPerSample, fmt->Samples.wValidBitsPerSample,
+                fmt->Format.nSamplesPerSec, fmt->Format.nChannels, fmt->dwChannelMask);
+    }
+    else
+    {
+        winetest_push_context("%s%ux%lux%u", format_str[fmt->Format.wFormatTag],
+                fmt->Format.wBitsPerSample, fmt->Format.nSamplesPerSec, fmt->Format.nChannels);
+    }
+}
+
+struct wave_format
+{
+    WAVEFORMATEXTENSIBLE format;
+    const char *additional_context;
+};
+
+struct wave_format *wave_formats = NULL;
+size_t wave_format_count = 0;
+size_t wave_format_capacity = 0;
+
+static WAVEFORMATEXTENSIBLE *push_wave_format_with_context(const WAVEFORMATEXTENSIBLE *base_fmt,
+        const char *additional_context)
+{
+    if (wave_format_count == wave_format_capacity)
+    {
+        /* Variable base_fmt may point inside wave_formats memory,
+         * therefore use a temporary during reallocation. */
+        WAVEFORMATEXTENSIBLE tmp_fmt;
+        tmp_fmt = *base_fmt;
+
+        wave_format_capacity = max(1, 2 * wave_format_capacity);
+
+        wave_formats = realloc(wave_formats,
+                sizeof(*wave_formats) * wave_format_capacity);
+        assert(wave_formats);
+
+        wave_formats[wave_format_count].format = tmp_fmt;
+    }
+    else
+        wave_formats[wave_format_count].format = *base_fmt;
+
+
+    wave_formats[wave_format_count].additional_context = additional_context;
+
+    return &wave_formats[wave_format_count++].format;
+}
+
+static WAVEFORMATEXTENSIBLE *push_wave_format(const WAVEFORMATEXTENSIBLE *base_fmt)
+{
+    return push_wave_format_with_context(base_fmt, NULL);
+}
+
+static void convert_to_unextensible(WAVEFORMATEXTENSIBLE *fmt)
+{
+    assert(fmt->Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE);
+
+    fmt->Format.wFormatTag = fmt->SubFormat.Data1;
+    fmt->Format.cbSize = 0;
+    memset((&fmt->Format) + 1, 0, sizeof(*fmt) - sizeof(fmt->Format));
+}
+
+static WAVEFORMATEX *repush_wave_format_as_unextensible(void)
+{
+    WAVEFORMATEXTENSIBLE *fmt;
+
+    fmt = push_wave_format_with_context(&wave_formats[wave_format_count - 1].format,
+            wave_formats[wave_format_count - 1].additional_context);
+
+    convert_to_unextensible(fmt);
+
+    return &fmt->Format;
+}
+
+void fill_wave_formats(const WAVEFORMATEXTENSIBLE *base_fmt)
+{
+    static const DWORD channel_count_mask[][2] =
+    {
+        {0, 0},
+
+        {1, KSAUDIO_SPEAKER_DIRECTOUT},
+        {1, KSAUDIO_SPEAKER_MONO},
+        {1, KSAUDIO_SPEAKER_STEREO},
+        {1, SPEAKER_BACK_LEFT},
+        {1, SPEAKER_BACK_LEFT | SPEAKER_TOP_BACK_CENTER},
+        {1, KSAUDIO_SPEAKER_7POINT1_SURROUND},
+        {1, KSAUDIO_SPEAKER_MONO | SPEAKER_ALL},
+        {1, SPEAKER_ALL},
+        {1, KSAUDIO_SPEAKER_MONO | SPEAKER_RESERVED},
+        {1, SPEAKER_RESERVED},
+
+        {2, KSAUDIO_SPEAKER_DIRECTOUT},
+        {2, KSAUDIO_SPEAKER_MONO},
+        {2, KSAUDIO_SPEAKER_STEREO},
+        {2, SPEAKER_BACK_LEFT},
+        {2, SPEAKER_BACK_LEFT | SPEAKER_TOP_BACK_CENTER},
+        {2, KSAUDIO_SPEAKER_7POINT1_SURROUND},
+        {2, KSAUDIO_SPEAKER_MONO | SPEAKER_ALL},
+        {2, KSAUDIO_SPEAKER_STEREO | SPEAKER_ALL},
+        {2, SPEAKER_ALL},
+        {2, KSAUDIO_SPEAKER_STEREO | SPEAKER_RESERVED},
+        {2, SPEAKER_RESERVED},
+
+        {4, KSAUDIO_SPEAKER_DIRECTOUT},
+        {4, KSAUDIO_SPEAKER_QUAD},
+        {4, KSAUDIO_SPEAKER_QUAD | SPEAKER_ALL},
+        {4, SPEAKER_ALL},
+        {4, KSAUDIO_SPEAKER_QUAD | SPEAKER_RESERVED},
+        {4, SPEAKER_RESERVED},
+
+        {4, KSAUDIO_SPEAKER_DIRECTOUT},
+        {4, KSAUDIO_SPEAKER_5POINT1},
+        {4, KSAUDIO_SPEAKER_5POINT1 | SPEAKER_ALL},
+        {4, SPEAKER_ALL},
+        {4, KSAUDIO_SPEAKER_5POINT1 | SPEAKER_RESERVED},
+        {4, SPEAKER_RESERVED},
+
+        {8, KSAUDIO_SPEAKER_DIRECTOUT},
+        {8, KSAUDIO_SPEAKER_MONO},
+        {8, KSAUDIO_SPEAKER_STEREO},
+        {8, KSAUDIO_SPEAKER_7POINT1_SURROUND},
+        {8, KSAUDIO_SPEAKER_7POINT1_SURROUND & ~SPEAKER_SIDE_LEFT},
+        {8, (KSAUDIO_SPEAKER_7POINT1_SURROUND & ~SPEAKER_SIDE_LEFT) | SPEAKER_FRONT_RIGHT_OF_CENTER},
+        {8, KSAUDIO_SPEAKER_7POINT1_SURROUND | SPEAKER_ALL},
+        {8, SPEAKER_ALL},
+        {8, KSAUDIO_SPEAKER_7POINT1_SURROUND | SPEAKER_RESERVED},
+        {8, SPEAKER_RESERVED},
+    };
+
+    static const DWORD sample_formats[][3] =
+    {
+        {WAVE_FORMAT_PCM, 0, 0},
+        {WAVE_FORMAT_PCM, 1, 1},
+        {WAVE_FORMAT_PCM, 15, 15},
+        {WAVE_FORMAT_PCM, 16, 0},
+        {WAVE_FORMAT_PCM, 16, 1},
+        {WAVE_FORMAT_PCM, 16, 8},
+        {WAVE_FORMAT_PCM, 16, 15},
+        {WAVE_FORMAT_PCM, 16, 16},
+        {WAVE_FORMAT_PCM, 16, 17},
+        {WAVE_FORMAT_PCM, 24, 16},
+        {WAVE_FORMAT_PCM, 24, 23},
+        {WAVE_FORMAT_PCM, 24, 24},
+        {WAVE_FORMAT_PCM, 24, 25},
+        {WAVE_FORMAT_PCM, 32, 0},
+        {WAVE_FORMAT_PCM, 32, 1},
+        {WAVE_FORMAT_PCM, 32, 8},
+        {WAVE_FORMAT_PCM, 32, 16},
+        {WAVE_FORMAT_PCM, 32, 17},
+        {WAVE_FORMAT_PCM, 32, 24},
+        {WAVE_FORMAT_PCM, 32, 31},
+        {WAVE_FORMAT_PCM, 32, 33},
+        {WAVE_FORMAT_PCM, 32, 32},
+        {WAVE_FORMAT_PCM, 64, 64},
+        {WAVE_FORMAT_PCM, 96, 96},
+        {WAVE_FORMAT_PCM, 100, 100},
+
+        {WAVE_FORMAT_IEEE_FLOAT, 0, 0},
+        {WAVE_FORMAT_IEEE_FLOAT, 1, 1},
+        {WAVE_FORMAT_IEEE_FLOAT, 15, 15},
+        {WAVE_FORMAT_IEEE_FLOAT, 16, 16},
+        {WAVE_FORMAT_IEEE_FLOAT, 24, 24},
+        {WAVE_FORMAT_IEEE_FLOAT, 32, 0},
+        {WAVE_FORMAT_IEEE_FLOAT, 32, 1},
+        {WAVE_FORMAT_IEEE_FLOAT, 32, 16},
+        {WAVE_FORMAT_IEEE_FLOAT, 32, 31},
+        {WAVE_FORMAT_IEEE_FLOAT, 32, 32},
+        {WAVE_FORMAT_IEEE_FLOAT, 32, 33},
+        {WAVE_FORMAT_IEEE_FLOAT, 64, 0},
+        {WAVE_FORMAT_IEEE_FLOAT, 64, 32},
+        {WAVE_FORMAT_IEEE_FLOAT, 64, 63},
+        {WAVE_FORMAT_IEEE_FLOAT, 64, 64},
+        {WAVE_FORMAT_IEEE_FLOAT, 64, 65},
+        {WAVE_FORMAT_IEEE_FLOAT, 96, 96},
+        {WAVE_FORMAT_IEEE_FLOAT, 100, 100},
+
+        {WAVE_FORMAT_ALAW, 8, 0},
+        {WAVE_FORMAT_ALAW, 8, 1},
+        {WAVE_FORMAT_ALAW, 8, 7},
+        {WAVE_FORMAT_ALAW, 8, 8},
+        {WAVE_FORMAT_ALAW, 8, 9},
+        {WAVE_FORMAT_ALAW, 16, 0},
+        {WAVE_FORMAT_ALAW, 16, 1},
+        {WAVE_FORMAT_ALAW, 16, 8},
+        {WAVE_FORMAT_ALAW, 16, 16},
+        {WAVE_FORMAT_ALAW, 16, 17},
+
+        {WAVE_FORMAT_MULAW, 8, 0},
+        {WAVE_FORMAT_MULAW, 8, 1},
+        {WAVE_FORMAT_MULAW, 8, 7},
+        {WAVE_FORMAT_MULAW, 8, 8},
+        {WAVE_FORMAT_MULAW, 8, 9},
+        {WAVE_FORMAT_MULAW, 16, 0},
+        {WAVE_FORMAT_MULAW, 16, 1},
+        {WAVE_FORMAT_MULAW, 16, 8},
+        {WAVE_FORMAT_MULAW, 16, 16},
+        {WAVE_FORMAT_MULAW, 16, 17},
+    };
+
+    static const DWORD sample_rates[] =
+    {
+        0,
+        8000,
+        11025,
+        16000,
+        22050,
+        43123,
+        44100,
+        48000,
+        96000,
+        192000,
+    };
+
+    WAVEFORMATEXTENSIBLE *fmt;
+    unsigned int i;
+
+    wave_format_count = 0;
+
+    push_wave_format(base_fmt);
+    repush_wave_format_as_unextensible();
+
+    /* Change channel count or mask. */
+    for (i = 0; i < ARRAY_SIZE(channel_count_mask); ++i)
+    {
+        fmt = push_wave_format(base_fmt);
+        fmt->Format.nChannels = channel_count_mask[i][0];
+        fmt->dwChannelMask = channel_count_mask[i][1];
+
+        if (i == 0 || channel_count_mask[i][0] != channel_count_mask[i - 1][0])
+            repush_wave_format_as_unextensible();
+    }
+
+    /* Change sample format. */
+    for (i = 0; i < ARRAY_SIZE(sample_formats); ++i)
+    {
+        fmt = push_wave_format(base_fmt);
+        fmt->SubFormat.Data1 = sample_formats[i][0];
+        fmt->Format.wBitsPerSample = sample_formats[i][1];
+        fmt->Samples.wValidBitsPerSample = sample_formats[i][2];
+
+        if (fmt->Format.wBitsPerSample == fmt->Samples.wValidBitsPerSample)
+            repush_wave_format_as_unextensible();
+    }
+
+    /* Change the sample rate. */
+    for (i = 0; i < ARRAY_SIZE(sample_rates); ++i)
+    {
+        fmt = push_wave_format(base_fmt);
+        fmt->Format.nSamplesPerSec = sample_rates[i];
+        repush_wave_format_as_unextensible();
+    }
+
+    /* Fix nBlockAlign and nAvgBytesPerSec up to here. */
+    for (i = 0; i < wave_format_count; ++i)
+    {
+        fmt = &wave_formats[i].format;
+
+        fmt->Format.nBlockAlign = fmt->Format.nChannels * fmt->Format.wBitsPerSample / CHAR_BIT;
+        fmt->Format.nAvgBytesPerSec = fmt->Format.nBlockAlign * fmt->Format.nSamplesPerSec;
+    }
+
+    /* Break nAvgBytesPerSec. */
+    fmt = push_wave_format_with_context(base_fmt, "nAvgBytesPerSec = 0");
+    fmt->Format.nAvgBytesPerSec = 0;
+    repush_wave_format_as_unextensible();
+
+    fmt = push_wave_format_with_context(base_fmt, "nAvgBytesPerSec += 1");
+    fmt->Format.nAvgBytesPerSec += 1;
+    repush_wave_format_as_unextensible();
+
+    fmt = push_wave_format_with_context(base_fmt, "nAvgBytesPerSec -= 1");
+    fmt->Format.nAvgBytesPerSec -= 1;
+    repush_wave_format_as_unextensible();
+
+    /* Break nBlockAlign. */
+    fmt = push_wave_format_with_context(base_fmt, "nBlockAlign = 0");
+    fmt->Format.nBlockAlign = 0;
+    repush_wave_format_as_unextensible();
+
+    fmt = push_wave_format_with_context(base_fmt, "nBlockAlign += 1");
+    fmt->Format.nBlockAlign += 1;
+    repush_wave_format_as_unextensible();
+
+    fmt = push_wave_format_with_context(base_fmt, "nBlockAlign -= 1");
+    fmt->Format.nBlockAlign -= 1;
+    repush_wave_format_as_unextensible();
+
+    /* Break cbSize. */
+    fmt = push_wave_format_with_context(base_fmt, "cbSize = 0");
+    fmt->Format.cbSize = 0;
+
+    fmt = push_wave_format_with_context(base_fmt, "cbSize += 1");
+    fmt->Format.cbSize += 1;
+
+    fmt = push_wave_format_with_context(base_fmt, "cbSize -= 1");
+    fmt->Format.cbSize -= 1;
+}
+
+static void test_formats(void)
+{
+    static const WAVEFORMATEXTENSIBLE base_fmt =
+    {
+        .Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE,
+        .Format.nChannels = 2,
+        .Format.nSamplesPerSec = 48000,
+        .Format.wBitsPerSample = 16,
+        .Format.nBlockAlign = (2 * 16) / 8,
+        .Format.nAvgBytesPerSec = (2 * 16) / 8 * 48000,
+        .Format.cbSize = sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX),
+        .Samples.wValidBitsPerSample = 16,
+        .dwChannelMask = KSAUDIO_SPEAKER_STEREO,
+        .SubFormat = KSDATAFORMAT_SUBTYPE_PCM,
+    };
+    unsigned int i;
+
+    if(waveOutGetNumDevs() == 0) {
+        skip("No output devices available\n");
+        return;
+    }
+
+    fill_wave_formats(&base_fmt);
+
+    for (i = 0; i < wave_format_count; ++i)
+    {
+        const char *additional_context = wave_formats[i].additional_context;
+        /* The test "cbSize += 1" needs to reserve additional memory. */
+        char buf[sizeof(WAVEFORMATEXTENSIBLE) + 1];
+        WAVEFORMATEXTENSIBLE *fmt = (WAVEFORMATEXTENSIBLE*)&buf;
+        *fmt = wave_formats[i].format;
+
+        winetest_push_context("test %u%s%s", i, additional_context ? ", " : "",
+                additional_context ? additional_context : "");
+        push_format_context(fmt);
+        test_format(fmt);
+        winetest_pop_context();
+        winetest_pop_context();
+    }
+}
+
 START_TEST(wave)
 {
     test_multiple_waveopens();
@@ -1924,4 +2486,5 @@ START_TEST(wave)
     test_fragmentsize();
     test_reentrant_callback();
     test_PlaySound();
+    test_formats();
 }

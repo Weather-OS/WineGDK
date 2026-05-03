@@ -22,7 +22,6 @@
 
 #include "ntstatus.h"
 #define COBJMACROS
-#define WIN32_NO_STATUS
 #include "windef.h"
 #include "winbase.h"
 #include "wingdi.h"
@@ -74,25 +73,21 @@ static BOOL load_driver(const WCHAR *name, DriverFuncs *driver)
 {
     NTSTATUS status;
     WCHAR driver_module[264], path[MAX_PATH];
+    UNICODE_STRING str;
     struct test_connect_params params;
 
     lstrcpyW(driver_module, L"wine");
     lstrcatW(driver_module, name);
     lstrcatW(driver_module, L".drv");
+    RtlInitUnicodeString( &str, driver_module );
 
     TRACE("Attempting to load %s\n", wine_dbgstr_w(driver_module));
 
-    driver->module = LoadLibraryW(driver_module);
-    if(!driver->module){
-        TRACE("Unable to load %s: %lu\n", wine_dbgstr_w(driver_module),
-                GetLastError());
+    status = __wine_load_unix_lib( &str, &driver->module, &driver->module_unixlib );
+    if (status)
+    {
+        TRACE("Unable to load %s: %lx\n", wine_dbgstr_w(driver_module), status );
         return FALSE;
-    }
-
-    if ((status = NtQueryVirtualMemory(GetCurrentProcess(), driver->module, MemoryWineUnixFuncs,
-        &driver->module_unixlib, sizeof(driver->module_unixlib), NULL))) {
-        ERR("Unable to load UNIX functions: %lx\n", status);
-        goto fail;
     }
 
     if ((status = __wine_unix_call(driver->module_unixlib, process_attach, NULL))) {
@@ -119,7 +114,7 @@ static BOOL load_driver(const WCHAR *name, DriverFuncs *driver)
 
     return TRUE;
 fail:
-    FreeLibrary(driver->module);
+    __wine_unload_unix_lib( driver->module );
     return FALSE;
 }
 
@@ -155,15 +150,15 @@ static BOOL WINAPI init_driver(INIT_ONCE *once, void *param, void **context)
         driver.priority = Priority_Unavailable;
         if(load_driver(p, &driver)){
             if(driver.priority == Priority_Unavailable)
-                FreeLibrary(driver.module);
+                __wine_unload_unix_lib(driver.module);
             else if(!drvs.module || driver.priority > drvs.priority){
                 TRACE("Selecting driver %s with priority %s\n",
                         wine_dbgstr_w(p), get_priority_string(driver.priority));
                 if(drvs.module)
-                    FreeLibrary(drvs.module);
+                    __wine_unload_unix_lib(drvs.module);
                 drvs = driver;
             }else
-                FreeLibrary(driver.module);
+                __wine_unload_unix_lib(driver.module);
         }else
             TRACE("Failed to load driver %s\n", wine_dbgstr_w(p));
 
@@ -196,7 +191,7 @@ static BOOL WINAPI init_driver(INIT_ONCE *once, void *param, void **context)
             "Maybe check dependencies with WINEDEBUG=warn+module.\n",
             wine_dbgstr_w(driver_list));
 
-    return drvs.module != 0;
+    return TRUE;
 }
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
@@ -212,17 +207,17 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
             if (drvs.module_unixlib)
             {
                 wine_unix_call( process_detach, NULL );
-                FreeLibrary( drvs.module );
-                if (midi_driver.module != drvs.module)
-                {
-                    MIDI_CALL( process_detach, NULL );
-                    FreeLibrary( midi_driver.module );
-                }
+                if (midi_driver.module != drvs.module) MIDI_CALL( process_detach, NULL );
             }
-            main_loop_stop();
+            if (lpvReserved) break;
 
-            if (!lpvReserved)
-                MMDevEnum_Free();
+            main_loop_stop();
+            if (drvs.module_unixlib)
+            {
+                __wine_unload_unix_lib( drvs.module );
+                if (midi_driver.module != drvs.module) __wine_unload_unix_lib( midi_driver.module );
+            }
+            MMDevEnum_Free();
             break;
     }
 

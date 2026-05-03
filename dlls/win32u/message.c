@@ -26,7 +26,6 @@
 
 #include <assert.h>
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 #include "winternl.h"
 #include "ddk/wdm.h"
 #include "win32u_private.h"
@@ -2232,13 +2231,17 @@ static LRESULT handle_internal_message( HWND hwnd, UINT msg, WPARAM wparam, LPAR
         window_rect = map_rect_raw_to_virt( window_rect, get_thread_dpi() );
 
         if (foreground) set_foreground_window( foreground, FALSE, TRUE );
-        switch (state_cmd)
+        switch (LOWORD(state_cmd))
         {
         case SC_RESTORE:
-            NtUserSetInternalWindowPos( hwnd, SW_SHOW, &window_rect, NULL );
+            if (HIWORD(state_cmd)) NtUserSetActiveWindow( hwnd );
+
+            /* make the win32 window restore to the current host window config */
+            set_window_normal_placement( hwnd, window_rect );
+
             /* fallthrough */
         default:
-            send_message( hwnd, WM_SYSCOMMAND, state_cmd, 0 );
+            send_message( hwnd, WM_SYSCOMMAND, LOWORD(state_cmd), 0 );
             break;
         case 0:
             if (!swp_flags) break;
@@ -2552,6 +2555,32 @@ static BOOL process_keyboard_message( MSG *msg, UINT hw_id, HWND hwnd_filter,
     return TRUE;
 }
 
+static WORD pointer_buttons_from_mouse_buttons( WORD mouse_flags )
+{
+    static const struct
+    {
+        WORD mouse_flag;
+        WORD pointer_flag;
+    }
+    flags[] =
+    {
+        { MK_LBUTTON, POINTER_MESSAGE_FLAG_FIRSTBUTTON },
+        { MK_RBUTTON, POINTER_MESSAGE_FLAG_SECONDBUTTON },
+        { MK_MBUTTON, POINTER_MESSAGE_FLAG_THIRDBUTTON },
+        { MK_XBUTTON1, POINTER_MESSAGE_FLAG_FOURTHBUTTON },
+        { MK_XBUTTON2, POINTER_MESSAGE_FLAG_FIFTHBUTTON },
+    };
+
+    WORD pointer_flags = 0;
+    unsigned int i;
+
+    for (i = 0; i < ARRAY_SIZE(flags); ++i)
+    {
+        if (mouse_flags & flags[i].mouse_flag) pointer_flags |= flags[i].pointer_flag;
+    }
+    return pointer_flags;
+}
+
 /***********************************************************************
  *          process_mouse_message
  *
@@ -2604,6 +2633,56 @@ static BOOL process_mouse_message( MSG *msg, UINT hw_id, ULONG_PTR extra_info, H
 
     msg->pt = point_phys_to_win_dpi( msg->hwnd, msg->pt );
     set_thread_dpi_awareness_context( get_window_dpi_awareness_context( msg->hwnd ));
+
+    if ((extra_info & 0xffffff00) != 0xff515700 && is_mouse_in_pointer_enabled( msg->hwnd ))
+    {
+        WORD flags = POINTER_MESSAGE_FLAG_INRANGE, pointer_button_flags;
+        DWORD message = 0;
+
+        pointer_button_flags = pointer_buttons_from_mouse_buttons( LOWORD( msg->wParam ));
+        if (pointer_button_flags) flags |= pointer_button_flags | POINTER_MESSAGE_FLAG_INCONTACT;
+
+        switch (msg->message)
+        {
+        case WM_MOUSEMOVE:
+            message = WM_POINTERUPDATE;
+            if (!pointer_button_flags) flags |= POINTER_MESSAGE_FLAG_PRIMARY;
+            break;
+        case WM_LBUTTONDOWN:
+        case WM_RBUTTONDOWN:
+        case WM_MBUTTONDOWN:
+        case WM_XBUTTONDOWN:
+            if (pointer_button_flags & (pointer_button_flags - 1))
+            {
+                /* More than one flag in pointer_button_flags, some buttons were already pressed.
+                 * WM_POINTERDOWN is only sent on the first button press. */
+                message = WM_POINTERUPDATE;
+            }
+            else
+            {
+                message = WM_POINTERDOWN;
+                flags |= POINTER_MESSAGE_FLAG_PRIMARY;
+            }
+            break;
+        case WM_LBUTTONUP:
+        case WM_RBUTTONUP:
+        case WM_MBUTTONUP:
+        case WM_XBUTTONUP:
+            /* WM_POINTERUP is only sent once all the buttons are up. */
+            message = pointer_button_flags ? WM_POINTERUPDATE : WM_POINTERUP;
+            break;
+        case WM_MOUSEWHEEL:
+            message = WM_POINTERWHEEL;
+            flags = HIWORD( msg->wParam );
+            break;
+        case WM_MOUSEHWHEEL:
+            message = WM_POINTERHWHEEL;
+            flags = HIWORD( msg->wParam );
+            break;
+        }
+
+        if (message) send_message( msg->hwnd, message, MAKELONG( 1, flags ), MAKELONG( msg->pt.x, msg->pt.y ) );
+    }
 
     /* FIXME: is this really the right place for this hook? */
     event.message = msg->message;
@@ -3363,11 +3442,11 @@ static DWORD wait_objects( DWORD count, const HANDLE *handles, DWORD timeout,
 static HANDLE normalize_std_handle( HANDLE handle )
 {
     if (handle == (HANDLE)STD_INPUT_HANDLE)
-        return NtCurrentTeb()->Peb->ProcessParameters->hStdInput;
+        return RtlGetCurrentPeb()->ProcessParameters->hStdInput;
     if (handle == (HANDLE)STD_OUTPUT_HANDLE)
-        return NtCurrentTeb()->Peb->ProcessParameters->hStdOutput;
+        return RtlGetCurrentPeb()->ProcessParameters->hStdOutput;
     if (handle == (HANDLE)STD_ERROR_HANDLE)
-        return NtCurrentTeb()->Peb->ProcessParameters->hStdError;
+        return RtlGetCurrentPeb()->ProcessParameters->hStdError;
 
     return handle;
 }

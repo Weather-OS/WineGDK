@@ -1172,6 +1172,7 @@ struct macdrv_client_surface *macdrv_client_surface_create(HWND hwnd)
  */
 void macdrv_SetDesktopWindow(HWND hwnd)
 {
+    static pthread_once_t app_icon_once = PTHREAD_ONCE_INIT;
     unsigned int width, height;
 
     TRACE("%p\n", hwnd);
@@ -1206,7 +1207,7 @@ void macdrv_SetDesktopWindow(HWND hwnd)
         SERVER_END_REQ;
     }
 
-    set_app_icon();
+    pthread_once(&app_icon_once, set_app_icon);
 }
 
 #define WM_WINE_NOTIFY_ACTIVITY WM_USER
@@ -1876,6 +1877,7 @@ void macdrv_window_did_unminimize(HWND hwnd)
     {
         TRACE("restoring win %p/%p\n", hwnd, data->cocoa_window);
         release_win_data(data);
+        NtUserSetActiveWindow(hwnd);
         send_message(hwnd, WM_SYSCOMMAND, SC_RESTORE, 0);
         return;
     }

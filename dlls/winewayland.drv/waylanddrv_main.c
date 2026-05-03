@@ -27,7 +27,6 @@
 #include <stdlib.h>
 
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 
 #include "waylanddrv.h"
 
@@ -67,7 +66,7 @@ static void wayland_init_process_name(void)
     DWORD utf8_size;
     int i;
 
-    appname = NtCurrentTeb()->Peb->ProcessParameters->ImagePathName.Buffer;
+    appname = RtlGetCurrentPeb()->ProcessParameters->ImagePathName.Buffer;
     if ((p = wcsrchr(appname, '/'))) appname = p + 1;
     if ((p = wcsrchr(appname, '\\'))) appname = p + 1;
     appname_len = lstrlenW(appname);

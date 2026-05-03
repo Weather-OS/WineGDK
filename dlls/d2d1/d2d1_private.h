@@ -511,10 +511,20 @@ struct d2d_curve_outline_vertex
     D2D1_POINT_2F prev, next;
 };
 
+struct d2d_geometry;
+
+struct d2d_geometry_ops
+{
+    void (*stream)(struct d2d_geometry *geometry, const D2D_MATRIX_3X2_F *transform,
+            ID2D1GeometrySink *sink);
+};
+
 struct d2d_geometry
 {
     ID2D1Geometry ID2D1Geometry_iface;
     LONG refcount;
+
+    const struct d2d_geometry_ops *ops;
 
     ID2D1Factory *factory;
 
@@ -582,6 +592,7 @@ struct d2d_geometry
             enum d2d_geometry_state state;
             HRESULT code;
             D2D1_FILL_MODE fill_mode;
+            UINT32 segment_flags;
             UINT32 segment_count;
 
             D2D1_RECT_F bounds;
@@ -604,6 +615,7 @@ struct d2d_geometry
             ID2D1Geometry **src_geometries;
             UINT32 geometry_count;
             D2D1_FILL_MODE fill_mode;
+            ID2D1PathGeometry *path;
         } group;
     } u;
 };
@@ -925,7 +937,7 @@ void d2d_command_list_fill_mesh(struct d2d_command_list *command_list, const str
 void d2d_command_list_fill_opacity_mask(struct d2d_command_list *command_list, const struct d2d_device_context *context,
         ID2D1Bitmap *bitmap, ID2D1Brush *orig_brush, const D2D1_RECT_F *dst_rect, const D2D1_RECT_F *src_rect);
 void d2d_command_list_push_layer(struct d2d_command_list *command_list, const struct d2d_device_context *context,
-        const D2D1_LAYER_PARAMETERS1 *params, ID2D1Layer *layer);
+        const D2D1_LAYER_PARAMETERS1 *params);
 void d2d_command_list_pop_layer(struct d2d_command_list *command_list);
 
 static inline BOOL d2d_array_reserve(void **elements, size_t *capacity, size_t count, size_t size)

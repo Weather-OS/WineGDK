@@ -33,6 +33,7 @@ import "windows.system.userprofile.idl";
 import "windows.ui.viewmanagement.idl";
 import "windows.applicationmodel.datatransfer.idl";
 import "windows.applicationmodel.core.idl";
+import "windows.applicationmodel.datatransfer.idl";
 
 namespace Windows.Security.ExchangeActiveSyncProvisioning {
     runtimeclass EasClientDeviceInformation;
@@ -53,4 +54,7 @@ namespace Windows.ApplicationModel.DataTransfer {
 
 namespace Windows.ApplicationModel.Core {
     runtimeclass CoreApplication;
+}
+namespace Windows.ApplicationModel.DataTransfer {
+    runtimeclass DataTransferManager;
 }

@@ -1,4 +1,4 @@
-EXTLIB    = libldap.a
+STATICLIB = libldap.a
 EXTRAINCL = -I$(srcdir)/include
 EXTRADEFS = -D_TIMEVAL_DEFINED
 

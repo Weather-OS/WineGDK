@@ -61,6 +61,7 @@ enum vkd3d_shader_api_version
     VKD3D_SHADER_API_VERSION_1_16,
     VKD3D_SHADER_API_VERSION_1_17,
     VKD3D_SHADER_API_VERSION_1_18,
+    VKD3D_SHADER_API_VERSION_1_19,
 
     VKD3D_FORCE_32_BIT_ENUM(VKD3D_SHADER_API_VERSION),
 };
@@ -1039,6 +1040,25 @@ enum vkd3d_shader_parameter_name
     VKD3D_SHADER_PARAMETER_NAME_BUMP_LUMINANCE_OFFSET_3,
     VKD3D_SHADER_PARAMETER_NAME_BUMP_LUMINANCE_OFFSET_4,
     VKD3D_SHADER_PARAMETER_NAME_BUMP_LUMINANCE_OFFSET_5,
+    /**
+     * A mask of projected textures.
+     *
+     * When this parameter is provided to a shader model 1.0-1.3 pixel shader,
+     * for each nonzero bit of this mask, the corresponding texture will be
+     * projected. That is, it will have its coordinates divided by their W
+     * component before sampling.
+     *
+     * The default value is zero, i.e. no textures are projected.
+     *
+     * The data type for this parameter must be
+     * VKD3D_SHADER_PARAMETER_DATA_TYPE_UINT32.
+     *
+     * Only VKD3D_SHADER_PARAMETER_TYPE_IMMEDIATE_CONSTANT is supported in this
+     * version of vkd3d-shader.
+     *
+     * \since 1.19
+     */
+    VKD3D_SHADER_PARAMETER_NAME_PROJECTED_TEXTURE_MASK,
 
     VKD3D_FORCE_32_BIT_ENUM(VKD3D_SHADER_PARAMETER_NAME),
 };

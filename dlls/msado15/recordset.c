@@ -173,22 +173,27 @@ static HRESULT update_current_row( struct recordset *recordset )
     return _Recordset_Update( &recordset->Recordset_iface, missing, missing);
 }
 
-static void cache_release( struct recordset *recordset )
+static int cache_release( struct recordset *recordset )
 {
+    int off;
+
     if (cache_is_empty( recordset ))
     {
         if (recordset->current_row)
             IRowset_ReleaseRows( recordset->row_set, 1, &recordset->current_row, NULL, NULL, NULL);
         recordset->current_row = DB_NULL_HROW;
-        return;
+        return recordset->cache.dir + (recordset->cache.dir < 0);
     }
 
+    off = recordset->cache.dir * recordset->cache.fetched;
+    if (recordset->cache.dir < 0) off++;
     IRowset_ReleaseRows( recordset->row_set, recordset->cache.fetched,
             recordset->cache.rows, NULL, NULL, NULL );
     recordset->cache.fetched = 0;
     recordset->cache.dir = 0;
     recordset->cache.pos = 0;
     recordset->current_row = DB_NULL_HROW;
+    return off;
 }
 
 static HRESULT get_bookmark( struct recordset *recordset, HROW row, VARIANT *bookmark )
@@ -1919,6 +1924,8 @@ static HRESULT WINAPI recordset_put_ActiveConnection( _Recordset *iface, VARIANT
 
     TRACE( "%p, %s\n", iface, debugstr_variant(&connection) );
 
+    if (recordset->state == adStateOpen) FIXME( "changing active connection\n" );
+
     switch( V_VT(&connection) )
     {
     case VT_BSTR:
@@ -2803,7 +2810,7 @@ static HRESULT WINAPI recordset_Open( _Recordset *iface, VARIANT source, VARIANT
             info[i].columnid.uName.pwszName = field->name;
         }
 
-        hr = create_mem_rowset(recordset->fields.count + 1, info, &rowset);
+        hr = create_client_cursor(recordset->fields.count + 1, info, &rowset);
         free(info);
         if (FAILED(hr))
             return hr;
@@ -2836,10 +2843,22 @@ static HRESULT WINAPI recordset_Open( _Recordset *iface, VARIANT source, VARIANT
     if (FAILED(hr) || !rowset)
         return hr;
 
-    hr = create_rowsetex(rowset, &rowsetex);
-    IUnknown_Release(rowset);
-    if (FAILED(hr))
-        return hr;
+    if (recordset->cursor_location == adUseServer)
+    {
+        hr = create_server_cursor(rowset, &rowsetex);
+        IUnknown_Release(rowset);
+        if (FAILED(hr))
+            return hr;
+    }
+    else if (recordset->cursor_location == adUseClient)
+    {
+        FIXME("unsupported adUseClient cursor location\n");
+        rowsetex = rowset;
+    }
+    else
+    {
+        rowsetex = rowset;
+    }
 
     hr = ADORecordsetConstruction_put_Rowset(&recordset->ADORecordsetConstruction_iface, rowsetex);
     IUnknown_Release(rowsetex);
@@ -2934,7 +2953,7 @@ static HRESULT WINAPI recordset_Update( _Recordset *iface, VARIANT fields, VARIA
     status = NULL;
     hr = IRowsetUpdate_Update( recordset->rowset_update, 0, 1, &recordset->current_row, NULL, &row, &status );
     if (FAILED(hr)) return hr;
-    if (status[0] == DBROWSTATUS_E_CANCELED) FIXME("status = DBROWSTATUS_E_CANCELED\n");
+    if (status && status[0] == DBROWSTATUS_E_CANCELED) FIXME("status = DBROWSTATUS_E_CANCELED\n");
     CoTaskMemFree( row );
     CoTaskMemFree( status );
 
@@ -3080,6 +3099,8 @@ static HRESULT WINAPI recordset_put_CursorLocation( _Recordset *iface, CursorLoc
     TRACE( "%p, %u\n", iface, cursor_loc );
 
     if (recordset->state == adStateOpen) return MAKE_ADO_HRESULT( adErrObjectOpen );
+    if (cursor_loc < adUseNone || cursor_loc > adUseClient)
+        return MAKE_ADO_HRESULT( adErrInvalidArgument );
 
     recordset->cursor_location = cursor_loc;
 
@@ -3434,21 +3455,40 @@ static HRESULT WINAPI recordset_Find( _Recordset *iface, BSTR criteria, LONG ski
     DBCOMPAREOP op;
     HACCESSOR hacc;
     BSTR col, val;
-    int int_buf;
+    int int_buf, off;
     HRESULT hr;
     VARIANT v;
 
     TRACE( "%p, %s, %ld, %d, %s\n", iface, debugstr_w(criteria), skip_records, search_direction,
            debugstr_variant(&start) );
 
+    if (recordset->state == adStateClosed) return MAKE_ADO_HRESULT( adErrObjectClosed );
     if (!criteria) return MAKE_ADO_HRESULT( adErrInvalidArgument );
     if (search_direction != adSearchForward && search_direction != adSearchBackward)
         return MAKE_ADO_HRESULT( adErrInvalidArgument );
     if (!recordset->rowset_find) return MAKE_ADO_HRESULT( adErrFeatureNotAvailable );
 
+    if (!recordset->current_row && !recordset->is_eof && !recordset->is_bof)
+    {
+        hr = cache_get( recordset, TRUE );
+        if (FAILED(hr)) return hr;
+    }
+    else if (recordset->is_eof && search_direction == adSearchBackward)
+    {
+        hr = _Recordset_MoveLast(iface);
+        if (FAILED(hr)) return hr;
+    }
+    else if (recordset->is_bof && search_direction == adSearchForward)
+    {
+        hr = _Recordset_MoveFirst(iface);
+        if (FAILED(hr)) return hr;
+    }
     if (!recordset->current_row) return S_FALSE;
+    hr = update_current_row( recordset );
+    if (FAILED(hr)) return hr;
 
-    if (V_VT(&start) == VT_ERROR && V_ERROR(&start) == DISP_E_PARAMNOTFOUND)
+    if ((V_VT(&start) == VT_ERROR && V_ERROR(&start) == DISP_E_PARAMNOTFOUND) ||
+            (V_VT(&start) == VT_BSTR && !SysStringLen(V_BSTR(&start))))
     {
         if (!recordset->bookmark_hacc)
             VariantInit( &start );
@@ -3475,10 +3515,16 @@ static HRESULT WINAPI recordset_Find( _Recordset *iface, BSTR criteria, LONG ski
     V_BSTR(&v) = col;
     hr = get_accessor( recordset, &v, &hacc );
     SysFreeString( col );
-    if (SUCCEEDED(hr))
-        hr = get_bookmark_data( &start, &bm_data, &bm_len, &int_buf );
     if (FAILED(hr))
     {
+        SysFreeString( val );
+        if (free_bookmark) VariantClear( &start );
+        return hr;
+    }
+    hr = get_bookmark_data( &start, &bm_data, &bm_len, &int_buf );
+    if (FAILED(hr))
+    {
+        IAccessor_ReleaseAccessor( recordset->accessor, hacc, NULL );
         SysFreeString( val );
         if (free_bookmark) VariantClear( &start );
         return hr;
@@ -3489,20 +3535,20 @@ static HRESULT WINAPI recordset_Find( _Recordset *iface, BSTR criteria, LONG ski
     {
         row = recordset->current_row;
     }
-    cache_release( recordset );
     recordset->current_row = row;
+    off = cache_release( recordset );
+    if (search_direction == adSearchBackward) off--;
+    if (!bm_len) skip_records -= off;
 
     V_VT(&v) = VT_BSTR;
     V_BSTR(&v) = val;
-    if (!bm_len && search_direction == adSearchForward)
-        skip_records--;
     hr = IRowsetFind_FindNextRow( recordset->rowset_find, DB_NULL_HCHAPTER, hacc, &v, op,
             bm_len, bm_data, skip_records, search_direction, &obtained, &rows );
     SysFreeString( val );
     release_bookmark_data( &start );
     if (free_bookmark) VariantClear( &start );
     IAccessor_ReleaseAccessor( recordset->accessor, hacc, NULL );
-    if (FAILED(hr)) return hr;
+    if (FAILED(hr) || !obtained) return hr;
 
     if (recordset->bookmark_hacc)
     {
@@ -3519,6 +3565,7 @@ static HRESULT WINAPI recordset_Find( _Recordset *iface, BSTR criteria, LONG ski
     if (recordset->current_row)
         IRowset_ReleaseRows( recordset->row_set, 1, &recordset->current_row, NULL, NULL, NULL);
     recordset->current_row = row;
+    recordset->cache.dir = (search_direction == adSearchForward ? 1 : -1);
     return S_OK;
 }
 

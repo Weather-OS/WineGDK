@@ -104,14 +104,14 @@ extern "C" {
 #ifndef _fastcall
 #define _fastcall   __ONLY_IN_WINELIB(__stdcall)
 #endif
-#ifndef cdecl
-#define cdecl       __ONLY_IN_WINELIB(__cdecl)
-#endif
 #ifndef _cdecl
 #define _cdecl      __ONLY_IN_WINELIB(__cdecl)
 #endif
 #endif /* _MSC_VER */
 
+#ifndef cdecl
+#define cdecl       __ONLY_IN_WINELIB(__cdecl)
+#endif
 #ifndef pascal
 #define pascal      __ONLY_IN_WINELIB(__stdcall)
 #endif

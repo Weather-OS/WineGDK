@@ -56,7 +56,6 @@
 #undef _CDECL
 
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 #include "windef.h"
 #include "winbase.h"
 #include "winnls.h"
@@ -742,6 +741,13 @@ static NTSTATUS unix_create_stream(void *args)
 
     stream->period = params->period;
     stream->period_frames = muldiv(params->period, stream->fmt->nSamplesPerSec, 10000000);
+
+    if (stream->period_frames == 0)
+    {
+        params->result = E_INVALIDARG;
+        goto end;
+    }
+
     stream->dev_id = dev_id_from_device(params->device);
     stream->flow = params->flow;
     stream->flags = params->flags;

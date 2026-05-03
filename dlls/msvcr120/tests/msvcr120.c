@@ -38,10 +38,6 @@
 
 #include <locale.h>
 
-_ACRTIMP float __cdecl nexttowardf(float, double);
-_ACRTIMP double __cdecl nexttoward(double, double);
-_ACRTIMP double __cdecl nexttowardl(double, double);
-
 #define _MAX__TIME64_T     (((__time64_t)0x00000007 << 32) | 0x93406FFF)
 
 #ifdef __i386__

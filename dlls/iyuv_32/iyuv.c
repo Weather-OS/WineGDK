@@ -1,0 +1,394 @@
+/*
+ * iyuv Video "Decoder"
+ * Copyright 2026 Brendan McGrath for CodeWeavers
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
+ *
+ */
+
+#include "windef.h"
+#include <stdarg.h>
+#include <stdlib.h>
+
+#include "winbase.h"
+#include "wingdi.h"
+#include "winuser.h"
+
+#include "commdlg.h"
+#include "initguid.h"
+#include "vfw.h"
+#include "wmcodecdsp.h"
+
+#include "iyuv_private.h"
+#include "wine/debug.h"
+
+#include "mferror.h"
+
+WINE_DEFAULT_DEBUG_CHANNEL(iyuv_32);
+
+static HINSTANCE IYUV_32_module;
+
+#define FOURCC_I420 mmioFOURCC('I', '4', '2', '0')
+#define FOURCC_IYUV mmioFOURCC('I', 'Y', 'U', 'V')
+
+#define compare_fourcc(fcc1, fcc2) (((fcc1) ^ (fcc2)) & ~0x20202020)
+
+static inline UINT64 make_uint64(UINT32 high, UINT32 low)
+{
+    return ((UINT64)high << 32) | low;
+}
+
+static LRESULT IYUV_Open(const ICINFO *icinfo)
+{
+    IMFTransform *transform;
+
+    TRACE("DRV_OPEN %p\n", icinfo);
+
+    if (icinfo && compare_fourcc(icinfo->fccType, ICTYPE_VIDEO))
+        return 0;
+
+    if (FAILED(winegstreamer_create_color_converter(&transform)))
+        transform = NULL;
+
+    return (LRESULT)transform;
+}
+
+static LRESULT IYUV_DecompressQuery(const BITMAPINFOHEADER *in, const BITMAPINFOHEADER *out)
+{
+    TRACE("in->planes  = %d\n", in->biPlanes);
+    TRACE("in->bpp     = %d\n", in->biBitCount);
+    TRACE("in->height  = %ld\n", in->biHeight);
+    TRACE("in->width   = %ld\n", in->biWidth);
+    TRACE("in->compr   = %#lx\n", in->biCompression);
+
+    if (compare_fourcc(in->biCompression, FOURCC_I420) && compare_fourcc(in->biCompression, FOURCC_IYUV))
+    {
+        TRACE("can't do %#lx decompression\n", in->biCompression);
+        return ICERR_BADFORMAT;
+    }
+
+    if (!in->biHeight || !in->biWidth)
+        return ICERR_BADFORMAT;
+
+    /* output must be same dimensions as input */
+    if (out)
+    {
+        TRACE("out->planes = %d\n", out->biPlanes);
+        TRACE("out->bpp    = %d\n", out->biBitCount);
+        TRACE("out->height = %ld\n", out->biHeight);
+        TRACE("out->width  = %ld\n", out->biWidth);
+        TRACE("out->compr  = %#lx\n", out->biCompression);
+
+        if (out->biCompression != BI_RGB)
+            return ICERR_BADFORMAT;
+
+        if (out->biBitCount != 24 && out->biBitCount != 16 && out->biBitCount != 8)
+            return ICERR_BADFORMAT;
+
+        if (in->biWidth != out->biWidth || in->biHeight != out->biHeight)
+            return ICERR_BADFORMAT;
+    }
+
+    return ICERR_OK;
+}
+
+static LRESULT IYUV_DecompressGetFormat(BITMAPINFOHEADER *in, BITMAPINFOHEADER *out)
+{
+    TRACE("ICM_DECOMPRESS_GETFORMAT %p %p\n", in, out);
+
+    if (compare_fourcc(in->biCompression, FOURCC_I420) && compare_fourcc(in->biCompression, FOURCC_IYUV))
+        return ICERR_BADFORMAT;
+
+    if (out)
+    {
+        memset(out, 0, sizeof(*out));
+        out->biSize = sizeof(BITMAPINFOHEADER);
+        out->biWidth = in->biWidth;
+        out->biHeight = abs(in->biHeight);
+        out->biCompression = BI_RGB;
+        out->biPlanes = 1;
+        out->biBitCount = 24;
+        out->biSizeImage = out->biWidth * out->biHeight * 3;
+        return ICERR_OK;
+    }
+
+    return sizeof(*out);
+}
+
+static LRESULT IYUV_DecompressBegin(IMFTransform *transform, const BITMAPINFOHEADER *in, const BITMAPINFOHEADER *out)
+{
+    IMFMediaType *input_type, *output_type;
+    LRESULT r = ICERR_INTERNAL;
+    const GUID *output_subtype;
+    LONG stride, depth;
+
+    TRACE("transform %p, in %p, out %p.\n", transform, in, out);
+
+    if (!transform)
+        return ICERR_BADPARAM;
+
+    if (out->biCompression != BI_RGB)
+        return ICERR_BADFORMAT;
+
+    if (out->biBitCount == 24)
+        output_subtype = &MFVideoFormat_RGB24;
+    else if (out->biBitCount == 16)
+        output_subtype = &MFVideoFormat_RGB555;
+    else if (out->biBitCount == 8)
+        output_subtype = &MFVideoFormat_RGB8;
+    else
+        return ICERR_BADFORMAT;
+
+    if (in->biWidth != out->biWidth || in->biHeight != out->biHeight)
+        return ICERR_BADFORMAT;
+
+    depth = out->biBitCount / 8;
+    stride = -((out->biWidth * depth + 3) & ~3);
+
+    if (FAILED(MFCreateMediaType(&input_type)))
+        return ICERR_INTERNAL;
+
+    if (FAILED(MFCreateMediaType(&output_type)))
+    {
+        IMFMediaType_Release(input_type);
+        return ICERR_INTERNAL;
+    }
+
+    if (FAILED(IMFMediaType_SetGUID(input_type, &MF_MT_MAJOR_TYPE, &MFMediaType_Video)) ||
+        FAILED(IMFMediaType_SetGUID(input_type, &MF_MT_SUBTYPE, &MFVideoFormat_I420)))
+        goto done;
+    if (FAILED(IMFMediaType_SetUINT64(input_type, &MF_MT_FRAME_SIZE, make_uint64(in->biWidth, in->biHeight))))
+        goto done;
+
+    if (FAILED(IMFMediaType_SetGUID(output_type, &MF_MT_MAJOR_TYPE, &MFMediaType_Video)) ||
+        FAILED(IMFMediaType_SetGUID(output_type, &MF_MT_SUBTYPE, output_subtype)))
+        goto done;
+    if (FAILED(IMFMediaType_SetUINT64(output_type, &MF_MT_FRAME_SIZE, make_uint64(out->biWidth, out->biHeight))))
+        goto done;
+    if (FAILED(IMFMediaType_SetUINT32(output_type, &MF_MT_DEFAULT_STRIDE, stride)))
+        goto done;
+
+    if (FAILED(IMFTransform_SetInputType(transform, 0, input_type, 0)) ||
+        FAILED(IMFTransform_SetOutputType(transform, 0, output_type, 0)))
+        goto done;
+
+    r = ICERR_OK;
+
+done:
+    IMFMediaType_Release(input_type);
+    IMFMediaType_Release(output_type);
+    return r;
+}
+
+static LRESULT IYUV_Decompress(IMFTransform *transform, const ICDECOMPRESS *params)
+{
+    IMFSample *in_sample = NULL, *out_sample = NULL;
+    IMFMediaBuffer *in_buf = NULL, *out_buf = NULL;
+    MFT_OUTPUT_DATA_BUFFER mft_buf;
+    LRESULT r = ICERR_INTERNAL;
+    DWORD mft_status;
+    BYTE *data;
+
+    TRACE("transform %p, params %p.\n", transform, params);
+
+    if (FAILED(MFCreateSample(&in_sample)))
+        return ICERR_INTERNAL;
+
+    if (FAILED(MFCreateMemoryBuffer(params->lpbiInput->biSizeImage, &in_buf)))
+        goto done;
+
+    if (FAILED(IMFSample_AddBuffer(in_sample, in_buf)))
+        goto done;
+
+    if (FAILED(MFCreateSample(&out_sample)))
+        goto done;
+
+    if (FAILED(MFCreateMemoryBuffer(params->lpbiOutput->biSizeImage, &out_buf)))
+        goto done;
+
+    if (FAILED(IMFSample_AddBuffer(out_sample, out_buf)))
+        goto done;
+
+    if (FAILED(IMFMediaBuffer_Lock(in_buf, &data, NULL, NULL)))
+        goto done;
+
+    memcpy(data, params->lpInput, params->lpbiInput->biSizeImage);
+
+    if (FAILED(IMFMediaBuffer_Unlock(in_buf)))
+        goto done;
+
+    if (FAILED(IMFMediaBuffer_SetCurrentLength(in_buf, params->lpbiInput->biSizeImage)))
+        goto done;
+
+    if (FAILED(IMFTransform_ProcessInput(transform, 0, in_sample, 0)))
+        goto done;
+
+    memset(&mft_buf, 0, sizeof(mft_buf));
+    mft_buf.pSample = out_sample;
+
+    if (SUCCEEDED(IMFTransform_ProcessOutput(transform, 0, 1, &mft_buf, &mft_status)))
+    {
+        LONG depth = params->lpbiOutput->biBitCount / 8;
+        LONG width = params->lpbiOutput->biWidth * depth;
+        LONG stride = (width + 3) & ~3;
+
+        if (FAILED(IMFMediaBuffer_Lock(out_buf, &data, NULL, NULL)))
+            goto done;
+
+        MFCopyImage(params->lpOutput, stride, data, stride, width, params->lpbiOutput->biHeight);
+
+        IMFMediaBuffer_Unlock(out_buf);
+        r = ICERR_OK;
+    }
+
+done:
+    if (in_buf)
+        IMFMediaBuffer_Release(in_buf);
+    if (in_sample)
+        IMFSample_Release(in_sample);
+    if (out_buf)
+        IMFMediaBuffer_Release(out_buf);
+    if (out_sample)
+        IMFSample_Release(out_sample);
+
+    return r;
+}
+
+static LRESULT IYUV_GetInfo(ICINFO *icinfo, DWORD size)
+{
+    TRACE("ICM_GETINFO %p %lu\n", icinfo, size);
+
+    if (!icinfo)
+        return sizeof(ICINFO);
+    if (size < sizeof(ICINFO))
+        return 0;
+
+    icinfo->dwSize = sizeof(ICINFO);
+    icinfo->fccType = ICTYPE_VIDEO;
+    icinfo->fccHandler = FOURCC_IYUV;
+    icinfo->dwFlags = 0;
+    icinfo->dwVersion = 0;
+    icinfo->dwVersionICM = ICVERSION;
+
+    LoadStringW(IYUV_32_module, IDS_NAME, icinfo->szName, ARRAY_SIZE(icinfo->szName));
+    LoadStringW(IYUV_32_module, IDS_DESCRIPTION, icinfo->szDescription, ARRAY_SIZE(icinfo->szDescription));
+    /* msvfw32 will fill icinfo->szDriver for us */
+
+    return sizeof(ICINFO);
+}
+
+/***********************************************************************
+ *              DriverProc (IYUV_32.@)
+ */
+LRESULT WINAPI IYUV_DriverProc(DWORD_PTR driver_id, HDRVR hdrvr, UINT msg, LPARAM param1, LPARAM param2)
+{
+    IMFTransform *transform = (IMFTransform *)driver_id;
+    LRESULT r = ICERR_UNSUPPORTED;
+
+    TRACE("%Id %p %04x %08Ix %08Ix\n", driver_id, hdrvr, msg, param1, param2);
+
+    switch (msg)
+    {
+    case DRV_LOAD:
+        TRACE("DRV_LOAD\n");
+        r = TRUE;
+        break;
+
+    case DRV_OPEN:
+        r = IYUV_Open((ICINFO *)param2);
+        break;
+
+    case DRV_CLOSE:
+        TRACE("DRV_CLOSE\n");
+        if (transform)
+            IMFTransform_Release(transform);
+        r = TRUE;
+        break;
+
+    case DRV_ENABLE:
+    case DRV_DISABLE:
+    case DRV_FREE:
+        break;
+
+    case ICM_GETINFO:
+        r = IYUV_GetInfo((ICINFO *)param1, (DWORD)param2);
+        break;
+
+    case ICM_DECOMPRESS_QUERY:
+        r = IYUV_DecompressQuery((BITMAPINFOHEADER *)param1, (BITMAPINFOHEADER *)param2);
+        break;
+
+    case ICM_DECOMPRESS_GET_FORMAT:
+        r = IYUV_DecompressGetFormat((BITMAPINFOHEADER *)param1, (BITMAPINFOHEADER *)param2);
+        break;
+
+    case ICM_DECOMPRESS_GET_PALETTE:
+        FIXME("ICM_DECOMPRESS_GET_PALETTE\n");
+        break;
+
+    case ICM_DECOMPRESS:
+        r = IYUV_Decompress(transform, (ICDECOMPRESS *)param1);
+        break;
+
+    case ICM_DECOMPRESS_BEGIN:
+        r = IYUV_DecompressBegin(transform, (BITMAPINFOHEADER *)param1, (BITMAPINFOHEADER *)param2);
+        break;
+
+    case ICM_DECOMPRESS_END:
+        r = ICERR_OK;
+        break;
+
+    case ICM_DECOMPRESSEX_QUERY:
+    case ICM_DECOMPRESSEX_BEGIN:
+    case ICM_DECOMPRESSEX:
+    case ICM_DECOMPRESSEX_END:
+        /* unsupported */
+        break;
+
+    case ICM_COMPRESS_QUERY:
+        r = ICERR_BADFORMAT;
+        /* fall through */
+    case ICM_COMPRESS_GET_FORMAT:
+    case ICM_COMPRESS_END:
+    case ICM_COMPRESS:
+        FIXME("compression not implemented\n");
+        break;
+
+    case ICM_CONFIGURE:
+        break;
+
+    default:
+        FIXME("Unknown message: %04x %Id %Id\n", msg, param1, param2);
+    }
+
+    return r;
+}
+
+/***********************************************************************
+ *              DllMain
+ */
+BOOL WINAPI DllMain(HINSTANCE module, DWORD reason, LPVOID reserved)
+{
+    TRACE("(%p,%lu,%p)\n", module, reason, reserved);
+
+    switch (reason)
+    {
+    case DLL_PROCESS_ATTACH:
+        DisableThreadLibraryCalls(module);
+        IYUV_32_module = module;
+        break;
+    }
+    return TRUE;
+}

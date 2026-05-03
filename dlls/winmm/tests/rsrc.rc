@@ -24,6 +24,20 @@
 /* @makedep: test.mpg */
 test.mpg RCDATA "test.mpg"
 
+/* ffmpeg -f lavfi -i smptebars -t 0.16 -r 24 -f avi -vcodec msvideo1 -pix_fmt pal8 -vf scale=32x24 test.avi */
+/* @makedep: test.avi */
+test.avi RCDATA "test.avi"
+
+/* ffmpeg -f lavfi -i "sine=frequency=1000" -t 0.1 -c:a pcm_s24le test_s24le.wav */
+/* @makedep: test_s24le.wav */
+test_s24le.wav WAVE "test_s24le.wav"
+
+/* ffmpeg does't directly support 24 useful bits in 32 bit words, so let's generate 32 bit and than patch the header. */
+/* ffmpeg -f lavfi -i "sine=frequency=1000" -t 0.1 -c:a pcm_s32le test_s24_32le.wav */
+/* xxd -r <(echo 00000026: 1800) test_s24_32le.wav */
+/* @makedep: test_s24_32le.wav */
+test_s24_32le.wav WAVE "test_s24_32le.wav"
+
 /* ffmpeg -f lavfi -i "sine=frequency=1000" -t 0.1 -c:a pcm_alaw test_alaw.wav */
 /* @makedep: test_alaw.wav */
 test_alaw.wav WAVE "test_alaw.wav"
@@ -53,3 +67,7 @@ test_mp2.wav WAVE "test_mp2.wav"
  * So I manually set it 11480 (the file size divided by 0.1 seconds). */
 /* @makedep: test_mp3.wav */
 test_mp3.wav WAVE "test_mp3.wav"
+
+/* ffmpeg -f lavfi -i "sine=frequency=500" -t 0.5 -ar 48000 -b:a 32k -f mp3 -acodec mp3 -write_xing 0 test.mp3 */
+/* @makedep: test.mp3 */
+test.mp3 RCDATA "test.mp3"

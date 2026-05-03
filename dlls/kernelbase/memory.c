@@ -25,7 +25,6 @@
 #include <sys/types.h>
 
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 #include "windef.h"
 #include "winbase.h"
 #include "winnls.h"
@@ -123,7 +122,7 @@ DWORD WINAPI DECLSPEC_HOTPATCH DiscardVirtualMemory( void *addr, SIZE_T size )
  */
 BOOL WINAPI DECLSPEC_HOTPATCH FlushViewOfFile( const void *base, SIZE_T size )
 {
-    NTSTATUS status = NtFlushVirtualMemory( GetCurrentProcess(), &base, &size, 0 );
+    NTSTATUS status = NtFlushVirtualMemory( GetCurrentProcess(), &base, &size, NULL );
 
     if (status == STATUS_NOT_MAPPED_DATA) status = STATUS_SUCCESS;
     return set_ntstatus( status );
@@ -209,18 +208,16 @@ void WINAPI DECLSPEC_HOTPATCH GetNativeSystemInfo( SYSTEM_INFO *si )
 {
     SYSTEM_BASIC_INFORMATION basic_info;
     SYSTEM_CPU_INFORMATION cpu_info;
+    USHORT current_machine, native_machine;
 
-    if (is_wow64)
+    RtlWow64GetProcessMachines( 0, &current_machine, &native_machine );
+
+    if (!is_wow64 || native_machine != IMAGE_FILE_MACHINE_AMD64)
     {
-        USHORT current_machine, native_machine;
-
-        RtlWow64GetProcessMachines( 0, &current_machine, &native_machine );
-        if (native_machine != IMAGE_FILE_MACHINE_AMD64)
-        {
-            GetSystemInfo( si );
+        GetSystemInfo( si );
+        if (is_wow64 && native_machine != IMAGE_FILE_MACHINE_AMD64)
             si->wProcessorArchitecture = PROCESSOR_ARCHITECTURE_AMD64;
-            return;
-        }
+        return;
     }
 
     if (!set_ntstatus( RtlGetNativeSystemInformation( SystemBasicInformation,

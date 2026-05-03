@@ -1,4 +1,4 @@
-EXTLIB    = libmpg123.a
+STATICLIB = libmpg123.a
 EXTRAINCL = -I$(srcdir)/src -I$(srcdir)/src/compat $(MPG123_PE_CFLAGS)
 EXTRADEFS = -DOPT_GENERIC_DITHER -DREAL_IS_FLOAT -DNO_CATCHSIGNAL
 

@@ -108,11 +108,10 @@ HRESULT hresult_from_vkd3d_result(int vkd3d_result);
 
 struct vkd3d_device_descriptor_limits
 {
-    unsigned int uniform_buffer_max_descriptors;
-    unsigned int sampled_image_max_descriptors;
-    unsigned int storage_buffer_max_descriptors;
-    unsigned int storage_image_max_descriptors;
-    unsigned int sampler_max_descriptors;
+    unsigned int max_cbv_descriptor_count;
+    unsigned int max_srv_descriptor_count;
+    unsigned int max_uav_descriptor_count;
+    unsigned int max_sampler_descriptor_count;
 };
 
 struct vkd3d_vulkan_info
@@ -144,6 +143,7 @@ struct vkd3d_vulkan_info
     bool EXT_fragment_shader_interlock;
     bool EXT_mutable_descriptor_type;
     bool EXT_robustness2;
+    bool EXT_sampler_filter_minmax;
     bool EXT_shader_demote_to_helper_invocation;
     bool EXT_shader_stencil_export;
     bool EXT_shader_viewport_index_layer;
@@ -396,6 +396,7 @@ struct d3d12_fence
 
     uint64_t value;
     uint64_t max_pending_value;
+    uint64_t last_waited_value;
     struct vkd3d_mutex mutex;
 
     struct vkd3d_waiting_event
@@ -1277,6 +1278,13 @@ enum vkd3d_pipeline_bind_point
     VKD3D_PIPELINE_BIND_POINT_COUNT = 0x2,
 };
 
+struct vkd3d_resource_list
+{
+    struct d3d12_resource **resources;
+    size_t count;
+    size_t capacity;
+};
+
 /* ID3D12CommandList */
 struct d3d12_command_list
 {
@@ -1301,6 +1309,13 @@ struct d3d12_command_list
     unsigned int fb_height;
     unsigned int fb_layer_count;
     VkFormat dsv_format;
+
+    /* Resources for views bound to d3d12 state */
+    struct d3d12_resource *rtv_resources[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
+    struct d3d12_resource *dsv_resource;
+    /* Resources bound since the last pipeline barrier */
+    struct vkd3d_resource_list rtv_resources_since_last_barrier;
+    struct vkd3d_resource_list dsv_resources_since_last_barrier;
 
     bool xfb_enabled;
     bool has_depth_bounds;

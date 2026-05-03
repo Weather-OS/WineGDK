@@ -144,9 +144,6 @@
 /* Define to 1 if you have the <libudev.h> header file. */
 #undef HAVE_LIBUDEV_H
 
-/* Define to 1 if you have the 'unwind' library (-lunwind). */
-#undef HAVE_LIBUNWIND
-
 /* Define if we have the wayland-egl development environment */
 #undef HAVE_LIBWAYLAND_EGL
 
@@ -195,6 +192,9 @@
 /* Define to 1 if you have the <linux/major.h> header file. */
 #undef HAVE_LINUX_MAJOR_H
 
+/* Define to 1 if you have the <linux/memfd.h> header file. */
+#undef HAVE_LINUX_MEMFD_H
+
 /* Define to 1 if you have the <linux/ntsync.h> header file. */
 #undef HAVE_LINUX_NTSYNC_H
 
@@ -236,6 +236,9 @@
 
 /* Define to 1 if you have the <mach-o/loader.h> header file. */
 #undef HAVE_MACH_O_LOADER_H
+
+/* Define to 1 if you have the 'memfd_create' function. */
+#undef HAVE_MEMFD_CREATE
 
 /* Define to 1 if you have the <mntent.h> header file. */
 #undef HAVE_MNTENT_H
@@ -552,6 +555,9 @@
 /* Define to 1 if you have the <sys/param.h> header file. */
 #undef HAVE_SYS_PARAM_H
 
+/* Define to 1 if you have the <sys/personality.h> header file. */
+#undef HAVE_SYS_PERSONALITY_H
+
 /* Define to 1 if you have the <sys/prctl.h> header file. */
 #undef HAVE_SYS_PRCTL_H
 
@@ -803,6 +809,9 @@
 
 /* Define to the soname of the libXinerama library. */
 #undef SONAME_LIBXINERAMA
+
+/* Define to the soname of the libxkbregistry library. */
+#undef SONAME_LIBXKBREGISTRY
 
 /* Define to the soname of the libXrandr library. */
 #undef SONAME_LIBXRANDR

@@ -35,6 +35,16 @@ msgstr "Negado"
 msgid "Permissions for %1"
 msgstr "Permissões para %1"
 
+#: dlls/aero.msstyles/aero.rc:29 dlls/aero.msstyles/aero.rc:35
+#: dlls/comdlg32/comdlg32.rc:134 programs/wordpad/wordpad.rc:137
+msgid "Blue"
+msgstr "Azul"
+
+#: dlls/aero.msstyles/aero.rc:41 dlls/aero.msstyles/aero.rc:47
+#: programs/winhlp32/winhlp32.rc:53 programs/winhlp32/winhlp32.rc:73
+msgid "Normal"
+msgstr "Normal"
+
 #: dlls/appwiz.cpl/appwiz.rc:60
 msgid "Install/Uninstall"
 msgstr "Instalar/Desinstalar"
@@ -72,7 +82,7 @@ msgstr "&Modificar..."
 
 #: dlls/appwiz.cpl/appwiz.rc:71 dlls/appwiz.cpl/appwiz.rc:45
 #: dlls/cryptui/cryptui.rc:351 dlls/msacm32/msacm32.rc:40
-#: programs/winecfg/winecfg.rc:205 programs/winecfg/winecfg.rc:242
+#: programs/winecfg/winecfg.rc:206 programs/winecfg/winecfg.rc:243
 #: programs/wordpad/wordpad.rc:256
 msgid "&Remove"
 msgstr "&Remover"
@@ -109,7 +119,7 @@ msgstr "Informação de Suporte"
 #: programs/regedit/regedit.rc:325 programs/regedit/regedit.rc:341
 #: programs/regedit/regedit.rc:354 programs/regedit/regedit.rc:367
 #: programs/taskmgr/taskmgr.rc:442 programs/taskmgr/taskmgr.rc:517
-#: programs/winecfg/winecfg.rc:219 programs/winecfg/winecfg.rc:229
+#: programs/winecfg/winecfg.rc:220 programs/winecfg/winecfg.rc:230
 #: programs/winefile/winefile.rc:127 programs/winefile/winefile.rc:150
 #: programs/winefile/winefile.rc:180 programs/winemine/winemine.rc:73
 #: programs/winemine/winemine.rc:84 programs/winemine/winemine.rc:98
@@ -216,7 +226,7 @@ msgstr "&Instalar"
 #: programs/regedit/regedit.rc:342 programs/regedit/regedit.rc:355
 #: programs/regedit/regedit.rc:368 programs/taskmgr/taskmgr.rc:443
 #: programs/taskmgr/taskmgr.rc:518 programs/wineboot/wineboot.rc:34
-#: programs/winecfg/winecfg.rc:220 programs/winecfg/winecfg.rc:230
+#: programs/winecfg/winecfg.rc:221 programs/winecfg/winecfg.rc:231
 #: programs/winefile/winefile.rc:128 programs/winefile/winefile.rc:151
 #: programs/winefile/winefile.rc:181 programs/winemine/winemine.rc:99
 #: programs/wordpad/wordpad.rc:216 programs/wordpad/wordpad.rc:227
@@ -712,7 +722,7 @@ msgid "Font St&yle:"
 msgstr "&Estilo da Fonte:"
 
 #: dlls/comdlg32/comdlg32.rc:260 dlls/comdlg32/comdlg32.rc:439
-#: programs/winecfg/winecfg.rc:302
+#: programs/winecfg/winecfg.rc:303
 msgid "&Size:"
 msgstr "Taman&ho:"
 
@@ -728,7 +738,7 @@ msgstr "&Riscado"
 msgid "&Underline"
 msgstr "&Sublinhado"
 
-#: dlls/comdlg32/comdlg32.rc:270 programs/winecfg/winecfg.rc:300
+#: dlls/comdlg32/comdlg32.rc:270 programs/winecfg/winecfg.rc:301
 msgid "&Color:"
 msgstr "&Cor:"
 
@@ -905,7 +915,7 @@ msgstr "Número de &cópias:"
 msgid "C&ollate"
 msgstr "&Agrupar"
 
-#: dlls/comdlg32/comdlg32.rc:414 programs/winecfg/winecfg.rc:308
+#: dlls/comdlg32/comdlg32.rc:414 programs/winecfg/winecfg.rc:309
 msgid "Si&ze:"
 msgstr "Ta&manho:"
 
@@ -983,7 +993,7 @@ msgstr "Nome do arquivo:"
 msgid "Files of type:"
 msgstr "Arquivos do tipo:"
 
-#: dlls/comdlg32/comdlg32.rc:33 dlls/vbscript/vbscript.rc:35
+#: dlls/comdlg32/comdlg32.rc:33 dlls/vbscript/vbscript.rc:37
 msgid "File not found"
 msgstr "Arquivo não encontrado"
 
@@ -1115,11 +1125,6 @@ msgstr "Verde limão"
 #: dlls/comdlg32/comdlg32.rc:133 programs/wordpad/wordpad.rc:136
 msgid "Yellow"
 msgstr "Amarelo"
-
-#: dlls/comdlg32/comdlg32.rc:134 dlls/light.msstyles/light.rc:29
-#: dlls/light.msstyles/light.rc:35 programs/wordpad/wordpad.rc:137
-msgid "Blue"
-msgstr "Azul"
 
 #: dlls/comdlg32/comdlg32.rc:135 programs/wordpad/wordpad.rc:138
 msgid "Fuchsia"
@@ -2452,7 +2457,7 @@ msgid "&File name:"
 msgstr "Nome do &arquivo:"
 
 #: dlls/cryptui/cryptui.rc:301 dlls/cryptui/cryptui.rc:323
-#: dlls/cryptui/cryptui.rc:437 programs/winecfg/winecfg.rc:321
+#: dlls/cryptui/cryptui.rc:437 programs/winecfg/winecfg.rc:322
 msgid "B&rowse..."
 msgstr "&Navegar..."
 
@@ -3838,11 +3843,19 @@ msgstr "Índice"
 msgid "Indeo Video Interactive version 5 video codec"
 msgstr "Codec de vídeo Wine Video 1"
 
+#: dlls/iyuv_32/iyuv_32.rc:28
+msgid "IYUV codec"
+msgstr ""
+
+#: dlls/iyuv_32/iyuv_32.rc:29
+msgid "Intel Indeo IYUV codec"
+msgstr ""
+
 #: dlls/joy.cpl/joy.rc:37
 msgid "Joysticks"
 msgstr "Controles"
 
-#: dlls/joy.cpl/joy.rc:40 programs/winecfg/winecfg.rc:218
+#: dlls/joy.cpl/joy.rc:40 programs/winecfg/winecfg.rc:219
 msgid "&Disable"
 msgstr "&Desativar"
 
@@ -4001,11 +4014,11 @@ msgstr "Argumento ou chamada de procedimento inválida"
 msgid "Subscript out of range"
 msgstr "Índice fora do intervalo"
 
-#: dlls/jscript/jscript.rc:31
+#: dlls/jscript/jscript.rc:31 dlls/vbscript/vbscript.rc:36
 msgid "Out of stack space"
 msgstr "Sem espaço na pilha"
 
-#: dlls/jscript/jscript.rc:32
+#: dlls/jscript/jscript.rc:32 dlls/vbscript/vbscript.rc:49
 msgid "Object required"
 msgstr "Objeto requerido"
 
@@ -4013,23 +4026,23 @@ msgstr "Objeto requerido"
 msgid "Automation server can't create object"
 msgstr "O servidor de automação não conseguiu criar o objeto"
 
-#: dlls/jscript/jscript.rc:34 dlls/vbscript/vbscript.rc:49
+#: dlls/jscript/jscript.rc:34 dlls/vbscript/vbscript.rc:53
 msgid "Object doesn't support this property or method"
 msgstr "O objeto não suporta esta propriedade ou método"
 
-#: dlls/jscript/jscript.rc:35 dlls/vbscript/vbscript.rc:50
+#: dlls/jscript/jscript.rc:35 dlls/vbscript/vbscript.rc:54
 msgid "Object doesn't support this action"
 msgstr "O objeto não suporta esta ação"
 
-#: dlls/jscript/jscript.rc:36 dlls/vbscript/vbscript.rc:54
+#: dlls/jscript/jscript.rc:36 dlls/vbscript/vbscript.rc:58
 msgid "Argument not optional"
 msgstr "Argumento não opcional"
 
-#: dlls/jscript/jscript.rc:37 dlls/vbscript/vbscript.rc:56
+#: dlls/jscript/jscript.rc:37 dlls/vbscript/vbscript.rc:60
 msgid "Object not a collection"
 msgstr "Objeto não é coleção"
 
-#: dlls/jscript/jscript.rc:38
+#: dlls/jscript/jscript.rc:38 dlls/vbscript/vbscript.rc:69
 msgid "Syntax error"
 msgstr "Erro de sintaxe"
 
@@ -4037,27 +4050,27 @@ msgstr "Erro de sintaxe"
 msgid "Expected ';'"
 msgstr "Esperado ';'"
 
-#: dlls/jscript/jscript.rc:40
+#: dlls/jscript/jscript.rc:40 dlls/vbscript/vbscript.rc:70
 msgid "Expected '('"
 msgstr "Esperado '('"
 
-#: dlls/jscript/jscript.rc:41
+#: dlls/jscript/jscript.rc:41 dlls/vbscript/vbscript.rc:72
 msgid "Expected ')'"
 msgstr "Esperado ')'"
 
-#: dlls/jscript/jscript.rc:42
+#: dlls/jscript/jscript.rc:42 dlls/vbscript/vbscript.rc:73
 msgid "Expected identifier"
 msgstr "Identificador esperado"
 
-#: dlls/jscript/jscript.rc:43
+#: dlls/jscript/jscript.rc:43 dlls/vbscript/vbscript.rc:74
 msgid "Expected '='"
 msgstr "Esperado '='"
 
-#: dlls/jscript/jscript.rc:44
+#: dlls/jscript/jscript.rc:44 dlls/vbscript/vbscript.rc:93
 msgid "Invalid character"
 msgstr "Caractere inválido"
 
-#: dlls/jscript/jscript.rc:45
+#: dlls/jscript/jscript.rc:45 dlls/vbscript/vbscript.rc:94
 msgid "Unterminated string constant"
 msgstr "Cadeia constante não terminada"
 
@@ -4101,7 +4114,7 @@ msgstr "Microsoft JScript erro de compilação"
 msgid "Microsoft JScript runtime error"
 msgstr "Microsoft JScript erro de execução"
 
-#: dlls/jscript/jscript.rc:99 dlls/vbscript/vbscript.rc:64
+#: dlls/jscript/jscript.rc:99 dlls/vbscript/vbscript.rc:118
 msgid "Unknown runtime error"
 msgstr "Erro de execução desconhecido"
 
@@ -4127,7 +4140,7 @@ msgstr "'[object]' não é um objeto de data"
 msgid "Object expected"
 msgstr "Objeto esperado"
 
-#: dlls/jscript/jscript.rc:59
+#: dlls/jscript/jscript.rc:59 dlls/vbscript/vbscript.rc:66
 msgid "Illegal assignment"
 msgstr "Atribuição ilegal"
 
@@ -4337,3041 +4350,3165 @@ msgstr "Georgiano"
 msgid "Armenian"
 msgstr "Armênio"
 
-#: dlls/kernelbase/winerror.mc:28
+#: dlls/kernelbase/winerror.mc:30
 msgid "Success.\n"
 msgstr "Sucesso.\n"
 
-#: dlls/kernelbase/winerror.mc:33
+#: dlls/kernelbase/winerror.mc:35
 msgid "Invalid function.\n"
 msgstr "Função inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:38
+#: dlls/kernelbase/winerror.mc:40
 msgid "File not found.\n"
 msgstr "Arquivo não encontrado.\n"
 
-#: dlls/kernelbase/winerror.mc:43
+#: dlls/kernelbase/winerror.mc:45
 msgid "Path not found.\n"
 msgstr "Caminho não encontrado.\n"
 
-#: dlls/kernelbase/winerror.mc:48 dlls/kernelbase/winerror.mc:3773
+#: dlls/kernelbase/winerror.mc:50 dlls/kernelbase/winerror.mc:3895
 msgid "Too many open files.\n"
 msgstr "Muitos arquivos abertos.\n"
 
-#: dlls/kernelbase/winerror.mc:53 dlls/kernelbase/winerror.mc:3758
+#: dlls/kernelbase/winerror.mc:55 dlls/kernelbase/winerror.mc:3880
 msgid "Access denied.\n"
 msgstr "Acesso negado.\n"
 
-#: dlls/kernelbase/winerror.mc:58
+#: dlls/kernelbase/winerror.mc:60
 msgid "Invalid handle.\n"
 msgstr "Manipulador inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:63
+#: dlls/kernelbase/winerror.mc:65
 msgid "Memory trashed.\n"
 msgstr "Memória danificada.\n"
 
-#: dlls/kernelbase/winerror.mc:68
+#: dlls/kernelbase/winerror.mc:70
 msgid "Not enough memory.\n"
 msgstr "Memória insuficiente.\n"
 
-#: dlls/kernelbase/winerror.mc:73
+#: dlls/kernelbase/winerror.mc:75
 msgid "Invalid block.\n"
 msgstr "Bloco inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:78
+#: dlls/kernelbase/winerror.mc:80
 msgid "Bad environment.\n"
 msgstr "Ambiente impróprio.\n"
 
-#: dlls/kernelbase/winerror.mc:83
+#: dlls/kernelbase/winerror.mc:85
 msgid "Bad format.\n"
 msgstr "Formato impróprio.\n"
 
-#: dlls/kernelbase/winerror.mc:88
+#: dlls/kernelbase/winerror.mc:90
 msgid "Invalid access.\n"
 msgstr "Acesso inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:93
+#: dlls/kernelbase/winerror.mc:95
 msgid "Invalid data.\n"
 msgstr "Dados inválidos.\n"
 
-#: dlls/kernelbase/winerror.mc:98
+#: dlls/kernelbase/winerror.mc:100
 msgid "Out of memory.\n"
 msgstr "Sem memória.\n"
 
-#: dlls/kernelbase/winerror.mc:103
+#: dlls/kernelbase/winerror.mc:105
 msgid "Invalid drive.\n"
 msgstr "Unidade inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:108
+#: dlls/kernelbase/winerror.mc:110
 msgid "Can't delete current directory.\n"
 msgstr "Não é possível apagar o diretório atual.\n"
 
-#: dlls/kernelbase/winerror.mc:113
+#: dlls/kernelbase/winerror.mc:115
 msgid "Not same device.\n"
 msgstr "Dispositivo diferente.\n"
 
-#: dlls/kernelbase/winerror.mc:118
+#: dlls/kernelbase/winerror.mc:120
 msgid "No more files.\n"
 msgstr "Sem mais arquivos.\n"
 
-#: dlls/kernelbase/winerror.mc:123
+#: dlls/kernelbase/winerror.mc:125
 msgid "Write protected.\n"
 msgstr "Protegido contra escrita.\n"
 
-#: dlls/kernelbase/winerror.mc:128
+#: dlls/kernelbase/winerror.mc:130
 msgid "Bad unit.\n"
 msgstr "Unidade imprópria.\n"
 
-#: dlls/kernelbase/winerror.mc:133
+#: dlls/kernelbase/winerror.mc:135
 msgid "Not ready.\n"
 msgstr "Não pronto.\n"
 
-#: dlls/kernelbase/winerror.mc:138
+#: dlls/kernelbase/winerror.mc:140
 msgid "Bad command.\n"
 msgstr "Comando impróprio.\n"
 
-#: dlls/kernelbase/winerror.mc:143
+#: dlls/kernelbase/winerror.mc:145
 msgid "CRC error.\n"
 msgstr "Erro CRC.\n"
 
-#: dlls/kernelbase/winerror.mc:148
+#: dlls/kernelbase/winerror.mc:150
 msgid "Bad length.\n"
 msgstr "Comprimento impróprio.\n"
 
-#: dlls/kernelbase/winerror.mc:153 dlls/kernelbase/winerror.mc:528
+#: dlls/kernelbase/winerror.mc:155 dlls/kernelbase/winerror.mc:530
 msgid "Seek error.\n"
 msgstr "Erro ao procurar.\n"
 
-#: dlls/kernelbase/winerror.mc:158
+#: dlls/kernelbase/winerror.mc:160
 msgid "Not DOS disk.\n"
 msgstr "Não é um disco DOS.\n"
 
-#: dlls/kernelbase/winerror.mc:163
+#: dlls/kernelbase/winerror.mc:165
 msgid "Sector not found.\n"
 msgstr "Setor não encontrado.\n"
 
-#: dlls/kernelbase/winerror.mc:168
+#: dlls/kernelbase/winerror.mc:170
 msgid "Out of paper.\n"
 msgstr "Sem papel.\n"
 
-#: dlls/kernelbase/winerror.mc:173
+#: dlls/kernelbase/winerror.mc:175
 msgid "Write fault.\n"
 msgstr "Falha de escrita.\n"
 
-#: dlls/kernelbase/winerror.mc:178
+#: dlls/kernelbase/winerror.mc:180
 msgid "Read fault.\n"
 msgstr "Falha de leitura.\n"
 
-#: dlls/kernelbase/winerror.mc:183
+#: dlls/kernelbase/winerror.mc:185
 msgid "General failure.\n"
 msgstr "Falha geral.\n"
 
-#: dlls/kernelbase/winerror.mc:188
+#: dlls/kernelbase/winerror.mc:190
 msgid "Sharing violation.\n"
 msgstr "Violação de compartilhamento.\n"
 
-#: dlls/kernelbase/winerror.mc:193
+#: dlls/kernelbase/winerror.mc:195
 msgid "Lock violation.\n"
 msgstr "Violação de trava.\n"
 
-#: dlls/kernelbase/winerror.mc:198
+#: dlls/kernelbase/winerror.mc:200
 msgid "Wrong disk.\n"
 msgstr "Disco errado.\n"
 
-#: dlls/kernelbase/winerror.mc:203
+#: dlls/kernelbase/winerror.mc:205
 msgid "Sharing buffer exceeded.\n"
 msgstr "Buffer compartilhado excedido.\n"
 
-#: dlls/kernelbase/winerror.mc:208
+#: dlls/kernelbase/winerror.mc:210
 msgid "End of file.\n"
 msgstr "Fim do arquivo.\n"
 
-#: dlls/kernelbase/winerror.mc:213 dlls/kernelbase/winerror.mc:438
+#: dlls/kernelbase/winerror.mc:215 dlls/kernelbase/winerror.mc:440
 msgid "Disk full.\n"
 msgstr "Disco cheio.\n"
 
-#: dlls/kernelbase/winerror.mc:218
+#: dlls/kernelbase/winerror.mc:220
 msgid "Request not supported.\n"
 msgstr "Pedido não suportado.\n"
 
-#: dlls/kernelbase/winerror.mc:223
+#: dlls/kernelbase/winerror.mc:225
 msgid "Remote machine not listening.\n"
 msgstr "Computador remoto não está escutando.\n"
 
-#: dlls/kernelbase/winerror.mc:228
+#: dlls/kernelbase/winerror.mc:230
 msgid "Duplicate network name.\n"
 msgstr "Nome de rede duplicado.\n"
 
-#: dlls/kernelbase/winerror.mc:233
+#: dlls/kernelbase/winerror.mc:235
 msgid "Bad network path.\n"
 msgstr "Caminho de rede impróprio.\n"
 
-#: dlls/kernelbase/winerror.mc:238
+#: dlls/kernelbase/winerror.mc:240
 msgid "Network busy.\n"
 msgstr "Rede ocupada.\n"
 
-#: dlls/kernelbase/winerror.mc:243
+#: dlls/kernelbase/winerror.mc:245
 msgid "Device does not exist.\n"
 msgstr "Dispositivo não existe.\n"
 
-#: dlls/kernelbase/winerror.mc:248
+#: dlls/kernelbase/winerror.mc:250
 msgid "Too many commands.\n"
 msgstr "Comandos demais.\n"
 
-#: dlls/kernelbase/winerror.mc:253
+#: dlls/kernelbase/winerror.mc:255
 msgid "Adapter hardware error.\n"
 msgstr "Erro de hardware no adaptador.\n"
 
-#: dlls/kernelbase/winerror.mc:258
+#: dlls/kernelbase/winerror.mc:260
 msgid "Bad network response.\n"
 msgstr "Resposta imprópria da rede.\n"
 
-#: dlls/kernelbase/winerror.mc:263
+#: dlls/kernelbase/winerror.mc:265
 msgid "Unexpected network error.\n"
 msgstr "Erro de rede inesperado.\n"
 
-#: dlls/kernelbase/winerror.mc:268
+#: dlls/kernelbase/winerror.mc:270
 msgid "Bad remote adapter.\n"
 msgstr "Adaptador remoto impróprio.\n"
 
-#: dlls/kernelbase/winerror.mc:273
+#: dlls/kernelbase/winerror.mc:275
 msgid "Print queue full.\n"
 msgstr "Fila de impressão cheia.\n"
 
-#: dlls/kernelbase/winerror.mc:278
+#: dlls/kernelbase/winerror.mc:280
 msgid "No spool space.\n"
 msgstr "Sem espaço no spool.\n"
 
-#: dlls/kernelbase/winerror.mc:283
+#: dlls/kernelbase/winerror.mc:285
 msgid "Print canceled.\n"
 msgstr "Impressão cancelada.\n"
 
-#: dlls/kernelbase/winerror.mc:288
+#: dlls/kernelbase/winerror.mc:290
 msgid "Network name deleted.\n"
 msgstr "Nome de rede excluído.\n"
 
-#: dlls/kernelbase/winerror.mc:293
+#: dlls/kernelbase/winerror.mc:295
 msgid "Network access denied.\n"
 msgstr "Acesso à rede negado.\n"
 
-#: dlls/kernelbase/winerror.mc:298
+#: dlls/kernelbase/winerror.mc:300
 msgid "Bad device type.\n"
 msgstr "Tipo impróprio para um dispositivo.\n"
 
-#: dlls/kernelbase/winerror.mc:303
+#: dlls/kernelbase/winerror.mc:305
 msgid "Bad network name.\n"
 msgstr "Nome impróprio de rede.\n"
 
-#: dlls/kernelbase/winerror.mc:308
+#: dlls/kernelbase/winerror.mc:310
 msgid "Too many network names.\n"
 msgstr "Demasiados nomes de rede.\n"
 
-#: dlls/kernelbase/winerror.mc:313
+#: dlls/kernelbase/winerror.mc:315
 msgid "Too many network sessions.\n"
 msgstr "Demasiadas sessões de rede.\n"
 
-#: dlls/kernelbase/winerror.mc:318
+#: dlls/kernelbase/winerror.mc:320
 msgid "Sharing paused.\n"
 msgstr "Compartilhamento pausado.\n"
 
-#: dlls/kernelbase/winerror.mc:323
+#: dlls/kernelbase/winerror.mc:325
 msgid "Request not accepted.\n"
 msgstr "Pedido não aceito.\n"
 
-#: dlls/kernelbase/winerror.mc:328
+#: dlls/kernelbase/winerror.mc:330
 msgid "Redirector paused.\n"
 msgstr "Redirecionador pausado.\n"
 
-#: dlls/kernelbase/winerror.mc:333
+#: dlls/kernelbase/winerror.mc:335
 msgid "File exists.\n"
 msgstr "O arquivo já existe.\n"
 
-#: dlls/kernelbase/winerror.mc:338
+#: dlls/kernelbase/winerror.mc:340
 msgid "Cannot create.\n"
 msgstr "Impossível criar.\n"
 
-#: dlls/kernelbase/winerror.mc:343
+#: dlls/kernelbase/winerror.mc:345
 msgid "Int24 failure.\n"
 msgstr "Falha Int24.\n"
 
-#: dlls/kernelbase/winerror.mc:348
+#: dlls/kernelbase/winerror.mc:350
 msgid "Out of structures.\n"
 msgstr "Sem mais estruturas.\n"
 
-#: dlls/kernelbase/winerror.mc:353
+#: dlls/kernelbase/winerror.mc:355
 msgid "Already assigned.\n"
 msgstr "Já designado.\n"
 
-#: dlls/kernelbase/winerror.mc:358 dlls/kernelbase/winerror.mc:1713
+#: dlls/kernelbase/winerror.mc:360 dlls/kernelbase/winerror.mc:1830
 msgid "Invalid password.\n"
 msgstr "Senha inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:363
+#: dlls/kernelbase/winerror.mc:365
 msgid "Invalid parameter.\n"
 msgstr "Parâmetro inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:368
+#: dlls/kernelbase/winerror.mc:370
 msgid "Net write fault.\n"
 msgstr "Falha de escrita na rede.\n"
 
-#: dlls/kernelbase/winerror.mc:373
+#: dlls/kernelbase/winerror.mc:375
 msgid "No process slots.\n"
 msgstr "Nenhum slot de processo.\n"
 
-#: dlls/kernelbase/winerror.mc:378
+#: dlls/kernelbase/winerror.mc:380
 msgid "Too many semaphores.\n"
 msgstr "Demasiados semáforos.\n"
 
-#: dlls/kernelbase/winerror.mc:383
+#: dlls/kernelbase/winerror.mc:385
 msgid "Exclusive semaphore already owned.\n"
 msgstr "Semáforo exclusivo já tem dono.\n"
 
-#: dlls/kernelbase/winerror.mc:388
+#: dlls/kernelbase/winerror.mc:390
 msgid "Semaphore is set.\n"
 msgstr "O semáforo está ligado.\n"
 
-#: dlls/kernelbase/winerror.mc:393
+#: dlls/kernelbase/winerror.mc:395
 msgid "Too many semaphore requests.\n"
 msgstr "Demasiados pedidos de semáforo.\n"
 
-#: dlls/kernelbase/winerror.mc:398
+#: dlls/kernelbase/winerror.mc:400
 msgid "Invalid at interrupt time.\n"
 msgstr "Inválido no tempo de interrupção.\n"
 
-#: dlls/kernelbase/winerror.mc:403
+#: dlls/kernelbase/winerror.mc:405
 msgid "Semaphore owner died.\n"
 msgstr "Dono do semáforo morreu.\n"
 
-#: dlls/kernelbase/winerror.mc:408
+#: dlls/kernelbase/winerror.mc:410
 msgid "Semaphore user limit.\n"
 msgstr "Limite de usuários do semáforo.\n"
 
-#: dlls/kernelbase/winerror.mc:413
+#: dlls/kernelbase/winerror.mc:415
 msgid "Insert disk for drive %1.\n"
 msgstr "Insira o disco para a unidade %1.\n"
 
-#: dlls/kernelbase/winerror.mc:418
+#: dlls/kernelbase/winerror.mc:420
 msgid "Drive locked.\n"
 msgstr "Unidade trancada.\n"
 
-#: dlls/kernelbase/winerror.mc:423
+#: dlls/kernelbase/winerror.mc:425
 msgid "Broken pipe.\n"
 msgstr "Pipe quebrado.\n"
 
-#: dlls/kernelbase/winerror.mc:428
+#: dlls/kernelbase/winerror.mc:430
 msgid "Open failed.\n"
 msgstr "Falha ao abrir.\n"
 
-#: dlls/kernelbase/winerror.mc:433
+#: dlls/kernelbase/winerror.mc:435
 msgid "Buffer overflow.\n"
 msgstr "Transbordamento de dados.\n"
 
-#: dlls/kernelbase/winerror.mc:443
+#: dlls/kernelbase/winerror.mc:445
 msgid "No more search handles.\n"
 msgstr "Não há mais manipuladores de busca.\n"
 
-#: dlls/kernelbase/winerror.mc:448
+#: dlls/kernelbase/winerror.mc:450
 msgid "Invalid target handle.\n"
 msgstr "Manipulador de alvo inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:453
+#: dlls/kernelbase/winerror.mc:455
 msgid "Invalid IOCTL.\n"
 msgstr "IOCTL Inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:458
+#: dlls/kernelbase/winerror.mc:460
 msgid "Invalid verify switch.\n"
 msgstr "Interruptor de verificação inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:463
+#: dlls/kernelbase/winerror.mc:465
 msgid "Bad driver level.\n"
 msgstr "Nível impróprio para um driver.\n"
 
-#: dlls/kernelbase/winerror.mc:468
+#: dlls/kernelbase/winerror.mc:470
 msgid "Call not implemented.\n"
 msgstr "Chamada não implementada.\n"
 
-#: dlls/kernelbase/winerror.mc:473
+#: dlls/kernelbase/winerror.mc:475
 msgid "Semaphore timeout.\n"
 msgstr "Tempo limite do semáforo.\n"
 
-#: dlls/kernelbase/winerror.mc:478
+#: dlls/kernelbase/winerror.mc:480
 msgid "Insufficient buffer.\n"
 msgstr "Buffer insuficiente.\n"
 
-#: dlls/kernelbase/winerror.mc:483 dlls/mferror/mferror.mc:109
+#: dlls/kernelbase/winerror.mc:485 dlls/mferror/mferror.mc:109
 msgid "Invalid name.\n"
 msgstr "Nome inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:488
+#: dlls/kernelbase/winerror.mc:490
 msgid "Invalid level.\n"
 msgstr "Nível inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:493
+#: dlls/kernelbase/winerror.mc:495
 msgid "No volume label.\n"
 msgstr "Volume sem etiqueta.\n"
 
-#: dlls/kernelbase/winerror.mc:498
+#: dlls/kernelbase/winerror.mc:500
 msgid "Module not found.\n"
 msgstr "Módulo não encontrado.\n"
 
-#: dlls/kernelbase/winerror.mc:503
+#: dlls/kernelbase/winerror.mc:505
 msgid "Procedure not found.\n"
 msgstr "Procedimento não encontrado.\n"
 
-#: dlls/kernelbase/winerror.mc:508
+#: dlls/kernelbase/winerror.mc:510
 msgid "No children to wait for.\n"
 msgstr "Nenhum filho para esperar.\n"
 
-#: dlls/kernelbase/winerror.mc:513
+#: dlls/kernelbase/winerror.mc:515
 msgid "Child process has not completed.\n"
 msgstr "Processo filho não completou.\n"
 
-#: dlls/kernelbase/winerror.mc:518
+#: dlls/kernelbase/winerror.mc:520
 msgid "Invalid use of direct access handle.\n"
 msgstr "Uso inválido de manipulador de acesso direto.\n"
 
-#: dlls/kernelbase/winerror.mc:523
+#: dlls/kernelbase/winerror.mc:525
 msgid "Negative seek.\n"
 msgstr "Pesquisa negativa.\n"
 
-#: dlls/kernelbase/winerror.mc:533
+#: dlls/kernelbase/winerror.mc:535
 msgid "Drive is a JOIN target.\n"
 msgstr "Unidade é um alvo de JOIN.\n"
 
-#: dlls/kernelbase/winerror.mc:538
+#: dlls/kernelbase/winerror.mc:540
 msgid "Drive is already JOINed.\n"
 msgstr "Unidade já está em JOIN.\n"
 
-#: dlls/kernelbase/winerror.mc:543
+#: dlls/kernelbase/winerror.mc:545
 msgid "Drive is already SUBSTed.\n"
 msgstr "Unidade já está em SUBST.\n"
 
-#: dlls/kernelbase/winerror.mc:548
+#: dlls/kernelbase/winerror.mc:550
 msgid "Drive is not JOINed.\n"
 msgstr "Unidade não está em JOIN.\n"
 
-#: dlls/kernelbase/winerror.mc:553
+#: dlls/kernelbase/winerror.mc:555
 msgid "Drive is not SUBSTed.\n"
 msgstr "Unidade não está em SUBST.\n"
 
-#: dlls/kernelbase/winerror.mc:558
+#: dlls/kernelbase/winerror.mc:560
 msgid "Attempt to JOIN onto a JOINed drive.\n"
 msgstr "Tentativa de efetuar JOIN em uma unidade já em JOIN.\n"
 
-#: dlls/kernelbase/winerror.mc:563
+#: dlls/kernelbase/winerror.mc:565
 msgid "Attempt to SUBST onto a SUBSTed drive.\n"
 msgstr "Tentativa de efetuar SUBST em uma unidade já em SUBST.\n"
 
-#: dlls/kernelbase/winerror.mc:568
+#: dlls/kernelbase/winerror.mc:570
 msgid "Attempt to JOIN to a SUBSTed drive.\n"
 msgstr "Tentativa de efetuar JOIN em uma unidade já em SUBST.\n"
 
-#: dlls/kernelbase/winerror.mc:573
+#: dlls/kernelbase/winerror.mc:575
 msgid "Attempt to SUBST to a JOINed drive.\n"
 msgstr "Tentativa de efetuar SUBST em uma unidade já em JOIN.\n"
 
-#: dlls/kernelbase/winerror.mc:578
+#: dlls/kernelbase/winerror.mc:580
 msgid "Drive is busy.\n"
 msgstr "Unidade ocupada.\n"
 
-#: dlls/kernelbase/winerror.mc:583
+#: dlls/kernelbase/winerror.mc:585
 msgid "Same drive.\n"
 msgstr "Mesma unidade.\n"
 
-#: dlls/kernelbase/winerror.mc:588
+#: dlls/kernelbase/winerror.mc:590
 msgid "Not top-level directory.\n"
 msgstr "Não é o diretório raiz.\n"
 
-#: dlls/kernelbase/winerror.mc:593
+#: dlls/kernelbase/winerror.mc:595
 msgid "Directory is not empty.\n"
 msgstr "O diretório não está vazio.\n"
 
-#: dlls/kernelbase/winerror.mc:598
+#: dlls/kernelbase/winerror.mc:600
 msgid "Path is in use as a SUBST.\n"
 msgstr "O caminho está em uso como SUBST.\n"
 
-#: dlls/kernelbase/winerror.mc:603
+#: dlls/kernelbase/winerror.mc:605
 msgid "Path is in use as a JOIN.\n"
 msgstr "O caminho está em uso como JOIN.\n"
 
-#: dlls/kernelbase/winerror.mc:608
+#: dlls/kernelbase/winerror.mc:610
 msgid "Path is busy.\n"
 msgstr "Caminho ocupado.\n"
 
-#: dlls/kernelbase/winerror.mc:613
+#: dlls/kernelbase/winerror.mc:615
 msgid "Already a SUBST target.\n"
 msgstr "Já é um alvo SUBST.\n"
 
-#: dlls/kernelbase/winerror.mc:618
+#: dlls/kernelbase/winerror.mc:620
 msgid "System trace not specified or disallowed.\n"
 msgstr "Rastreio de sistema não especificado ou desabilitado.\n"
 
-#: dlls/kernelbase/winerror.mc:623
+#: dlls/kernelbase/winerror.mc:625
 msgid "Event count for DosMuxSemWait incorrect.\n"
 msgstr "Contagem de eventos para DosMuxSemWait incorreta.\n"
 
-#: dlls/kernelbase/winerror.mc:628
+#: dlls/kernelbase/winerror.mc:630
 msgid "Too many waiters for DosMuxSemWait.\n"
 msgstr "Demasiados à espera de DosMuxSemWait.\n"
 
-#: dlls/kernelbase/winerror.mc:633
+#: dlls/kernelbase/winerror.mc:635
 msgid "DosSemMuxWait list invalid.\n"
 msgstr "Lista DosSemMuxWait inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:638
+#: dlls/kernelbase/winerror.mc:640
 msgid "Volume label too long.\n"
 msgstr "Rótulo de volume muito longo.\n"
 
-#: dlls/kernelbase/winerror.mc:643
+#: dlls/kernelbase/winerror.mc:645
 msgid "Too many TCBs.\n"
 msgstr "TCBs demais.\n"
 
-#: dlls/kernelbase/winerror.mc:648
+#: dlls/kernelbase/winerror.mc:650
 msgid "Signal refused.\n"
 msgstr "Sinal recusado.\n"
 
-#: dlls/kernelbase/winerror.mc:653
+#: dlls/kernelbase/winerror.mc:655
 msgid "Segment discarded.\n"
 msgstr "Segmento descartado.\n"
 
-#: dlls/kernelbase/winerror.mc:658
+#: dlls/kernelbase/winerror.mc:660
 msgid "Segment not locked.\n"
 msgstr "Segmento não travado.\n"
 
-#: dlls/kernelbase/winerror.mc:663
+#: dlls/kernelbase/winerror.mc:665
 msgid "Bad thread ID address.\n"
 msgstr "Endereço ID de linha de execução impróprio.\n"
 
-#: dlls/kernelbase/winerror.mc:668
+#: dlls/kernelbase/winerror.mc:670
 msgid "Bad arguments to DosExecPgm.\n"
 msgstr "Argumentos impróprios para DosExecPgm.\n"
 
-#: dlls/kernelbase/winerror.mc:673
+#: dlls/kernelbase/winerror.mc:675
 msgid "Path is invalid.\n"
 msgstr "Caminho inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:678
+#: dlls/kernelbase/winerror.mc:680
 msgid "Signal pending.\n"
 msgstr "Sinal pendente.\n"
 
-#: dlls/kernelbase/winerror.mc:683
+#: dlls/kernelbase/winerror.mc:685
 msgid "Max system-wide thread count reached.\n"
 msgstr "Número máximo de linhas de execução no sistema atingido.\n"
 
-#: dlls/kernelbase/winerror.mc:688
+#: dlls/kernelbase/winerror.mc:690
 msgid "Lock failed.\n"
 msgstr "Falha ao travar.\n"
 
-#: dlls/kernelbase/winerror.mc:693
+#: dlls/kernelbase/winerror.mc:695
 msgid "Resource in use.\n"
 msgstr "Recurso em uso.\n"
 
-#: dlls/kernelbase/winerror.mc:698
+#: dlls/kernelbase/winerror.mc:700
 msgid "Cancel violation.\n"
 msgstr "Violação ao cancelar.\n"
 
-#: dlls/kernelbase/winerror.mc:703
+#: dlls/kernelbase/winerror.mc:705
 msgid "Atomic locks not supported.\n"
 msgstr "Travas atômicas não suportadas.\n"
 
-#: dlls/kernelbase/winerror.mc:708
+#: dlls/kernelbase/winerror.mc:710
 msgid "Invalid segment number.\n"
 msgstr "Número de segmento inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:713
+#: dlls/kernelbase/winerror.mc:715
 msgid "Invalid ordinal for %1.\n"
 msgstr "Ordinal inválido para %1.\n"
 
-#: dlls/kernelbase/winerror.mc:718
+#: dlls/kernelbase/winerror.mc:720
 msgid "File already exists.\n"
 msgstr "O arquivo já existe.\n"
 
-#: dlls/kernelbase/winerror.mc:723
+#: dlls/kernelbase/winerror.mc:725
 msgid "Invalid flag number.\n"
 msgstr "Número de flag inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:728
+#: dlls/kernelbase/winerror.mc:730
 msgid "Semaphore name not found.\n"
 msgstr "Nome de semáforo não encontrado.\n"
 
-#: dlls/kernelbase/winerror.mc:733
+#: dlls/kernelbase/winerror.mc:735
 msgid "Invalid starting code segment for %1.\n"
 msgstr "Segmento de código inicial inválido para %1.\n"
 
-#: dlls/kernelbase/winerror.mc:738
+#: dlls/kernelbase/winerror.mc:740
 msgid "Invalid starting stack segment for %1.\n"
 msgstr "Segmento de pilha inicial inválido para %1.\n"
 
-#: dlls/kernelbase/winerror.mc:743
+#: dlls/kernelbase/winerror.mc:745
 msgid "Invalid module type for %1.\n"
 msgstr "Tipo de módulo inválido para %1.\n"
 
-#: dlls/kernelbase/winerror.mc:748
+#: dlls/kernelbase/winerror.mc:750
 msgid "Invalid EXE signature in %1.\n"
 msgstr "Assinatura de EXE inválida em %1.\n"
 
-#: dlls/kernelbase/winerror.mc:753
+#: dlls/kernelbase/winerror.mc:755
 msgid "EXE %1 is marked invalid.\n"
 msgstr "O EXE %1 está marcado como inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:758
+#: dlls/kernelbase/winerror.mc:760
 msgid "Bad EXE format for %1.\n"
 msgstr "Formato EXE impróprio para %1.\n"
 
-#: dlls/kernelbase/winerror.mc:763
+#: dlls/kernelbase/winerror.mc:765
 msgid "Iterated data exceeds 64k in %1.\n"
 msgstr "Dados iterados excedem 64k em %1.\n"
 
-#: dlls/kernelbase/winerror.mc:768
+#: dlls/kernelbase/winerror.mc:770
 msgid "Invalid MinAllocSize in %1.\n"
 msgstr "MinAllocSize inválido em %1.\n"
 
-#: dlls/kernelbase/winerror.mc:773
+#: dlls/kernelbase/winerror.mc:775
 msgid "Dynlink from invalid ring.\n"
 msgstr "Dynlink de anel inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:778
+#: dlls/kernelbase/winerror.mc:780
 msgid "IOPL not enabled.\n"
 msgstr "IOPL não ativado.\n"
 
-#: dlls/kernelbase/winerror.mc:783
+#: dlls/kernelbase/winerror.mc:785
 msgid "Invalid SEGDPL in %1.\n"
 msgstr "SEGDPL inválido em %1.\n"
 
-#: dlls/kernelbase/winerror.mc:788
+#: dlls/kernelbase/winerror.mc:790
 msgid "Auto data segment exceeds 64k.\n"
 msgstr "Segmento automático de dados excede 64k.\n"
 
-#: dlls/kernelbase/winerror.mc:793
+#: dlls/kernelbase/winerror.mc:795
 msgid "Ring 2 segment must be movable.\n"
 msgstr "Anel para segmento 2 tem que ser móvel.\n"
 
-#: dlls/kernelbase/winerror.mc:798
+#: dlls/kernelbase/winerror.mc:800
 msgid "Relocation chain exceeds segment limit in %1.\n"
 msgstr "Cadeia de realocação excede o limite de segmento em %1.\n"
 
-#: dlls/kernelbase/winerror.mc:803
+#: dlls/kernelbase/winerror.mc:805
 msgid "Infinite loop in relocation chain in %1.\n"
 msgstr "Laço infinito em cadeia de realocação em %1.\n"
 
-#: dlls/kernelbase/winerror.mc:808
+#: dlls/kernelbase/winerror.mc:810
 msgid "Environment variable not found.\n"
 msgstr "Variável de ambiente não encontrada.\n"
 
-#: dlls/kernelbase/winerror.mc:813
+#: dlls/kernelbase/winerror.mc:815
 msgid "No signal sent.\n"
 msgstr "Nenhum sinal enviado.\n"
 
-#: dlls/kernelbase/winerror.mc:818 programs/cmd/cmd.rc:406
+#: dlls/kernelbase/winerror.mc:820 programs/cmd/cmd.rc:406
 msgid "File name is too long.\n"
 msgstr "Nome de arquivo é muito longo.\n"
 
-#: dlls/kernelbase/winerror.mc:823
+#: dlls/kernelbase/winerror.mc:825
 msgid "Ring 2 stack in use.\n"
 msgstr "Anel para pilha 2 em uso.\n"
 
-#: dlls/kernelbase/winerror.mc:828
+#: dlls/kernelbase/winerror.mc:830
 msgid "Error in use of filename wildcards.\n"
 msgstr "Erro no uso de caracteres coringa nos nomes de arquivo.\n"
 
-#: dlls/kernelbase/winerror.mc:833
+#: dlls/kernelbase/winerror.mc:835
 msgid "Invalid signal number.\n"
 msgstr "Número de sinal inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:838
+#: dlls/kernelbase/winerror.mc:840
 msgid "Error setting signal handler.\n"
 msgstr "Erro ao criar manipulador do sinal.\n"
 
-#: dlls/kernelbase/winerror.mc:843
+#: dlls/kernelbase/winerror.mc:845
 msgid "Segment locked.\n"
 msgstr "Segmento trancado.\n"
 
-#: dlls/kernelbase/winerror.mc:848
+#: dlls/kernelbase/winerror.mc:850
 msgid "Too many modules.\n"
 msgstr "Demasiados módulos.\n"
 
-#: dlls/kernelbase/winerror.mc:853
+#: dlls/kernelbase/winerror.mc:855
 msgid "Nesting LoadModule calls not allowed.\n"
 msgstr "Juntar chamadas de LoadModule não é permitido.\n"
 
-#: dlls/kernelbase/winerror.mc:858
+#: dlls/kernelbase/winerror.mc:860
 msgid "Machine type mismatch.\n"
 msgstr "Tipo de máquina diferente.\n"
 
-#: dlls/kernelbase/winerror.mc:863
+#: dlls/kernelbase/winerror.mc:865
 msgid "Bad pipe.\n"
 msgstr "Pipe impróprio.\n"
 
-#: dlls/kernelbase/winerror.mc:868
+#: dlls/kernelbase/winerror.mc:870
 msgid "Pipe busy.\n"
 msgstr "Pipe ocupado.\n"
 
-#: dlls/kernelbase/winerror.mc:873
+#: dlls/kernelbase/winerror.mc:875
 msgid "Pipe closed.\n"
 msgstr "Pipe fechado.\n"
 
-#: dlls/kernelbase/winerror.mc:878
+#: dlls/kernelbase/winerror.mc:880
 msgid "Pipe not connected.\n"
 msgstr "Pipe não conectado.\n"
 
-#: dlls/kernelbase/winerror.mc:883
+#: dlls/kernelbase/winerror.mc:885
 msgid "More data available.\n"
 msgstr "Mais dados disponíveis.\n"
 
-#: dlls/kernelbase/winerror.mc:888
+#: dlls/kernelbase/winerror.mc:890
 msgid "Session canceled.\n"
 msgstr "Sessão cancelada.\n"
 
-#: dlls/kernelbase/winerror.mc:893
+#: dlls/kernelbase/winerror.mc:895
 msgid "Invalid extended attribute name.\n"
 msgstr "Nome de atributo estendido inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:898
+#: dlls/kernelbase/winerror.mc:900
 msgid "Extended attribute list inconsistent.\n"
 msgstr "Lista de atributos estendida inconsistente.\n"
 
-#: dlls/kernelbase/winerror.mc:903
+#: dlls/kernelbase/winerror.mc:905
 msgid "No more data available.\n"
 msgstr "Não há mais dados disponíveis.\n"
 
-#: dlls/kernelbase/winerror.mc:908
+#: dlls/kernelbase/winerror.mc:910
 msgid "Cannot use Copy API.\n"
 msgstr "Não é possível usar a API de Cópia.\n"
 
-#: dlls/kernelbase/winerror.mc:913
+#: dlls/kernelbase/winerror.mc:915
 msgid "Directory name invalid.\n"
 msgstr "Nome de diretório inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:918
+#: dlls/kernelbase/winerror.mc:920
 msgid "Extended attributes didn't fit.\n"
 msgstr "Atributos estendidos não couberam.\n"
 
-#: dlls/kernelbase/winerror.mc:923
+#: dlls/kernelbase/winerror.mc:925
 msgid "Extended attribute file corrupt.\n"
 msgstr "Arquivo de atributos estendido corrompido.\n"
 
-#: dlls/kernelbase/winerror.mc:928
+#: dlls/kernelbase/winerror.mc:930
 msgid "Extended attribute table full.\n"
 msgstr "Tabela de atributos estendida cheia.\n"
 
-#: dlls/kernelbase/winerror.mc:933
+#: dlls/kernelbase/winerror.mc:935
 msgid "Invalid extended attribute handle.\n"
 msgstr "Manipulação de atributo estendido inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:938
+#: dlls/kernelbase/winerror.mc:940
 msgid "Extended attributes not supported.\n"
 msgstr "Atributos estendidos não suportados.\n"
 
-#: dlls/kernelbase/winerror.mc:943
+#: dlls/kernelbase/winerror.mc:945
 msgid "Mutex not owned by caller.\n"
 msgstr "Chamador não possui o Mutex.\n"
 
-#: dlls/kernelbase/winerror.mc:948
+#: dlls/kernelbase/winerror.mc:950
 msgid "Too many posts to semaphore.\n"
 msgstr "Muitas mensagens ao semáforo.\n"
 
-#: dlls/kernelbase/winerror.mc:953
+#: dlls/kernelbase/winerror.mc:955
 msgid "Read/WriteProcessMemory partially completed.\n"
 msgstr "Read/WriteProcessMemory parcialmente completo.\n"
 
-#: dlls/kernelbase/winerror.mc:958
+#: dlls/kernelbase/winerror.mc:960
 msgid "The oplock wasn't granted.\n"
 msgstr "O bloqueio não foi garantido.\n"
 
-#: dlls/kernelbase/winerror.mc:963
+#: dlls/kernelbase/winerror.mc:965
 msgid "Invalid oplock message received.\n"
 msgstr "Mensagem inválida de bloqueio recebida.\n"
 
-#: dlls/kernelbase/winerror.mc:968
+#: dlls/kernelbase/winerror.mc:970
+#, fuzzy
+#| msgid "Disk is corrupt.\n"
+msgid "Disk is too fragmented.\n"
+msgstr "Disco corrompido.\n"
+
+#: dlls/kernelbase/winerror.mc:975
+msgid "File cannot be opened because it is in the process of being deleted.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:980
+msgid "Short name settings incompatible with global registry setting.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:985
+msgid "Short names are not enabled on this volume.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:990
+#, fuzzy
+#| msgid "Floppy registers inconsistent.\n"
+msgid "Security stream is inconsistent.\n"
+msgstr "Registros do disquete inconsistentes.\n"
+
+#: dlls/kernelbase/winerror.mc:995
+msgid "File lock operation cannot be processed due to invalid byte range.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:1000
+msgid "Subsystem for supporting image type is not present.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:1005
+msgid "Notification GUID is already defined.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:1010
+#, fuzzy
+#| msgid "Invalid icon handle.\n"
+msgid "Invalid exception handler.\n"
+msgstr "Manipulador de ícone inválido.\n"
+
+#: dlls/kernelbase/winerror.mc:1015
+#, fuzzy
+#| msgid "Duplicate service name.\n"
+msgid "Duplicate privileges for the token.\n"
+msgstr "Nome de serviço duplicado.\n"
+
+#: dlls/kernelbase/winerror.mc:1020
+#, fuzzy
+#| msgid "Not all objects could be exported.\n"
+msgid "No ranges could be processed.\n"
+msgstr "Nem todos os objetos puderam ser exportados.\n"
+
+#: dlls/kernelbase/winerror.mc:1025
+#, fuzzy
+#| msgid "Operation canceled by user.\n"
+msgid "Operation not allowed on system file.\n"
+msgstr "Operação cancelada pelo usuário.\n"
+
+#: dlls/kernelbase/winerror.mc:1030
+msgid "Disk resources have been exhausted.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:1035
+#, fuzzy
+#| msgid "Invalid key.\n"
+msgid "Invalid token.\n"
+msgstr "Chave inválida.\n"
+
+#: dlls/kernelbase/winerror.mc:1040
+msgid "Command feature not supported on the device.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:1045
 msgid "Message 0x%1 not found in file %2.\n"
 msgstr "Mensagem 0x%1 não encontrada no arquivo %2.\n"
 
-#: dlls/kernelbase/winerror.mc:973
+#: dlls/kernelbase/winerror.mc:1050
+#, fuzzy
+#| msgid "Sector not found.\n"
+msgid "Scope not found.\n"
+msgstr "Setor não encontrado.\n"
+
+#: dlls/kernelbase/winerror.mc:1055
+#, fuzzy
+#| msgid "The specified device handle is invalid."
+msgid "The specified Central Access Policy is undefined.\n"
+msgstr "O manipulador do dispositivo especificado é inválido."
+
+#: dlls/kernelbase/winerror.mc:1060
+msgid "Central Access Policy from Active Directory is invalid.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:1065
+#, fuzzy
+#| msgid "Host unreachable.\n"
+msgid "Device is unreachable.\n"
+msgstr "Hospedeiro inatingível.\n"
+
+#: dlls/kernelbase/winerror.mc:1070
+msgid "Target device has insufficient resources to complete the operation.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:1075
+msgid ""
+"A data integrity checksum error occurred. Data in the file stream is "
+"corrupt.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:1080
+msgid ""
+"Cannot modify both KERNEL and normal Extended Attributes in one operation.\n"
+msgstr ""
+
+#: dlls/kernelbase/winerror.mc:1085
+#, fuzzy
+#| msgid "Device does not exist.\n"
+msgid "Device does not support file-level TRIM.\n"
+msgstr "Dispositivo não existe.\n"
+
+#: dlls/kernelbase/winerror.mc:1090
 msgid "Invalid address.\n"
 msgstr "Endereço inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:978
+#: dlls/kernelbase/winerror.mc:1095
 msgid "Arithmetic overflow.\n"
 msgstr "Transbordamento aritmético.\n"
 
-#: dlls/kernelbase/winerror.mc:983
+#: dlls/kernelbase/winerror.mc:1100
 msgid "Pipe connected.\n"
 msgstr "Pipe conectado.\n"
 
-#: dlls/kernelbase/winerror.mc:988
+#: dlls/kernelbase/winerror.mc:1105
 msgid "Pipe listening.\n"
 msgstr "Pipe escutando.\n"
 
-#: dlls/kernelbase/winerror.mc:993
+#: dlls/kernelbase/winerror.mc:1110
 msgid "Extended attribute access denied.\n"
 msgstr "Acesso a atributos estendidos negado.\n"
 
-#: dlls/kernelbase/winerror.mc:998
+#: dlls/kernelbase/winerror.mc:1115
 msgid "I/O operation aborted.\n"
 msgstr "Operação E/S abortada.\n"
 
-#: dlls/kernelbase/winerror.mc:1003
+#: dlls/kernelbase/winerror.mc:1120
 msgid "Overlapped I/O incomplete.\n"
 msgstr "E/S sobreposta incompleta.\n"
 
-#: dlls/kernelbase/winerror.mc:1008
+#: dlls/kernelbase/winerror.mc:1125
 msgid "Overlapped I/O pending.\n"
 msgstr "E/S sobreposta pendente.\n"
 
-#: dlls/kernelbase/winerror.mc:1013
+#: dlls/kernelbase/winerror.mc:1130
 msgid "No access to memory location.\n"
 msgstr "Sem acesso ao local de memória.\n"
 
-#: dlls/kernelbase/winerror.mc:1018
+#: dlls/kernelbase/winerror.mc:1135
 msgid "Swap error.\n"
 msgstr "Erro de troca.\n"
 
-#: dlls/kernelbase/winerror.mc:1023
+#: dlls/kernelbase/winerror.mc:1140
 msgid "Stack overflow.\n"
 msgstr "Transbordamento da pilha.\n"
 
-#: dlls/kernelbase/winerror.mc:1028
+#: dlls/kernelbase/winerror.mc:1145
 msgid "Invalid message.\n"
 msgstr "Mensagem inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:1033
+#: dlls/kernelbase/winerror.mc:1150
 msgid "Cannot complete.\n"
 msgstr "Não é possível completar.\n"
 
-#: dlls/kernelbase/winerror.mc:1038
+#: dlls/kernelbase/winerror.mc:1155
 msgid "Invalid flags.\n"
 msgstr "Flags inválidas.\n"
 
-#: dlls/kernelbase/winerror.mc:1043
+#: dlls/kernelbase/winerror.mc:1160
 msgid "Unrecognized volume.\n"
 msgstr "Volume não reconhecido.\n"
 
-#: dlls/kernelbase/winerror.mc:1048
+#: dlls/kernelbase/winerror.mc:1165
 msgid "File invalid.\n"
 msgstr "Arquivo inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:1053
+#: dlls/kernelbase/winerror.mc:1170
 msgid "Cannot run full-screen.\n"
 msgstr "Não é possível executar em tela cheia.\n"
 
-#: dlls/kernelbase/winerror.mc:1058
+#: dlls/kernelbase/winerror.mc:1175
 msgid "Nonexistent token.\n"
 msgstr "Token não existente.\n"
 
-#: dlls/kernelbase/winerror.mc:1063
+#: dlls/kernelbase/winerror.mc:1180
 msgid "Registry corrupt.\n"
 msgstr "Registro corrompido.\n"
 
-#: dlls/kernelbase/winerror.mc:1068
+#: dlls/kernelbase/winerror.mc:1185
 msgid "Invalid key.\n"
 msgstr "Chave inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:1073
+#: dlls/kernelbase/winerror.mc:1190
 msgid "Can't open registry key.\n"
 msgstr "Não é possível abrir a chave de registro.\n"
 
-#: dlls/kernelbase/winerror.mc:1078
+#: dlls/kernelbase/winerror.mc:1195
 msgid "Can't read registry key.\n"
 msgstr "Não é possível ler chave de registro.\n"
 
-#: dlls/kernelbase/winerror.mc:1083
+#: dlls/kernelbase/winerror.mc:1200
 msgid "Can't write registry key.\n"
 msgstr "Não é possível escrever chave de registro.\n"
 
-#: dlls/kernelbase/winerror.mc:1088
+#: dlls/kernelbase/winerror.mc:1205
 msgid "Registry has been recovered.\n"
 msgstr "O registro foi recuperado.\n"
 
-#: dlls/kernelbase/winerror.mc:1093
+#: dlls/kernelbase/winerror.mc:1210
 msgid "Registry is corrupt.\n"
 msgstr "O registro está corrompido.\n"
 
-#: dlls/kernelbase/winerror.mc:1098
+#: dlls/kernelbase/winerror.mc:1215
 msgid "I/O to registry failed.\n"
 msgstr "Falha na E/S para o registro.\n"
 
-#: dlls/kernelbase/winerror.mc:1103
+#: dlls/kernelbase/winerror.mc:1220
 msgid "Not registry file.\n"
 msgstr "Não é um arquivo de registo.\n"
 
-#: dlls/kernelbase/winerror.mc:1108
+#: dlls/kernelbase/winerror.mc:1225
 msgid "Key deleted.\n"
 msgstr "Chave apagada.\n"
 
-#: dlls/kernelbase/winerror.mc:1113
+#: dlls/kernelbase/winerror.mc:1230
 msgid "No registry log space.\n"
 msgstr "Sem espaço de log no registro.\n"
 
-#: dlls/kernelbase/winerror.mc:1118
+#: dlls/kernelbase/winerror.mc:1235
 msgid "Registry key has subkeys.\n"
 msgstr "Chave de registro tem sub-chaves.\n"
 
-#: dlls/kernelbase/winerror.mc:1123
+#: dlls/kernelbase/winerror.mc:1240
 msgid "Subkey must be volatile.\n"
 msgstr "Sub-chave tem de ser volátil.\n"
 
-#: dlls/kernelbase/winerror.mc:1128
+#: dlls/kernelbase/winerror.mc:1245
 msgid "Notify change request in progress.\n"
 msgstr "Notificação de mudança de pedido em progresso.\n"
 
-#: dlls/kernelbase/winerror.mc:1133
+#: dlls/kernelbase/winerror.mc:1250
 msgid "Dependent services are running.\n"
 msgstr "Serviços dependentes estão rodando.\n"
 
-#: dlls/kernelbase/winerror.mc:1138
+#: dlls/kernelbase/winerror.mc:1255
 msgid "Invalid service control.\n"
 msgstr "Controle de serviço inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:1143
+#: dlls/kernelbase/winerror.mc:1260
 msgid "Service request timeout.\n"
 msgstr "Tempo limite no pedido de serviço.\n"
 
-#: dlls/kernelbase/winerror.mc:1148
+#: dlls/kernelbase/winerror.mc:1265
 msgid "Cannot create service thread.\n"
 msgstr "Não é possível criar linha de execução de serviço.\n"
 
-#: dlls/kernelbase/winerror.mc:1153
+#: dlls/kernelbase/winerror.mc:1270
 msgid "Service database locked.\n"
 msgstr "Base de dados de serviços travada.\n"
 
-#: dlls/kernelbase/winerror.mc:1158
+#: dlls/kernelbase/winerror.mc:1275
 msgid "Service already running.\n"
 msgstr "O serviço já está rodando.\n"
 
-#: dlls/kernelbase/winerror.mc:1163
+#: dlls/kernelbase/winerror.mc:1280
 msgid "Invalid service account.\n"
 msgstr "Conta de serviço inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:1168
+#: dlls/kernelbase/winerror.mc:1285
 msgid "Service is disabled.\n"
 msgstr "Serviço desabilitado.\n"
 
-#: dlls/kernelbase/winerror.mc:1173
+#: dlls/kernelbase/winerror.mc:1290
 msgid "Circular dependency.\n"
 msgstr "Dependência circular.\n"
 
-#: dlls/kernelbase/winerror.mc:1178
+#: dlls/kernelbase/winerror.mc:1295
 msgid "Service does not exist.\n"
 msgstr "O serviço não existe.\n"
 
-#: dlls/kernelbase/winerror.mc:1183
+#: dlls/kernelbase/winerror.mc:1300
 msgid "Service cannot accept control message.\n"
 msgstr "O serviço não pode aceitar a mensagem de controle.\n"
 
-#: dlls/kernelbase/winerror.mc:1188
+#: dlls/kernelbase/winerror.mc:1305
 msgid "Service not active.\n"
 msgstr "Serviço não ativo.\n"
 
-#: dlls/kernelbase/winerror.mc:1193
+#: dlls/kernelbase/winerror.mc:1310
 msgid "Service controller connect failed.\n"
 msgstr "Falha na conexão ao controlador do serviço.\n"
 
-#: dlls/kernelbase/winerror.mc:1198
+#: dlls/kernelbase/winerror.mc:1315
 msgid "Exception in service.\n"
 msgstr "Exceção no serviço.\n"
 
-#: dlls/kernelbase/winerror.mc:1203
+#: dlls/kernelbase/winerror.mc:1320
 msgid "Database does not exist.\n"
 msgstr "A base de dados não existe.\n"
 
-#: dlls/kernelbase/winerror.mc:1208
+#: dlls/kernelbase/winerror.mc:1325
 msgid "Service-specific error.\n"
 msgstr "Erro específico ao serviço.\n"
 
-#: dlls/kernelbase/winerror.mc:1213
+#: dlls/kernelbase/winerror.mc:1330
 msgid "Process aborted.\n"
 msgstr "Processo abortado.\n"
 
-#: dlls/kernelbase/winerror.mc:1218
+#: dlls/kernelbase/winerror.mc:1335
 msgid "Service dependency failed.\n"
 msgstr "Falha na dependência de serviço.\n"
 
-#: dlls/kernelbase/winerror.mc:1223
+#: dlls/kernelbase/winerror.mc:1340
 msgid "Service login failed.\n"
 msgstr "Falha no login ao serviço.\n"
 
-#: dlls/kernelbase/winerror.mc:1228
+#: dlls/kernelbase/winerror.mc:1345
 msgid "Service start-hang.\n"
 msgstr "Trava no início do serviço.\n"
 
-#: dlls/kernelbase/winerror.mc:1233
+#: dlls/kernelbase/winerror.mc:1350
 msgid "Invalid service lock.\n"
 msgstr "Trava de serviço inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:1238
+#: dlls/kernelbase/winerror.mc:1355
 msgid "Service marked for delete.\n"
 msgstr "Serviço marcado para ser excluído.\n"
 
-#: dlls/kernelbase/winerror.mc:1243
+#: dlls/kernelbase/winerror.mc:1360
 msgid "Service exists.\n"
 msgstr "O serviço já existe.\n"
 
-#: dlls/kernelbase/winerror.mc:1248
+#: dlls/kernelbase/winerror.mc:1365
 msgid "System running last-known-good config.\n"
 msgstr "O sistema está usando a última configuração boa conhecida.\n"
 
-#: dlls/kernelbase/winerror.mc:1253
+#: dlls/kernelbase/winerror.mc:1370
 msgid "Service dependency deleted.\n"
 msgstr "Dependência de serviço excluída.\n"
 
-#: dlls/kernelbase/winerror.mc:1258
+#: dlls/kernelbase/winerror.mc:1375
 msgid "Boot already accepted as last-good config.\n"
 msgstr "Boot já aceito como a última configuração boa.\n"
 
-#: dlls/kernelbase/winerror.mc:1263
+#: dlls/kernelbase/winerror.mc:1380
 msgid "Service not started since last boot.\n"
 msgstr "Serviço não iniciado desde o último boot.\n"
 
-#: dlls/kernelbase/winerror.mc:1268
+#: dlls/kernelbase/winerror.mc:1385
 msgid "Duplicate service name.\n"
 msgstr "Nome de serviço duplicado.\n"
 
-#: dlls/kernelbase/winerror.mc:1273
+#: dlls/kernelbase/winerror.mc:1390
 msgid "Different service account.\n"
 msgstr "Conta de serviço diferente.\n"
 
-#: dlls/kernelbase/winerror.mc:1278
+#: dlls/kernelbase/winerror.mc:1395
 msgid "Driver failure cannot be detected.\n"
 msgstr "Falha de driver não pode ser detectada.\n"
 
-#: dlls/kernelbase/winerror.mc:1283
+#: dlls/kernelbase/winerror.mc:1400
 msgid "Process abort cannot be detected.\n"
 msgstr "Interrupção de processo não pode ser detectada.\n"
 
-#: dlls/kernelbase/winerror.mc:1288
+#: dlls/kernelbase/winerror.mc:1405
 msgid "No recovery program for service.\n"
 msgstr "Nenhuma informação de recuperação para o serviço.\n"
 
-#: dlls/kernelbase/winerror.mc:1293
+#: dlls/kernelbase/winerror.mc:1410
 msgid "Service not implemented by exe.\n"
 msgstr "Serviço não implementado por exe.\n"
 
-#: dlls/kernelbase/winerror.mc:1298
+#: dlls/kernelbase/winerror.mc:1415
 msgid "End of media.\n"
 msgstr "Fim da mídia.\n"
 
-#: dlls/kernelbase/winerror.mc:1303
+#: dlls/kernelbase/winerror.mc:1420
 msgid "Filemark detected.\n"
 msgstr "Marca de arquivo detectada.\n"
 
-#: dlls/kernelbase/winerror.mc:1308
+#: dlls/kernelbase/winerror.mc:1425
 msgid "Beginning of media.\n"
 msgstr "Início da mídia.\n"
 
-#: dlls/kernelbase/winerror.mc:1313
+#: dlls/kernelbase/winerror.mc:1430
 msgid "Setmark detected.\n"
 msgstr "Setmark detectado.\n"
 
-#: dlls/kernelbase/winerror.mc:1318
+#: dlls/kernelbase/winerror.mc:1435
 msgid "No data detected.\n"
 msgstr "Nenhum dado detectado.\n"
 
-#: dlls/kernelbase/winerror.mc:1323
+#: dlls/kernelbase/winerror.mc:1440
 msgid "Partition failure.\n"
 msgstr "Falha na partição.\n"
 
-#: dlls/kernelbase/winerror.mc:1328
+#: dlls/kernelbase/winerror.mc:1445
 msgid "Invalid block length.\n"
 msgstr "Comprimento de bloco inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:1333
+#: dlls/kernelbase/winerror.mc:1450
 msgid "Device not partitioned.\n"
 msgstr "Dispositivo não particionado.\n"
 
-#: dlls/kernelbase/winerror.mc:1338
+#: dlls/kernelbase/winerror.mc:1455
 msgid "Unable to lock media.\n"
 msgstr "Não é possível travar a mídia.\n"
 
-#: dlls/kernelbase/winerror.mc:1343
+#: dlls/kernelbase/winerror.mc:1460
 msgid "Unable to unload media.\n"
 msgstr "Não é possível descarregar a mídia.\n"
 
-#: dlls/kernelbase/winerror.mc:1348
+#: dlls/kernelbase/winerror.mc:1465
 msgid "Media changed.\n"
 msgstr "Mídia alterada.\n"
 
-#: dlls/kernelbase/winerror.mc:1353
+#: dlls/kernelbase/winerror.mc:1470
 msgid "I/O bus reset.\n"
 msgstr "Reinício do barramento de E/S.\n"
 
-#: dlls/kernelbase/winerror.mc:1358
+#: dlls/kernelbase/winerror.mc:1475
 msgid "No media in drive.\n"
 msgstr "Nenhuma mídia na unidade.\n"
 
-#: dlls/kernelbase/winerror.mc:1363
+#: dlls/kernelbase/winerror.mc:1480
 msgid "No Unicode translation.\n"
 msgstr "Sem tradução Unicode.\n"
 
-#: dlls/kernelbase/winerror.mc:1368
+#: dlls/kernelbase/winerror.mc:1485
 msgid "DLL initialization failed.\n"
 msgstr "Falha ao iniciar DLL.\n"
 
-#: dlls/kernelbase/winerror.mc:1373
+#: dlls/kernelbase/winerror.mc:1490
 msgid "Shutdown in progress.\n"
 msgstr "Encerramento em progresso.\n"
 
-#: dlls/kernelbase/winerror.mc:1378
+#: dlls/kernelbase/winerror.mc:1495
 msgid "No shutdown in progress.\n"
 msgstr "Nenhum encerramento em progresso.\n"
 
-#: dlls/kernelbase/winerror.mc:1383
+#: dlls/kernelbase/winerror.mc:1500
 msgid "I/O device error.\n"
 msgstr "Erro em dispositivo de E/S.\n"
 
-#: dlls/kernelbase/winerror.mc:1388
+#: dlls/kernelbase/winerror.mc:1505
 msgid "No serial devices found.\n"
 msgstr "Nenhum dispositivo em série encontrado.\n"
 
-#: dlls/kernelbase/winerror.mc:1393
+#: dlls/kernelbase/winerror.mc:1510
 msgid "Shared IRQ busy.\n"
 msgstr "IRQ compartilhado ocupado.\n"
 
-#: dlls/kernelbase/winerror.mc:1398
+#: dlls/kernelbase/winerror.mc:1515
 msgid "Serial I/O completed.\n"
 msgstr "E/S em série completo.\n"
 
-#: dlls/kernelbase/winerror.mc:1403
+#: dlls/kernelbase/winerror.mc:1520
 msgid "Serial I/O counter timeout.\n"
 msgstr "Contador de E/S em série expirou.\n"
 
-#: dlls/kernelbase/winerror.mc:1408
+#: dlls/kernelbase/winerror.mc:1525
 msgid "Floppy ID address mark not found.\n"
 msgstr "Marca de endereço ID do disquete não encontrado.\n"
 
-#: dlls/kernelbase/winerror.mc:1413
+#: dlls/kernelbase/winerror.mc:1530
 msgid "Floppy reports wrong cylinder.\n"
 msgstr "Leitor de disquetes reportou o cilindro errado.\n"
 
-#: dlls/kernelbase/winerror.mc:1418
+#: dlls/kernelbase/winerror.mc:1535
 msgid "Unknown floppy error.\n"
 msgstr "Erro desconhecido no leitor de disquetes.\n"
 
-#: dlls/kernelbase/winerror.mc:1423
+#: dlls/kernelbase/winerror.mc:1540
 msgid "Floppy registers inconsistent.\n"
 msgstr "Registros do disquete inconsistentes.\n"
 
-#: dlls/kernelbase/winerror.mc:1428
+#: dlls/kernelbase/winerror.mc:1545
 msgid "Hard disk recalibrate failed.\n"
 msgstr "Falha na recalibração do disco rígido.\n"
 
-#: dlls/kernelbase/winerror.mc:1433
+#: dlls/kernelbase/winerror.mc:1550
 msgid "Hard disk operation failed.\n"
 msgstr "Falha de operação no disco rígido.\n"
 
-#: dlls/kernelbase/winerror.mc:1438
+#: dlls/kernelbase/winerror.mc:1555
 msgid "Hard disk reset failed.\n"
 msgstr "Falha na reinicialização do disco rígido.\n"
 
-#: dlls/kernelbase/winerror.mc:1443
+#: dlls/kernelbase/winerror.mc:1560
 msgid "End of tape media.\n"
 msgstr "Fim da mídia de fita.\n"
 
-#: dlls/kernelbase/winerror.mc:1448
+#: dlls/kernelbase/winerror.mc:1565
 msgid "Not enough server memory.\n"
 msgstr "Memória do servidor insuficiente.\n"
 
-#: dlls/kernelbase/winerror.mc:1453
+#: dlls/kernelbase/winerror.mc:1570
 msgid "Possible deadlock.\n"
 msgstr "Possível bloqueio.\n"
 
-#: dlls/kernelbase/winerror.mc:1458
+#: dlls/kernelbase/winerror.mc:1575
 msgid "Incorrect alignment.\n"
 msgstr "Alinhamento incorreto.\n"
 
-#: dlls/kernelbase/winerror.mc:1463
+#: dlls/kernelbase/winerror.mc:1580
 msgid "Set-power-state vetoed.\n"
 msgstr "Set-power-state impedido.\n"
 
-#: dlls/kernelbase/winerror.mc:1468
+#: dlls/kernelbase/winerror.mc:1585
 msgid "Set-power-state failed.\n"
 msgstr "Falha em set-power-state.\n"
 
-#: dlls/kernelbase/winerror.mc:1473
+#: dlls/kernelbase/winerror.mc:1590
 msgid "Too many links.\n"
 msgstr "Demasiados links.\n"
 
-#: dlls/kernelbase/winerror.mc:1478
+#: dlls/kernelbase/winerror.mc:1595
 msgid "Newer Windows version needed.\n"
 msgstr "É necessária uma versão de Windows mais recente.\n"
 
-#: dlls/kernelbase/winerror.mc:1483
+#: dlls/kernelbase/winerror.mc:1600
 msgid "Wrong operating system.\n"
 msgstr "Sistema operacional errado.\n"
 
-#: dlls/kernelbase/winerror.mc:1488
+#: dlls/kernelbase/winerror.mc:1605
 msgid "Single-instance application.\n"
 msgstr "Aplicativo de instância única.\n"
 
-#: dlls/kernelbase/winerror.mc:1493
+#: dlls/kernelbase/winerror.mc:1610
 msgid "Real-mode application.\n"
 msgstr "Aplicativo de modo real.\n"
 
-#: dlls/kernelbase/winerror.mc:1498
+#: dlls/kernelbase/winerror.mc:1615
 msgid "Invalid DLL.\n"
 msgstr "DLL Inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:1503
+#: dlls/kernelbase/winerror.mc:1620
 msgid "No associated application.\n"
 msgstr "Nenhum aplicativo associada.\n"
 
-#: dlls/kernelbase/winerror.mc:1508
+#: dlls/kernelbase/winerror.mc:1625
 msgid "DDE failure.\n"
 msgstr "Falha DDE.\n"
 
-#: dlls/kernelbase/winerror.mc:1513
+#: dlls/kernelbase/winerror.mc:1630
 msgid "DLL not found.\n"
 msgstr "DLL não encontrado.\n"
 
-#: dlls/kernelbase/winerror.mc:1518
+#: dlls/kernelbase/winerror.mc:1635
 msgid "Out of user handles.\n"
 msgstr "Não há mais manipuladores de usuário.\n"
 
-#: dlls/kernelbase/winerror.mc:1523
+#: dlls/kernelbase/winerror.mc:1640
 msgid "Message can only be used in synchronous calls.\n"
 msgstr "Mensagem só pode ser usada em chamadas sincronizadas.\n"
 
-#: dlls/kernelbase/winerror.mc:1528
+#: dlls/kernelbase/winerror.mc:1645
 msgid "The source element is empty.\n"
 msgstr "O elemento fonte está vazio.\n"
 
-#: dlls/kernelbase/winerror.mc:1533
+#: dlls/kernelbase/winerror.mc:1650
 msgid "The destination element is full.\n"
 msgstr "O elemento de destino está cheio.\n"
 
-#: dlls/kernelbase/winerror.mc:1538
+#: dlls/kernelbase/winerror.mc:1655
 msgid "The element address is invalid.\n"
 msgstr "O endereço do elemento é inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:1543
+#: dlls/kernelbase/winerror.mc:1660
 msgid "The magazine is not present.\n"
 msgstr "A revista não está presente.\n"
 
-#: dlls/kernelbase/winerror.mc:1548
+#: dlls/kernelbase/winerror.mc:1665
 msgid "The device needs reinitialization.\n"
 msgstr "O dispositivo requer reinicialização.\n"
 
-#: dlls/kernelbase/winerror.mc:1553
+#: dlls/kernelbase/winerror.mc:1670
 msgid "The device requires cleaning.\n"
 msgstr "O dispositivo necessita de limpeza.\n"
 
-#: dlls/kernelbase/winerror.mc:1558
+#: dlls/kernelbase/winerror.mc:1675
 msgid "The device door is open.\n"
 msgstr "A porta do dispositivo está aberta.\n"
 
-#: dlls/kernelbase/winerror.mc:1563
+#: dlls/kernelbase/winerror.mc:1680
 msgid "The device is not connected.\n"
 msgstr "O dispositivo não está conectado.\n"
 
-#: dlls/kernelbase/winerror.mc:1568
+#: dlls/kernelbase/winerror.mc:1685
 msgid "Element not found.\n"
 msgstr "Elemento não encontrado.\n"
 
-#: dlls/kernelbase/winerror.mc:1573
+#: dlls/kernelbase/winerror.mc:1690
 msgid "No match found.\n"
 msgstr "Nenhuma correspondência encontrada.\n"
 
-#: dlls/kernelbase/winerror.mc:1578
+#: dlls/kernelbase/winerror.mc:1695
 msgid "Property set not found.\n"
 msgstr "Propriedade não encontrada.\n"
 
-#: dlls/kernelbase/winerror.mc:1583
+#: dlls/kernelbase/winerror.mc:1700
 msgid "Point not found.\n"
 msgstr "Ponto não encontrado.\n"
 
-#: dlls/kernelbase/winerror.mc:1588
+#: dlls/kernelbase/winerror.mc:1705
 msgid "No running tracking service.\n"
 msgstr "Nenhum serviço de rastreamento rodando.\n"
 
-#: dlls/kernelbase/winerror.mc:1593
+#: dlls/kernelbase/winerror.mc:1710
 msgid "No such volume ID.\n"
 msgstr "Não existe esta ID de volume.\n"
 
-#: dlls/kernelbase/winerror.mc:1598
+#: dlls/kernelbase/winerror.mc:1715
 msgid "Unable to remove the file to be replaced.\n"
 msgstr "Incapaz de remover o arquivo a ser substituído.\n"
 
-#: dlls/kernelbase/winerror.mc:1603
+#: dlls/kernelbase/winerror.mc:1720
 msgid "Unable to move the replacement file into place.\n"
 msgstr "Incapaz de mover o arquivo substituto ao seu lugar.\n"
 
-#: dlls/kernelbase/winerror.mc:1608
+#: dlls/kernelbase/winerror.mc:1725
 msgid "Moving the replacement file failed.\n"
 msgstr "Falha ao mover o arquivo substituto.\n"
 
-#: dlls/kernelbase/winerror.mc:1613
+#: dlls/kernelbase/winerror.mc:1730
 msgid "The journal is being deleted.\n"
 msgstr "O registro está sendo excluído.\n"
 
-#: dlls/kernelbase/winerror.mc:1618
+#: dlls/kernelbase/winerror.mc:1735
 msgid "The journal is not active.\n"
 msgstr "O registro não está ativo.\n"
 
-#: dlls/kernelbase/winerror.mc:1623
+#: dlls/kernelbase/winerror.mc:1740
 msgid "Potential matching file found.\n"
 msgstr "Arquivo correspondente em potencial encontrado.\n"
 
-#: dlls/kernelbase/winerror.mc:1628
+#: dlls/kernelbase/winerror.mc:1745
 msgid "The journal entry was deleted.\n"
 msgstr "A entrada do registro foi excluída.\n"
 
-#: dlls/kernelbase/winerror.mc:1633
+#: dlls/kernelbase/winerror.mc:1750
 msgid "Invalid device name.\n"
 msgstr "Nome de dispositivo inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:1638
+#: dlls/kernelbase/winerror.mc:1755
 msgid "Connection unavailable.\n"
 msgstr "Conexão indisponível.\n"
 
-#: dlls/kernelbase/winerror.mc:1643
+#: dlls/kernelbase/winerror.mc:1760
 msgid "Device already remembered.\n"
 msgstr "O dispositivo já foi lembrado.\n"
 
-#: dlls/kernelbase/winerror.mc:1648
+#: dlls/kernelbase/winerror.mc:1765
 msgid "No network or bad path.\n"
 msgstr "Sem rede ou o caminho é impróprio.\n"
 
-#: dlls/kernelbase/winerror.mc:1653
+#: dlls/kernelbase/winerror.mc:1770
 msgid "Invalid network provider name.\n"
 msgstr "Nome de provedor de rede inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:1658
+#: dlls/kernelbase/winerror.mc:1775
 msgid "Cannot open network connection profile.\n"
 msgstr "Não é possível abrir o perfil de conexão à rede.\n"
 
-#: dlls/kernelbase/winerror.mc:1663
+#: dlls/kernelbase/winerror.mc:1780
 msgid "Corrupt network connection profile.\n"
 msgstr "Perfil de conexão à rede corrompido.\n"
 
-#: dlls/kernelbase/winerror.mc:1668
+#: dlls/kernelbase/winerror.mc:1785
 msgid "Not a container.\n"
 msgstr "Não é um contêiner.\n"
 
-#: dlls/kernelbase/winerror.mc:1673
+#: dlls/kernelbase/winerror.mc:1790
 msgid "Extended error.\n"
 msgstr "Erro estendido.\n"
 
-#: dlls/kernelbase/winerror.mc:1678
+#: dlls/kernelbase/winerror.mc:1795
 msgid "Invalid group name.\n"
 msgstr "Nome de grupo inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:1683
+#: dlls/kernelbase/winerror.mc:1800
 msgid "Invalid computer name.\n"
 msgstr "Nome de computador inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:1688
+#: dlls/kernelbase/winerror.mc:1805
 msgid "Invalid event name.\n"
 msgstr "Nome de evento inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:1693
+#: dlls/kernelbase/winerror.mc:1810
 msgid "Invalid domain name.\n"
 msgstr "Nome de domínio inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:1698
+#: dlls/kernelbase/winerror.mc:1815
 msgid "Invalid service name.\n"
 msgstr "Nome de serviço inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:1703
+#: dlls/kernelbase/winerror.mc:1820
 msgid "Invalid network name.\n"
 msgstr "Nome de rede inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:1708
+#: dlls/kernelbase/winerror.mc:1825
 msgid "Invalid share name.\n"
 msgstr "Nome de compartilhamento inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:1718
+#: dlls/kernelbase/winerror.mc:1835
 msgid "Invalid message name.\n"
 msgstr "Nome de mensagem inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:1723
+#: dlls/kernelbase/winerror.mc:1840
 msgid "Invalid message destination.\n"
 msgstr "Destino de mensagem inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:1728
+#: dlls/kernelbase/winerror.mc:1845
 msgid "Session credential conflict.\n"
 msgstr "Conflito de credenciais de sessão.\n"
 
-#: dlls/kernelbase/winerror.mc:1733
+#: dlls/kernelbase/winerror.mc:1850
 msgid "Remote session limit exceeded.\n"
 msgstr "Limite de sessão remota excedido.\n"
 
-#: dlls/kernelbase/winerror.mc:1738
+#: dlls/kernelbase/winerror.mc:1855
 msgid "Duplicate domain or workgroup name.\n"
 msgstr "Nome de grupo de trabalho ou domínio duplicado.\n"
 
-#: dlls/kernelbase/winerror.mc:1743
+#: dlls/kernelbase/winerror.mc:1860
 msgid "No network.\n"
 msgstr "Sem rede.\n"
 
-#: dlls/kernelbase/winerror.mc:1748
+#: dlls/kernelbase/winerror.mc:1865
 msgid "Operation canceled by user.\n"
 msgstr "Operação cancelada pelo usuário.\n"
 
-#: dlls/kernelbase/winerror.mc:1753
+#: dlls/kernelbase/winerror.mc:1870
 msgid "File has a user-mapped section.\n"
 msgstr "O arquivo tem uma seção mapeada para o usuário.\n"
 
-#: dlls/kernelbase/winerror.mc:1758 dlls/kernelbase/winerror.mc:3788
+#: dlls/kernelbase/winerror.mc:1875 dlls/kernelbase/winerror.mc:3910
 msgid "Connection refused.\n"
 msgstr "Conexão recusada.\n"
 
-#: dlls/kernelbase/winerror.mc:1763
+#: dlls/kernelbase/winerror.mc:1880
 msgid "Connection gracefully closed.\n"
 msgstr "Conexão fechada graciosamente.\n"
 
-#: dlls/kernelbase/winerror.mc:1768
+#: dlls/kernelbase/winerror.mc:1885
 msgid "Address already associated with transport endpoint.\n"
 msgstr "Endereço já associado com ponto de transporte.\n"
 
-#: dlls/kernelbase/winerror.mc:1773
+#: dlls/kernelbase/winerror.mc:1890
 msgid "Address not associated with transport endpoint.\n"
 msgstr "Endereço não associado a ponto de transporte.\n"
 
-#: dlls/kernelbase/winerror.mc:1778
+#: dlls/kernelbase/winerror.mc:1895
 msgid "Connection invalid.\n"
 msgstr "Conexão inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:1783
+#: dlls/kernelbase/winerror.mc:1900
 msgid "Connection is active.\n"
 msgstr "A conexão está ativa.\n"
 
-#: dlls/kernelbase/winerror.mc:1788
+#: dlls/kernelbase/winerror.mc:1905
 msgid "Network unreachable.\n"
 msgstr "Rede inatingível.\n"
 
-#: dlls/kernelbase/winerror.mc:1793
+#: dlls/kernelbase/winerror.mc:1910
 msgid "Host unreachable.\n"
 msgstr "Hospedeiro inatingível.\n"
 
-#: dlls/kernelbase/winerror.mc:1798
+#: dlls/kernelbase/winerror.mc:1915
 msgid "Protocol unreachable.\n"
 msgstr "Protocolo inatingível.\n"
 
-#: dlls/kernelbase/winerror.mc:1803
+#: dlls/kernelbase/winerror.mc:1920
 msgid "Port unreachable.\n"
 msgstr "Porta inatingível.\n"
 
-#: dlls/kernelbase/winerror.mc:1808
+#: dlls/kernelbase/winerror.mc:1925
 msgid "Request aborted.\n"
 msgstr "Pedido abortado.\n"
 
-#: dlls/kernelbase/winerror.mc:1813
+#: dlls/kernelbase/winerror.mc:1930
 msgid "Connection aborted.\n"
 msgstr "Conexão abortada.\n"
 
-#: dlls/kernelbase/winerror.mc:1818
+#: dlls/kernelbase/winerror.mc:1935
 msgid "Please retry operation.\n"
 msgstr "Por favor, tente a operação novamente.\n"
 
-#: dlls/kernelbase/winerror.mc:1823
+#: dlls/kernelbase/winerror.mc:1940
 msgid "Connection count limit reached.\n"
 msgstr "Limite de conexões atingido.\n"
 
-#: dlls/kernelbase/winerror.mc:1828
+#: dlls/kernelbase/winerror.mc:1945
 msgid "Login time restriction.\n"
 msgstr "Restrição do tempo de login.\n"
 
-#: dlls/kernelbase/winerror.mc:1833
+#: dlls/kernelbase/winerror.mc:1950
 msgid "Login workstation restriction.\n"
 msgstr "Restrição do login à estação de trabalho.\n"
 
-#: dlls/kernelbase/winerror.mc:1838
+#: dlls/kernelbase/winerror.mc:1955
 msgid "Incorrect network address.\n"
 msgstr "Endereço de rede incorreto.\n"
 
-#: dlls/kernelbase/winerror.mc:1843
+#: dlls/kernelbase/winerror.mc:1960
 msgid "Service already registered.\n"
 msgstr "Serviço já registrado.\n"
 
-#: dlls/kernelbase/winerror.mc:1848
+#: dlls/kernelbase/winerror.mc:1965
 msgid "Service not found.\n"
 msgstr "Serviço não encontrado.\n"
 
-#: dlls/kernelbase/winerror.mc:1853
+#: dlls/kernelbase/winerror.mc:1970
 msgid "User not authenticated.\n"
 msgstr "Usuário não autenticado.\n"
 
-#: dlls/kernelbase/winerror.mc:1858
+#: dlls/kernelbase/winerror.mc:1975
 msgid "User not logged on.\n"
 msgstr "O usuário não está logado.\n"
 
-#: dlls/kernelbase/winerror.mc:1863
+#: dlls/kernelbase/winerror.mc:1980
 msgid "Continue work in progress.\n"
 msgstr "Continuar trabalho em progresso.\n"
 
-#: dlls/kernelbase/winerror.mc:1868
+#: dlls/kernelbase/winerror.mc:1985
 msgid "Already initialized.\n"
 msgstr "Já foi inicializado.\n"
 
-#: dlls/kernelbase/winerror.mc:1873
+#: dlls/kernelbase/winerror.mc:1990
 msgid "No more local devices.\n"
 msgstr "Não há mais dispositivos locais.\n"
 
-#: dlls/kernelbase/winerror.mc:1878
+#: dlls/kernelbase/winerror.mc:1995
 msgid "The site does not exist.\n"
 msgstr "O site não existe.\n"
 
-#: dlls/kernelbase/winerror.mc:1883
+#: dlls/kernelbase/winerror.mc:2000
 msgid "The domain controller already exists.\n"
 msgstr "O controlador de domínio já existe.\n"
 
-#: dlls/kernelbase/winerror.mc:1888
+#: dlls/kernelbase/winerror.mc:2005
 msgid "Supported only when connected.\n"
 msgstr "Suportado apenas quando conectado.\n"
 
-#: dlls/kernelbase/winerror.mc:1893
+#: dlls/kernelbase/winerror.mc:2010
 msgid "Perform operation even when nothing changed.\n"
 msgstr "Realizar operação mesmo que nada tenha mudado.\n"
 
-#: dlls/kernelbase/winerror.mc:1898
+#: dlls/kernelbase/winerror.mc:2015
 msgid "The user profile is invalid.\n"
 msgstr "O perfil do usuário é inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:1903
+#: dlls/kernelbase/winerror.mc:2020
 msgid "Not supported on Small Business Server.\n"
 msgstr "Não suportado em Small Business Server.\n"
 
-#: dlls/kernelbase/winerror.mc:1908
+#: dlls/kernelbase/winerror.mc:2025
 msgid "Not all privileges assigned.\n"
 msgstr "Nem todos os privilégios foram designados.\n"
 
-#: dlls/kernelbase/winerror.mc:1913
+#: dlls/kernelbase/winerror.mc:2030
 msgid "Some security IDs not mapped.\n"
 msgstr "Alguns IDs de segurança não estão mapeados.\n"
 
-#: dlls/kernelbase/winerror.mc:1918
+#: dlls/kernelbase/winerror.mc:2035
 msgid "No quotas for account.\n"
 msgstr "Sem quotas para a conta.\n"
 
-#: dlls/kernelbase/winerror.mc:1923
+#: dlls/kernelbase/winerror.mc:2040
 msgid "Local user session key.\n"
 msgstr "Chave de sessão do usuário local.\n"
 
-#: dlls/kernelbase/winerror.mc:1928
+#: dlls/kernelbase/winerror.mc:2045
 msgid "Password too complex for LM.\n"
 msgstr "Senha muito complexa para a LM.\n"
 
-#: dlls/kernelbase/winerror.mc:1933
+#: dlls/kernelbase/winerror.mc:2050
 msgid "Unknown revision.\n"
 msgstr "Revisão desconhecida.\n"
 
-#: dlls/kernelbase/winerror.mc:1938
+#: dlls/kernelbase/winerror.mc:2055
 msgid "Incompatible revision levels.\n"
 msgstr "Níveis de revisão incompatíveis.\n"
 
-#: dlls/kernelbase/winerror.mc:1943
+#: dlls/kernelbase/winerror.mc:2060
 msgid "Invalid owner.\n"
 msgstr "Dono inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:1948
+#: dlls/kernelbase/winerror.mc:2065
 msgid "Invalid primary group.\n"
 msgstr "Grupo primário inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:1953
+#: dlls/kernelbase/winerror.mc:2070
 msgid "No impersonation token.\n"
 msgstr "Sem token de personificação.\n"
 
-#: dlls/kernelbase/winerror.mc:1958
+#: dlls/kernelbase/winerror.mc:2075
 msgid "Can't disable mandatory group.\n"
 msgstr "Não é possível desligar o grupo mandatário.\n"
 
-#: dlls/kernelbase/winerror.mc:1963
+#: dlls/kernelbase/winerror.mc:2080
 msgid "No logon servers available.\n"
 msgstr "Nenhum servidor de logon disponível.\n"
 
-#: dlls/kernelbase/winerror.mc:1968
+#: dlls/kernelbase/winerror.mc:2085
 msgid "No such logon session.\n"
 msgstr "Não existe essa sessão de logon.\n"
 
-#: dlls/kernelbase/winerror.mc:1973
+#: dlls/kernelbase/winerror.mc:2090
 msgid "No such privilege.\n"
 msgstr "Não existe esse privilégio.\n"
 
-#: dlls/kernelbase/winerror.mc:1978
+#: dlls/kernelbase/winerror.mc:2095
 msgid "Privilege not held.\n"
 msgstr "Privilégio não guardado.\n"
 
-#: dlls/kernelbase/winerror.mc:1983
+#: dlls/kernelbase/winerror.mc:2100
 msgid "Invalid account name.\n"
 msgstr "Nome de conta inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:1988
+#: dlls/kernelbase/winerror.mc:2105
 msgid "User already exists.\n"
 msgstr "Usuário já existe.\n"
 
-#: dlls/kernelbase/winerror.mc:1993
+#: dlls/kernelbase/winerror.mc:2110
 msgid "No such user.\n"
 msgstr "Não existe esse usuário.\n"
 
-#: dlls/kernelbase/winerror.mc:1998
+#: dlls/kernelbase/winerror.mc:2115
 msgid "Group already exists.\n"
 msgstr "Grupo já existente.\n"
 
-#: dlls/kernelbase/winerror.mc:2003
+#: dlls/kernelbase/winerror.mc:2120
 msgid "No such group.\n"
 msgstr "Não existe esse grupo.\n"
 
-#: dlls/kernelbase/winerror.mc:2008
+#: dlls/kernelbase/winerror.mc:2125
 msgid "User already in group.\n"
 msgstr "O usuário já está no grupo.\n"
 
-#: dlls/kernelbase/winerror.mc:2013
+#: dlls/kernelbase/winerror.mc:2130
 msgid "User not in group.\n"
 msgstr "O usuário não está no grupo.\n"
 
-#: dlls/kernelbase/winerror.mc:2018
+#: dlls/kernelbase/winerror.mc:2135
 msgid "Can't delete last admin user.\n"
 msgstr "Não é possível apagar o último usuário administrador.\n"
 
-#: dlls/kernelbase/winerror.mc:2023
+#: dlls/kernelbase/winerror.mc:2140
 msgid "Wrong password.\n"
 msgstr "Senha errada.\n"
 
-#: dlls/kernelbase/winerror.mc:2028
+#: dlls/kernelbase/winerror.mc:2145
 msgid "Ill-formed password.\n"
 msgstr "Senha mal formada.\n"
 
-#: dlls/kernelbase/winerror.mc:2033
+#: dlls/kernelbase/winerror.mc:2150
 msgid "Password restriction.\n"
 msgstr "Restrição de senha.\n"
 
-#: dlls/kernelbase/winerror.mc:2038
+#: dlls/kernelbase/winerror.mc:2155
 msgid "Logon failure.\n"
 msgstr "Falha ao logar.\n"
 
-#: dlls/kernelbase/winerror.mc:2043
+#: dlls/kernelbase/winerror.mc:2160
 msgid "Account restriction.\n"
 msgstr "Restrição na conta.\n"
 
-#: dlls/kernelbase/winerror.mc:2048
+#: dlls/kernelbase/winerror.mc:2165
 msgid "Invalid logon hours.\n"
 msgstr "Horas de logon inválidas.\n"
 
-#: dlls/kernelbase/winerror.mc:2053
+#: dlls/kernelbase/winerror.mc:2170
 msgid "Invalid workstation.\n"
 msgstr "Estação de trabalho inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:2058
+#: dlls/kernelbase/winerror.mc:2175
 msgid "Password expired.\n"
 msgstr "Senha expirada.\n"
 
-#: dlls/kernelbase/winerror.mc:2063
+#: dlls/kernelbase/winerror.mc:2180
 msgid "Account disabled.\n"
 msgstr "Conta desativada.\n"
 
-#: dlls/kernelbase/winerror.mc:2068
+#: dlls/kernelbase/winerror.mc:2185
 msgid "No security ID mapped.\n"
 msgstr "Nenhum ID de segurança mapeado.\n"
 
-#: dlls/kernelbase/winerror.mc:2073
+#: dlls/kernelbase/winerror.mc:2190
 msgid "Too many LUIDs requested.\n"
 msgstr "Demasiadas requisições de LUIDs.\n"
 
-#: dlls/kernelbase/winerror.mc:2078
+#: dlls/kernelbase/winerror.mc:2195
 msgid "LUIDs exhausted.\n"
 msgstr "LUIDs esgotados.\n"
 
-#: dlls/kernelbase/winerror.mc:2083
+#: dlls/kernelbase/winerror.mc:2200
 msgid "Invalid sub authority.\n"
 msgstr "Sub-autoridade inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:2088
+#: dlls/kernelbase/winerror.mc:2205
 msgid "Invalid ACL.\n"
 msgstr "ACL inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2093
+#: dlls/kernelbase/winerror.mc:2210
 msgid "Invalid SID.\n"
 msgstr "SID inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2098
+#: dlls/kernelbase/winerror.mc:2215
 msgid "Invalid security descriptor.\n"
 msgstr "Descritor de segurança inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2103
+#: dlls/kernelbase/winerror.mc:2220
 msgid "Bad inherited ACL.\n"
 msgstr "Um ACL impróprio foi herdado.\n"
 
-#: dlls/kernelbase/winerror.mc:2108
+#: dlls/kernelbase/winerror.mc:2225
 msgid "Server disabled.\n"
 msgstr "Servidor desabilitado.\n"
 
-#: dlls/kernelbase/winerror.mc:2113
+#: dlls/kernelbase/winerror.mc:2230
 msgid "Server not disabled.\n"
 msgstr "Servidor não desabilitado.\n"
 
-#: dlls/kernelbase/winerror.mc:2118
+#: dlls/kernelbase/winerror.mc:2235
 msgid "Invalid ID authority.\n"
 msgstr "Autoridade de ID inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:2123
+#: dlls/kernelbase/winerror.mc:2240
 msgid "Allotted space exceeded.\n"
 msgstr "Espaço atribuído excedido.\n"
 
-#: dlls/kernelbase/winerror.mc:2128
+#: dlls/kernelbase/winerror.mc:2245
 msgid "Invalid group attributes.\n"
 msgstr "Atributos de grupo inválidos.\n"
 
-#: dlls/kernelbase/winerror.mc:2133
+#: dlls/kernelbase/winerror.mc:2250
 msgid "Bad impersonation level.\n"
 msgstr "Nível de personificação impróprio.\n"
 
-#: dlls/kernelbase/winerror.mc:2138
+#: dlls/kernelbase/winerror.mc:2255
 msgid "Can't open anonymous security token.\n"
 msgstr "Não é possível abrir token de segurança anônimo.\n"
 
-#: dlls/kernelbase/winerror.mc:2143
+#: dlls/kernelbase/winerror.mc:2260
 msgid "Bad validation class.\n"
 msgstr "Classe de validação imprópria.\n"
 
-#: dlls/kernelbase/winerror.mc:2148
+#: dlls/kernelbase/winerror.mc:2265
 msgid "Bad token type.\n"
 msgstr "Tipo de token impróprio.\n"
 
-#: dlls/kernelbase/winerror.mc:2153
+#: dlls/kernelbase/winerror.mc:2270
 msgid "No security on object.\n"
 msgstr "Sem segurança no objeto.\n"
 
-#: dlls/kernelbase/winerror.mc:2158
+#: dlls/kernelbase/winerror.mc:2275
 msgid "Can't access domain information.\n"
 msgstr "Não é possível acessar informação de domínio.\n"
 
-#: dlls/kernelbase/winerror.mc:2163
+#: dlls/kernelbase/winerror.mc:2280
 msgid "Invalid server state.\n"
 msgstr "Estado de servidor inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2168
+#: dlls/kernelbase/winerror.mc:2285
 msgid "Invalid domain state.\n"
 msgstr "Estado de domínio inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2173
+#: dlls/kernelbase/winerror.mc:2290
 msgid "Invalid domain role.\n"
 msgstr "Papel de domínio inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2178
+#: dlls/kernelbase/winerror.mc:2295
 msgid "No such domain.\n"
 msgstr "Domínio inexistente.\n"
 
-#: dlls/kernelbase/winerror.mc:2183
+#: dlls/kernelbase/winerror.mc:2300
 msgid "Domain already exists.\n"
 msgstr "O domínio já existe.\n"
 
-#: dlls/kernelbase/winerror.mc:2188
+#: dlls/kernelbase/winerror.mc:2305
 msgid "Domain limit exceeded.\n"
 msgstr "Limite de domínios excedido.\n"
 
-#: dlls/kernelbase/winerror.mc:2193
+#: dlls/kernelbase/winerror.mc:2310
 msgid "Internal database corruption.\n"
 msgstr "Corrupção interna da base de dados.\n"
 
-#: dlls/kernelbase/winerror.mc:2198
+#: dlls/kernelbase/winerror.mc:2315
 msgid "Internal error.\n"
 msgstr "Erro interno.\n"
 
-#: dlls/kernelbase/winerror.mc:2203
+#: dlls/kernelbase/winerror.mc:2320
 msgid "Generic access types not mapped.\n"
 msgstr "Tipos de acesso genéricos não mapeados.\n"
 
-#: dlls/kernelbase/winerror.mc:2208
+#: dlls/kernelbase/winerror.mc:2325
 msgid "Bad descriptor format.\n"
 msgstr "Formato de descritor impróprio.\n"
 
-#: dlls/kernelbase/winerror.mc:2213
+#: dlls/kernelbase/winerror.mc:2330
 msgid "Not a logon process.\n"
 msgstr "Não é um processo de logon.\n"
 
-#: dlls/kernelbase/winerror.mc:2218
+#: dlls/kernelbase/winerror.mc:2335
 msgid "Logon session ID exists.\n"
 msgstr "O ID de sessão existe.\n"
 
-#: dlls/kernelbase/winerror.mc:2223
+#: dlls/kernelbase/winerror.mc:2340
 msgid "Unknown authentication package.\n"
 msgstr "Pacote de autenticação desconhecido.\n"
 
-#: dlls/kernelbase/winerror.mc:2228
+#: dlls/kernelbase/winerror.mc:2345
 msgid "Bad logon session state.\n"
 msgstr "Estado de sessão impróprio.\n"
 
-#: dlls/kernelbase/winerror.mc:2233
+#: dlls/kernelbase/winerror.mc:2350
 msgid "Logon session ID collision.\n"
 msgstr "Colisão no ID de sessão.\n"
 
-#: dlls/kernelbase/winerror.mc:2238
+#: dlls/kernelbase/winerror.mc:2355
 msgid "Invalid logon type.\n"
 msgstr "Tipo de logon inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2243
+#: dlls/kernelbase/winerror.mc:2360
 msgid "Cannot impersonate.\n"
 msgstr "Não é possível personificar.\n"
 
-#: dlls/kernelbase/winerror.mc:2248
+#: dlls/kernelbase/winerror.mc:2365
 msgid "Invalid transaction state.\n"
 msgstr "Estado de transação inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2253
+#: dlls/kernelbase/winerror.mc:2370
 msgid "Security DB commit failure.\n"
 msgstr "Falhou commit na base de dados de segurança.\n"
 
-#: dlls/kernelbase/winerror.mc:2258
+#: dlls/kernelbase/winerror.mc:2375
 msgid "Account is built-in.\n"
 msgstr "A conta é embutida.\n"
 
-#: dlls/kernelbase/winerror.mc:2263
+#: dlls/kernelbase/winerror.mc:2380
 msgid "Group is built-in.\n"
 msgstr "O grupo é embutido.\n"
 
-#: dlls/kernelbase/winerror.mc:2268
+#: dlls/kernelbase/winerror.mc:2385
 msgid "User is built-in.\n"
 msgstr "O usuário é embutido.\n"
 
-#: dlls/kernelbase/winerror.mc:2273
+#: dlls/kernelbase/winerror.mc:2390
 msgid "Group is primary for user.\n"
 msgstr "O grupo é primário para o usuário.\n"
 
-#: dlls/kernelbase/winerror.mc:2278
+#: dlls/kernelbase/winerror.mc:2395
 msgid "Token already in use.\n"
 msgstr "Token já em uso.\n"
 
-#: dlls/kernelbase/winerror.mc:2283
+#: dlls/kernelbase/winerror.mc:2400
 msgid "No such local group.\n"
 msgstr "Grupo local inexistente.\n"
 
-#: dlls/kernelbase/winerror.mc:2288
+#: dlls/kernelbase/winerror.mc:2405
 msgid "User not in local group.\n"
 msgstr "O usuário não pertence ao grupo local.\n"
 
-#: dlls/kernelbase/winerror.mc:2293
+#: dlls/kernelbase/winerror.mc:2410
 msgid "User already in local group.\n"
 msgstr "O usuário já pertence ao grupo local.\n"
 
-#: dlls/kernelbase/winerror.mc:2298
+#: dlls/kernelbase/winerror.mc:2415
 msgid "Local group already exists.\n"
 msgstr "Grupo local já existente.\n"
 
-#: dlls/kernelbase/winerror.mc:2303 dlls/kernelbase/winerror.mc:2328
+#: dlls/kernelbase/winerror.mc:2420 dlls/kernelbase/winerror.mc:2445
 msgid "Logon type not granted.\n"
 msgstr "Tipo de logon não atribuído.\n"
 
-#: dlls/kernelbase/winerror.mc:2308
+#: dlls/kernelbase/winerror.mc:2425
 msgid "Too many secrets.\n"
 msgstr "Demasiados segredos.\n"
 
-#: dlls/kernelbase/winerror.mc:2313
+#: dlls/kernelbase/winerror.mc:2430
 msgid "Secret too long.\n"
 msgstr "Segredo muito longo.\n"
 
-#: dlls/kernelbase/winerror.mc:2318
+#: dlls/kernelbase/winerror.mc:2435
 msgid "Internal security DB error.\n"
 msgstr "Erro interno na base de dados de segurança.\n"
 
-#: dlls/kernelbase/winerror.mc:2323
+#: dlls/kernelbase/winerror.mc:2440
 msgid "Too many context IDs.\n"
 msgstr "Demasiados IDs de contexto.\n"
 
-#: dlls/kernelbase/winerror.mc:2333
+#: dlls/kernelbase/winerror.mc:2450
 msgid "Cross-encrypted NT password required.\n"
 msgstr "É necessária senha NT com encriptação cruzada.\n"
 
-#: dlls/kernelbase/winerror.mc:2338
+#: dlls/kernelbase/winerror.mc:2455
 msgid "No such member.\n"
 msgstr "Membro inexistente.\n"
 
-#: dlls/kernelbase/winerror.mc:2343
+#: dlls/kernelbase/winerror.mc:2460
 msgid "Invalid member.\n"
 msgstr "Membro inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2348
+#: dlls/kernelbase/winerror.mc:2465
 msgid "Too many SIDs.\n"
 msgstr "Demasiados SIDs.\n"
 
-#: dlls/kernelbase/winerror.mc:2353
+#: dlls/kernelbase/winerror.mc:2470
 msgid "Cross-encrypted LM password required.\n"
 msgstr "É necessária uma senha LM com encriptação cruzada.\n"
 
-#: dlls/kernelbase/winerror.mc:2358
+#: dlls/kernelbase/winerror.mc:2475
 msgid "No inheritable components.\n"
 msgstr "Nenhum componente herdável.\n"
 
-#: dlls/kernelbase/winerror.mc:2363
+#: dlls/kernelbase/winerror.mc:2480
 msgid "File or directory corrupt.\n"
 msgstr "Arquivo ou diretório corrompido.\n"
 
-#: dlls/kernelbase/winerror.mc:2368
+#: dlls/kernelbase/winerror.mc:2485
 msgid "Disk is corrupt.\n"
 msgstr "Disco corrompido.\n"
 
-#: dlls/kernelbase/winerror.mc:2373
+#: dlls/kernelbase/winerror.mc:2490
 msgid "No user session key.\n"
 msgstr "Nenhuma chave de sessão do usuário.\n"
 
-#: dlls/kernelbase/winerror.mc:2378
+#: dlls/kernelbase/winerror.mc:2495
 msgid "License quota exceeded.\n"
 msgstr "Quota de licença excedida.\n"
 
-#: dlls/kernelbase/winerror.mc:2383
+#: dlls/kernelbase/winerror.mc:2500
 msgid "Wrong target name.\n"
 msgstr "Nome de destino errado.\n"
 
-#: dlls/kernelbase/winerror.mc:2388
+#: dlls/kernelbase/winerror.mc:2505
 msgid "Mutual authentication failed.\n"
 msgstr "Falha na autenticação mútua.\n"
 
-#: dlls/kernelbase/winerror.mc:2393
+#: dlls/kernelbase/winerror.mc:2510
 msgid "Time skew between client and server.\n"
 msgstr "Desvio de tempo entre cliente e servidor.\n"
 
-#: dlls/kernelbase/winerror.mc:2398
+#: dlls/kernelbase/winerror.mc:2515
 msgid "Invalid window handle.\n"
 msgstr "Manipulador de janela inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2403
+#: dlls/kernelbase/winerror.mc:2520
 msgid "Invalid menu handle.\n"
 msgstr "Manipulador de menu inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2408
+#: dlls/kernelbase/winerror.mc:2525
 msgid "Invalid cursor handle.\n"
 msgstr "Manipulador de cursor inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2413
+#: dlls/kernelbase/winerror.mc:2530
 msgid "Invalid accelerator table handle.\n"
 msgstr "Manipulador de tabela aceleradora inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2418
+#: dlls/kernelbase/winerror.mc:2535
 msgid "Invalid hook handle.\n"
 msgstr "Manipulador de gancho inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2423
+#: dlls/kernelbase/winerror.mc:2540
 msgid "Invalid DWP handle.\n"
 msgstr "Manipulador DWP inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2428
+#: dlls/kernelbase/winerror.mc:2545
 msgid "Can't create top-level child window.\n"
 msgstr "Não é possível criar janela filha do topo.\n"
 
-#: dlls/kernelbase/winerror.mc:2433
+#: dlls/kernelbase/winerror.mc:2550
 msgid "Can't find window class.\n"
 msgstr "Não é possível encontrar classe da janela.\n"
 
-#: dlls/kernelbase/winerror.mc:2438
+#: dlls/kernelbase/winerror.mc:2555
 msgid "Window owned by another thread.\n"
 msgstr "Janela atribuída a outra linha de execução.\n"
 
-#: dlls/kernelbase/winerror.mc:2443
+#: dlls/kernelbase/winerror.mc:2560
 msgid "Hotkey already registered.\n"
 msgstr "Tecla de atalho já registrada.\n"
 
-#: dlls/kernelbase/winerror.mc:2448
+#: dlls/kernelbase/winerror.mc:2565
 msgid "Class already exists.\n"
 msgstr "Classe já existente.\n"
 
-#: dlls/kernelbase/winerror.mc:2453
+#: dlls/kernelbase/winerror.mc:2570
 msgid "Class does not exist.\n"
 msgstr "Classe inexistente.\n"
 
-#: dlls/kernelbase/winerror.mc:2458
+#: dlls/kernelbase/winerror.mc:2575
 msgid "Class has open windows.\n"
 msgstr "A classe tem janelas abertas.\n"
 
-#: dlls/kernelbase/winerror.mc:2463 dlls/mferror/mferror.mc:130
+#: dlls/kernelbase/winerror.mc:2580 dlls/mferror/mferror.mc:130
 msgid "Invalid index.\n"
 msgstr "Índice inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2468
+#: dlls/kernelbase/winerror.mc:2585
 msgid "Invalid icon handle.\n"
 msgstr "Manipulador de ícone inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2473
+#: dlls/kernelbase/winerror.mc:2590
 msgid "Private dialog index.\n"
 msgstr "Índice de diálogo privado.\n"
 
-#: dlls/kernelbase/winerror.mc:2478
+#: dlls/kernelbase/winerror.mc:2595
 msgid "List box ID not found.\n"
 msgstr "ID de caixa de listagem não encontrada.\n"
 
-#: dlls/kernelbase/winerror.mc:2483
+#: dlls/kernelbase/winerror.mc:2600
 msgid "No wildcard characters.\n"
 msgstr "Nenhum caractere coringa.\n"
 
-#: dlls/kernelbase/winerror.mc:2488
+#: dlls/kernelbase/winerror.mc:2605
 msgid "Clipboard not open.\n"
 msgstr "Área de transferência fechada.\n"
 
-#: dlls/kernelbase/winerror.mc:2493
+#: dlls/kernelbase/winerror.mc:2610
 msgid "Hotkey not registered.\n"
 msgstr "Tecla de atalho não registrada.\n"
 
-#: dlls/kernelbase/winerror.mc:2498
+#: dlls/kernelbase/winerror.mc:2615
 msgid "Not a dialog window.\n"
 msgstr "Não é uma janela de diálogo.\n"
 
-#: dlls/kernelbase/winerror.mc:2503
+#: dlls/kernelbase/winerror.mc:2620
 msgid "Control ID not found.\n"
 msgstr "ID de controle não encontrada.\n"
 
-#: dlls/kernelbase/winerror.mc:2508
+#: dlls/kernelbase/winerror.mc:2625
 msgid "Invalid combo box message.\n"
 msgstr "Mensagem de combo box inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:2513
+#: dlls/kernelbase/winerror.mc:2630
 msgid "Not a combo box window.\n"
 msgstr "Não é uma janela de combo box.\n"
 
-#: dlls/kernelbase/winerror.mc:2518
+#: dlls/kernelbase/winerror.mc:2635
 msgid "Invalid edit height.\n"
 msgstr "Edição de altura inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:2523
+#: dlls/kernelbase/winerror.mc:2640
 msgid "DC not found.\n"
 msgstr "DC não encontrado.\n"
 
-#: dlls/kernelbase/winerror.mc:2528
+#: dlls/kernelbase/winerror.mc:2645
 msgid "Invalid hook filter.\n"
 msgstr "Filtro de gancho inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2533
+#: dlls/kernelbase/winerror.mc:2650
 msgid "Invalid filter procedure.\n"
 msgstr "Procedimento de filtro inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2538
+#: dlls/kernelbase/winerror.mc:2655
 msgid "Hook procedure needs module handle.\n"
 msgstr "Procedimento de gancho necessita de descritor de módulo.\n"
 
-#: dlls/kernelbase/winerror.mc:2543
+#: dlls/kernelbase/winerror.mc:2660
 msgid "Global-only hook procedure.\n"
 msgstr "Procedimento de gancho apenas global.\n"
 
-#: dlls/kernelbase/winerror.mc:2548
+#: dlls/kernelbase/winerror.mc:2665
 msgid "Journal hook already set.\n"
 msgstr "Gancho de eventos já ativado.\n"
 
-#: dlls/kernelbase/winerror.mc:2553
+#: dlls/kernelbase/winerror.mc:2670
 msgid "Hook procedure not installed.\n"
 msgstr "Procedimento de gancho não instalado.\n"
 
-#: dlls/kernelbase/winerror.mc:2558
+#: dlls/kernelbase/winerror.mc:2675
 msgid "Invalid list box message.\n"
 msgstr "Mensagem de caixa de listagem inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:2563
+#: dlls/kernelbase/winerror.mc:2680
 msgid "Invalid LB_SETCOUNT sent.\n"
 msgstr "LB_SETCOUNT inválido enviado.\n"
 
-#: dlls/kernelbase/winerror.mc:2568
+#: dlls/kernelbase/winerror.mc:2685
 msgid "No tab stops on this list box.\n"
 msgstr "Nenhuma tabulação nesta caixa de listagem.\n"
 
-#: dlls/kernelbase/winerror.mc:2573
+#: dlls/kernelbase/winerror.mc:2690
 msgid "Can't destroy object owned by another thread.\n"
 msgstr ""
 "Não é possível destruir objeto pertencente a outra linha de execução.\n"
 
-#: dlls/kernelbase/winerror.mc:2578
+#: dlls/kernelbase/winerror.mc:2695
 msgid "Child window menus not allowed.\n"
 msgstr "Menus na janela filha não são permitidos.\n"
 
-#: dlls/kernelbase/winerror.mc:2583
+#: dlls/kernelbase/winerror.mc:2700
 msgid "Window has no system menu.\n"
 msgstr "A janela não tem nenhum menu de sistema.\n"
 
-#: dlls/kernelbase/winerror.mc:2588
+#: dlls/kernelbase/winerror.mc:2705
 msgid "Invalid message box style.\n"
 msgstr "Estilo de caixa de mensagem inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2593
+#: dlls/kernelbase/winerror.mc:2710
 msgid "Invalid SPI parameter.\n"
 msgstr "Parâmetro SPI inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2598
+#: dlls/kernelbase/winerror.mc:2715
 msgid "Screen already locked.\n"
 msgstr "Tela já bloqueada.\n"
 
-#: dlls/kernelbase/winerror.mc:2603
+#: dlls/kernelbase/winerror.mc:2720
 msgid "Window handles have different parents.\n"
 msgstr "Os manipuladores das janelas têm pais diferentes.\n"
 
-#: dlls/kernelbase/winerror.mc:2608
+#: dlls/kernelbase/winerror.mc:2725
 msgid "Not a child window.\n"
 msgstr "Não é uma janela filha.\n"
 
-#: dlls/kernelbase/winerror.mc:2613
+#: dlls/kernelbase/winerror.mc:2730
 msgid "Invalid GW command.\n"
 msgstr "Comando GW inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2618
+#: dlls/kernelbase/winerror.mc:2735
 msgid "Invalid thread ID.\n"
 msgstr "ID de linha de execução inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2623
+#: dlls/kernelbase/winerror.mc:2740
 msgid "Not an MDI child window.\n"
 msgstr "Não é uma janela MDI filha.\n"
 
-#: dlls/kernelbase/winerror.mc:2628
+#: dlls/kernelbase/winerror.mc:2745
 msgid "Popup menu already active.\n"
 msgstr "O menu de contexto já está ativo.\n"
 
-#: dlls/kernelbase/winerror.mc:2633
+#: dlls/kernelbase/winerror.mc:2750
 msgid "No scrollbars.\n"
 msgstr "Nenhuma barra de rolagem.\n"
 
-#: dlls/kernelbase/winerror.mc:2638
+#: dlls/kernelbase/winerror.mc:2755
 msgid "Invalid scrollbar range.\n"
 msgstr "Alcance da barra de rolagem inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2643
+#: dlls/kernelbase/winerror.mc:2760
 msgid "Invalid ShowWin command.\n"
 msgstr "Comando ShowWin inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2648
+#: dlls/kernelbase/winerror.mc:2765
 msgid "No system resources.\n"
 msgstr "Nenhum recurso de sistema.\n"
 
-#: dlls/kernelbase/winerror.mc:2653
+#: dlls/kernelbase/winerror.mc:2770
 msgid "No non-paged system resources.\n"
 msgstr "Nenhum recurso de sistema não paginado.\n"
 
-#: dlls/kernelbase/winerror.mc:2658
+#: dlls/kernelbase/winerror.mc:2775
 msgid "No paged system resources.\n"
 msgstr "Nenhum recurso de sistema paginado.\n"
 
-#: dlls/kernelbase/winerror.mc:2663
+#: dlls/kernelbase/winerror.mc:2780
 msgid "No working set quota.\n"
 msgstr "Sem quota de conjunto de trabalho.\n"
 
-#: dlls/kernelbase/winerror.mc:2668
+#: dlls/kernelbase/winerror.mc:2785
 msgid "No page file quota.\n"
 msgstr "Sem quota para arquivo de páginas.\n"
 
-#: dlls/kernelbase/winerror.mc:2673
+#: dlls/kernelbase/winerror.mc:2790
 msgid "Exceeded commitment limit.\n"
 msgstr "Limite de compromisso excedido.\n"
 
-#: dlls/kernelbase/winerror.mc:2678
+#: dlls/kernelbase/winerror.mc:2795
 msgid "Menu item not found.\n"
 msgstr "Item do menu não encontrado.\n"
 
-#: dlls/kernelbase/winerror.mc:2683
+#: dlls/kernelbase/winerror.mc:2800
 msgid "Invalid keyboard handle.\n"
 msgstr "Manipulador de teclado inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2688
+#: dlls/kernelbase/winerror.mc:2805
 msgid "Hook type not allowed.\n"
 msgstr "Tipo de gancho não permitido.\n"
 
-#: dlls/kernelbase/winerror.mc:2693
+#: dlls/kernelbase/winerror.mc:2810
 msgid "Interactive window station required.\n"
 msgstr "Estação de janela interativa requerida.\n"
 
-#: dlls/kernelbase/winerror.mc:2698
+#: dlls/kernelbase/winerror.mc:2815
 msgid "Timeout.\n"
 msgstr "Tempo limite atingido.\n"
 
-#: dlls/kernelbase/winerror.mc:2703
+#: dlls/kernelbase/winerror.mc:2820
 msgid "Invalid monitor handle.\n"
 msgstr "Manipulador de monitor inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2708
+#: dlls/kernelbase/winerror.mc:2825
 msgid "Event log file corrupt.\n"
 msgstr "Arquivo de log de eventos corrompido.\n"
 
-#: dlls/kernelbase/winerror.mc:2713
+#: dlls/kernelbase/winerror.mc:2830
 msgid "Event log can't start.\n"
 msgstr "O log de eventos não consegue iniciar.\n"
 
-#: dlls/kernelbase/winerror.mc:2718
+#: dlls/kernelbase/winerror.mc:2835
 msgid "Event log file full.\n"
 msgstr "Arquivo de log de eventos cheio.\n"
 
-#: dlls/kernelbase/winerror.mc:2723
+#: dlls/kernelbase/winerror.mc:2840
 msgid "Event log file changed.\n"
 msgstr "Arquivo de log de eventos alterado.\n"
 
-#: dlls/kernelbase/winerror.mc:2728
+#: dlls/kernelbase/winerror.mc:2845
 msgid "Installer service failed.\n"
 msgstr "Falha no serviço de instalação.\n"
 
-#: dlls/kernelbase/winerror.mc:2733
+#: dlls/kernelbase/winerror.mc:2850
 msgid "Installation aborted by user.\n"
 msgstr "Instalação interrompida pelo usuário.\n"
 
-#: dlls/kernelbase/winerror.mc:2738
+#: dlls/kernelbase/winerror.mc:2855
 msgid "Installation failure.\n"
 msgstr "Falha na instalação.\n"
 
-#: dlls/kernelbase/winerror.mc:2743
+#: dlls/kernelbase/winerror.mc:2860
 msgid "Installation suspended.\n"
 msgstr "Instalação suspensa.\n"
 
-#: dlls/kernelbase/winerror.mc:2748
+#: dlls/kernelbase/winerror.mc:2865
 msgid "Unknown product.\n"
 msgstr "Produto desconhecido.\n"
 
-#: dlls/kernelbase/winerror.mc:2753
+#: dlls/kernelbase/winerror.mc:2870
 msgid "Unknown feature.\n"
 msgstr "Recurso desconhecido.\n"
 
-#: dlls/kernelbase/winerror.mc:2758
+#: dlls/kernelbase/winerror.mc:2875
 msgid "Unknown component.\n"
 msgstr "Componente desconhecido.\n"
 
-#: dlls/kernelbase/winerror.mc:2763
+#: dlls/kernelbase/winerror.mc:2880
 msgid "Unknown property.\n"
 msgstr "Propriedade desconhecida.\n"
 
-#: dlls/kernelbase/winerror.mc:2768
+#: dlls/kernelbase/winerror.mc:2885
 msgid "Invalid handle state.\n"
 msgstr "Manipulador de estado inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2773
+#: dlls/kernelbase/winerror.mc:2890
 msgid "Bad configuration.\n"
 msgstr "Configuração ruim.\n"
 
-#: dlls/kernelbase/winerror.mc:2778
+#: dlls/kernelbase/winerror.mc:2895
 msgid "Index is missing.\n"
 msgstr "Índice está faltando.\n"
 
-#: dlls/kernelbase/winerror.mc:2783
+#: dlls/kernelbase/winerror.mc:2900
 msgid "Installation source is missing.\n"
 msgstr "A fonte de instalação está faltando.\n"
 
-#: dlls/kernelbase/winerror.mc:2788
+#: dlls/kernelbase/winerror.mc:2905
 msgid "Wrong installation package version.\n"
 msgstr "Versão de pacote de instalação errada.\n"
 
-#: dlls/kernelbase/winerror.mc:2793
+#: dlls/kernelbase/winerror.mc:2910
 msgid "Product uninstalled.\n"
 msgstr "Produto desinstalado.\n"
 
-#: dlls/kernelbase/winerror.mc:2798
+#: dlls/kernelbase/winerror.mc:2915
 msgid "Invalid query syntax.\n"
 msgstr "Sintaxe de consulta inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:2803
+#: dlls/kernelbase/winerror.mc:2920
 msgid "Invalid field.\n"
 msgstr "Campo inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2808
+#: dlls/kernelbase/winerror.mc:2925
 msgid "Device removed.\n"
 msgstr "Dispositivo removido.\n"
 
-#: dlls/kernelbase/winerror.mc:2813
+#: dlls/kernelbase/winerror.mc:2930
 msgid "Installation already running.\n"
 msgstr "A instalação já está em andamento.\n"
 
-#: dlls/kernelbase/winerror.mc:2818
+#: dlls/kernelbase/winerror.mc:2935
 msgid "Installation package failed to open.\n"
 msgstr "Falha ao abrir pacote de instalação.\n"
 
-#: dlls/kernelbase/winerror.mc:2823
+#: dlls/kernelbase/winerror.mc:2940
 msgid "Installation package is invalid.\n"
 msgstr "Pacote de instalação é inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2828
+#: dlls/kernelbase/winerror.mc:2945
 msgid "Installer user interface failed.\n"
 msgstr "Falha na interface de usuário do instalador.\n"
 
-#: dlls/kernelbase/winerror.mc:2833
+#: dlls/kernelbase/winerror.mc:2950
 msgid "Failed to open installation log file.\n"
 msgstr "Falha ao abrir arquivo de log da instalação.\n"
 
-#: dlls/kernelbase/winerror.mc:2838
+#: dlls/kernelbase/winerror.mc:2955
 msgid "Installation language not supported.\n"
 msgstr "Linguagem de instalação não suportada.\n"
 
-#: dlls/kernelbase/winerror.mc:2843
+#: dlls/kernelbase/winerror.mc:2960
 msgid "Installation transform failed to apply.\n"
 msgstr "Falha ao aplicar transformação de instalação.\n"
 
-#: dlls/kernelbase/winerror.mc:2848
+#: dlls/kernelbase/winerror.mc:2965
 msgid "Installation package rejected.\n"
 msgstr "Pacote de instalação rejeitado.\n"
 
-#: dlls/kernelbase/winerror.mc:2853
+#: dlls/kernelbase/winerror.mc:2970
 msgid "Function could not be called.\n"
 msgstr "A função não pôde ser chamada.\n"
 
-#: dlls/kernelbase/winerror.mc:2858
+#: dlls/kernelbase/winerror.mc:2975
 msgid "Function failed.\n"
 msgstr "Falha na função.\n"
 
-#: dlls/kernelbase/winerror.mc:2863
+#: dlls/kernelbase/winerror.mc:2980
 msgid "Invalid table.\n"
 msgstr "Tabela inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:2868
+#: dlls/kernelbase/winerror.mc:2985
 msgid "Data type mismatch.\n"
 msgstr "Tipo de dados diferente.\n"
 
-#: dlls/kernelbase/winerror.mc:2873 dlls/kernelbase/winerror.mc:3083
+#: dlls/kernelbase/winerror.mc:2990 dlls/kernelbase/winerror.mc:3200
 msgid "Unsupported type.\n"
 msgstr "Tipo não suportado.\n"
 
-#: dlls/kernelbase/winerror.mc:2878
+#: dlls/kernelbase/winerror.mc:2995
 msgid "Creation failed.\n"
 msgstr "Falha ao criar.\n"
 
-#: dlls/kernelbase/winerror.mc:2883
+#: dlls/kernelbase/winerror.mc:3000
 msgid "Temporary directory not writable.\n"
 msgstr "Diretório temporário não gravável.\n"
 
-#: dlls/kernelbase/winerror.mc:2888
+#: dlls/kernelbase/winerror.mc:3005
 msgid "Installation platform not supported.\n"
 msgstr "Plataforma de instalação não suportada.\n"
 
-#: dlls/kernelbase/winerror.mc:2893
+#: dlls/kernelbase/winerror.mc:3010
 msgid "Installer not used.\n"
 msgstr "Instalador não usado.\n"
 
-#: dlls/kernelbase/winerror.mc:2898
+#: dlls/kernelbase/winerror.mc:3015
 msgid "Failed to open the patch package.\n"
 msgstr "Falha ao abrir o pacote de patch.\n"
 
-#: dlls/kernelbase/winerror.mc:2903
+#: dlls/kernelbase/winerror.mc:3020
 msgid "Invalid patch package.\n"
 msgstr "Pacote de patch inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2908
+#: dlls/kernelbase/winerror.mc:3025
 msgid "Unsupported patch package.\n"
 msgstr "Pacote de patch não suportado.\n"
 
-#: dlls/kernelbase/winerror.mc:2913
+#: dlls/kernelbase/winerror.mc:3030
 msgid "Another version is installed.\n"
 msgstr "Outra versão está instalada.\n"
 
-#: dlls/kernelbase/winerror.mc:2918
+#: dlls/kernelbase/winerror.mc:3035
 msgid "Invalid command line.\n"
 msgstr "Linha de comando inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:2923
+#: dlls/kernelbase/winerror.mc:3040
 msgid "Remote installation not allowed.\n"
 msgstr "Instalação remota não permitida.\n"
 
-#: dlls/kernelbase/winerror.mc:2928
+#: dlls/kernelbase/winerror.mc:3045
 msgid "Reboot initiated after successful install.\n"
 msgstr "Reinicializando após instalação sucedida.\n"
 
-#: dlls/kernelbase/winerror.mc:2933
+#: dlls/kernelbase/winerror.mc:3050
 msgid "Invalid string binding.\n"
 msgstr "Vínculo de texto inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2938
+#: dlls/kernelbase/winerror.mc:3055
 msgid "Wrong kind of binding.\n"
 msgstr "Tipo de vínculo errado.\n"
 
-#: dlls/kernelbase/winerror.mc:2943
+#: dlls/kernelbase/winerror.mc:3060
 msgid "Invalid binding.\n"
 msgstr "Vínculo inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2948
+#: dlls/kernelbase/winerror.mc:3065
 msgid "RPC protocol sequence not supported.\n"
 msgstr "Sequência de protocolo RPC não suportada.\n"
 
-#: dlls/kernelbase/winerror.mc:2953
+#: dlls/kernelbase/winerror.mc:3070
 msgid "Invalid RPC protocol sequence.\n"
 msgstr "Sequência de protocolo RPC inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:2958
+#: dlls/kernelbase/winerror.mc:3075
 msgid "Invalid string UUID.\n"
 msgstr "UUID inválida de string.\n"
 
-#: dlls/kernelbase/winerror.mc:2963
+#: dlls/kernelbase/winerror.mc:3080
 msgid "Invalid endpoint format.\n"
 msgstr "Formato de destino inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2968
+#: dlls/kernelbase/winerror.mc:3085
 msgid "Invalid network address.\n"
 msgstr "Endereço de rede inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2973
+#: dlls/kernelbase/winerror.mc:3090
 msgid "No endpoint found.\n"
 msgstr "Nenhum ponto de destino encontrado.\n"
 
-#: dlls/kernelbase/winerror.mc:2978
+#: dlls/kernelbase/winerror.mc:3095
 msgid "Invalid timeout value.\n"
 msgstr "Valor de tempo limite inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:2983
+#: dlls/kernelbase/winerror.mc:3100
 msgid "Object UUID not found.\n"
 msgstr "UUID do objeto não encontrada.\n"
 
-#: dlls/kernelbase/winerror.mc:2988
+#: dlls/kernelbase/winerror.mc:3105
 msgid "UUID already registered.\n"
 msgstr "UUID já registrada.\n"
 
-#: dlls/kernelbase/winerror.mc:2993
+#: dlls/kernelbase/winerror.mc:3110
 msgid "UUID type already registered.\n"
 msgstr "Tipo de UUID já registrada.\n"
 
-#: dlls/kernelbase/winerror.mc:2998
+#: dlls/kernelbase/winerror.mc:3115
 msgid "Server already listening.\n"
 msgstr "Servidor já escutando.\n"
 
-#: dlls/kernelbase/winerror.mc:3003
+#: dlls/kernelbase/winerror.mc:3120
 msgid "No protocol sequences registered.\n"
 msgstr "Nenhuma sequência de protocolo registrada.\n"
 
-#: dlls/kernelbase/winerror.mc:3008
+#: dlls/kernelbase/winerror.mc:3125
 msgid "RPC server not listening.\n"
 msgstr "Servidor RPC não escuta.\n"
 
-#: dlls/kernelbase/winerror.mc:3013
+#: dlls/kernelbase/winerror.mc:3130
 msgid "Unknown manager type.\n"
 msgstr "Tipo de gestor desconhecido.\n"
 
-#: dlls/kernelbase/winerror.mc:3018
+#: dlls/kernelbase/winerror.mc:3135
 msgid "Unknown interface.\n"
 msgstr "Interface desconhecida.\n"
 
-#: dlls/kernelbase/winerror.mc:3023
+#: dlls/kernelbase/winerror.mc:3140
 msgid "No bindings.\n"
 msgstr "Nenhum vínculo.\n"
 
-#: dlls/kernelbase/winerror.mc:3028
+#: dlls/kernelbase/winerror.mc:3145
 msgid "No protocol sequences.\n"
 msgstr "Nenhuma sequência de protocolo.\n"
 
-#: dlls/kernelbase/winerror.mc:3033
+#: dlls/kernelbase/winerror.mc:3150
 msgid "Can't create endpoint.\n"
 msgstr "Não é possível criar ponto de destino.\n"
 
-#: dlls/kernelbase/winerror.mc:3038
+#: dlls/kernelbase/winerror.mc:3155
 msgid "Out of resources.\n"
 msgstr "Sem mais recursos.\n"
 
-#: dlls/kernelbase/winerror.mc:3043
+#: dlls/kernelbase/winerror.mc:3160
 msgid "RPC server unavailable.\n"
 msgstr "Servidor RPC indisponível.\n"
 
-#: dlls/kernelbase/winerror.mc:3048
+#: dlls/kernelbase/winerror.mc:3165
 msgid "RPC server too busy.\n"
 msgstr "Servidor RPC muito ocupado.\n"
 
-#: dlls/kernelbase/winerror.mc:3053
+#: dlls/kernelbase/winerror.mc:3170
 msgid "Invalid network options.\n"
 msgstr "Opções de rede inválidas.\n"
 
-#: dlls/kernelbase/winerror.mc:3058
+#: dlls/kernelbase/winerror.mc:3175
 msgid "No RPC call active.\n"
 msgstr "Nenhuma chamada RPC está ativa.\n"
 
-#: dlls/kernelbase/winerror.mc:3063
+#: dlls/kernelbase/winerror.mc:3180
 msgid "RPC call failed.\n"
 msgstr "Falha na chamada RPC.\n"
 
-#: dlls/kernelbase/winerror.mc:3068
+#: dlls/kernelbase/winerror.mc:3185
 msgid "RPC call failed and didn't execute.\n"
 msgstr "A chamada RPC falhou e não foi executada.\n"
 
-#: dlls/kernelbase/winerror.mc:3073
+#: dlls/kernelbase/winerror.mc:3190
 msgid "RPC protocol error.\n"
 msgstr "Erro no protocolo RPC.\n"
 
-#: dlls/kernelbase/winerror.mc:3078
+#: dlls/kernelbase/winerror.mc:3195
 msgid "Unsupported transfer syntax.\n"
 msgstr "Sintaxe de transferência não suportada.\n"
 
-#: dlls/kernelbase/winerror.mc:3088
+#: dlls/kernelbase/winerror.mc:3205
 msgid "Invalid tag.\n"
 msgstr "Etiqueta inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:3093
+#: dlls/kernelbase/winerror.mc:3210
 msgid "Invalid array bounds.\n"
 msgstr "Limites do vetor inválidos.\n"
 
-#: dlls/kernelbase/winerror.mc:3098
+#: dlls/kernelbase/winerror.mc:3215
 msgid "No entry name.\n"
 msgstr "Nenhum nome de entrada.\n"
 
-#: dlls/kernelbase/winerror.mc:3103
+#: dlls/kernelbase/winerror.mc:3220
 msgid "Invalid name syntax.\n"
 msgstr "Sintaxe de nome inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:3108
+#: dlls/kernelbase/winerror.mc:3225
 msgid "Unsupported name syntax.\n"
 msgstr "Sintaxe de nome não suportada.\n"
 
-#: dlls/kernelbase/winerror.mc:3113
+#: dlls/kernelbase/winerror.mc:3230
 msgid "No network address.\n"
 msgstr "Nenhum endereço de rede.\n"
 
-#: dlls/kernelbase/winerror.mc:3118
+#: dlls/kernelbase/winerror.mc:3235
 msgid "Duplicate endpoint.\n"
 msgstr "Ponto de destino duplicado.\n"
 
-#: dlls/kernelbase/winerror.mc:3123
+#: dlls/kernelbase/winerror.mc:3240
 msgid "Unknown authentication type.\n"
 msgstr "Tipo de autenticação desconhecido.\n"
 
-#: dlls/kernelbase/winerror.mc:3128
+#: dlls/kernelbase/winerror.mc:3245
 msgid "Maximum calls too low.\n"
 msgstr "Número máximo de chamadas muito baixo.\n"
 
-#: dlls/kernelbase/winerror.mc:3133
+#: dlls/kernelbase/winerror.mc:3250
 msgid "String too long.\n"
 msgstr "String muito comprida.\n"
 
-#: dlls/kernelbase/winerror.mc:3138
+#: dlls/kernelbase/winerror.mc:3255
 msgid "Protocol sequence not found.\n"
 msgstr "Sequência de protocolo não encontrada.\n"
 
-#: dlls/kernelbase/winerror.mc:3143
+#: dlls/kernelbase/winerror.mc:3260
 msgid "Procedure number out of range.\n"
 msgstr "Número do procedimento fora dos limites.\n"
 
-#: dlls/kernelbase/winerror.mc:3148
+#: dlls/kernelbase/winerror.mc:3265
 msgid "Binding has no authentication data.\n"
 msgstr "Vínculo não tem dados de autenticação.\n"
 
-#: dlls/kernelbase/winerror.mc:3153
+#: dlls/kernelbase/winerror.mc:3270
 msgid "Unknown authentication service.\n"
 msgstr "Serviço de autenticação desconhecido.\n"
 
-#: dlls/kernelbase/winerror.mc:3158
+#: dlls/kernelbase/winerror.mc:3275
 msgid "Unknown authentication level.\n"
 msgstr "Nível de autenticação desconhecido.\n"
 
-#: dlls/kernelbase/winerror.mc:3163
+#: dlls/kernelbase/winerror.mc:3280
 msgid "Invalid authentication identity.\n"
 msgstr "Identidade de autenticação inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:3168
+#: dlls/kernelbase/winerror.mc:3285
 msgid "Unknown authorization service.\n"
 msgstr "Serviço de autorização desconhecido.\n"
 
-#: dlls/kernelbase/winerror.mc:3173
+#: dlls/kernelbase/winerror.mc:3290
 msgid "Invalid entry.\n"
 msgstr "Entrada inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:3178
+#: dlls/kernelbase/winerror.mc:3295
 msgid "Can't perform operation.\n"
 msgstr "Não é possível executar a operação.\n"
 
-#: dlls/kernelbase/winerror.mc:3183
+#: dlls/kernelbase/winerror.mc:3300
 msgid "Endpoints not registered.\n"
 msgstr "Pontos de destino não registrados.\n"
 
-#: dlls/kernelbase/winerror.mc:3188
+#: dlls/kernelbase/winerror.mc:3305
 msgid "Nothing to export.\n"
 msgstr "Nada a exportar.\n"
 
-#: dlls/kernelbase/winerror.mc:3193
+#: dlls/kernelbase/winerror.mc:3310
 msgid "Incomplete name.\n"
 msgstr "Nome incompleto.\n"
 
-#: dlls/kernelbase/winerror.mc:3198
+#: dlls/kernelbase/winerror.mc:3315
 msgid "Invalid version option.\n"
 msgstr "Opção de versão inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:3203
+#: dlls/kernelbase/winerror.mc:3320
 msgid "No more members.\n"
 msgstr "Sem mais membros.\n"
 
-#: dlls/kernelbase/winerror.mc:3208
+#: dlls/kernelbase/winerror.mc:3325
 msgid "Not all objects unexported.\n"
 msgstr "Nem todos os objetos estão por exportar.\n"
 
-#: dlls/kernelbase/winerror.mc:3213
+#: dlls/kernelbase/winerror.mc:3330
 msgid "Interface not found.\n"
 msgstr "Interface não encontrada.\n"
 
-#: dlls/kernelbase/winerror.mc:3218
+#: dlls/kernelbase/winerror.mc:3335
 msgid "Entry already exists.\n"
 msgstr "Entrada já existente.\n"
 
-#: dlls/kernelbase/winerror.mc:3223
+#: dlls/kernelbase/winerror.mc:3340
 msgid "Entry not found.\n"
 msgstr "Entrada não encontrada.\n"
 
-#: dlls/kernelbase/winerror.mc:3228
+#: dlls/kernelbase/winerror.mc:3345
 msgid "Name service unavailable.\n"
 msgstr "Serviço de nomes indisponível.\n"
 
-#: dlls/kernelbase/winerror.mc:3233
+#: dlls/kernelbase/winerror.mc:3350
 msgid "Invalid network address family.\n"
 msgstr "Família de endereços de rede inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:3238
+#: dlls/kernelbase/winerror.mc:3355
 msgid "Operation not supported.\n"
 msgstr "Operação não suportada.\n"
 
-#: dlls/kernelbase/winerror.mc:3243
+#: dlls/kernelbase/winerror.mc:3360
 msgid "No security context available.\n"
 msgstr "Nenhum contexto de segurança disponível.\n"
 
-#: dlls/kernelbase/winerror.mc:3248
+#: dlls/kernelbase/winerror.mc:3365
 msgid "RPCInternal error.\n"
 msgstr "Erro RPC interno.\n"
 
-#: dlls/kernelbase/winerror.mc:3253
+#: dlls/kernelbase/winerror.mc:3370
 msgid "RPC divide-by-zero.\n"
 msgstr "Divisão por zero em RPC.\n"
 
-#: dlls/kernelbase/winerror.mc:3258
+#: dlls/kernelbase/winerror.mc:3375
 msgid "Address error.\n"
 msgstr "Erro de endereço.\n"
 
-#: dlls/kernelbase/winerror.mc:3263
+#: dlls/kernelbase/winerror.mc:3380
 msgid "Floating-point divide-by-zero.\n"
 msgstr "Divisão por zero em ponto flutuante.\n"
 
-#: dlls/kernelbase/winerror.mc:3268
+#: dlls/kernelbase/winerror.mc:3385
 msgid "Floating-point underflow.\n"
 msgstr "Insuficiência de ponto flutuante.\n"
 
-#: dlls/kernelbase/winerror.mc:3273
+#: dlls/kernelbase/winerror.mc:3390
 msgid "Floating-point overflow.\n"
 msgstr "Transbordamento em ponto flutuante.\n"
 
-#: dlls/kernelbase/winerror.mc:3278
+#: dlls/kernelbase/winerror.mc:3395
 msgid "No more entries.\n"
 msgstr "Sem mais entradas.\n"
 
-#: dlls/kernelbase/winerror.mc:3283
+#: dlls/kernelbase/winerror.mc:3400
 msgid "Character translation table open failed.\n"
 msgstr "Falha na abertura da tabela de tradução de caracteres.\n"
 
-#: dlls/kernelbase/winerror.mc:3288
+#: dlls/kernelbase/winerror.mc:3405
 msgid "Character translation table file too small.\n"
 msgstr "Arquivo da tabela de tradução de caracteres muito pequeno.\n"
 
-#: dlls/kernelbase/winerror.mc:3293
+#: dlls/kernelbase/winerror.mc:3410
 msgid "Null context handle.\n"
 msgstr "Manipulador de contexto nulo.\n"
 
-#: dlls/kernelbase/winerror.mc:3298
+#: dlls/kernelbase/winerror.mc:3415
 msgid "Context handle damaged.\n"
 msgstr "Manipulador de contexto danificado.\n"
 
-#: dlls/kernelbase/winerror.mc:3303
+#: dlls/kernelbase/winerror.mc:3420
 msgid "Binding handle mismatch.\n"
 msgstr "Vínculo do manipulador diferente.\n"
 
-#: dlls/kernelbase/winerror.mc:3308
+#: dlls/kernelbase/winerror.mc:3425
 msgid "Cannot get call handle.\n"
 msgstr "Não é possível buscar o manipulador da chamada.\n"
 
-#: dlls/kernelbase/winerror.mc:3313
+#: dlls/kernelbase/winerror.mc:3430
 msgid "Null reference pointer.\n"
 msgstr "Ponteiro de referência nulo.\n"
 
-#: dlls/kernelbase/winerror.mc:3318
+#: dlls/kernelbase/winerror.mc:3435
 msgid "Enumeration value out of range.\n"
 msgstr "Valor de enumeração fora dos limites.\n"
 
-#: dlls/kernelbase/winerror.mc:3323
+#: dlls/kernelbase/winerror.mc:3440
 msgid "Byte count too small.\n"
 msgstr "Contagem de bytes muito pequena.\n"
 
-#: dlls/kernelbase/winerror.mc:3328
+#: dlls/kernelbase/winerror.mc:3445
 msgid "Bad stub data.\n"
 msgstr "Dados de stub impróprios.\n"
 
-#: dlls/kernelbase/winerror.mc:3333
+#: dlls/kernelbase/winerror.mc:3450
 msgid "Invalid user buffer.\n"
 msgstr "Buffer de usuário inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:3338
+#: dlls/kernelbase/winerror.mc:3455
 msgid "Unrecognized media.\n"
 msgstr "Mídia irreconhecível.\n"
 
-#: dlls/kernelbase/winerror.mc:3343
+#: dlls/kernelbase/winerror.mc:3460
 msgid "No trust secret.\n"
 msgstr "Nenhum segredo de confiança.\n"
 
-#: dlls/kernelbase/winerror.mc:3348
+#: dlls/kernelbase/winerror.mc:3465
 msgid "No trust SAM account.\n"
 msgstr "Nenhuma conta de SAM de confiança.\n"
 
-#: dlls/kernelbase/winerror.mc:3353
+#: dlls/kernelbase/winerror.mc:3470
 msgid "Trusted domain failure.\n"
 msgstr "Falha no domínio confiável.\n"
 
-#: dlls/kernelbase/winerror.mc:3358
+#: dlls/kernelbase/winerror.mc:3475
 msgid "Trusted relationship failure.\n"
 msgstr "Falha na relação de confiança.\n"
 
-#: dlls/kernelbase/winerror.mc:3363
+#: dlls/kernelbase/winerror.mc:3480
 msgid "Trust logon failure.\n"
 msgstr "Falha no logon de confiança.\n"
 
-#: dlls/kernelbase/winerror.mc:3368
+#: dlls/kernelbase/winerror.mc:3485
 msgid "RPC call already in progress.\n"
 msgstr "Chamada RPC já em progresso.\n"
 
-#: dlls/kernelbase/winerror.mc:3373
+#: dlls/kernelbase/winerror.mc:3490
 msgid "NETLOGON is not started.\n"
 msgstr "NETLOGON não foi iniciado.\n"
 
-#: dlls/kernelbase/winerror.mc:3378
+#: dlls/kernelbase/winerror.mc:3495
 msgid "Account expired.\n"
 msgstr "A conta expirou.\n"
 
-#: dlls/kernelbase/winerror.mc:3383
+#: dlls/kernelbase/winerror.mc:3500
 msgid "Redirector has open handles.\n"
 msgstr "O redirecionador tem manipuladores abertos.\n"
 
-#: dlls/kernelbase/winerror.mc:3388
+#: dlls/kernelbase/winerror.mc:3505
 msgid "Printer driver already installed.\n"
 msgstr "O driver da impressora já está instalado.\n"
 
-#: dlls/kernelbase/winerror.mc:3393
+#: dlls/kernelbase/winerror.mc:3510
 msgid "Unknown port.\n"
 msgstr "Porta desconhecida.\n"
 
-#: dlls/kernelbase/winerror.mc:3398
+#: dlls/kernelbase/winerror.mc:3515
 msgid "Unknown printer driver.\n"
 msgstr "Driver de impressora desconhecido.\n"
 
-#: dlls/kernelbase/winerror.mc:3403
+#: dlls/kernelbase/winerror.mc:3520
 msgid "Unknown print processor.\n"
 msgstr "Processador de impressora desconhecido.\n"
 
-#: dlls/kernelbase/winerror.mc:3408
+#: dlls/kernelbase/winerror.mc:3525
 msgid "Invalid separator file.\n"
 msgstr "Arquivo separador inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:3413
+#: dlls/kernelbase/winerror.mc:3530
 msgid "Invalid priority.\n"
 msgstr "Prioridade inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:3418
+#: dlls/kernelbase/winerror.mc:3535
 msgid "Invalid printer name.\n"
 msgstr "Nome de impressora inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:3423
+#: dlls/kernelbase/winerror.mc:3540
 msgid "Printer already exists.\n"
 msgstr "A impressora já existe.\n"
 
-#: dlls/kernelbase/winerror.mc:3428
+#: dlls/kernelbase/winerror.mc:3545
 msgid "Invalid printer command.\n"
 msgstr "Comando de impressora inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:3433
+#: dlls/kernelbase/winerror.mc:3550
 msgid "Invalid data type.\n"
 msgstr "Tipo de dados inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:3438
+#: dlls/kernelbase/winerror.mc:3555
 msgid "Invalid environment.\n"
 msgstr "Ambiente inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:3443
+#: dlls/kernelbase/winerror.mc:3560
 msgid "No more bindings.\n"
 msgstr "Sem mais vínculos.\n"
 
-#: dlls/kernelbase/winerror.mc:3448
+#: dlls/kernelbase/winerror.mc:3565
 msgid "Can't log on with inter-domain trust account.\n"
 msgstr "Não é possível logar com conta confiável entre domínios.\n"
 
-#: dlls/kernelbase/winerror.mc:3453
+#: dlls/kernelbase/winerror.mc:3570
 msgid "Can't log on with workstation trust account.\n"
 msgstr "Não é possível logar com conta confiável de estação de trabalho.\n"
 
-#: dlls/kernelbase/winerror.mc:3458
+#: dlls/kernelbase/winerror.mc:3575
 msgid "Can't log on with server trust account.\n"
 msgstr "Não é possível logar com conta confiável do servidor.\n"
 
-#: dlls/kernelbase/winerror.mc:3463
+#: dlls/kernelbase/winerror.mc:3580
 msgid "Domain trust information inconsistent.\n"
 msgstr "Informação de confiança do domínio inconsistente.\n"
 
-#: dlls/kernelbase/winerror.mc:3468
+#: dlls/kernelbase/winerror.mc:3585
 msgid "Server has open handles.\n"
 msgstr "O servidor tem manipuladores abertos.\n"
 
-#: dlls/kernelbase/winerror.mc:3473
+#: dlls/kernelbase/winerror.mc:3590
 msgid "Resource data not found.\n"
 msgstr "Dados de recursos não encontrados.\n"
 
-#: dlls/kernelbase/winerror.mc:3478
+#: dlls/kernelbase/winerror.mc:3595
 msgid "Resource type not found.\n"
 msgstr "Tipo de recurso não encontrado.\n"
 
-#: dlls/kernelbase/winerror.mc:3483
+#: dlls/kernelbase/winerror.mc:3600
 msgid "Resource name not found.\n"
 msgstr "Nome de recurso não encontrado.\n"
 
-#: dlls/kernelbase/winerror.mc:3488
+#: dlls/kernelbase/winerror.mc:3605
 msgid "Resource language not found.\n"
 msgstr "Língua do recurso não encontrada.\n"
 
-#: dlls/kernelbase/winerror.mc:3493
+#: dlls/kernelbase/winerror.mc:3610
 msgid "Not enough quota.\n"
 msgstr "Quota insuficiente.\n"
 
-#: dlls/kernelbase/winerror.mc:3498
+#: dlls/kernelbase/winerror.mc:3615
 msgid "No interfaces.\n"
 msgstr "Nenhuma interface.\n"
 
-#: dlls/kernelbase/winerror.mc:3503
+#: dlls/kernelbase/winerror.mc:3620
 msgid "RPC call canceled.\n"
 msgstr "Chamada RPC cancelada.\n"
 
-#: dlls/kernelbase/winerror.mc:3508
+#: dlls/kernelbase/winerror.mc:3625
 msgid "Binding incomplete.\n"
 msgstr "Vínculo incompleto.\n"
 
-#: dlls/kernelbase/winerror.mc:3513
+#: dlls/kernelbase/winerror.mc:3630
 msgid "RPC comm failure.\n"
 msgstr "Falha de comunicação em RPC.\n"
 
-#: dlls/kernelbase/winerror.mc:3518
+#: dlls/kernelbase/winerror.mc:3635
 msgid "Unsupported authorization level.\n"
 msgstr "Nível de autorização não suportado.\n"
 
-#: dlls/kernelbase/winerror.mc:3523
+#: dlls/kernelbase/winerror.mc:3640
 msgid "No principal name registered.\n"
 msgstr "Nenhum nome principal registrado.\n"
 
-#: dlls/kernelbase/winerror.mc:3528
+#: dlls/kernelbase/winerror.mc:3645
 msgid "Not an RPC error.\n"
 msgstr "Não é erro de RPC.\n"
 
-#: dlls/kernelbase/winerror.mc:3533
+#: dlls/kernelbase/winerror.mc:3650
 msgid "UUID is local only.\n"
 msgstr "UUID é apenas local.\n"
 
-#: dlls/kernelbase/winerror.mc:3538
+#: dlls/kernelbase/winerror.mc:3655
 msgid "Security package error.\n"
 msgstr "Erro no pacote de segurança.\n"
 
-#: dlls/kernelbase/winerror.mc:3543
+#: dlls/kernelbase/winerror.mc:3660
 msgid "Thread not canceled.\n"
 msgstr "Linha de execução não cancelada.\n"
 
-#: dlls/kernelbase/winerror.mc:3548
+#: dlls/kernelbase/winerror.mc:3665
 msgid "Invalid handle operation.\n"
 msgstr "Operação em manipulador inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:3553
+#: dlls/kernelbase/winerror.mc:3670
 msgid "Wrong serializing package version.\n"
 msgstr "Versão de pacote de serialização errada.\n"
 
-#: dlls/kernelbase/winerror.mc:3558
+#: dlls/kernelbase/winerror.mc:3675
 msgid "Wrong stub version.\n"
 msgstr "Versão de stub errada.\n"
 
-#: dlls/kernelbase/winerror.mc:3563
+#: dlls/kernelbase/winerror.mc:3680
 msgid "Invalid pipe object.\n"
 msgstr "Objeto pipe inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:3568
+#: dlls/kernelbase/winerror.mc:3685
 msgid "Wrong pipe order.\n"
 msgstr "Ordem de pipe errada.\n"
 
-#: dlls/kernelbase/winerror.mc:3573
+#: dlls/kernelbase/winerror.mc:3690
 msgid "Wrong pipe version.\n"
 msgstr "Versão de pipe errada.\n"
 
-#: dlls/kernelbase/winerror.mc:3578
+#: dlls/kernelbase/winerror.mc:3695
 msgid "Group member not found.\n"
 msgstr "Membro de grupo não encontrado.\n"
 
-#: dlls/kernelbase/winerror.mc:3583
+#: dlls/kernelbase/winerror.mc:3700
 msgid "Can't create endpoint mapper DB.\n"
 msgstr "Não é possível criar base de dados para mapear pontos de destino.\n"
 
-#: dlls/kernelbase/winerror.mc:3588
+#: dlls/kernelbase/winerror.mc:3705
 msgid "Invalid object.\n"
 msgstr "Objeto inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:3593
+#: dlls/kernelbase/winerror.mc:3710
 msgid "Invalid time.\n"
 msgstr "Tempo inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:3598
+#: dlls/kernelbase/winerror.mc:3715
 msgid "Invalid form name.\n"
 msgstr "Nome de formulário inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:3603
+#: dlls/kernelbase/winerror.mc:3720
 msgid "Invalid form size.\n"
 msgstr "Tamanho de formulário inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:3608
+#: dlls/kernelbase/winerror.mc:3725
 msgid "Already awaiting printer handle.\n"
 msgstr "Já à espera de manipulador da impressora.\n"
 
-#: dlls/kernelbase/winerror.mc:3613
+#: dlls/kernelbase/winerror.mc:3730
 msgid "Printer deleted.\n"
 msgstr "Impressora excluída.\n"
 
-#: dlls/kernelbase/winerror.mc:3618
+#: dlls/kernelbase/winerror.mc:3735
 msgid "Invalid printer state.\n"
 msgstr "Estado de impressora inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:3623
+#: dlls/kernelbase/winerror.mc:3740
 msgid "User must change password.\n"
 msgstr "O usuário tem que alterar a senha.\n"
 
-#: dlls/kernelbase/winerror.mc:3628
+#: dlls/kernelbase/winerror.mc:3745
 msgid "Domain controller not found.\n"
 msgstr "Controlador de domínio não encontrado.\n"
 
-#: dlls/kernelbase/winerror.mc:3633
+#: dlls/kernelbase/winerror.mc:3750
 msgid "Account locked out.\n"
 msgstr "Conta bloqueada.\n"
 
-#: dlls/kernelbase/winerror.mc:3638
+#: dlls/kernelbase/winerror.mc:3755
 msgid "Invalid pixel format.\n"
 msgstr "Formato de pixel inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:3643
+#: dlls/kernelbase/winerror.mc:3760
 msgid "Invalid driver.\n"
 msgstr "Driver inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:3648
+#: dlls/kernelbase/winerror.mc:3765
 msgid "Invalid object resolver set.\n"
 msgstr "Conjunto de resolvedor de objeto inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:3653
+#: dlls/kernelbase/winerror.mc:3770
 msgid "Incomplete RPC send.\n"
 msgstr "Envio de RPC incompleto.\n"
 
-#: dlls/kernelbase/winerror.mc:3658
+#: dlls/kernelbase/winerror.mc:3775
 msgid "Invalid asynchronous RPC handle.\n"
 msgstr "Manipulador de RPC assíncrono inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:3663
+#: dlls/kernelbase/winerror.mc:3780
 msgid "Invalid asynchronous RPC call.\n"
 msgstr "Chamada de RPC assíncrono inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:3668
+#: dlls/kernelbase/winerror.mc:3785
 msgid "RPC pipe closed.\n"
 msgstr "Pipe RPC fechado.\n"
 
-#: dlls/kernelbase/winerror.mc:3673
+#: dlls/kernelbase/winerror.mc:3790
 msgid "Discipline error on RPC pipe.\n"
 msgstr "Erro de disciplina no pipe RPC.\n"
 
-#: dlls/kernelbase/winerror.mc:3678
+#: dlls/kernelbase/winerror.mc:3795
 msgid "No data on RPC pipe.\n"
 msgstr "Não há dados no pipe RPC.\n"
 
-#: dlls/kernelbase/winerror.mc:3683
+#: dlls/kernelbase/winerror.mc:3800
 msgid "No site name available.\n"
 msgstr "Nenhum nome de site disponível.\n"
 
-#: dlls/kernelbase/winerror.mc:3688
+#: dlls/kernelbase/winerror.mc:3805
 msgid "The file cannot be accessed.\n"
 msgstr "O arquivo não pode ser acessado.\n"
 
-#: dlls/kernelbase/winerror.mc:3693
+#: dlls/kernelbase/winerror.mc:3810
 msgid "The filename cannot be resolved.\n"
 msgstr "O nome de arquivo não pode ser resolvido.\n"
 
-#: dlls/kernelbase/winerror.mc:3698
+#: dlls/kernelbase/winerror.mc:3815
 msgid "RPC entry type mismatch.\n"
 msgstr "Tipo de entrada RPC diferente.\n"
 
-#: dlls/kernelbase/winerror.mc:3703
+#: dlls/kernelbase/winerror.mc:3820
 msgid "Not all objects could be exported.\n"
 msgstr "Nem todos os objetos puderam ser exportados.\n"
 
-#: dlls/kernelbase/winerror.mc:3708
+#: dlls/kernelbase/winerror.mc:3825
 msgid "The interface could not be exported.\n"
 msgstr "A interface não pôde ser exportada.\n"
 
-#: dlls/kernelbase/winerror.mc:3713
+#: dlls/kernelbase/winerror.mc:3830
 msgid "The profile could not be added.\n"
 msgstr "O perfil não pôde ser adicionado.\n"
 
-#: dlls/kernelbase/winerror.mc:3718
+#: dlls/kernelbase/winerror.mc:3835
 msgid "The profile element could not be added.\n"
 msgstr "O elemento de perfil não pôde ser adicionado.\n"
 
-#: dlls/kernelbase/winerror.mc:3723
+#: dlls/kernelbase/winerror.mc:3840
 msgid "The profile element could not be removed.\n"
 msgstr "O elemento de perfil não pôde ser removido.\n"
 
-#: dlls/kernelbase/winerror.mc:3728
+#: dlls/kernelbase/winerror.mc:3845
 msgid "The group element could not be added.\n"
 msgstr "O elemento de grupo não pôde ser adicionado.\n"
 
-#: dlls/kernelbase/winerror.mc:3733
+#: dlls/kernelbase/winerror.mc:3850
 msgid "The group element could not be removed.\n"
 msgstr "O elemento de grupo não pôde ser removido.\n"
 
-#: dlls/kernelbase/winerror.mc:3738
+#: dlls/kernelbase/winerror.mc:3855
 msgid "The username could not be found.\n"
 msgstr "O nome de usuário não foi encontrado.\n"
 
-#: dlls/kernelbase/winerror.mc:3743
+#: dlls/kernelbase/winerror.mc:3860
 msgid "This network connection does not exist.\n"
 msgstr "Esta conexão de rede não existe.\n"
 
-#: dlls/kernelbase/winerror.mc:3748
+#: dlls/kernelbase/winerror.mc:3865
+#, fuzzy
+#| msgid "File or directory corrupt.\n"
+msgid "File or directory is not a reparse point.\n"
+msgstr "Arquivo ou diretório corrompido.\n"
+
+#: dlls/kernelbase/winerror.mc:3870
 #, fuzzy
 #| msgid "Invalid at interrupt time.\n"
 msgid "Call interrupted.\n"
 msgstr "Inválido no tempo de interrupção.\n"
 
-#: dlls/kernelbase/winerror.mc:3753
+#: dlls/kernelbase/winerror.mc:3875
 #, fuzzy
 #| msgid "Invalid handle.\n"
 msgid "Invalid file handle.\n"
 msgstr "Manipulador inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:3763
+#: dlls/kernelbase/winerror.mc:3885
 #, fuzzy
 #| msgid "Invalid network address.\n"
 msgid "Invalid pointer address.\n"
 msgstr "Endereço de rede inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:3768
+#: dlls/kernelbase/winerror.mc:3890
 #, fuzzy
 #| msgid "Invalid name.\n"
 msgid "Invalid argument.\n"
 msgstr "Nome inválido.\n"
 
-#: dlls/kernelbase/winerror.mc:3778
+#: dlls/kernelbase/winerror.mc:3900
 msgid "Cannot assign requested address.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:3783
+#: dlls/kernelbase/winerror.mc:3905
 msgid "Connection reset by peer.\n"
 msgstr "Conexão redefinida pelo cliente.\n"
 
-#: dlls/kernelbase/winerror.mc:3793
+#: dlls/kernelbase/winerror.mc:3915
 #, fuzzy
 #| msgid "Point not found.\n"
 msgid "Host not found.\n"
 msgstr "Ponto não encontrado.\n"
 
-#: dlls/kernelbase/winerror.mc:3798
+#: dlls/kernelbase/winerror.mc:3920
 #, fuzzy
 #| msgid "Attribute is not found.\n"
 msgid "Nonauthoritative host not found.\n"
 msgstr "Atributo não encontrado.\n"
 
-#: dlls/kernelbase/winerror.mc:3803
+#: dlls/kernelbase/winerror.mc:3925
 #, fuzzy
 #| msgid "Unrecoverable error occurred.\n"
 msgid "Nonrecoverable error.\n"
 msgstr "Ocorreu um erro irrecuperável.\n"
 
-#: dlls/kernelbase/winerror.mc:3808
+#: dlls/kernelbase/winerror.mc:3930
 msgid "Name valid, no data record.\n"
 msgstr ""
 
-#: dlls/kernelbase/winerror.mc:3822
+#: dlls/kernelbase/winerror.mc:3951
 msgid "Not implemented.\n"
 msgstr "Não implementado.\n"
 
-#: dlls/kernelbase/winerror.mc:3843
+#: dlls/kernelbase/winerror.mc:3972
 msgid "Call failed.\n"
 msgstr "Falha na chamada.\n"
 
-#: dlls/kernelbase/winerror.mc:3815
+#: dlls/kernelbase/winerror.mc:3937
+#, fuzzy
+#| msgid "Unable to unload media.\n"
+msgid "Unable to find matching object.\n"
+msgstr "Não é possível descarregar a mídia.\n"
+
+#: dlls/kernelbase/winerror.mc:3944
 msgid "No Signature found in file.\n"
 msgstr "Nenhuma Assinatura encontrada no arquivo.\n"
 
-#: dlls/kernelbase/winerror.mc:3829
+#: dlls/kernelbase/winerror.mc:3958
 msgid "Invalid call.\n"
 msgstr "Chamada inválida.\n"
 
-#: dlls/kernelbase/winerror.mc:3836
+#: dlls/kernelbase/winerror.mc:3965
 msgid "Resource is not currently available.\n"
 msgstr "Recurso atualmente não disponível.\n"
-
-#: dlls/light.msstyles/light.rc:41 dlls/light.msstyles/light.rc:47
-#: programs/winhlp32/winhlp32.rc:53 programs/winhlp32/winhlp32.rc:73
-msgid "Normal"
-msgstr "Normal"
 
 #: dlls/localspl/localspl.rc:37
 msgid "Letter"
@@ -8333,7 +8470,7 @@ msgstr "Hiperlink"
 msgid "Hyperlink Information"
 msgstr "Informação do Hiperlink"
 
-#: dlls/mshtml/mshtml.rc:43 programs/winecfg/winecfg.rc:249
+#: dlls/mshtml/mshtml.rc:43 programs/winecfg/winecfg.rc:250
 msgid "&Type:"
 msgstr "&Tipo:"
 
@@ -8936,6 +9073,228 @@ msgstr "Imagens Completas (não comprimidas)"
 #: dlls/msvidc32/msvidc32.rc:29
 msgid "Wine Video 1 video codec"
 msgstr "Codec de vídeo Wine Video 1"
+
+#: dlls/msxml3/msxml.mc:31
+#, fuzzy
+#| msgid "Undefined external error."
+msgid "Undefined reference\n"
+msgstr "Erro externo indefinido."
+
+#: dlls/msxml3/msxml.mc:38
+msgid "Found self-referential entity\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:45
+msgid "Unparsed entity reference\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:52
+msgid "Name text contains colon ':'\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:59
+msgid "Namespace prefix hasn't been declared\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:66
+#, fuzzy
+#| msgid "Expected '='"
+msgid "Expected '=' character\n"
+msgstr "Esperado '='"
+
+#: dlls/msxml3/msxml.mc:73
+#, fuzzy
+#| msgid "Expected an operator.\n"
+msgid "Expected a quote character\n"
+msgstr "Um operador é esperado.\n"
+
+#: dlls/msxml3/msxml.mc:80
+msgid "Malformed comment\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:87
+#, fuzzy
+#| msgid "Invalid character"
+msgid "Invalid name start character\n"
+msgstr "Caractere inválido"
+
+#: dlls/msxml3/msxml.mc:94
+#, fuzzy
+#| msgid "Invalid character"
+msgid "Invalid name character\n"
+msgstr "Caractere inválido"
+
+#: dlls/msxml3/msxml.mc:101
+msgid "The '<' character found in attribute value\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:108
+#, fuzzy
+#| msgid "Expected an operator.\n"
+msgid "Expected whitespace character\n"
+msgstr "Um operador é esperado.\n"
+
+#: dlls/msxml3/msxml.mc:115
+#, fuzzy
+#| msgid "Expected an operator.\n"
+msgid "Expected end tag character '>'\n"
+msgstr "Um operador é esperado.\n"
+
+#: dlls/msxml3/msxml.mc:122
+#, fuzzy
+#| msgid "Invalid character(s) in path"
+msgid "Invalid character in DTD content\n"
+msgstr "Caractere(s) inválido(s) no caminho"
+
+#: dlls/msxml3/msxml.mc:129
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected ';' character\n"
+msgstr "Esperado ';'"
+
+#: dlls/msxml3/msxml.mc:136
+#, fuzzy
+#| msgid "Invalid character(s) in path"
+msgid "Invalid character in entity reference\n"
+msgstr "Caractere(s) inválido(s) no caminho"
+
+#: dlls/msxml3/msxml.mc:143
+#, fuzzy
+#| msgid "Invalid character(s) in path"
+msgid "Invalid character in mixed DTD content\n"
+msgstr "Caractere(s) inválido(s) no caminho"
+
+#: dlls/msxml3/msxml.mc:150
+#, fuzzy
+#| msgid "Expected an operator.\n"
+msgid "Expected '*' character\n"
+msgstr "Um operador é esperado.\n"
+
+#: dlls/msxml3/msxml.mc:157
+#, fuzzy
+#| msgid "Expected an operator.\n"
+msgid "Expected parenthesis character\n"
+msgstr "Um operador é esperado.\n"
+
+#: dlls/msxml3/msxml.mc:164
+#, fuzzy
+#| msgid "Invalid character(s) in path"
+msgid "Invalid character in DTD enumeration\n"
+msgstr "Caractere(s) inválido(s) no caminho"
+
+#: dlls/msxml3/msxml.mc:171
+#, fuzzy
+#| msgid "Invalid name syntax.\n"
+msgid "Invalid PI syntax\n"
+msgstr "Sintaxe de nome inválida.\n"
+
+#: dlls/msxml3/msxml.mc:178
+#, fuzzy
+#| msgid "Expected an operator.\n"
+msgid "Expected closing quote character\n"
+msgstr "Um operador é esperado.\n"
+
+#: dlls/msxml3/msxml.mc:185
+msgid "Multiple colon character found\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:192
+#, fuzzy
+#| msgid "Invalid character"
+msgid "Invalid Unicode character\n"
+msgstr "Caractere inválido"
+
+#: dlls/msxml3/msxml.mc:199
+msgid "Expected whitespace or '?' character\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:206
+msgid "Unexpected end tag '>' character\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:213
+#, fuzzy
+#| msgid "Invalid group attributes.\n"
+msgid "Found duplicate attribute\n"
+msgstr "Atributos de grupo inválidos.\n"
+
+#: dlls/msxml3/msxml.mc:220
+#, fuzzy
+#| msgid "Key is invalid.\n"
+msgid "Document root is invalid\n"
+msgstr "Chave inválida.\n"
+
+#: dlls/msxml3/msxml.mc:227
+#, fuzzy
+#| msgid "Invalid handle operation.\n"
+msgid "Invalid xml declaration\n"
+msgstr "Operação em manipulador inválida.\n"
+
+#: dlls/msxml3/msxml.mc:234
+#, fuzzy
+#| msgid "Source is missing.\n"
+msgid "Document root is missing\n"
+msgstr "Origem está faltando.\n"
+
+#: dlls/msxml3/msxml.mc:241
+msgid "Unexpected end of input data stream\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:248
+msgid "Found unexpected CDATA closing markup ']]>'\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:255
+msgid "Found unterminated PI declaration\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:262
+msgid "Found unterminated end tag\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:269
+msgid "Found unterminated CDATA block\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:276
+msgid "Use namespace prefix is reserved\n"
+msgstr ""
+
+#: dlls/msxml3/msxml.mc:283
+#, fuzzy
+#| msgid "The passwords do not match."
+msgid "End tag does not match\n"
+msgstr "As senhas não coincidem."
+
+#: dlls/msxml3/msxml.mc:290
+#, fuzzy
+#| msgid "Invalid domain name.\n"
+msgid "Invalid encoding name\n"
+msgstr "Nome de domínio inválido.\n"
+
+#: dlls/msxml3/msxml.mc:297
+#, fuzzy
+#| msgid "Invalid media type.\n"
+msgid "Invalid model in DTD contentspec\n"
+msgstr "Tipo de mídia inválido.\n"
+
+#: dlls/msxml3/msxml.mc:304
+#, fuzzy
+#| msgid "Invalid group attributes.\n"
+msgid "Invalid DTD attribute type\n"
+msgstr "Atributos de grupo inválidos.\n"
+
+#: dlls/msxml3/msxml.mc:311
+#, fuzzy
+#| msgid "Invalid handle operation.\n"
+msgid "Invalid standalone declaration\n"
+msgstr "Operação em manipulador inválida.\n"
+
+#: dlls/msxml3/msxml.mc:318
+#, fuzzy
+#| msgid "Invalid version option.\n"
+msgid "Invalid xml version\n"
+msgstr "Opção de versão inválida.\n"
 
 #: dlls/oleacc/oleacc.rc:31
 msgid "unknown object"
@@ -9759,7 +10118,7 @@ msgid "b"
 msgstr "b"
 
 #: dlls/sane.ds/sane.rc:34 dlls/wineps.drv/wineps.rc:52
-#: programs/winecfg/winecfg.rc:188
+#: programs/winecfg/winecfg.rc:189
 msgctxt "unit: dots/inch"
 msgid "dpi"
 msgstr "ppp"
@@ -10297,7 +10656,7 @@ msgstr "&Abrir:"
 
 #: dlls/shell32/shell32.rc:345 programs/progman/progman.rc:182
 #: programs/progman/progman.rc:201 programs/progman/progman.rc:218
-#: programs/winecfg/winecfg.rc:247 programs/winefile/winefile.rc:129
+#: programs/winecfg/winecfg.rc:248 programs/winefile/winefile.rc:129
 msgid "&Browse..."
 msgstr "&Procurar..."
 
@@ -10383,7 +10742,7 @@ msgstr "Localização original"
 msgid "Date deleted"
 msgstr "Data de exclusão"
 
-#: dlls/shell32/shell32.rc:151 programs/winecfg/winecfg.rc:106
+#: dlls/shell32/shell32.rc:151 programs/winecfg/winecfg.rc:107
 #: programs/winefile/winefile.rc:99
 msgctxt "display name"
 msgid "Desktop"
@@ -12924,103 +13283,339 @@ msgid "This array is fixed or temporarily locked"
 msgstr "Este array está fixo ou temporariamente bloqueado"
 
 #: dlls/vbscript/vbscript.rc:34
+#, fuzzy
+#| msgid "Division by zero error.\n"
+msgid "Division by zero"
+msgstr "Erro de divisão por zero.\n"
+
+#: dlls/vbscript/vbscript.rc:35
 msgid "Type mismatch"
 msgstr "Tipo de dados diferente"
 
-#: dlls/vbscript/vbscript.rc:36
+#: dlls/vbscript/vbscript.rc:38
 msgid "Device I/O error"
 msgstr "Erro em dispositivo de E/S"
 
-#: dlls/vbscript/vbscript.rc:37
+#: dlls/vbscript/vbscript.rc:39
 msgid "File already exists"
 msgstr "O arquivo já existe"
 
-#: dlls/vbscript/vbscript.rc:38
+#: dlls/vbscript/vbscript.rc:40
 msgid "Disk full"
 msgstr "Disco cheio"
 
-#: dlls/vbscript/vbscript.rc:39
+#: dlls/vbscript/vbscript.rc:41
 msgid "Too many files"
 msgstr "Muitos arquivos abertos"
 
-#: dlls/vbscript/vbscript.rc:40
+#: dlls/vbscript/vbscript.rc:42
 msgid "Permission denied"
 msgstr "Acesso negado"
 
-#: dlls/vbscript/vbscript.rc:41
+#: dlls/vbscript/vbscript.rc:43
 msgid "Path/File access error"
 msgstr "Falha de acesso ao Caminho/Arquivo"
 
-#: dlls/vbscript/vbscript.rc:42
+#: dlls/vbscript/vbscript.rc:44
 msgid "Path not found"
 msgstr "Caminho não encontrado"
 
-#: dlls/vbscript/vbscript.rc:43
+#: dlls/vbscript/vbscript.rc:45
 msgid "Object variable not set"
 msgstr "Objeto variável não setado"
 
-#: dlls/vbscript/vbscript.rc:44
+#: dlls/vbscript/vbscript.rc:46
+#, fuzzy
+#| msgid "Object is not initialized.\n"
+msgid "For loop not initialized"
+msgstr "Objeto não inicializado.\n"
+
+#: dlls/vbscript/vbscript.rc:47
 msgid "Invalid use of Null"
 msgstr "Usuo inválido de Null"
 
-#: dlls/vbscript/vbscript.rc:45
+#: dlls/vbscript/vbscript.rc:48
 msgid "Can't create necessary temporary file"
 msgstr "Arquivo temporário não pode ser criado"
 
-#: dlls/vbscript/vbscript.rc:46
+#: dlls/vbscript/vbscript.rc:50
 msgid "ActiveX component can't create object"
 msgstr "Componente ActiveX não pode criar objeto"
 
-#: dlls/vbscript/vbscript.rc:47
+#: dlls/vbscript/vbscript.rc:51
 msgid "Class doesn't support Automation"
 msgstr "Classe não suporta nomeação automática"
 
-#: dlls/vbscript/vbscript.rc:48
+#: dlls/vbscript/vbscript.rc:52
 msgid "File name or class name not found during Automation operation"
 msgstr "Nome de arquivo ou classe não encontrado durante operação automática"
 
-#: dlls/vbscript/vbscript.rc:51
+#: dlls/vbscript/vbscript.rc:55
 msgid "Object doesn't support named arguments"
 msgstr "O objeto não suporta argumentos nomeados"
 
-#: dlls/vbscript/vbscript.rc:52
+#: dlls/vbscript/vbscript.rc:56
 msgid "Object doesn't support current locale setting"
 msgstr "O objeto não suporta esta ação"
 
-#: dlls/vbscript/vbscript.rc:53
+#: dlls/vbscript/vbscript.rc:57
 msgid "Named argument not found"
 msgstr "Argumento nomeado não encontrado"
 
-#: dlls/vbscript/vbscript.rc:55
+#: dlls/vbscript/vbscript.rc:59
 msgid "Wrong number of arguments or invalid property assignment"
 msgstr "Numero de argumento errado ou propriedade inválida"
 
-#: dlls/vbscript/vbscript.rc:57
+#: dlls/vbscript/vbscript.rc:62
 msgid "Specified DLL function not found"
 msgstr "DLL de função não encontrada"
 
-#: dlls/vbscript/vbscript.rc:58
+#: dlls/vbscript/vbscript.rc:61
+msgid "This key is already associated with an element of this collection"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:63
 msgid "Variable uses an Automation type not supported in VBScript"
 msgstr "Variável usa um tipo de automação não suportado em VBScript"
 
-#: dlls/vbscript/vbscript.rc:59
+#: dlls/vbscript/vbscript.rc:64
 msgid "The remote server machine does not exist or is unavailable"
 msgstr "Servidor remoto não existe ou esta inacessível"
 
-#: dlls/vbscript/vbscript.rc:60
+#: dlls/vbscript/vbscript.rc:65
+#, fuzzy
+#| msgid "'|' is undefined"
+msgid "Variable is undefined"
+msgstr "'|' é indefinido"
+
+#: dlls/vbscript/vbscript.rc:67
 msgid "Invalid or unqualified reference"
 msgstr "Referência inválida"
 
-#: dlls/vbscript/vbscript.rc:62
+#: dlls/vbscript/vbscript.rc:68
+#, fuzzy
+#| msgid "Class does not exist.\n"
+msgid "Class not defined"
+msgstr "Classe inexistente.\n"
+
+#: dlls/vbscript/vbscript.rc:71
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected ']'"
+msgstr "Esperado ';'"
+
+#: dlls/vbscript/vbscript.rc:75
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'If'"
+msgstr "Esperado ';'"
+
+#: dlls/vbscript/vbscript.rc:76
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'To'"
+msgstr "Esperado ';'"
+
+#: dlls/vbscript/vbscript.rc:77
+#, fuzzy
+#| msgid "Expected '@end'"
+msgid "Expected 'End'"
+msgstr "Esperado '@end'"
+
+#: dlls/vbscript/vbscript.rc:78
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'Function'"
+msgstr "Esperado ';'"
+
+#: dlls/vbscript/vbscript.rc:79
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'Sub'"
+msgstr "Esperado ';'"
+
+#: dlls/vbscript/vbscript.rc:80
+#, fuzzy
+#| msgid "Expected '@end'"
+msgid "Expected 'Then'"
+msgstr "Esperado '@end'"
+
+#: dlls/vbscript/vbscript.rc:81
+#, fuzzy
+#| msgid "Expected '@end'"
+msgid "Expected 'Wend'"
+msgstr "Esperado '@end'"
+
+#: dlls/vbscript/vbscript.rc:82
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'Loop'"
+msgstr "Esperado ';'"
+
+#: dlls/vbscript/vbscript.rc:83
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'Next'"
+msgstr "Esperado ';'"
+
+#: dlls/vbscript/vbscript.rc:84
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'Case'"
+msgstr "Esperado ';'"
+
+#: dlls/vbscript/vbscript.rc:85
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'Select'"
+msgstr "Esperado ';'"
+
+#: dlls/vbscript/vbscript.rc:86
+#, fuzzy
+#| msgid "Expected '@end'"
+msgid "Expected statement"
+msgstr "Esperado '@end'"
+
+#: dlls/vbscript/vbscript.rc:87
+#, fuzzy
+#| msgid "Expected an operand.\n"
+msgid "Expected end of statement"
+msgstr "Esperado um operando.\n"
+
+#: dlls/vbscript/vbscript.rc:88
+#, fuzzy
+#| msgid "Unterminated string constant"
+msgid "Expected integer constant"
+msgstr "Cadeia constante não terminada"
+
+#: dlls/vbscript/vbscript.rc:89
+msgid "Expected 'While', 'Until' or end of statement"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:91
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'With'"
+msgstr "Esperado ';'"
+
+#: dlls/vbscript/vbscript.rc:90
+#, fuzzy
+#| msgid "Secret too long.\n"
+msgid "Identifier too long"
+msgstr "Segredo muito longo.\n"
+
+#: dlls/vbscript/vbscript.rc:92
+#, fuzzy
+#| msgid "Invalid flag number.\n"
+msgid "Invalid number"
+msgstr "Número de flag inválido.\n"
+
+#: dlls/vbscript/vbscript.rc:95
+#, fuzzy
+#| msgid "Invalid use of Null"
+msgid "Invalid use of 'Me' keyword"
+msgstr "Usuo inválido de Null"
+
+#: dlls/vbscript/vbscript.rc:96
+msgid "'loop' without 'do'"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:97
+#, fuzzy
+#| msgid "Invalid printer state.\n"
+msgid "Invalid 'exit' statement"
+msgstr "Estado de impressora inválido.\n"
+
+#: dlls/vbscript/vbscript.rc:98
+msgid "Invalid 'for' loop control variable"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:99
+#, fuzzy
+#| msgid "Label redefined"
+msgid "Name redefined"
+msgstr "Rótulo redefinido"
+
+#: dlls/vbscript/vbscript.rc:100
+msgid "Must be first statement on the line"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:101
+msgid "Cannot use parentheses when calling a Sub"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:102
+#, fuzzy
+#| msgid "Expected an operator.\n"
+msgid "Expected literal constant"
+msgstr "Um operador é esperado.\n"
+
+#: dlls/vbscript/vbscript.rc:103
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'In'"
+msgstr "Esperado ';'"
+
+#: dlls/vbscript/vbscript.rc:104
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'Class'"
+msgstr "Esperado ';'"
+
+#: dlls/vbscript/vbscript.rc:105
+msgid "Must be defined inside a Class"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:106
+msgid "Expected Let or Set or Get in property declaration"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:107
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Expected 'Property'"
+msgstr "Esperado ';'"
+
+#: dlls/vbscript/vbscript.rc:108
+msgid "Number of arguments must be consistent across properties specification"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:109
+msgid "Cannot have multiple default property/method in a Class"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:110
+msgid "Class initialize or terminate do not have arguments"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:111
+msgid "Property set or let must have at least one argument"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:112
+#, fuzzy
+#| msgid "Expected ';'"
+msgid "Unexpected 'Next'"
+msgstr "Esperado ';'"
+
+#: dlls/vbscript/vbscript.rc:113
+msgid "'Default' specification must also specify 'Public'"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:114
+msgid "'Default' specification can only be on Property Get"
+msgstr ""
+
+#: dlls/vbscript/vbscript.rc:116
 msgid "Microsoft VBScript compilation error"
 msgstr "Microsoft VBScript erro de compilação"
 
-#: dlls/vbscript/vbscript.rc:63
+#: dlls/vbscript/vbscript.rc:117
 msgid "Microsoft VBScript runtime error"
 msgstr "Microsoft VBScript erro de execução"
 
 #: dlls/winemac.drv/winemac.rc:32 programs/wineboot/wineboot.rc:42
-#: programs/winecfg/winecfg.rc:143
+#: programs/winecfg/winecfg.rc:144
 msgid "Wine"
 msgstr "Wine"
 
@@ -14172,7 +14767,7 @@ msgid "Digi&tal"
 msgstr "Digi&tal"
 
 #: programs/clock/clock.rc:35 programs/notepad/notepad.rc:59
-#: programs/winecfg/winecfg.rc:315 programs/winefile/winefile.rc:63
+#: programs/winecfg/winecfg.rc:316 programs/winefile/winefile.rc:63
 #: programs/wordpad/wordpad.rc:84
 msgid "&Font..."
 msgstr "&Fonte..."
@@ -15207,6 +15802,47 @@ msgstr "Cada caractere tem %1!u! pixels de largura por %2!u! pixels de altura"
 #: programs/conhost/conhost.rc:42
 msgid "This is a test"
 msgstr "Este é um teste"
+
+#: programs/wscript/wscript.rc:45
+msgid ""
+"Usage: CScript scriptname.extension [option...] [arguments...]\n"
+"\n"
+"Options:\n"
+"//B         Batch mode: Suppresses script errors and prompts from "
+"displaying\n"
+"//D         Enable Active Debugging\n"
+"//E:engine  Use engine for executing script\n"
+"//H:CScript Changes the default script host to CScript.exe\n"
+"//H:WScript Changes the default script host to WScript.exe (default)\n"
+"//I         Interactive mode (default, opposite of //B)\n"
+"//Job:xxxx  Execute a WSF job\n"
+"//Logo      Display logo (default)\n"
+"//Nologo    Prevent logo display: No banner will be shown at execution time\n"
+"//S         Save current command line options for this user\n"
+"//T:nn      Time out in seconds:  Maximum time a script is permitted to run\n"
+"//X         Execute script in debugger\n"
+"//U         Use Unicode for redirected I/O from the console\n"
+msgstr ""
+
+#: programs/wscript/wscript.rc:47
+msgid "Input Error: There is no script file specified.\n"
+msgstr ""
+
+#: programs/wscript/wscript.rc:48
+#, fuzzy
+#| msgid "Error: Could not find process \"%1\".\n"
+msgid "Input Error: Can not find script file \"%1\".\n"
+msgstr "Erro: Não foi possível encontrar o processo \"%1\".\n"
+
+#: programs/wscript/wscript.rc:49
+msgid "CScript Error: Loading script \"%1\" failed (%2).\n"
+msgstr ""
+
+#: programs/wscript/wscript.rc:52
+msgid ""
+"Script execution time was exceeded on script \"%1\".\n"
+"Script execution was terminated.\n"
+msgstr ""
 
 #: programs/dxdiag/dxdiag.rc:30
 msgid "DirectX Diagnostic Tool"
@@ -19012,7 +19648,7 @@ msgid "The Wine configuration in %s is being updated, please wait..."
 msgstr ""
 "A configuração do Wine em %s está sendo atualizada, por favor, aguarde..."
 
-#: programs/winecfg/winecfg.rc:146
+#: programs/winecfg/winecfg.rc:147
 msgid ""
 "This program is free software; you can redistribute it and/or modify it "
 "under the terms of the GNU Lesser General Public License as published by the "
@@ -19024,23 +19660,23 @@ msgstr ""
 "Software Foundation; tanto na versão 2.1 desta licença ou (à sua escolha) "
 "qualquer versão posterior."
 
-#: programs/winecfg/winecfg.rc:148
+#: programs/winecfg/winecfg.rc:149
 msgid "Windows registration information"
 msgstr "Informações de registro do Windows"
 
-#: programs/winecfg/winecfg.rc:149
+#: programs/winecfg/winecfg.rc:150
 msgid "&Owner:"
 msgstr "&Proprietário:"
 
-#: programs/winecfg/winecfg.rc:151
+#: programs/winecfg/winecfg.rc:152
 msgid "Organi&zation:"
 msgstr "&Organização:"
 
-#: programs/winecfg/winecfg.rc:159
+#: programs/winecfg/winecfg.rc:160
 msgid "Application settings"
 msgstr "Configurações de Aplicativo"
 
-#: programs/winecfg/winecfg.rc:160
+#: programs/winecfg/winecfg.rc:161
 msgid ""
 "Wine can mimic different Windows versions for each application. This tab is "
 "linked to the Libraries and Graphics tabs to allow you to change system-wide "
@@ -19050,55 +19686,55 @@ msgstr ""
 "aba é ligada às abas Bibliotecas e Gráficos para permitir alterar "
 "configurações globais ou por aplicativo também nessas abas."
 
-#: programs/winecfg/winecfg.rc:164
+#: programs/winecfg/winecfg.rc:165
 msgid "Add appli&cation..."
 msgstr "Adicionar apli&cativo..."
 
-#: programs/winecfg/winecfg.rc:165
+#: programs/winecfg/winecfg.rc:166
 msgid "&Remove application"
 msgstr "&Remover aplicativo"
 
-#: programs/winecfg/winecfg.rc:166
+#: programs/winecfg/winecfg.rc:167
 msgid "&Windows Version:"
 msgstr "Versão do &Windows:"
 
-#: programs/winecfg/winecfg.rc:174
+#: programs/winecfg/winecfg.rc:175
 msgid "Window settings"
 msgstr "Configurações de Janela"
 
-#: programs/winecfg/winecfg.rc:175
+#: programs/winecfg/winecfg.rc:176
 msgid "Automatically capture the &mouse in full-screen windows"
 msgstr "Capturar o &mouse automaticamente em janelas em tela cheia"
 
-#: programs/winecfg/winecfg.rc:176
+#: programs/winecfg/winecfg.rc:177
 msgid "Allow the window manager to &decorate the windows"
 msgstr "Permitir que o gerenciador de janelas &decore as janelas"
 
-#: programs/winecfg/winecfg.rc:177
+#: programs/winecfg/winecfg.rc:178
 msgid "Allow the &window manager to control the windows"
 msgstr "Permitir que o gerenciador de janelas &controle as janelas"
 
-#: programs/winecfg/winecfg.rc:178
+#: programs/winecfg/winecfg.rc:179
 msgid "&Emulate a virtual desktop"
 msgstr "&Emular uma área de trabalho virtual"
 
-#: programs/winecfg/winecfg.rc:180
+#: programs/winecfg/winecfg.rc:181
 msgid "Desktop &size:"
 msgstr "Tamanho da Tela:"
 
-#: programs/winecfg/winecfg.rc:185
+#: programs/winecfg/winecfg.rc:186
 msgid "Screen resolution"
 msgstr "Resolução da Tela"
 
-#: programs/winecfg/winecfg.rc:189
+#: programs/winecfg/winecfg.rc:190
 msgid "This is a sample text using 10 point Tahoma"
 msgstr "Este é um texto exemplo usando Tahoma 10 pontos"
 
-#: programs/winecfg/winecfg.rc:196
+#: programs/winecfg/winecfg.rc:197
 msgid "DLL overrides"
 msgstr "Substituições de DLL"
 
-#: programs/winecfg/winecfg.rc:197
+#: programs/winecfg/winecfg.rc:198
 msgid ""
 "Dynamic Link Libraries can be specified individually to be either builtin "
 "(provided by Wine) or native (taken from Windows or provided by the "
@@ -19108,55 +19744,55 @@ msgstr ""
 "embutidas (fornecidas pelo Wine) ou nativas (tiradas do Windows ou "
 "fornecidas pelo aplicativo)."
 
-#: programs/winecfg/winecfg.rc:199
+#: programs/winecfg/winecfg.rc:200
 msgid "&New override for library:"
 msgstr "&Nova substituição para a biblioteca:"
 
-#: programs/winecfg/winecfg.rc:201
+#: programs/winecfg/winecfg.rc:202
 msgid "A&dd"
 msgstr "&Adicionar"
 
-#: programs/winecfg/winecfg.rc:202
+#: programs/winecfg/winecfg.rc:203
 msgid "Existing &overrides:"
 msgstr "Substituições e&xistentes:"
 
-#: programs/winecfg/winecfg.rc:204
+#: programs/winecfg/winecfg.rc:205
 msgid "&Edit..."
 msgstr "&Editar..."
 
-#: programs/winecfg/winecfg.rc:210
+#: programs/winecfg/winecfg.rc:211
 msgid "Edit Override"
 msgstr "Editar Substituição"
 
-#: programs/winecfg/winecfg.rc:213
+#: programs/winecfg/winecfg.rc:214
 msgid "Load order"
 msgstr "Ordem de Carregamento"
 
-#: programs/winecfg/winecfg.rc:214
+#: programs/winecfg/winecfg.rc:215
 msgid "&Builtin (Wine)"
 msgstr "&Embutida (Wine)"
 
-#: programs/winecfg/winecfg.rc:215
+#: programs/winecfg/winecfg.rc:216
 msgid "&Native (Windows)"
 msgstr "&Nativa (Windows)"
 
-#: programs/winecfg/winecfg.rc:216
+#: programs/winecfg/winecfg.rc:217
 msgid "Buil&tin then Native"
 msgstr "E&mbutida depois Nativa"
 
-#: programs/winecfg/winecfg.rc:217
+#: programs/winecfg/winecfg.rc:218
 msgid "Nati&ve then Builtin"
 msgstr "Nati&va depois Embutida"
 
-#: programs/winecfg/winecfg.rc:225
+#: programs/winecfg/winecfg.rc:226
 msgid "Select Drive Letter"
 msgstr "Selecione a Letra"
 
-#: programs/winecfg/winecfg.rc:237
+#: programs/winecfg/winecfg.rc:238
 msgid "Drive configuration"
 msgstr "Configuração de unidades"
 
-#: programs/winecfg/winecfg.rc:238
+#: programs/winecfg/winecfg.rc:239
 msgid ""
 "Failed to connect to the mount manager; the drive configuration cannot be "
 "edited."
@@ -19164,121 +19800,121 @@ msgstr ""
 "Falha de conexão com o gerenciador de montagem; a configuração da unidade "
 "não pôde ser alterada."
 
-#: programs/winecfg/winecfg.rc:241
+#: programs/winecfg/winecfg.rc:242
 msgid "A&dd..."
 msgstr "&Adicionar..."
 
-#: programs/winecfg/winecfg.rc:245
+#: programs/winecfg/winecfg.rc:246
 msgid "&Path:"
 msgstr "&Caminho:"
 
-#: programs/winecfg/winecfg.rc:252 programs/winecfg/winecfg.rc:37
+#: programs/winecfg/winecfg.rc:253 programs/winecfg/winecfg.rc:37
 msgid "Show Advan&ced"
 msgstr "M&ostrar Avançado"
 
-#: programs/winecfg/winecfg.rc:253
+#: programs/winecfg/winecfg.rc:254
 msgid "De&vice:"
 msgstr "Dispositi&vo:"
 
-#: programs/winecfg/winecfg.rc:255
+#: programs/winecfg/winecfg.rc:256
 msgid "Bro&wse..."
 msgstr "Nave&gar..."
 
-#: programs/winecfg/winecfg.rc:257
+#: programs/winecfg/winecfg.rc:258
 msgid "&Label:"
 msgstr "&Rótulo:"
 
-#: programs/winecfg/winecfg.rc:259
+#: programs/winecfg/winecfg.rc:260
 msgid "S&erial:"
 msgstr "&Serial:"
 
-#: programs/winecfg/winecfg.rc:262
+#: programs/winecfg/winecfg.rc:263
 msgid "&Show dot files"
 msgstr "Mostrar arquivos com &ponto"
 
-#: programs/winecfg/winecfg.rc:269
+#: programs/winecfg/winecfg.rc:270
 msgid "Driver diagnostics"
 msgstr "Diagnósticos de driver"
 
-#: programs/winecfg/winecfg.rc:271
+#: programs/winecfg/winecfg.rc:272
 msgid "&Test Sound"
 msgstr "&Testar Som"
 
-#: programs/winecfg/winecfg.rc:272
+#: programs/winecfg/winecfg.rc:273
 msgid "Defaults"
 msgstr "Dispositivos Padrões"
 
-#: programs/winecfg/winecfg.rc:273
+#: programs/winecfg/winecfg.rc:274
 msgid "Output device:"
 msgstr "Saída:"
 
-#: programs/winecfg/winecfg.rc:274
+#: programs/winecfg/winecfg.rc:275
 msgid "Voice output device:"
 msgstr "Saída de voz:"
 
-#: programs/winecfg/winecfg.rc:275
+#: programs/winecfg/winecfg.rc:276
 msgid "Input device:"
 msgstr "Entrada:"
 
-#: programs/winecfg/winecfg.rc:276
+#: programs/winecfg/winecfg.rc:277
 msgid "Voice input device:"
 msgstr "Entrada de voz:"
 
-#: programs/winecfg/winecfg.rc:277
+#: programs/winecfg/winecfg.rc:278
 #, fuzzy
 #| msgid "Output device:"
 msgid "MIDI output device:"
 msgstr "Saída:"
 
-#: programs/winecfg/winecfg.rc:283 programs/winecfg/winecfg.rc:89
+#: programs/winecfg/winecfg.rc:284 programs/winecfg/winecfg.rc:89
 msgid "Speaker configuration"
 msgstr "Configuração dos alto-falantes"
 
-#: programs/winecfg/winecfg.rc:286
+#: programs/winecfg/winecfg.rc:287
 msgid "Speakers:"
 msgstr "Alto-falantes:"
 
-#: programs/winecfg/winecfg.rc:294
+#: programs/winecfg/winecfg.rc:295
 msgid "Appearance"
 msgstr "Aparência"
 
-#: programs/winecfg/winecfg.rc:295
+#: programs/winecfg/winecfg.rc:296
 msgid "&Theme:"
 msgstr "&Tema:"
 
-#: programs/winecfg/winecfg.rc:297
+#: programs/winecfg/winecfg.rc:298
 #, fuzzy
 #| msgid "&Theme:"
 msgid "&WinRT theme:"
 msgstr "&Tema:"
 
-#: programs/winecfg/winecfg.rc:299
+#: programs/winecfg/winecfg.rc:300
 msgid "&Install theme..."
 msgstr "&Instalar tema..."
 
-#: programs/winecfg/winecfg.rc:304
+#: programs/winecfg/winecfg.rc:305
 msgid "It&em:"
 msgstr "It&em:"
 
-#: programs/winecfg/winecfg.rc:306
+#: programs/winecfg/winecfg.rc:307
 msgid "C&olor:"
 msgstr "C&or:"
 
-#: programs/winecfg/winecfg.rc:312
+#: programs/winecfg/winecfg.rc:313
 msgid "MIME types"
 msgstr "Tipos MIME"
 
-#: programs/winecfg/winecfg.rc:313
+#: programs/winecfg/winecfg.rc:314
 #, fuzzy
 #| msgid "Manage file &associations"
 msgid "Manage file and protocol &associations"
 msgstr "Gerenciar &associação de arquivos"
 
-#: programs/winecfg/winecfg.rc:316
+#: programs/winecfg/winecfg.rc:317
 msgid "Folders"
 msgstr "Pastas"
 
-#: programs/winecfg/winecfg.rc:319
+#: programs/winecfg/winecfg.rc:320
 msgid "&Link to:"
 msgstr "&Atalho para:"
 
@@ -19359,28 +19995,34 @@ msgid "(System default)"
 msgstr "(Padrão do sistema)"
 
 #: programs/winecfg/winecfg.rc:90
-msgid "5.1 Surround"
+#, fuzzy
+#| msgid "5.1 Surround"
+msgid "7.1 Surround"
 msgstr "Surround 5.1"
 
 #: programs/winecfg/winecfg.rc:91
+msgid "5.1 Surround"
+msgstr "Surround 5.1"
+
+#: programs/winecfg/winecfg.rc:92
 msgid "Quadraphonic"
 msgstr "Quadrafônico"
 
-#: programs/winecfg/winecfg.rc:92
+#: programs/winecfg/winecfg.rc:93
 msgid "Stereo"
 msgstr "Estéreo"
 
-#: programs/winecfg/winecfg.rc:93
+#: programs/winecfg/winecfg.rc:94
 msgid "Mono"
 msgstr "Mono"
 
-#: programs/winecfg/winecfg.rc:98
+#: programs/winecfg/winecfg.rc:99
 #, fuzzy
 #| msgid "Right"
 msgid "Light"
 msgstr "Direita"
 
-#: programs/winecfg/winecfg.rc:99
+#: programs/winecfg/winecfg.rc:100
 msgid "Dark"
 msgstr ""
 
@@ -19498,127 +20140,127 @@ msgstr ""
 "\n"
 "Lembre-se de clicar em 'Adicionar' na aba Unidades para criar uma!\n"
 
-#: programs/winecfg/winecfg.rc:104
+#: programs/winecfg/winecfg.rc:105
 msgid "Controls Background"
 msgstr "Fundo do Botão"
 
-#: programs/winecfg/winecfg.rc:105
+#: programs/winecfg/winecfg.rc:106
 msgid "Controls Text"
 msgstr "Texto do Botão"
 
-#: programs/winecfg/winecfg.rc:107
+#: programs/winecfg/winecfg.rc:108
 msgid "Menu Background"
 msgstr "Fundo do Menu"
 
-#: programs/winecfg/winecfg.rc:108
+#: programs/winecfg/winecfg.rc:109
 msgid "Menu Text"
 msgstr "Texto do Menu"
 
-#: programs/winecfg/winecfg.rc:109
+#: programs/winecfg/winecfg.rc:110
 msgid "Scrollbar"
 msgstr "Barra de Rolagem"
 
-#: programs/winecfg/winecfg.rc:110
+#: programs/winecfg/winecfg.rc:111
 msgid "Selection Background"
 msgstr "Fundo de Seleção"
 
-#: programs/winecfg/winecfg.rc:111
+#: programs/winecfg/winecfg.rc:112
 msgid "Selection Text"
 msgstr "Texto de Seleção"
 
-#: programs/winecfg/winecfg.rc:112
+#: programs/winecfg/winecfg.rc:113
 msgid "Tooltip Background"
 msgstr "Fundo da Dica"
 
-#: programs/winecfg/winecfg.rc:113
+#: programs/winecfg/winecfg.rc:114
 msgid "Tooltip Text"
 msgstr "Texto da Dica"
 
-#: programs/winecfg/winecfg.rc:114
+#: programs/winecfg/winecfg.rc:115
 msgid "Window Background"
 msgstr "Fundo da Janela"
 
-#: programs/winecfg/winecfg.rc:115
+#: programs/winecfg/winecfg.rc:116
 msgid "Window Text"
 msgstr "Texto da Janela"
 
-#: programs/winecfg/winecfg.rc:116
+#: programs/winecfg/winecfg.rc:117
 msgid "Active Title Bar"
 msgstr "Barra de Título Ativa"
 
-#: programs/winecfg/winecfg.rc:117
+#: programs/winecfg/winecfg.rc:118
 msgid "Active Title Text"
 msgstr "Texto de Título Ativo"
 
-#: programs/winecfg/winecfg.rc:118
+#: programs/winecfg/winecfg.rc:119
 msgid "Inactive Title Bar"
 msgstr "Barra de Título Inativa"
 
-#: programs/winecfg/winecfg.rc:119
+#: programs/winecfg/winecfg.rc:120
 msgid "Inactive Title Text"
 msgstr "Texto de Título Inativo"
 
-#: programs/winecfg/winecfg.rc:120
+#: programs/winecfg/winecfg.rc:121
 msgid "Message Box Text"
 msgstr "Texto da Caixa de Mensagens"
 
-#: programs/winecfg/winecfg.rc:121
+#: programs/winecfg/winecfg.rc:122
 msgid "Application Workspace"
 msgstr "Área do Aplicativo"
 
-#: programs/winecfg/winecfg.rc:122
+#: programs/winecfg/winecfg.rc:123
 msgid "Window Frame"
 msgstr "Corpo da Janela"
 
-#: programs/winecfg/winecfg.rc:123
+#: programs/winecfg/winecfg.rc:124
 msgid "Active Border"
 msgstr "Borda Ativa"
 
-#: programs/winecfg/winecfg.rc:124
+#: programs/winecfg/winecfg.rc:125
 msgid "Inactive Border"
 msgstr "Borda Inativa"
 
-#: programs/winecfg/winecfg.rc:125
+#: programs/winecfg/winecfg.rc:126
 msgid "Controls Shadow"
 msgstr "Sombra dos Botões"
 
-#: programs/winecfg/winecfg.rc:126
+#: programs/winecfg/winecfg.rc:127
 msgid "Gray Text"
 msgstr "Texto Inativo"
 
-#: programs/winecfg/winecfg.rc:127
+#: programs/winecfg/winecfg.rc:128
 msgid "Controls Highlight"
 msgstr "Realce do Botão"
 
-#: programs/winecfg/winecfg.rc:128
+#: programs/winecfg/winecfg.rc:129
 msgid "Controls Dark Shadow"
 msgstr "Sombra Escura do Botão"
 
-#: programs/winecfg/winecfg.rc:129
+#: programs/winecfg/winecfg.rc:130
 msgid "Controls Light"
 msgstr "Luz do Botão"
 
-#: programs/winecfg/winecfg.rc:130
+#: programs/winecfg/winecfg.rc:131
 msgid "Controls Alternate Background"
 msgstr "Fundo Alternativo do Botão"
 
-#: programs/winecfg/winecfg.rc:131
+#: programs/winecfg/winecfg.rc:132
 msgid "Hot Tracked Item"
 msgstr "Elemento Ativo"
 
-#: programs/winecfg/winecfg.rc:132
+#: programs/winecfg/winecfg.rc:133
 msgid "Active Title Bar Gradient"
 msgstr "Gradiente da Barra Ativa"
 
-#: programs/winecfg/winecfg.rc:133
+#: programs/winecfg/winecfg.rc:134
 msgid "Inactive Title Bar Gradient"
 msgstr "Gradiente da Barra Inativa"
 
-#: programs/winecfg/winecfg.rc:134
+#: programs/winecfg/winecfg.rc:135
 msgid "Menu Highlight"
 msgstr "Realce de Menu"
 
-#: programs/winecfg/winecfg.rc:135
+#: programs/winecfg/winecfg.rc:136
 msgid "Menu Bar"
 msgstr "Barra de Menu"
 

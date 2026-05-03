@@ -1,4 +1,4 @@
-EXTLIB    = libmusl.a
+STATICLIB = libmusl.a
 EXTRAINCL = -I$(srcdir)/src/internal -I$(srcdir)/arch/generic
 EXTRADEFS = -D_ACRTIMP= -D_NO_CRT_MATH_INLINE \
             -fno-builtin

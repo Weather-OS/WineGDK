@@ -331,7 +331,8 @@ static BOOL compare_bits(const struct bitmap_data *expect, UINT buffersize, cons
 
 static BOOL is_indexed_format(const GUID *format)
 {
-    if (IsEqualGUID(format, &GUID_WICPixelFormat1bppIndexed) ||
+    if (IsEqualGUID(format, &GUID_WICPixelFormatBlackWhite) ||
+        IsEqualGUID(format, &GUID_WICPixelFormat1bppIndexed) ||
         IsEqualGUID(format, &GUID_WICPixelFormat2bppIndexed) ||
         IsEqualGUID(format, &GUID_WICPixelFormat4bppIndexed) ||
         IsEqualGUID(format, &GUID_WICPixelFormat8bppIndexed))
@@ -365,6 +366,17 @@ static void compare_bitmap_data(const struct bitmap_data *src, const struct bitm
     ok(SUCCEEDED(hr), "GetPixelFormat(%s) failed, hr=%lx\n", name, hr);
     ok(IsEqualGUID(&dst_pixelformat, expect->format), "got unexpected pixel format %s (%s)\n", wine_dbgstr_guid(&dst_pixelformat), name);
 
+    /* The result of conversion of color to indexed formats depends on
+     * optimized palette generation implementation. We either need to
+     * assign our own palette, or just skip the comparison.
+     */
+    if ((is_indexed_format(src->format) != is_indexed_format(expect->format)) ||
+        (is_indexed_format(src->format) && is_indexed_format(expect->format) && src->bpp != expect->bpp))
+    {
+        skip("Skipping bits comparison for %s\n", name);
+        return;
+    }
+
     prc.X = 0;
     prc.Y = 0;
     prc.Width = expect->width;
@@ -377,21 +389,13 @@ static void compare_bitmap_data(const struct bitmap_data *src, const struct bitm
     memset(converted_bits, 0xaa, buffersize);
     hr = IWICBitmapSource_CopyPixels(source, &prc, stride, buffersize, converted_bits);
     ok(SUCCEEDED(hr), "CopyPixels(%s) failed, hr=%lx\n", name, hr);
-
-    /* The result of conversion of color to indexed formats depends on
-     * optimized palette generation implementation. We either need to
-     * assign our own palette, or just skip the comparison.
-     */
-    if (is_indexed_format(src->format) == is_indexed_format(expect->format))
-        ok(compare_bits(expect, buffersize, converted_bits), "unexpected pixel data (%s)\n", name);
+    ok(compare_bits(expect, buffersize, converted_bits), "unexpected pixel data (%s)\n", name);
 
     /* Test with NULL rectangle - should copy the whole bitmap */
     memset(converted_bits, 0xaa, buffersize);
     hr = IWICBitmapSource_CopyPixels(source, NULL, stride, buffersize, converted_bits);
     ok(SUCCEEDED(hr), "CopyPixels(%s,rc=NULL) failed, hr=%lx\n", name, hr);
-    /* see comment above */
-    if (is_indexed_format(src->format) == is_indexed_format(expect->format))
-        ok(compare_bits(expect, buffersize, converted_bits), "unexpected pixel data (%s)\n", name);
+    ok(compare_bits(expect, buffersize, converted_bits), "unexpected pixel data (%s)\n", name);
 
     HeapFree(GetProcessHeap(), 0, converted_bits);
 }
@@ -853,11 +857,11 @@ static void test_can_convert(void)
         {WIC_PIXEL_FORMAT(1bppIndexed), TRUE, TRUE, 33},
         {WIC_PIXEL_FORMAT(2bppIndexed), TRUE, TRUE, 35},
         {WIC_PIXEL_FORMAT(4bppIndexed), TRUE, TRUE, 35},
-        {WIC_PIXEL_FORMAT(8bppIndexed), TRUE, TRUE, 26},
+        {WIC_PIXEL_FORMAT(8bppIndexed), TRUE, TRUE, 12},
         {WIC_PIXEL_FORMAT(BlackWhite), TRUE, TRUE, 35},
         {WIC_PIXEL_FORMAT(2bppGray), TRUE, TRUE, 35},
         {WIC_PIXEL_FORMAT(4bppGray), TRUE, TRUE, 35},
-        {WIC_PIXEL_FORMAT(8bppGray), TRUE, TRUE, 25},
+        {WIC_PIXEL_FORMAT(8bppGray), TRUE, TRUE, 12},
         {WIC_PIXEL_FORMAT(16bppGray), TRUE, TRUE, 35},
 
         {WIC_PIXEL_FORMAT(8bppAlpha), TRUE, TRUE, 35, TRUE},
@@ -865,7 +869,7 @@ static void test_can_convert(void)
         {WIC_PIXEL_FORMAT(16bppBGR555), TRUE, TRUE, 35},
         {WIC_PIXEL_FORMAT(16bppBGR565), TRUE, TRUE, 35},
         {WIC_PIXEL_FORMAT(16bppBGRA5551), TRUE, TRUE, 33, TRUE},
-        {WIC_PIXEL_FORMAT(24bppBGR), TRUE, TRUE, 26},
+        {WIC_PIXEL_FORMAT(24bppBGR), TRUE, TRUE, 12},
         {WIC_PIXEL_FORMAT(24bppRGB), TRUE, TRUE, 29},
         {WIC_PIXEL_FORMAT(32bppBGR), TRUE, TRUE, 13},
         {WIC_PIXEL_FORMAT(32bppBGRA), TRUE, TRUE, 13},
@@ -2346,9 +2350,11 @@ START_TEST(converter)
     test_conversion(&testdata_BlackWhite, &testdata_1bppIndexed, "BlackWhite -> 1bppIndexed", FALSE);
     test_conversion(&testdata_BlackWhite, &testdata_8bppIndexed_BW, "BlackWhite -> 8bppIndexed", FALSE);
     test_conversion(&testdata_BlackWhite, &testdata_24bppBGR_BW, "BlackWhite -> 24bppBGR", FALSE);
-    test_conversion(&testdata_1bppIndexed, &testdata_8bppIndexed_BW, "1bppIndexed -> 8bppIndexed", TRUE);
-    test_conversion(&testdata_2bppIndexed, &testdata_8bppIndexed_4colors, "2bppIndexed -> 8bppIndexed", TRUE);
-    test_conversion(&testdata_4bppIndexed, &testdata_8bppIndexed, "4bppIndexed -> 8bppIndexed", TRUE);
+    test_conversion(&testdata_1bppIndexed, &testdata_BlackWhite, "1bppIndexed -> BlackWhite", FALSE);
+    test_conversion(&testdata_24bppBGR_BW, &testdata_BlackWhite, "24bppBGR -> BlackWhite", FALSE);
+    test_conversion(&testdata_1bppIndexed, &testdata_8bppIndexed_BW, "1bppIndexed -> 8bppIndexed", FALSE);
+    test_conversion(&testdata_2bppIndexed, &testdata_8bppIndexed_4colors, "2bppIndexed -> 8bppIndexed", FALSE);
+    test_conversion(&testdata_4bppIndexed, &testdata_8bppIndexed, "4bppIndexed -> 8bppIndexed", FALSE);
 
     test_conversion(&testdata_8bppIndexed, &testdata_24bppRGB, "8bppIndexed -> 24bppRGB", FALSE);
     test_conversion(&testdata_8bppIndexed, &testdata_24bppBGR, "8bppIndexed -> 24bppBGR", FALSE);

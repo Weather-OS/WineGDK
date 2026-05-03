@@ -1256,6 +1256,7 @@ static BOOL wined3d_context_gl_set_gl_context(struct wined3d_context_gl *context
         TRACE("Using backup DC %p.\n", context_gl->dc);
         context_gl->dc_is_private = TRUE;
         context_gl->dc_has_format = FALSE;
+        context_gl->internal_format_set = FALSE;
 
         if (!wined3d_context_gl_set_pixel_format(context_gl))
         {
@@ -1700,7 +1701,7 @@ static int context_choose_pixel_format(const struct wined3d_device *device, HDC 
 
         if (value > current_value)
         {
-            iPixelFormat = cfg->iPixelFormat;
+            iPixelFormat = i + 1;
             current_value = value;
         }
     }

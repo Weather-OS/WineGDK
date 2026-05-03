@@ -22,19 +22,28 @@
 #include <stddef.h>
 
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 #include "windef.h"
 #include "winbase.h"
 #include "winternl.h"
 #include "wingdi.h"
-#include "wine/wgl.h"
+#include "wine/opengl_driver.h"
+#include "thunks.h"
 
-extern const void *extension_procs[];
+struct registry_entry
+{
+    const char *name;      /* name of the extension */
+    void *func;
+    UINT16 major;
+    UINT16 minor;
+    enum opengl_extension extensions[4];
+};
 
 extern int WINAPI wglDescribePixelFormat( HDC hdc, int ipfd, UINT cjpfd, PIXELFORMATDESCRIPTOR *ppfd );
 extern BOOL get_pbuffer_from_handle( HPBUFFERARB handle, HPBUFFERARB *obj );
 extern BOOL get_context_from_handle( HGLRC handle, HGLRC *obj );
 extern BOOL get_sync_from_handle( GLsync handle, GLsync *obj );
 extern void set_gl_error( GLenum error );
+extern struct registry_entry *get_function_entry( const char *name );
+extern BOOL get_integer( GLenum name, GLint *data );
 
 #endif /* __WINE_OPENGL32_PRIVATE_H */

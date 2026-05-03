@@ -25,7 +25,6 @@
 #include <stdarg.h>
 
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 #include "windef.h"
 #include "winternl.h"
 #include "wine/exception.h"
@@ -795,25 +794,46 @@ NTSTATUS WINAPI RtlVirtualUnwind2( ULONG type, ULONG_PTR base, ULONG_PTR pc,
                                    PEXCEPTION_ROUTINE *handler_ret, ULONG flags )
 {
     BOOLEAN final_pc_from_lr = TRUE;
+    PEXCEPTION_ROUTINE handler;
+    void *data = NULL;
+
     TRACE( "type %lx base %I64x pc %I64x rva %I64x sp %I64x\n", type, base, pc, pc - base, context->Sp );
     if (limit_low || limit_high) FIXME( "limits not supported\n" );
 
     if (!func && pc == context->Lr) return STATUS_BAD_FUNCTION_TABLE;  /* invalid leaf function */
 
-    *handler_data = NULL;
     context->ContextFlags |= CONTEXT_UNWOUND_TO_CALL;
 
     if (!func)  /* leaf function */
-        *handler_ret = NULL;
-    else if (func->Flag)
-        *handler_ret = unwind_packed_data( base, pc, func, context, ctx_ptr );
-    else
-        *handler_ret = unwind_full_data( base, pc, func, context, handler_data, ctx_ptr, &final_pc_from_lr );
+    {
+        context->Pc = context->Lr;
+        *frame_ret = context->Sp;
+        if (handler_ret) *handler_ret = NULL;
+        *handler_data = NULL;
+        return STATUS_SUCCESS;
+    }
 
-    if (final_pc_from_lr) context->Pc = context->Lr;
+    __TRY
+    {
+        if (func->Flag)
+            handler = unwind_packed_data( base, pc, func, context, ctx_ptr );
+        else
+            handler = unwind_full_data( base, pc, func, context, &data, ctx_ptr, &final_pc_from_lr );
 
-    TRACE( "ret: pc=%I64x lr=%I64x sp=%I64x handler=%p\n", context->Pc, context->Lr, context->Sp, *handler_ret );
-    *frame_ret = context->Sp;
+        if (final_pc_from_lr) context->Pc = context->Lr;
+        *frame_ret = context->Sp;
+
+        if (handler_ret) *handler_ret = handler;
+        *handler_data = data;
+    }
+    __EXCEPT_PAGE_FAULT
+    {
+        WARN( "Access violation.\n" );
+        return STATUS_ACCESS_VIOLATION;
+    }
+    __ENDTRY
+
+    TRACE( "ret: pc=%I64x lr=%I64x sp=%I64x handler=%p\n", context->Pc, context->Lr, context->Sp, handler );
     return STATUS_SUCCESS;
 }
 
@@ -2072,8 +2092,8 @@ NTSTATUS WINAPI RtlVirtualUnwind2( ULONG type, ULONG_PTR base, ULONG_PTR pc,
     {
         context->Rip = *(ULONG64 *)context->Rsp;
         context->Rsp += sizeof(ULONG64);
-        *data = NULL;
-        *handler_ret = NULL;
+        if (type) *data = NULL;
+        if (handler_ret) *handler_ret = NULL;
         return STATUS_SUCCESS;
     }
 
@@ -2108,7 +2128,7 @@ NTSTATUS WINAPI RtlVirtualUnwind2( ULONG type, ULONG_PTR base, ULONG_PTR pc,
                 TRACE("inside epilog.\n");
                 interpret_epilog( (BYTE *)pc, context, ctx_ptr );
                 *frame_ret = info->frame_reg ? context->Rsp - 8 : frame;
-                *handler_ret = NULL;
+                if (handler_ret) *handler_ret = NULL;
                 return STATUS_SUCCESS;
             }
         }
@@ -2189,12 +2209,12 @@ NTSTATUS WINAPI RtlVirtualUnwind2( ULONG type, ULONG_PTR base, ULONG_PTR pc,
         context->Rsp += sizeof(ULONG64);
     }
 
-    *handler_ret = NULL;
+    if (handler_ret) *handler_ret = NULL;
 
     if (!(info->flags & type)) return STATUS_SUCCESS;  /* no matching handler */
     if (prolog_offset != ~0) return STATUS_SUCCESS;  /* inside prolog */
 
-    *handler_ret = (PEXCEPTION_ROUTINE)((char *)base + handler_data->handler);
+    if (handler_ret) *handler_ret = (PEXCEPTION_ROUTINE)((char *)base + handler_data->handler);
     *data = &handler_data->handler + 1;
     return STATUS_SUCCESS;
 }

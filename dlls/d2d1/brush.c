@@ -1385,7 +1385,7 @@ BOOL d2d_brush_fill_cb(const struct d2d_brush *brush, struct d2d_brush_cb *cb)
     }
 
     cb->type = brush->type;
-    cb->opacity = brush->opacity;
+    cb->opacity = max(0.0f, min(brush->opacity, 1.0f));
 
     switch (brush->type)
     {

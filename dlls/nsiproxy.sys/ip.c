@@ -146,7 +146,6 @@ struct ip6stat {
 #endif
 
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 #include "windef.h"
 #include "winbase.h"
 #include "winternl.h"
@@ -1228,6 +1227,12 @@ static NTSTATUS ipv4_neighbour_enumerate_all( void *key_data, UINT key_size, voi
     if ((status = nsi_enumerate_all( 1, 0, &NPI_MS_NDIS_MODULEID, NSI_NDIS_IFINFO_TABLE, NULL, 0, NULL, 0,
                                      NULL, 0, NULL, 0, &iface_count )))
         return status;
+
+    if (!iface_count)
+    {
+        *count = 0;
+        return STATUS_SUCCESS;
+    }
 
     if (!(luid_tbl = malloc( iface_count * sizeof(*luid_tbl) )))
         return STATUS_NO_MEMORY;

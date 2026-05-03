@@ -698,7 +698,7 @@ static void elf_hash_symtab(struct module* module, struct pool* pool,
         {
         case ELF_STT_FILE:
             if (symname)
-                compiland = symt_new_compiland(module, symname);
+                compiland = symt_new_compiland(module, symt_ptr_to_symref(&module->top->symt), symname);
             else
                 compiland = NULL;
             continue;
@@ -958,7 +958,7 @@ static int elf_new_wine_thunks(struct module* module, const struct hash_table* h
                 switch (ste->sym.st_info & 0xf)
                 {
                 case ELF_STT_FUNC:
-                    symt_new_function(module, ste->compiland, ste->ht_elt.name,
+                    symt_new_function(module, symt_ptr_to_symref(&ste->compiland->symt), ste->ht_elt.name,
                                       addr, ste->sym.st_size, 0, 0);
                     break;
                 case ELF_STT_OBJECT:

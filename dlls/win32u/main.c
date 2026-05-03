@@ -21,7 +21,6 @@
 #include <stdarg.h>
 
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 #include "windef.h"
 #include "winbase.h"
 #include "ntgdi.h"
@@ -1886,6 +1885,11 @@ NTSTATUS SYSCALL_API NtUserInitializeClientPfnArrays( const ntuser_client_func_p
     SYSCALL_FUNC( NtUserInitializeClientPfnArrays );
 }
 
+BOOL SYSCALL_API NtUserInitializeTouchInjection( UINT max_count, UINT mode )
+{
+    SYSCALL_FUNC( NtUserInitializeTouchInjection );
+}
+
 HICON SYSCALL_API NtUserInternalGetWindowIcon( HWND hwnd, UINT type )
 {
     SYSCALL_FUNC( NtUserInternalGetWindowIcon );
@@ -2348,6 +2352,11 @@ BOOL SYSCALL_API NtUserSetWindowContextHelpId( HWND hwnd, DWORD id )
     SYSCALL_FUNC( NtUserSetWindowContextHelpId );
 }
 
+BOOL SYSCALL_API NtUserSetWindowFNID( HWND hwnd, WORD fnid )
+{
+    SYSCALL_FUNC( NtUserSetWindowFNID );
+}
+
 LONG SYSCALL_API NtUserSetWindowLong( HWND hwnd, INT offset, LONG newval, BOOL ansi )
 {
     SYSCALL_FUNC( NtUserSetWindowLong );
@@ -2573,7 +2582,7 @@ BOOL WINAPI DllMain( HINSTANCE inst, DWORD reason, void *reserved )
         LdrGetDllHandle( NULL, 0, &ntdll_name, &ntdll );
         dispatcher_ptr = RtlFindExportedRoutineByName( ntdll, "__wine_syscall_dispatcher" );
         __wine_syscall_dispatcher = *dispatcher_ptr;
-        if (!__wine_init_unix_call()) WINE_UNIX_CALL( 0, NULL );
+        __wine_init_unix_call();
         break;
     }
     return TRUE;

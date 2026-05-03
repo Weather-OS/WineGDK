@@ -38,7 +38,7 @@ struct glsl_src
 
 struct glsl_dst
 {
-    const struct vkd3d_shader_dst_param *vsir;
+    const struct vsir_dst_operand *vsir;
     struct vkd3d_string_buffer *register_name;
     struct vkd3d_string_buffer *mask;
 };
@@ -67,8 +67,8 @@ struct vkd3d_glsl_generator
     const struct vkd3d_shader_scan_combined_resource_sampler_info *combined_sampler_info;
 };
 
-static void shader_glsl_print_subscript(struct vkd3d_string_buffer *buffer, struct vkd3d_glsl_generator *gen,
-        const struct vkd3d_shader_src_param *rel_addr, unsigned int offset);
+static void shader_glsl_print_subscript(struct vkd3d_string_buffer *buffer,
+        struct vkd3d_glsl_generator *gen, const struct vsir_src_operand *rel_addr, unsigned int offset);
 
 static void VKD3D_PRINTF_FUNC(3, 4) vkd3d_glsl_compiler_error(
         struct vkd3d_glsl_generator *generator,
@@ -389,7 +389,7 @@ static void shader_glsl_print_bitcast(struct vkd3d_string_buffer *dst, struct vk
 }
 
 static void shader_glsl_print_src(struct vkd3d_string_buffer *buffer, struct vkd3d_glsl_generator *gen,
-        const struct vkd3d_shader_src_param *vsir_src, uint32_t mask, enum vsir_data_type data_type)
+        const struct vsir_src_operand *vsir_src, uint32_t mask, enum vsir_data_type data_type)
 {
     const struct vkd3d_shader_register *reg = &vsir_src->reg;
     struct vkd3d_string_buffer *register_name;
@@ -418,7 +418,7 @@ static void shader_glsl_print_src(struct vkd3d_string_buffer *buffer, struct vkd
 }
 
 static void glsl_src_init(struct glsl_src *glsl_src, struct vkd3d_glsl_generator *gen,
-        const struct vkd3d_shader_src_param *vsir_src, uint32_t mask)
+        const struct vsir_src_operand *vsir_src, uint32_t mask)
 {
     glsl_src->str = vkd3d_string_buffer_get(&gen->string_buffers);
     shader_glsl_print_src(glsl_src->str, gen, vsir_src, mask, vsir_src->reg.data_type);
@@ -431,7 +431,7 @@ static void glsl_dst_cleanup(struct glsl_dst *dst, struct vkd3d_string_buffer_ca
 }
 
 static uint32_t glsl_dst_init(struct glsl_dst *glsl_dst, struct vkd3d_glsl_generator *gen,
-        const struct vkd3d_shader_instruction *ins, const struct vkd3d_shader_dst_param *vsir_dst)
+        const struct vkd3d_shader_instruction *ins, const struct vsir_dst_operand *vsir_dst)
 {
     uint32_t write_mask = vsir_dst->write_mask;
 
@@ -452,8 +452,8 @@ static uint32_t glsl_dst_init(struct glsl_dst *glsl_dst, struct vkd3d_glsl_gener
     return write_mask;
 }
 
-static void shader_glsl_print_subscript(struct vkd3d_string_buffer *buffer, struct vkd3d_glsl_generator *gen,
-        const struct vkd3d_shader_src_param *rel_addr, unsigned int offset)
+static void shader_glsl_print_subscript(struct vkd3d_string_buffer *buffer,
+        struct vkd3d_glsl_generator *gen, const struct vsir_src_operand *rel_addr, unsigned int offset)
 {
     struct glsl_src r;
 
@@ -862,7 +862,7 @@ static void shader_glsl_ld(struct vkd3d_glsl_generator *gen, const struct vkd3d_
 }
 
 static void shader_glsl_print_shadow_coord(struct vkd3d_string_buffer *buffer, struct vkd3d_glsl_generator *gen,
-        const struct vkd3d_shader_src_param *coord, const struct vkd3d_shader_src_param *ref, unsigned int coord_size)
+        const struct vsir_src_operand *coord, const struct vsir_src_operand *ref, unsigned int coord_size)
 {
     uint32_t coord_mask = vkd3d_write_mask_from_component_count(coord_size);
 
@@ -896,9 +896,9 @@ static void shader_glsl_sample(struct vkd3d_glsl_generator *gen, const struct vk
 {
     bool shadow_sampler, array, bias, dynamic_offset, gather, grad, lod, lod_zero, offset, shadow;
     const struct glsl_resource_type_info *resource_type_info;
-    const struct vkd3d_shader_src_param *resource, *sampler;
     unsigned int resource_id, resource_idx, resource_space;
     unsigned int sampler_id, sampler_idx, sampler_space;
+    const struct vsir_src_operand *resource, *sampler;
     const struct vkd3d_shader_descriptor_info1 *d;
     enum vkd3d_shader_resource_type resource_type;
     unsigned int component_idx, coord_size;
@@ -2481,8 +2481,8 @@ int glsl_compile(struct vsir_program *program, uint64_t config_flags,
         return ret;
 
     VKD3D_ASSERT(program->normalisation_level == VSIR_NORMALISED_SM6);
-    VKD3D_ASSERT(program->has_descriptor_info);
-    VKD3D_ASSERT(program->has_no_modifiers);
+    VKD3D_ASSERT(program->normalisation_flags.has_descriptor_info);
+    VKD3D_ASSERT(program->normalisation_flags.has_no_modifiers);
 
     vkd3d_glsl_generator_init(&generator, program, compile_info,
             combined_sampler_info, message_context);

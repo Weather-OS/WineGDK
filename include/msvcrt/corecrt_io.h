@@ -32,7 +32,7 @@ struct _finddata32i64_t {
   __time32_t time_create;
   __time32_t time_access;
   __time32_t time_write;
-  __int64    DECLSPEC_ALIGN(8) size;
+  __int64    _CRT_ALIGN(8) size;
   char       name[260];
 };
 
@@ -50,7 +50,7 @@ struct _finddata64_t {
   __time64_t time_create;
   __time64_t time_access;
   __time64_t time_write;
-  __int64    DECLSPEC_ALIGN(8) size;
+  __int64    _CRT_ALIGN(8) size;
   char       name[260];
 };
 

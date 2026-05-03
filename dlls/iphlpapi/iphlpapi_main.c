@@ -22,7 +22,6 @@
 
 #define IPHLPAPI_DLL_LINKAGE
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 #include "windef.h"
 #include "winbase.h"
 #include "winreg.h"
@@ -38,6 +37,7 @@
 #include "ip2string.h"
 #include "netiodef.h"
 #include "icmpapi.h"
+#include "psapi.h"
 
 #include "wine/nsi.h"
 #include "wine/debug.h"
@@ -1248,7 +1248,7 @@ static DWORD dns_info_alloc( IP_ADAPTER_ADDRESSES *aa, ULONG family, ULONG flags
 
 static DWORD adapters_addresses_alloc( ULONG family, ULONG flags, IP_ADAPTER_ADDRESSES **info, ULONG *count )
 {
-    IP_ADAPTER_ADDRESSES *aa;
+    IP_ADAPTER_ADDRESSES *aa = NULL;
     NET_LUID *luids;
     struct nsi_ndis_ifinfo_rw *rw;
     struct nsi_ndis_ifinfo_dynamic *dyn;
@@ -1261,6 +1261,12 @@ static DWORD adapters_addresses_alloc( ULONG family, ULONG flags, IP_ADAPTER_ADD
                                   (void **)&rw, sizeof(*rw), (void **)&dyn, sizeof(*dyn),
                                   (void **)&stat, sizeof(*stat), count, 0 );
     if (err) return err;
+
+    if (!*count)
+    {
+        err = ERROR_NO_DATA;
+        goto err;
+    }
 
     needed = *count * (sizeof(*aa) + ((CHARS_IN_GUID + 1) & ~1) + sizeof(stat->descr.String));
     needed += *count * sizeof(rw->alias.String); /* GAA_FLAG_SKIP_FRIENDLY_NAME is ignored */
@@ -3269,6 +3275,68 @@ DWORD WINAPI GetExtendedTcpTable( void *table, DWORD *size, BOOL sort, ULONG fam
 
     if (!ip_module_id( family )) return ERROR_INVALID_PARAMETER;
     return get_extended_tcp_table( table, size, sort, family, table_class );
+}
+
+static DWORD get_owner_module_from_pid( TCPIP_OWNER_MODULE_INFO_CLASS class, void *buffer, DWORD *size, DWORD pid )
+{
+    WCHAR path[(MAX_PATH + 1) * sizeof(WCHAR)], *name;
+    TCPIP_OWNER_MODULE_BASIC_INFO *info = buffer;
+    DWORD len, ret_size;
+    HANDLE process;
+
+    if (class != TCPIP_OWNER_MODULE_INFO_BASIC)
+    {
+        FIXME( "Unsupported class %d.\n", class );
+        return ERROR_INVALID_PARAMETER;
+    }
+
+    if (!size) return ERROR_INVALID_PARAMETER;
+    if (!pid) return ERROR_NOT_FOUND;
+    if (!(process = OpenProcess( PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid ))) return GetLastError();
+    len = GetModuleFileNameExW( process, NULL, path, ARRAY_SIZE(path) );
+    CloseHandle( process );
+    if (!len) return ERROR_NOT_FOUND;
+    if (len == ARRAY_SIZE(path)) return ERROR_PATH_NOT_FOUND;
+    if (!(name = wcsrchr( path, '\\' ))) return ERROR_PATH_NOT_FOUND;
+    ++name;
+    len = wcslen( name ) + 1;
+    ret_size = sizeof(*info) + (len + wcslen( path ) + 1) * sizeof(WCHAR);
+    if (*size < ret_size)
+    {
+        *size = ret_size;
+        return ERROR_INSUFFICIENT_BUFFER;
+    }
+    info->pModuleName = (WCHAR *)(info + 1);
+    info->pModulePath = info->pModuleName + len;
+    memcpy( info->pModuleName, name, len * sizeof(WCHAR) );
+    wcscpy( info->pModulePath, path );
+    return ERROR_SUCCESS;
+}
+
+/******************************************************************
+ *    GetOwnerModuleFromTcpEntry (IPHLPAPI.@)
+ */
+DWORD WINAPI GetOwnerModuleFromTcpEntry( PMIB_TCPROW_OWNER_MODULE entry, TCPIP_OWNER_MODULE_INFO_CLASS class,
+                                         void *buffer, DWORD *size )
+{
+    TRACE( "entry %p, class %d, buffer %p, size %p.\n", entry, class, buffer, size );
+
+    if (!entry) return ERROR_INVALID_PARAMETER;
+
+    return get_owner_module_from_pid( class, buffer, size, entry->dwOwningPid );
+}
+
+/******************************************************************
+ *    GetOwnerModuleFromTcp6Entry (IPHLPAPI.@)
+ */
+DWORD WINAPI GetOwnerModuleFromTcp6Entry( PMIB_TCP6ROW_OWNER_MODULE entry, TCPIP_OWNER_MODULE_INFO_CLASS class,
+                                         void *buffer, DWORD *size )
+{
+    TRACE( "entry %p, class %d, buffer %p, size %p.\n", entry, class, buffer, size );
+
+    if (!entry) return ERROR_INVALID_PARAMETER;
+
+    return get_owner_module_from_pid( class, buffer, size, entry->dwOwningPid );
 }
 
 /******************************************************************

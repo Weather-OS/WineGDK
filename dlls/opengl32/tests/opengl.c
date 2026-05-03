@@ -56,71 +56,29 @@ static const char *debugstr_ok( const char *cond )
         t v = (r);                                                                                 \
         ok( v op (e), "%s " f "\n", debugstr_ok( #r ), v, ##__VA_ARGS__ );                         \
     } while (0)
-#define ok_ret( e, r )      ok_ex( r, ==, e, UINT, "%#x" )
+#define ok_u4( r, op, e )   ok_ex( r, op, e, UINT, "%u" )
+#define ok_x4( r, op, e )   ok_ex( r, op, e, UINT, "%#x" )
+#define ok_ptr( r, op, e )  ok_ex( r, op, e, const void *, "%p" )
+#define ok_ret( e, r )      ok_ex( r, ==, e, UINT_PTR, "%#Ix, error %ld", GetLastError() )
+#define ok_nt( e, r )       ok_ex( r, ==, e, NTSTATUS, "%#lx" )
+
+#define check_gl_error(exp) check_gl_error_(__LINE__, exp)
+static void check_gl_error_( unsigned int line, GLenum exp )
+{
+    GLenum err = glGetError();
+    ok_(__FILE__,line)( err == exp, "glGetError returned %x, expected %x\n", err, exp );
+}
+
+static struct
+{
+#define USE_GL_FUNC( func ) PFN_ ## func func;
+    ALL_WGL_EXT_FUNCS
+    ALL_GL_EXT_FUNCS
+#undef USE_GL_FUNC
+} ext;
 
 static NTSTATUS (WINAPI *pD3DKMTCreateDCFromMemory)( D3DKMT_CREATEDCFROMMEMORY *desc );
 static NTSTATUS (WINAPI *pD3DKMTDestroyDCFromMemory)( const D3DKMT_DESTROYDCFROMMEMORY *desc );
-
-/* WGL_ARB_create_context */
-static HGLRC (WINAPI *pwglCreateContextAttribsARB)(HDC hDC, HGLRC hShareContext, const int *attribList);
-
-/* WGL_ARB_extensions_string */
-static const char* (WINAPI *pwglGetExtensionsStringARB)(HDC);
-
-/* WGL_ARB_make_current_read */
-static BOOL (WINAPI *pwglMakeContextCurrentARB)(HDC hdraw, HDC hread, HGLRC hglrc);
-static HDC (WINAPI *pwglGetCurrentReadDCARB)(void);
-
-/* WGL_ARB_pixel_format */
-static BOOL (WINAPI *pwglChoosePixelFormatARB)(HDC, const int *, const FLOAT *, UINT, int *, UINT *);
-static BOOL (WINAPI *pwglGetPixelFormatAttribivARB)(HDC, int, int, UINT, const int *, int *);
-
-/* WGL_ARB_pbuffer */
-static HPBUFFERARB (WINAPI *pwglCreatePbufferARB)(HDC, int, int, int, const int *);
-static BOOL (WINAPI *pwglDestroyPbufferARB)(HPBUFFERARB);
-static HDC (WINAPI *pwglGetPbufferDCARB)(HPBUFFERARB);
-static int (WINAPI *pwglReleasePbufferDCARB)(HPBUFFERARB, HDC);
-static BOOL (WINAPI *pwglQueryPbufferARB)(HPBUFFERARB,int,int*);
-
-/* WGL_ARB_render_texture */
-static BOOL (WINAPI *pwglBindTexImageARB)(HPBUFFERARB,int);
-static BOOL (WINAPI *pwglReleaseTexImageARB)(HPBUFFERARB,int);
-static BOOL (WINAPI *pwglSetPbufferAttribARB)(HPBUFFERARB,const int*);
-
-/* WGL_EXT_swap_control */
-static BOOL (WINAPI *pwglSwapIntervalEXT)(int interval);
-static int (WINAPI *pwglGetSwapIntervalEXT)(void);
-
-/* GL_ARB_debug_output */
-static void (WINAPI *pglDebugMessageCallbackARB)(void *, void *);
-static void (WINAPI *pglDebugMessageControlARB)(GLenum, GLenum, GLenum, GLsizei, const GLuint *, GLboolean);
-static void (WINAPI *pglDebugMessageInsertARB)(GLenum, GLenum, GLuint, GLenum, GLsizei, const char *);
-
-/* GL_ARB_framebuffer_object */
-static void (WINAPI *pglBindFramebuffer)(GLenum target, GLuint framebuffer);
-static GLenum (WINAPI *pglCheckFramebufferStatus)(GLenum target);
-
-static PFN_glBindBuffer pglBindBuffer;
-static PFN_glBufferData pglBufferData;
-static PFN_glBufferStorage pglBufferStorage;
-static PFN_glCopyBufferSubData pglCopyBufferSubData;
-static PFN_glCopyNamedBufferSubData pglCopyNamedBufferSubData;
-static PFN_glCreateBuffers pglCreateBuffers;
-static PFN_glDeleteBuffers pglDeleteBuffers;
-static PFN_glDeleteSync pglDeleteSync;
-static PFN_glFlushMappedBufferRange pglFlushMappedBufferRange;
-static PFN_glFlushMappedNamedBufferRange pglFlushMappedNamedBufferRange;
-static PFN_glGenBuffers pglGenBuffers;
-static PFN_glIsSync pglIsSync;
-static PFN_glFenceSync pglFenceSync;
-static PFN_glMapBuffer pglMapBuffer;
-static PFN_glMapBufferRange pglMapBufferRange;
-static PFN_glMapNamedBuffer pglMapNamedBuffer;
-static PFN_glMapNamedBufferRange pglMapNamedBufferRange;
-static PFN_glNamedBufferData pglNamedBufferData;
-static PFN_glNamedBufferStorage pglNamedBufferStorage;
-static PFN_glUnmapBuffer pglUnmapBuffer;
-static PFN_glUnmapNamedBuffer pglUnmapNamedBuffer;
 
 static const char* wgl_extensions = NULL;
 
@@ -143,73 +101,10 @@ static void flush_events(void)
 
 static void init_functions(void)
 {
-#define GET_PROC(func) \
-    p ## func = (void*)wglGetProcAddress(#func); \
-    if(!p ## func) \
-      trace("wglGetProcAddress(%s) failed\n", #func);
-
-    /* WGL_ARB_create_context */
-    GET_PROC(wglCreateContextAttribsARB);
-
-    /* WGL_ARB_extensions_string */
-    GET_PROC(wglGetExtensionsStringARB)
-
-    /* WGL_ARB_make_current_read */
-    GET_PROC(wglMakeContextCurrentARB);
-    GET_PROC(wglGetCurrentReadDCARB);
-
-    /* WGL_ARB_pixel_format */
-    GET_PROC(wglChoosePixelFormatARB)
-    GET_PROC(wglGetPixelFormatAttribivARB)
-
-    /* WGL_ARB_pbuffer */
-    GET_PROC(wglCreatePbufferARB)
-    GET_PROC(wglDestroyPbufferARB)
-    GET_PROC(wglGetPbufferDCARB)
-    GET_PROC(wglReleasePbufferDCARB)
-    GET_PROC(wglQueryPbufferARB)
-
-    /* WGL_ARB_render_texture */
-    GET_PROC(wglBindTexImageARB)
-    GET_PROC(wglReleaseTexImageARB)
-    GET_PROC(wglSetPbufferAttribARB)
-
-    /* WGL_EXT_swap_control */
-    GET_PROC(wglSwapIntervalEXT)
-    GET_PROC(wglGetSwapIntervalEXT)
-
-    /* GL_ARB_debug_output */
-    GET_PROC(glDebugMessageCallbackARB)
-    GET_PROC(glDebugMessageControlARB)
-    GET_PROC(glDebugMessageInsertARB)
-
-    /* GL_ARB_framebuffer_object */
-    GET_PROC(glBindFramebuffer)
-    GET_PROC(glCheckFramebufferStatus)
-
-    GET_PROC(glBindBuffer)
-    GET_PROC(glBufferData)
-    GET_PROC(glBufferStorage)
-    GET_PROC(glCopyBufferSubData)
-    GET_PROC(glCopyNamedBufferSubData)
-    GET_PROC(glCreateBuffers)
-    GET_PROC(glDeleteBuffers)
-    GET_PROC(glDeleteSync)
-    GET_PROC(glFlushMappedBufferRange)
-    GET_PROC(glFlushMappedNamedBufferRange)
-    GET_PROC(glGenBuffers)
-    GET_PROC(glIsSync)
-    GET_PROC(glFenceSync)
-    GET_PROC(glMapBuffer)
-    GET_PROC(glMapBufferRange)
-    GET_PROC(glMapNamedBuffer)
-    GET_PROC(glMapNamedBufferRange)
-    GET_PROC(glNamedBufferData)
-    GET_PROC(glNamedBufferStorage)
-    GET_PROC(glUnmapBuffer)
-    GET_PROC(glUnmapNamedBuffer)
-
-#undef GET_PROC
+#define USE_GL_FUNC( func ) ext.func = (void *)wglGetProcAddress( #func );
+    ALL_GL_EXT_FUNCS
+    ALL_WGL_EXT_FUNCS
+#undef USE_GL_FUNC
 }
 
 static BOOL gl_extension_supported(const char *extensions, const char *extension_string)
@@ -264,7 +159,7 @@ static void test_pbuffers( HDC old_hdc )
     attribs[0] = WGL_DRAW_TO_WINDOW_ARB; attribs[1] = 1;
     attribs[2] = WGL_COLOR_BITS_ARB; attribs[3] = 32;
     attribs[4] = WGL_PIXEL_TYPE_ARB; attribs[5] = WGL_TYPE_RGBA_ARB;
-    res = pwglChoosePixelFormatARB( hdc, attribs, NULL, MAX_FORMATS, formats, &count );
+    res = ext.wglChoosePixelFormatARB( hdc, attribs, NULL, MAX_FORMATS, formats, &count );
     ok( res > 0, "got %d\n", res );
     ret = SetPixelFormat( hdc, formats[0], NULL );
     ok( ret == 1, "got %u\n", ret );
@@ -272,190 +167,190 @@ static void test_pbuffers( HDC old_hdc )
     attribs[0] = WGL_DRAW_TO_PBUFFER_ARB; attribs[1] = 1;
     attribs[2] = WGL_COLOR_BITS_ARB; attribs[3] = 32;
     attribs[4] = WGL_PIXEL_TYPE_ARB; attribs[5] = WGL_TYPE_RGBA_ARB;
-    res = pwglChoosePixelFormatARB( hdc, attribs, NULL, MAX_FORMATS, formats, &count );
+    res = ext.wglChoosePixelFormatARB( hdc, attribs, NULL, MAX_FORMATS, formats, &count );
     ok( res > 0, "got %d\n", res );
     if (count > MAX_FORMATS) count = MAX_FORMATS;
 
     wglMakeCurrent( 0, 0 );
 
     SetLastError( 0xdeadbeef );
-    pbuffer = pwglCreatePbufferARB( hdc, 0, 100, 100, pbuffer_attribs );
+    pbuffer = ext.wglCreatePbufferARB( hdc, 0, 100, 100, pbuffer_attribs );
     ok( !pbuffer, "wglCreatePbufferARB returned %p\n", pbuffer );
     ok( (GetLastError() & 0xffff) == ERROR_INVALID_PIXEL_FORMAT, "got %lu\n", GetLastError() );
-    if (pbuffer) pwglDestroyPbufferARB( pbuffer );
+    if (pbuffer) ext.wglDestroyPbufferARB( pbuffer );
     SetLastError( 0xdeadbeef );
-    pbuffer = pwglCreatePbufferARB( hdc, formats[0], 0, 100, pbuffer_attribs );
+    pbuffer = ext.wglCreatePbufferARB( hdc, formats[0], 0, 100, pbuffer_attribs );
     ok( !pbuffer, "wglCreatePbufferARB returned %p\n", pbuffer );
     ok( (GetLastError() & 0xffff) == ERROR_INVALID_DATA, "got %lu\n", GetLastError() );
-    if (pbuffer) pwglDestroyPbufferARB( pbuffer );
+    if (pbuffer) ext.wglDestroyPbufferARB( pbuffer );
     SetLastError( 0xdeadbeef );
-    pbuffer = pwglCreatePbufferARB( hdc, formats[0], -1, 100, pbuffer_attribs );
+    pbuffer = ext.wglCreatePbufferARB( hdc, formats[0], -1, 100, pbuffer_attribs );
     ok( !pbuffer, "wglCreatePbufferARB returned %p\n", pbuffer );
     ok( (GetLastError() & 0xffff) == ERROR_INVALID_DATA, "got %lu\n", GetLastError() );
     SetLastError( 0xdeadbeef );
-    pbuffer = pwglCreatePbufferARB( hdc, formats[0], 100, 0, pbuffer_attribs );
+    pbuffer = ext.wglCreatePbufferARB( hdc, formats[0], 100, 0, pbuffer_attribs );
     ok( !pbuffer, "wglCreatePbufferARB returned %p\n", pbuffer );
     ok( (GetLastError() & 0xffff) == ERROR_INVALID_DATA, "got %lu\n", GetLastError() );
-    if (pbuffer) pwglDestroyPbufferARB( pbuffer );
+    if (pbuffer) ext.wglDestroyPbufferARB( pbuffer );
     SetLastError( 0xdeadbeef );
-    pbuffer = pwglCreatePbufferARB( hdc, formats[0], 100, -1, pbuffer_attribs );
+    pbuffer = ext.wglCreatePbufferARB( hdc, formats[0], 100, -1, pbuffer_attribs );
     ok( !pbuffer, "wglCreatePbufferARB returned %p\n", pbuffer );
     ok( (GetLastError() & 0xffff) == ERROR_INVALID_DATA, "got %#lx\n", GetLastError() );
-    pbuffer = pwglCreatePbufferARB( hdc, formats[0], 100, 100, NULL );
+    pbuffer = ext.wglCreatePbufferARB( hdc, formats[0], 100, 100, NULL );
     ok( !!pbuffer, "wglCreatePbufferARB returned %p\n", pbuffer );
-    pwglDestroyPbufferARB( pbuffer );
+    ext.wglDestroyPbufferARB( pbuffer );
 
     for (i = 0; i < count; i++)
     {
         winetest_push_context( "%u", formats[i] );
-        pbuffer = pwglCreatePbufferARB( hdc, formats[i], 640, 480, pbuffer_attribs );
+        pbuffer = ext.wglCreatePbufferARB( hdc, formats[i], 640, 480, pbuffer_attribs );
         ok( !!pbuffer, "wglCreatePbufferARB returned %p\n", pbuffer );
-        pbuffer_dc = pwglGetPbufferDCARB( pbuffer );
+        pbuffer_dc = ext.wglGetPbufferDCARB( pbuffer );
         ok( pbuffer_dc != hdc, "got %p\n", pbuffer_dc );
         res = GetPixelFormat( pbuffer_dc );
-        ret = pwglReleasePbufferDCARB( pbuffer, pbuffer_dc );
+        ret = ext.wglReleasePbufferDCARB( pbuffer, pbuffer_dc );
         ok( ret == 1, "got %u\n", ret );
         if (formats[i] > onscreen) ok( res == 1, "got format %d\n", res );
         else ok( res == formats[i] || broken( res == 1 ) /* AMD sometimes */, "got format %d\n", res );
-        ret = pwglDestroyPbufferARB( pbuffer );
+        ret = ext.wglDestroyPbufferARB( pbuffer );
         ok( ret == 1, "got %u\n", ret );
         winetest_pop_context();
     }
 
-    pbuffer = pwglCreatePbufferARB( hdc, formats[0], 640, 480, pbuffer_attribs );
+    pbuffer = ext.wglCreatePbufferARB( hdc, formats[0], 640, 480, pbuffer_attribs );
     ok( !!pbuffer, "wglCreatePbufferARB returned %p\n", pbuffer );
 
-    pbuffer_dc = pwglGetPbufferDCARB( pbuffer );
+    pbuffer_dc = ext.wglGetPbufferDCARB( pbuffer );
     ok( pbuffer_dc != hdc, "got %p\n", pbuffer_dc );
 
     /* wglGetPbufferDCARB returns the same DC every time */
-    tmp_dc = pwglGetPbufferDCARB( pbuffer );
+    tmp_dc = ext.wglGetPbufferDCARB( pbuffer );
     ok( tmp_dc == pbuffer_dc, "got %p\n", tmp_dc );
 
     /* releasing the wrong DC returns an error */
     SetLastError( 0xdeadbeef );
-    ret = pwglReleasePbufferDCARB( pbuffer, hdc );
+    ret = ext.wglReleasePbufferDCARB( pbuffer, hdc );
     ok( ret == 0, "got %u\n", ret );
     ok( (GetLastError() & 0xffff) == ERROR_DC_NOT_FOUND, "got %#lx\n", GetLastError() );
 
-    ret = pwglReleasePbufferDCARB( pbuffer, pbuffer_dc );
+    ret = ext.wglReleasePbufferDCARB( pbuffer, pbuffer_dc );
     ok( ret == 1, "got %u\n", ret );
     /* releasing the DC more than once may return an error */
     SetLastError( 0xdeadbeef );
-    ret = pwglReleasePbufferDCARB( pbuffer, pbuffer_dc );
+    ret = ext.wglReleasePbufferDCARB( pbuffer, pbuffer_dc );
     ok( ret == 1 || broken(ret == 0) /* AMD */, "got %u\n", ret );
     if (!ret) todo_wine ok( (GetLastError() & 0xffff) == ERROR_DC_NOT_FOUND, "got %#lx\n", GetLastError() );
     SetLastError( 0xdeadbeef );
-    ret = pwglReleasePbufferDCARB( pbuffer, pbuffer_dc );
+    ret = ext.wglReleasePbufferDCARB( pbuffer, pbuffer_dc );
     ok( ret == 1 || broken(ret == 0) /* AMD */, "got %u\n", ret );
     if (!ret) todo_wine ok( (GetLastError() & 0xffff) == ERROR_DC_NOT_FOUND, "got %#lx\n", GetLastError() );
 
-    tmp_dc = pwglGetPbufferDCARB( pbuffer );
+    tmp_dc = ext.wglGetPbufferDCARB( pbuffer );
     if (!ret) ok( tmp_dc != pbuffer_dc, "got %p\n", tmp_dc );
     else ok( tmp_dc == pbuffer_dc, "got %p\n", tmp_dc );
-    ret = pwglReleasePbufferDCARB( pbuffer, tmp_dc );
+    ret = ext.wglReleasePbufferDCARB( pbuffer, tmp_dc );
     ok( ret == 1, "got %u\n", ret );
 
     SetLastError( 0xdeadbeef );
-    ret = pwglQueryPbufferARB( NULL, WGL_PBUFFER_WIDTH_ARB, &value );
+    ret = ext.wglQueryPbufferARB( NULL, WGL_PBUFFER_WIDTH_ARB, &value );
     ok( ret == 0, "got %u\n", ret );
     ok( (GetLastError() & 0xffff) == ERROR_INVALID_HANDLE, "got %#lx\n", GetLastError() );
     SetLastError( 0xdeadbeef );
-    ret = pwglQueryPbufferARB( pbuffer, 0, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, 0, &value );
     todo_wine ok( ret == 0, "got %u\n", ret );
     todo_wine ok( (GetLastError() & 0xffff) == ERROR_INVALID_DATA, "got %#lx\n", GetLastError() );
     SetLastError( 0xdeadbeef );
-    ret = pwglQueryPbufferARB( pbuffer, 0xdeadbeef, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, 0xdeadbeef, &value );
     todo_wine ok( ret == 0, "got %u\n", ret );
     todo_wine ok( (GetLastError() & 0xffff) == ERROR_INVALID_DATA, "got %#lx\n", GetLastError() );
 
     value = 0xdeadbeef;
-    ret = pwglQueryPbufferARB( pbuffer, WGL_PBUFFER_WIDTH_ARB, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, WGL_PBUFFER_WIDTH_ARB, &value );
     ok( ret == 1, "got %u\n", ret );
     ok( value == 0 || value == 640, "got %u\n", value );
     value = 0xdeadbeef;
-    ret = pwglQueryPbufferARB( pbuffer, WGL_PBUFFER_HEIGHT_ARB, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, WGL_PBUFFER_HEIGHT_ARB, &value );
     ok( ret == 1, "got %u\n", ret );
     ok( value == 0 || value == 480, "got %u\n", value );
     value = 0xdeadbeef;
-    ret = pwglQueryPbufferARB( pbuffer, WGL_PBUFFER_LOST_ARB, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, WGL_PBUFFER_LOST_ARB, &value );
     ok( ret == 1, "got %u\n", ret );
     ok( value == 0, "got %u\n", value );
     value = 0xdeadbeef;
-    ret = pwglQueryPbufferARB( pbuffer, WGL_TEXTURE_FORMAT_ARB, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, WGL_TEXTURE_FORMAT_ARB, &value );
     ok( ret == 1, "got %u\n", ret );
     ok( value == WGL_NO_TEXTURE_ARB || broken(value == 0xdeadbeef) /* AMD */, "got %#x\n", value );
     value = 0xdeadbeef;
-    ret = pwglQueryPbufferARB( pbuffer, WGL_TEXTURE_TARGET_ARB, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, WGL_TEXTURE_TARGET_ARB, &value );
     ok( ret == 1, "got %u\n", ret );
     ok( value == WGL_NO_TEXTURE_ARB || broken(value == 0xdeadbeef) /* AMD */, "got %#x\n", value );
     value = 0xdeadbeef;
-    ret = pwglQueryPbufferARB( pbuffer, WGL_MIPMAP_TEXTURE_ARB, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, WGL_MIPMAP_TEXTURE_ARB, &value );
     ok( ret == 1, "got %u\n", ret );
     ok( value == 0 || broken(value > 0) /* AMD */, "got %u\n", value );
     value = 0xdeadbeef;
-    ret = pwglQueryPbufferARB( pbuffer, WGL_MIPMAP_LEVEL_ARB, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, WGL_MIPMAP_LEVEL_ARB, &value );
     ok( ret == 1, "got %u\n", ret );
     ok( value == 0 || broken(value > 0) /* AMD */, "got %u\n", value );
     value = 0xdeadbeef;
-    ret = pwglQueryPbufferARB( pbuffer, WGL_CUBE_MAP_FACE_ARB, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, WGL_CUBE_MAP_FACE_ARB, &value );
     ok( ret == 1, "got %u\n", ret );
     ok( value == WGL_TEXTURE_CUBE_MAP_POSITIVE_X_ARB || broken(value == 0xdeadbeef), "got %#x\n", value );
 
     pbuffer_attribs[0] = WGL_PBUFFER_WIDTH_ARB;
     pbuffer_attribs[1] = 50;
     SetLastError( 0xdeadbeef );
-    ret = pwglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
+    ret = ext.wglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
     ok( ret == 0, "got %u\n", ret );
     todo_wine ok( (GetLastError() & 0xffff) == ERROR_INVALID_DATA || broken(!GetLastError()) /* AMD */, "got %#lx\n", GetLastError() );
     pbuffer_attribs[0] = WGL_PBUFFER_HEIGHT_ARB;
     pbuffer_attribs[1] = 50;
     SetLastError( 0xdeadbeef );
-    ret = pwglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
+    ret = ext.wglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
     ok( ret == 0, "got %u\n", ret );
     todo_wine ok( (GetLastError() & 0xffff) == ERROR_INVALID_DATA || broken(!GetLastError()) /* AMD */, "got %#lx\n", GetLastError() );
     pbuffer_attribs[0] = WGL_PBUFFER_LOST_ARB;
     pbuffer_attribs[1] = 0;
     SetLastError( 0xdeadbeef );
-    ret = pwglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
+    ret = ext.wglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
     ok( ret == 0, "got %u\n", ret );
     todo_wine ok( (GetLastError() & 0xffff) == ERROR_INVALID_DATA || broken(!GetLastError()) /* AMD */, "got %#lx\n", GetLastError() );
     pbuffer_attribs[0] = WGL_TEXTURE_FORMAT_ARB;
     pbuffer_attribs[1] = WGL_TEXTURE_RGBA_ARB;
     SetLastError( 0xdeadbeef );
-    ret = pwglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
+    ret = ext.wglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
     ok( ret == 0, "got %u\n", ret );
     todo_wine ok( (GetLastError() & 0xffff) == ERROR_INVALID_DATA || broken(!GetLastError()) /* AMD */, "got %#lx\n", GetLastError() );
     pbuffer_attribs[0] = WGL_TEXTURE_TARGET_ARB;
     pbuffer_attribs[1] = WGL_TEXTURE_2D_ARB;
     SetLastError( 0xdeadbeef );
-    ret = pwglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
+    ret = ext.wglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
     ok( ret == 0, "got %u\n", ret );
     todo_wine ok( (GetLastError() & 0xffff) == ERROR_INVALID_DATA || broken(!GetLastError()) /* AMD */, "got %#lx\n", GetLastError() );
     pbuffer_attribs[0] = WGL_MIPMAP_TEXTURE_ARB;
     pbuffer_attribs[1] = 1;
     SetLastError( 0xdeadbeef );
-    ret = pwglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
+    ret = ext.wglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
     ok( ret == 0, "got %u\n", ret );
     todo_wine ok( (GetLastError() & 0xffff) == ERROR_INVALID_DATA || broken(!GetLastError()) /* AMD */, "got %#lx\n", GetLastError() );
     pbuffer_attribs[0] = WGL_MIPMAP_LEVEL_ARB;
     pbuffer_attribs[1] = 1;
     SetLastError( 0xdeadbeef );
-    ret = pwglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
+    ret = ext.wglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
     ok( ret == 0 || broken(ret == 1) /* AMD */, "got %u\n", ret );
     todo_wine ok( (GetLastError() & 0xffff) == ERROR_INVALID_DATA || broken(!GetLastError()) /* AMD */, "got %#lx\n", GetLastError() );
     pbuffer_attribs[0] = WGL_CUBE_MAP_FACE_ARB;
     pbuffer_attribs[1] = WGL_TEXTURE_CUBE_MAP_POSITIVE_X_ARB;
-    ret = pwglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
+    ret = ext.wglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
     todo_wine ok( ret == 1, "got %u\n", ret );
 
     SetLastError( 0xdeadbeef );
-    ret = pwglDestroyPbufferARB( pbuffer );
+    ret = ext.wglDestroyPbufferARB( pbuffer );
     ok( ret == 1, "got %u\n", ret );
     ok( GetLastError() == 0xdeadbeef, "got %#lx\n", GetLastError() );
     /* destroying the pbuffer multiple times is an error */
     SetLastError( 0xdeadbeef );
-    ret = pwglDestroyPbufferARB( pbuffer );
+    ret = ext.wglDestroyPbufferARB( pbuffer );
     ok( ret == 0, "got %u\n", ret );
     ok( (GetLastError() & 0xffff) == ERROR_INVALID_HANDLE, "got %#lx\n", GetLastError() );
 
@@ -463,25 +358,25 @@ static void test_pbuffers( HDC old_hdc )
     {
     pbuffer_attribs[0] = WGL_PBUFFER_LARGEST_ARB;
     pbuffer_attribs[1] = 1;
-    pbuffer = pwglCreatePbufferARB( hdc, formats[0], 65535, 65535, pbuffer_attribs );
+    pbuffer = ext.wglCreatePbufferARB( hdc, formats[0], 65535, 65535, pbuffer_attribs );
     ok( !!pbuffer, "wglCreatePbufferARB returned %p\n", pbuffer );
     value = 0xdeadbeef;
-    ret = pwglQueryPbufferARB( pbuffer, WGL_PBUFFER_WIDTH_ARB, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, WGL_PBUFFER_WIDTH_ARB, &value );
     ok( ret == 1 || ret == 0, "got %u\n", ret );
     ok( value > 0 && value < 65535, "got %u\n", value );
     value = 0xdeadbeef;
-    ret = pwglQueryPbufferARB( pbuffer, WGL_PBUFFER_HEIGHT_ARB, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, WGL_PBUFFER_HEIGHT_ARB, &value );
     ok( ret == 1, "got %u\n", ret );
     ok( value > 0 && value < 65535, "got %u\n", value );
-    pwglDestroyPbufferARB( pbuffer );
+    ext.wglDestroyPbufferARB( pbuffer );
 
     pbuffer_attribs[0] = WGL_PBUFFER_LARGEST_ARB;
     pbuffer_attribs[1] = 0;
     SetLastError( 0xdeadbeef );
-    pbuffer = pwglCreatePbufferARB( hdc, formats[0], 65535, 65535, pbuffer_attribs );
+    pbuffer = ext.wglCreatePbufferARB( hdc, formats[0], 65535, 65535, pbuffer_attribs );
     ok( !pbuffer || broken(!!pbuffer) /* AMD */, "wglCreatePbufferARB returned %p\n", pbuffer );
     ok( (GetLastError() & 0xffff) == ERROR_NO_SYSTEM_RESOURCES || broken(!GetLastError()) /* AMD */, "got %#lx\n", GetLastError() );
-    if (pbuffer) pwglDestroyPbufferARB( pbuffer );
+    if (pbuffer) ext.wglDestroyPbufferARB( pbuffer );
     }
 
     pbuffer_attribs[0] = WGL_TEXTURE_FORMAT_ARB;
@@ -490,125 +385,125 @@ static void test_pbuffers( HDC old_hdc )
     pbuffer_attribs[3] = WGL_TEXTURE_CUBE_MAP_ARB;
     pbuffer_attribs[4] = WGL_MIPMAP_TEXTURE_ARB;
     pbuffer_attribs[5] = 4;
-    pbuffer = pwglCreatePbufferARB( hdc, formats[0], 512, 512, pbuffer_attribs );
+    pbuffer = ext.wglCreatePbufferARB( hdc, formats[0], 512, 512, pbuffer_attribs );
     ok( !!pbuffer, "wglCreatePbufferARB returned %p\n", pbuffer );
 
     value = 0xdeadbeef;
-    ret = pwglQueryPbufferARB( pbuffer, WGL_PBUFFER_WIDTH_ARB, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, WGL_PBUFFER_WIDTH_ARB, &value );
     ok( ret == 1, "got %u\n", ret );
     ok( value == 512 || broken(value == 0) /* AMD */, "got %u\n", value );
     value = 0xdeadbeef;
-    ret = pwglQueryPbufferARB( pbuffer, WGL_PBUFFER_HEIGHT_ARB, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, WGL_PBUFFER_HEIGHT_ARB, &value );
     ok( ret == 1, "got %u\n", ret );
     ok( value == 512 || broken(value == 0) /* AMD */, "got %u\n", value );
     value = 0xdeadbeef;
-    ret = pwglQueryPbufferARB( pbuffer, WGL_PBUFFER_LOST_ARB, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, WGL_PBUFFER_LOST_ARB, &value );
     ok( ret == 1, "got %u\n", ret );
     ok( value == 0, "got %u\n", value );
     value = 0xdeadbeef;
-    ret = pwglQueryPbufferARB( pbuffer, WGL_TEXTURE_FORMAT_ARB, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, WGL_TEXTURE_FORMAT_ARB, &value );
     ok( ret == 1, "got %u\n", ret );
     ok( value == WGL_TEXTURE_RGB_ARB || broken(value == 0xdeadbeef) /* AMD */, "got %#x\n", value );
     value = 0xdeadbeef;
-    ret = pwglQueryPbufferARB( pbuffer, WGL_TEXTURE_TARGET_ARB, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, WGL_TEXTURE_TARGET_ARB, &value );
     ok( ret == 1, "got %u\n", ret );
     ok( value == WGL_TEXTURE_CUBE_MAP_ARB || broken(value == 0xdeadbeef) /* AMD */, "got %#x\n", value );
     value = 0xdeadbeef;
-    ret = pwglQueryPbufferARB( pbuffer, WGL_MIPMAP_TEXTURE_ARB, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, WGL_MIPMAP_TEXTURE_ARB, &value );
     ok( ret == 1, "got %u\n", ret );
     ok( value == 1 || broken(value > 0) /* AMD */, "got %u\n", value );
     value = 0xdeadbeef;
-    ret = pwglQueryPbufferARB( pbuffer, WGL_MIPMAP_LEVEL_ARB, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, WGL_MIPMAP_LEVEL_ARB, &value );
     ok( ret == 1, "got %u\n", ret );
     ok( value == 0 || broken(value > 0) /* AMD */, "got %u\n", value );
     value = 0xdeadbeef;
-    ret = pwglQueryPbufferARB( pbuffer, WGL_CUBE_MAP_FACE_ARB, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, WGL_CUBE_MAP_FACE_ARB, &value );
     ok( ret == 1, "got %u\n", ret );
     ok( value == WGL_TEXTURE_CUBE_MAP_POSITIVE_X_ARB || broken(value == 0xdeadbeef) /* AMD */, "got %#x\n", value );
 
     pbuffer_attribs[0] = WGL_PBUFFER_WIDTH_ARB;
     pbuffer_attribs[1] = 50;
     SetLastError( 0xdeadbeef );
-    ret = pwglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
+    ret = ext.wglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
     ok( ret == 0, "got %u\n", ret );
     ok( (GetLastError() & 0xffff) == ERROR_INVALID_DATA || broken(!GetLastError()) /* AMD */, "got %#lx\n", GetLastError() );
     pbuffer_attribs[0] = WGL_PBUFFER_HEIGHT_ARB;
     pbuffer_attribs[1] = 50;
     SetLastError( 0xdeadbeef );
-    ret = pwglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
+    ret = ext.wglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
     ok( ret == 0, "got %u\n", ret );
     ok( (GetLastError() & 0xffff) == ERROR_INVALID_DATA || broken(!GetLastError()) /* AMD */, "got %#lx\n", GetLastError() );
     pbuffer_attribs[0] = WGL_PBUFFER_LOST_ARB;
     pbuffer_attribs[1] = 0;
     SetLastError( 0xdeadbeef );
-    ret = pwglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
+    ret = ext.wglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
     ok( ret == 0, "got %u\n", ret );
     ok( (GetLastError() & 0xffff) == ERROR_INVALID_DATA || broken(!GetLastError()) /* AMD */, "got %#lx\n", GetLastError() );
     pbuffer_attribs[0] = WGL_TEXTURE_FORMAT_ARB;
     pbuffer_attribs[1] = WGL_TEXTURE_RGBA_ARB;
     SetLastError( 0xdeadbeef );
-    ret = pwglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
+    ret = ext.wglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
     ok( ret == 0, "got %u\n", ret );
     ok( (GetLastError() & 0xffff) == ERROR_INVALID_DATA || broken(!GetLastError()) /* AMD */, "got %#lx\n", GetLastError() );
     pbuffer_attribs[0] = WGL_TEXTURE_TARGET_ARB;
     pbuffer_attribs[1] = WGL_TEXTURE_2D_ARB;
     SetLastError( 0xdeadbeef );
-    ret = pwglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
+    ret = ext.wglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
     ok( ret == 0, "got %u\n", ret );
     ok( (GetLastError() & 0xffff) == ERROR_INVALID_DATA || broken(!GetLastError()) /* AMD */, "got %#lx\n", GetLastError() );
     pbuffer_attribs[0] = WGL_MIPMAP_TEXTURE_ARB;
     pbuffer_attribs[1] = 2;
     SetLastError( 0xdeadbeef );
-    ret = pwglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
+    ret = ext.wglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
     ok( ret == 0, "got %u\n", ret );
     ok( (GetLastError() & 0xffff) == ERROR_INVALID_DATA || broken(!GetLastError()) /* AMD */, "got %#lx\n", GetLastError() );
     pbuffer_attribs[0] = WGL_MIPMAP_LEVEL_ARB;
     pbuffer_attribs[1] = 2;
     SetLastError( 0xdeadbeef );
-    ret = pwglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
+    ret = ext.wglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
     ok( ret == 0 || broken(ret == 1) /* AMD */, "got %u\n", ret );
     ok( (GetLastError() & 0xffff) == ERROR_INVALID_DATA || broken(!GetLastError()) /* AMD */, "got %#lx\n", GetLastError() );
     pbuffer_attribs[0] = WGL_CUBE_MAP_FACE_ARB;
     pbuffer_attribs[1] = WGL_TEXTURE_CUBE_MAP_NEGATIVE_X_ARB;
     SetLastError( 0xdeadbeef );
-    ret = pwglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
+    ret = ext.wglSetPbufferAttribARB( pbuffer, pbuffer_attribs );
     ok( ret == 0 || broken(ret == 1) /* AMD */, "got %u\n", ret );
     ok( (GetLastError() & 0xffff) == ERROR_INVALID_DATA || broken(!GetLastError()) /* AMD */, "got %#lx\n", GetLastError() );
 
     value = 0xdeadbeef;
-    ret = pwglQueryPbufferARB( pbuffer, WGL_PBUFFER_WIDTH_ARB, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, WGL_PBUFFER_WIDTH_ARB, &value );
     ok( ret == 1, "got %u\n", ret );
     ok( value == 512 || broken(value == 0) /* AMD */, "got %u\n", value );
     value = 0xdeadbeef;
-    ret = pwglQueryPbufferARB( pbuffer, WGL_PBUFFER_HEIGHT_ARB, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, WGL_PBUFFER_HEIGHT_ARB, &value );
     ok( ret == 1, "got %u\n", ret );
     ok( value == 512 || broken(value == 0) /* AMD */, "got %u\n", value );
     value = 0xdeadbeef;
-    ret = pwglQueryPbufferARB( pbuffer, WGL_PBUFFER_LOST_ARB, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, WGL_PBUFFER_LOST_ARB, &value );
     ok( ret == 1, "got %u\n", ret );
     ok( value == 0, "got %u\n", value );
     value = 0xdeadbeef;
-    ret = pwglQueryPbufferARB( pbuffer, WGL_TEXTURE_FORMAT_ARB, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, WGL_TEXTURE_FORMAT_ARB, &value );
     ok( ret == 1, "got %u\n", ret );
     ok( value == WGL_TEXTURE_RGB_ARB || broken(value == 0xdeadbeef) /* AMD */, "got %#x\n", value );
     value = 0xdeadbeef;
-    ret = pwglQueryPbufferARB( pbuffer, WGL_TEXTURE_TARGET_ARB, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, WGL_TEXTURE_TARGET_ARB, &value );
     ok( ret == 1, "got %u\n", ret );
     ok( value == WGL_TEXTURE_CUBE_MAP_ARB || broken(value == 0xdeadbeef) /* AMD */, "got %#x\n", value );
     value = 0xdeadbeef;
-    ret = pwglQueryPbufferARB( pbuffer, WGL_MIPMAP_TEXTURE_ARB, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, WGL_MIPMAP_TEXTURE_ARB, &value );
     ok( ret == 1, "got %u\n", ret );
     ok( value == 1 || broken(value > 0) /* AMD */, "got %u\n", value );
     value = 0xdeadbeef;
-    ret = pwglQueryPbufferARB( pbuffer, WGL_MIPMAP_LEVEL_ARB, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, WGL_MIPMAP_LEVEL_ARB, &value );
     ok( ret == 1, "got %u\n", ret );
     todo_wine ok( value == 0 || broken(value > 0) /* AMD */, "got %u\n", value );
     value = 0xdeadbeef;
-    ret = pwglQueryPbufferARB( pbuffer, WGL_CUBE_MAP_FACE_ARB, &value );
+    ret = ext.wglQueryPbufferARB( pbuffer, WGL_CUBE_MAP_FACE_ARB, &value );
     ok( ret == 1, "got %u\n", ret );
     todo_wine ok( value == WGL_TEXTURE_CUBE_MAP_POSITIVE_X_ARB || broken(value == 0xdeadbeef) /* AMD */, "got %#x\n", value );
 
-    pwglDestroyPbufferARB( pbuffer );
+    ext.wglDestroyPbufferARB( pbuffer );
 
 
     pbuffer_attribs[0] = WGL_TEXTURE_FORMAT_ARB;
@@ -616,10 +511,10 @@ static void test_pbuffers( HDC old_hdc )
     pbuffer_attribs[2] = WGL_TEXTURE_TARGET_ARB;
     pbuffer_attribs[3] = WGL_TEXTURE_2D_ARB;
     pbuffer_attribs[4] = 0;
-    pbuffer = pwglCreatePbufferARB( hdc, formats[0], 16, 16, pbuffer_attribs );
+    pbuffer = ext.wglCreatePbufferARB( hdc, formats[0], 16, 16, pbuffer_attribs );
     ok( !!pbuffer, "wglCreatePbufferARB returned %p\n", pbuffer );
 
-    pbuffer_dc = pwglGetPbufferDCARB( pbuffer );
+    pbuffer_dc = ext.wglGetPbufferDCARB( pbuffer );
     ok( !!pbuffer_dc, "got %p\n", pbuffer_dc );
     rc = wglCreateContext( pbuffer_dc );
     ok( !!rc, "got %p\n", rc );
@@ -636,7 +531,7 @@ static void test_pbuffers( HDC old_hdc )
     ok( ret == 1, "got %u\n", ret );
     ret = wglDeleteContext( rc );
     ok( ret == 1, "got %u\n", ret );
-    ret = pwglReleasePbufferDCARB( pbuffer, pbuffer_dc );
+    ret = ext.wglReleasePbufferDCARB( pbuffer, pbuffer_dc );
     ok( ret == 1, "got %u\n", ret );
 
 
@@ -647,17 +542,17 @@ static void test_pbuffers( HDC old_hdc )
 
     /* test some invalid params */
     SetLastError( 0xdeadbeef );
-    ret = pwglReleaseTexImageARB( pbuffer, GL_FRONT );
+    ret = ext.wglReleaseTexImageARB( pbuffer, GL_FRONT );
     todo_wine ok( ret == 0, "got %u\n", ret );
     todo_wine ok( (GetLastError() & 0xffff) == ERROR_INVALID_DATA || broken(GetLastError() == 0xdeadbeef) /* AMD */, "got %#lx\n", GetLastError() );
     SetLastError( 0xdeadbeef );
-    ret = pwglBindTexImageARB( pbuffer, GL_BACK );
+    ret = ext.wglBindTexImageARB( pbuffer, GL_BACK );
     ok( ret == 0, "got %u\n", ret );
     ok( (GetLastError() & 0xffff) == ERROR_INVALID_DATA || broken(GetLastError() == 0xdeadbeef) /* AMD */, "got %#lx\n", GetLastError() );
 
     /* test invalid calls */
     SetLastError( 0xdeadbeef );
-    ret = pwglReleaseTexImageARB( pbuffer, WGL_BACK_LEFT_ARB );
+    ret = ext.wglReleaseTexImageARB( pbuffer, WGL_BACK_LEFT_ARB );
     todo_wine ok( ret == 0, "got %u\n", ret );
     todo_wine ok( (GetLastError() & 0xffff) == ERROR_INVALID_DATA || broken(!GetLastError()) /* AMD */, "got %#lx\n", GetLastError() );
 
@@ -673,10 +568,10 @@ static void test_pbuffers( HDC old_hdc )
     memset( pixels, 0xcd, sizeof(pixels) );
     glGetTexImage( GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels );
     ok( pixels[0] == 0xcdcdcdcd, "got %#x\n", pixels[0] );
-    ret = pwglReleaseTexImageARB( pbuffer, WGL_FRONT_LEFT_ARB );
+    ret = ext.wglReleaseTexImageARB( pbuffer, WGL_FRONT_LEFT_ARB );
     ok( ret == 1 || broken(ret == 0) /* AMD */, "got %u\n", ret );
 
-    ret = pwglBindTexImageARB( pbuffer, WGL_FRONT_LEFT_ARB );
+    ret = ext.wglBindTexImageARB( pbuffer, WGL_FRONT_LEFT_ARB );
     ok( ret == 1 || broken(ret == 0) /* AMD */, "got %u\n", ret );
 
     value = 0xdeadbeef;
@@ -693,16 +588,16 @@ static void test_pbuffers( HDC old_hdc )
     todo_wine ok( (pixels[0] & 0xffffff) == 0x443322 || broken(pixels[0] == 0xcdcdcdcd) /* AMD */, "got %#x\n", pixels[0] );
 
     SetLastError( 0xdeadbeef );
-    ret = pwglBindTexImageARB( pbuffer, WGL_FRONT_LEFT_ARB );
+    ret = ext.wglBindTexImageARB( pbuffer, WGL_FRONT_LEFT_ARB );
     todo_wine ok( ret == 0, "got %u\n", ret );
     todo_wine ok( (GetLastError() & 0xffff) == ERROR_INVALID_DATA || broken(!GetLastError()) /* AMD */, "got %#lx\n", GetLastError() );
     SetLastError( 0xdeadbeef );
-    ret = pwglBindTexImageARB( pbuffer, WGL_FRONT_RIGHT_ARB );
+    ret = ext.wglBindTexImageARB( pbuffer, WGL_FRONT_RIGHT_ARB );
     todo_wine ok( ret == 0, "got %u\n", ret );
     todo_wine ok( (GetLastError() & 0xffff) == ERROR_INVALID_DATA || broken(!GetLastError()) /* AMD */, "got %#lx\n", GetLastError() );
 
-    pwglReleaseTexImageARB( pbuffer, WGL_FRONT_LEFT_ARB );
-    ret = pwglReleaseTexImageARB( pbuffer, WGL_FRONT_LEFT_ARB );
+    ext.wglReleaseTexImageARB( pbuffer, WGL_FRONT_LEFT_ARB );
+    ret = ext.wglReleaseTexImageARB( pbuffer, WGL_FRONT_LEFT_ARB );
     ok( ret == 1 || broken(ret == 0) /* AMD */, "got %u\n", ret );
 
     glGenTextures( 1, &texture );
@@ -724,7 +619,7 @@ static void test_pbuffers( HDC old_hdc )
     glGetTexImage( GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels );
     ok( (pixels[0] & 0xffffff) == 0xa5a5a5, "got %#x\n", pixels[0] );
 
-    ret = pwglBindTexImageARB( pbuffer, WGL_FRONT_LEFT_ARB );
+    ret = ext.wglBindTexImageARB( pbuffer, WGL_FRONT_LEFT_ARB );
     ok( ret == 1 || broken(ret == 0) /* AMD */, "got %u\n", ret );
 
     value = 0xdeadbeef;
@@ -740,7 +635,7 @@ static void test_pbuffers( HDC old_hdc )
     glGetTexImage( GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels );
     todo_wine ok( (pixels[0] & 0xffffff) == 0x443322 || broken(pixels[0] == 0xa5a5a5a5) /* AMD */, "got %#x\n", pixels[0] );
 
-    ret = pwglReleaseTexImageARB( pbuffer, WGL_FRONT_LEFT_ARB );
+    ret = ext.wglReleaseTexImageARB( pbuffer, WGL_FRONT_LEFT_ARB );
     ok( ret == 1 || broken(ret == 0) /* AMD */, "got %u\n", ret );
 
     value = 0xdeadbeef;
@@ -756,12 +651,12 @@ static void test_pbuffers( HDC old_hdc )
     glGetTexImage( GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels );
     todo_wine ok( pixels[0] == 0xcdcdcdcd || broken(pixels[0] == 0xa5a5a5a5) /* AMD */, "got %#x\n", pixels[0] );
 
-    ret = pwglReleaseTexImageARB( pbuffer, WGL_FRONT_LEFT_ARB );
+    ret = ext.wglReleaseTexImageARB( pbuffer, WGL_FRONT_LEFT_ARB );
     ok( ret == 1 || broken(ret == 0) /* AMD */, "got %u\n", ret );
-    ret = pwglReleaseTexImageARB( pbuffer, WGL_FRONT_LEFT_ARB );
+    ret = ext.wglReleaseTexImageARB( pbuffer, WGL_FRONT_LEFT_ARB );
     ok( ret == 1 || broken(ret == 0) /* AMD */, "got %u\n", ret );
 
-    ret = pwglBindTexImageARB( pbuffer, WGL_FRONT_RIGHT_ARB );
+    ret = ext.wglBindTexImageARB( pbuffer, WGL_FRONT_RIGHT_ARB );
     ok( ret == 1 || broken(ret == 0) /* AMD */, "got %u\n", ret );
 
     value = 0xdeadbeef;
@@ -777,7 +672,7 @@ static void test_pbuffers( HDC old_hdc )
     glGetTexImage( GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels );
     todo_wine ok( pixels[0] == 0xcdcdcdcd || broken(pixels[0] == 0xa5a5a5a5) /* AMD */, "got %#x\n", pixels[0] );
 
-    ret = pwglReleaseTexImageARB( pbuffer, WGL_FRONT_RIGHT_ARB );
+    ret = ext.wglReleaseTexImageARB( pbuffer, WGL_FRONT_RIGHT_ARB );
     ok( ret == 1 || broken(ret == 0) /* AMD */, "got %u\n", ret );
 
     glDeleteTextures( 1, &texture );
@@ -785,7 +680,7 @@ static void test_pbuffers( HDC old_hdc )
     ret = wglDeleteContext( rc );
     ok( ret == 1, "got %u\n", ret );
 
-    pwglDestroyPbufferARB( pbuffer );
+    ext.wglDestroyPbufferARB( pbuffer );
 
     ReleaseDC( hwnd, hdc );
     DestroyWindow( hwnd );
@@ -1027,9 +922,9 @@ static void WINAPI gl_debug_message_callback(GLenum source, GLenum type, GLuint 
 static void test_debug_message_callback(void)
 {
     static const char testmsg[] = "Hello World";
-    DWORD count;
+    DWORD count = 0;
 
-    if (!pglDebugMessageCallbackARB)
+    if (!ext.glDebugMessageCallbackARB)
     {
         skip("glDebugMessageCallbackARB not supported\n");
         return;
@@ -1038,12 +933,12 @@ static void test_debug_message_callback(void)
     glEnable(GL_DEBUG_OUTPUT);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 
-    pglDebugMessageCallbackARB(gl_debug_message_callback, &count);
-    pglDebugMessageControlARB(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
+    ext.glDebugMessageCallbackARB( gl_debug_message_callback, &count );
+    ext.glDebugMessageControlARB( GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE );
 
     count = 0;
-    pglDebugMessageInsertARB(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_OTHER, 0x42424242,
-                             GL_DEBUG_SEVERITY_LOW, sizeof(testmsg), testmsg);
+    ext.glDebugMessageInsertARB( GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_OTHER, 0x42424242,
+                                 GL_DEBUG_SEVERITY_LOW, sizeof(testmsg), testmsg );
     ok(count == 1, "expected count == 1, got %lu\n", count);
 
     glDisable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
@@ -1163,10 +1058,588 @@ static void test_setpixelformat(HDC winhdc)
     }
 }
 
+enum object_type
+{
+    OBJ_BUFFER,
+    OBJ_BUFFER_ARB,
+    OBJ_COMMAND_LIST_NV,
+    OBJ_FENCE_APPLE,
+    OBJ_FENCE_NV,
+    OBJ_FRAMEBUFFER,
+    OBJ_FRAMEBUFFER_EXT,
+    OBJ_DISPLAY_LIST,
+    OBJ_MEMORY_OBJECT_EXT,
+    OBJ_OBJECT_BUFFER_ATI,
+    OBJ_PATH_NV,
+    OBJ_PROGRAM_ARB,
+    OBJ_PROGRAM_NV,
+    OBJ_SHADER_EXT,
+    OBJ_SHADER_ATI,
+    OBJ_PROGRAM_OBJECT,
+    OBJ_PROGRAM_OBJECT_ARB,
+    OBJ_SHADER_OBJECT,
+    OBJ_SHADER_OBJECT_ARB,
+    OBJ_PROGRAM_PIPELINE,
+    OBJ_QUERY,
+    OBJ_QUERY_ARB,
+    OBJ_OCCLUSION_QUERY_NV,
+    OBJ_RENDERBUFFER,
+    OBJ_RENDERBUFFER_EXT,
+    OBJ_SAMPLER,
+    OBJ_SEMAPHORE_EXT,
+    OBJ_STATE_NV,
+    OBJ_TEXTURE,
+    OBJ_TEXTURE_EXT,
+    OBJ_TRANSFORM_FEEDBACK,
+    OBJ_TRANSFORM_FEEDBACK_NV,
+    OBJ_VERTEX_ARRAY,
+    OBJ_VERTEX_ARRAY_APPLE,
+    OBJ_TYPE_COUNT,
+};
+
+static const char *debugstr_object_type( enum object_type type )
+{
+    switch (type)
+    {
+    case OBJ_BUFFER:                return "buffer";
+    case OBJ_BUFFER_ARB:            return "buffer_arb";
+    case OBJ_COMMAND_LIST_NV:       return "command_list_nv";
+    case OBJ_FENCE_APPLE:           return "fence_apple";
+    case OBJ_FENCE_NV:              return "fence_nv";
+    case OBJ_FRAMEBUFFER:           return "framebuffer";
+    case OBJ_FRAMEBUFFER_EXT:       return "framebuffer_ext";
+    case OBJ_DISPLAY_LIST:          return "display list";
+    case OBJ_MEMORY_OBJECT_EXT:     return "memory_object_ext";
+    case OBJ_OBJECT_BUFFER_ATI:     return "object_buffer_ati";
+    case OBJ_PATH_NV:               return "path_nv";
+    case OBJ_PROGRAM_ARB:           return "program_arb";
+    case OBJ_PROGRAM_NV:            return "program_nv";
+    case OBJ_SHADER_EXT:            return "shader_ext";
+    case OBJ_SHADER_ATI:            return "shader_ati";
+    case OBJ_PROGRAM_OBJECT:        return "program";
+    case OBJ_PROGRAM_OBJECT_ARB:    return "program_object_arb";
+    case OBJ_SHADER_OBJECT:         return "shader";
+    case OBJ_SHADER_OBJECT_ARB:     return "shader_object_arb";
+    case OBJ_PROGRAM_PIPELINE:      return "program_pipeline";
+    case OBJ_QUERY:                 return "query";
+    case OBJ_QUERY_ARB:             return "query_arb";
+    case OBJ_OCCLUSION_QUERY_NV:    return "occlusion_query_nv";
+    case OBJ_RENDERBUFFER:          return "renderbuffer";
+    case OBJ_RENDERBUFFER_EXT:      return "renderbuffer_ext";
+    case OBJ_SAMPLER:               return "sampler";
+    case OBJ_SEMAPHORE_EXT:         return "semaphore_ext";
+    case OBJ_STATE_NV:              return "state_nv";
+    case OBJ_TEXTURE:               return "texture";
+    case OBJ_TEXTURE_EXT:           return "texture_ext";
+    case OBJ_TRANSFORM_FEEDBACK:    return "transform_feedback";
+    case OBJ_TRANSFORM_FEEDBACK_NV: return "transform_feedback_nv";
+    case OBJ_VERTEX_ARRAY:          return "vertex_array";
+    case OBJ_VERTEX_ARRAY_APPLE:    return "vertex_array_apple";
+    default:                        return wine_dbg_sprintf( "%u", type );
+    }
+}
+
+static BOOL same_object_type( enum object_type a, enum object_type b )
+{
+    if (a == b) return TRUE;
+    if (a == OBJ_BUFFER && b == OBJ_BUFFER_ARB) return TRUE;
+    if (b == OBJ_BUFFER && a == OBJ_BUFFER_ARB) return TRUE;
+    if (a == OBJ_FENCE_APPLE && b == OBJ_FENCE_NV) return TRUE;
+    if (b == OBJ_FENCE_APPLE && a == OBJ_FENCE_NV) return TRUE;
+    if (a == OBJ_FRAMEBUFFER && b == OBJ_FRAMEBUFFER_EXT) return TRUE;
+    if (b == OBJ_FRAMEBUFFER && a == OBJ_FRAMEBUFFER_EXT) return TRUE;
+    if (a == OBJ_PROGRAM_ARB && b == OBJ_PROGRAM_NV) return TRUE;
+    if (b == OBJ_PROGRAM_ARB && a == OBJ_PROGRAM_NV) return TRUE;
+    if (a == OBJ_PROGRAM_OBJECT && b == OBJ_PROGRAM_OBJECT_ARB) return TRUE;
+    if (b == OBJ_PROGRAM_OBJECT && a == OBJ_PROGRAM_OBJECT_ARB) return TRUE;
+    if (a == OBJ_QUERY && b == OBJ_QUERY_ARB) return TRUE;
+    if (b == OBJ_QUERY && a == OBJ_QUERY_ARB) return TRUE;
+    if (b == OBJ_QUERY && a == OBJ_OCCLUSION_QUERY_NV) return TRUE;
+    if (a == OBJ_QUERY && b == OBJ_OCCLUSION_QUERY_NV) return TRUE;
+    if (b == OBJ_QUERY_ARB && a == OBJ_OCCLUSION_QUERY_NV) return TRUE;
+    if (a == OBJ_QUERY_ARB && b == OBJ_OCCLUSION_QUERY_NV) return TRUE;
+    if (a == OBJ_RENDERBUFFER && b == OBJ_RENDERBUFFER_EXT) return TRUE;
+    if (b == OBJ_RENDERBUFFER && a == OBJ_RENDERBUFFER_EXT) return TRUE;
+    if (a == OBJ_SHADER_OBJECT && b == OBJ_SHADER_OBJECT_ARB) return TRUE;
+    if (b == OBJ_SHADER_OBJECT && a == OBJ_SHADER_OBJECT_ARB) return TRUE;
+    if (a == OBJ_TEXTURE && b == OBJ_TEXTURE_EXT) return TRUE;
+    if (b == OBJ_TEXTURE && a == OBJ_TEXTURE_EXT) return TRUE;
+    if (a == OBJ_TRANSFORM_FEEDBACK && b == OBJ_TRANSFORM_FEEDBACK_NV) return TRUE;
+    if (b == OBJ_TRANSFORM_FEEDBACK && a == OBJ_TRANSFORM_FEEDBACK_NV) return TRUE;
+    if (a == OBJ_VERTEX_ARRAY && b == OBJ_VERTEX_ARRAY_APPLE) return TRUE;
+    if (b == OBJ_VERTEX_ARRAY && a == OBJ_VERTEX_ARRAY_APPLE) return TRUE;
+    return FALSE;
+}
+
+static BOOL create_object( enum object_type type, GLuint name, GLuint *obj )
+{
+    switch (type)
+    {
+    case OBJ_BUFFER:
+        if (!ext.glGenBuffers) return FALSE;
+        if (!(*obj = name)) ext.glGenBuffers( 1, obj );
+        ext.glBindBuffer( GL_ARRAY_BUFFER, *obj );
+        break;
+    case OBJ_BUFFER_ARB:
+        if (!ext.glGenBuffersARB) return FALSE;
+        if (!(*obj = name)) ext.glGenBuffersARB( 1, obj );
+        ext.glBindBufferARB( GL_ARRAY_BUFFER, *obj );
+        break;
+    case OBJ_COMMAND_LIST_NV:
+        if (!ext.glCreateCommandListsNV) return FALSE;
+        ext.glCreateCommandListsNV( 1, obj );
+        break;
+    case OBJ_FENCE_APPLE:
+        if (!ext.glGenFencesAPPLE) return FALSE;
+        if (!(*obj = name)) ext.glGenFencesAPPLE( 1, obj );
+        ext.glSetFenceAPPLE( *obj );
+        break;
+    case OBJ_FENCE_NV:
+        if (!ext.glGenFencesNV) return FALSE;
+        if (!(*obj = name)) ext.glGenFencesNV( 1, obj );
+        ext.glSetFenceNV( *obj, GL_ALL_COMPLETED_NV );
+        break;
+    case OBJ_FRAMEBUFFER:
+        if (!ext.glGenFramebuffers) return FALSE;
+        if (!(*obj = name)) ext.glGenFramebuffers( 1, obj );
+        ext.glBindFramebuffer( GL_DRAW_FRAMEBUFFER, *obj );
+        break;
+    case OBJ_FRAMEBUFFER_EXT:
+        if (!ext.glGenFramebuffersEXT) return FALSE;
+        if (!(*obj = name)) ext.glGenFramebuffersEXT( 1, obj );
+        ext.glBindFramebufferEXT( GL_DRAW_FRAMEBUFFER, *obj );
+        break;
+    case OBJ_DISPLAY_LIST:
+        if (!(*obj = name)) *obj = glGenLists( 1 );
+        glNewList( *obj, GL_COMPILE );
+        glClear( GL_COLOR_BUFFER_BIT );
+        glEndList();
+        break;
+    case OBJ_MEMORY_OBJECT_EXT:
+        if (!ext.glCreateMemoryObjectsEXT) return FALSE;
+        ext.glCreateMemoryObjectsEXT( 1, obj );
+        break;
+    case OBJ_OBJECT_BUFFER_ATI:
+        if (!ext.glNewObjectBufferATI) return FALSE;
+        *obj = ext.glNewObjectBufferATI( sizeof(name), &name, GL_STATIC_ATI );
+        break;
+    case OBJ_PATH_NV:
+    {
+        static const GLshort coords[2] = {100, 180};
+        static const GLubyte cmds[1] = {GL_MOVE_TO_NV};
+
+        if (!ext.glGenPathsNV) return FALSE;
+        if (!(*obj = name)) *obj = ext.glGenPathsNV( 1 );
+        ext.glPathCommandsNV( *obj, 1, cmds, 2, GL_SHORT, coords );
+        break;
+    }
+    case OBJ_PROGRAM_ARB:
+    {
+        static const GLubyte shader[] = "!!ARBfp1.0\nEND";
+
+        if (!ext.glGenProgramsARB) return FALSE;
+        if (!(*obj = name)) ext.glGenProgramsARB( 1, obj );
+        ext.glBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, *obj );
+        ext.glProgramStringARB( GL_FRAGMENT_PROGRAM_ARB, GL_PROGRAM_FORMAT_ASCII_ARB, sizeof(shader) - 1, shader );
+        break;
+    }
+    case OBJ_PROGRAM_NV:
+    {
+        static const GLubyte shader[] = "!!VP1.0END";
+
+        if (!ext.glGenProgramsNV) return FALSE;
+        if (!(*obj = name)) ext.glGenProgramsNV( 1, obj );
+        ext.glBindProgramNV( GL_VERTEX_PROGRAM_NV, *obj );
+        ext.glLoadProgramNV( GL_VERTEX_PROGRAM_NV, *obj, sizeof(shader) - 1, shader );
+        break;
+    }
+    case OBJ_SHADER_EXT:
+        if (!ext.glGenVertexShadersEXT) return FALSE;
+        if (!(*obj = name)) *obj = ext.glGenVertexShadersEXT( 1 );
+        ext.glBindVertexShaderEXT( *obj );
+        break;
+    case OBJ_SHADER_ATI:
+        if (!ext.glGenFragmentShadersATI) return FALSE;
+        if (!(*obj = name)) *obj = ext.glGenFragmentShadersATI( 1 );
+        ext.glBindFragmentShaderATI( *obj );
+        break;
+    case OBJ_PROGRAM_OBJECT:
+        if (!ext.glCreateProgram) return FALSE;
+        *obj = ext.glCreateProgram();
+        break;
+    case OBJ_PROGRAM_OBJECT_ARB:
+        if (!ext.glCreateProgramObjectARB) return FALSE;
+        *obj = ext.glCreateProgramObjectARB();
+        break;
+    case OBJ_SHADER_OBJECT:
+        if (!ext.glCreateShader) return FALSE;
+        *obj = ext.glCreateShader( GL_VERTEX_SHADER );
+        break;
+    case OBJ_SHADER_OBJECT_ARB:
+        if (!ext.glCreateShaderObjectARB) return FALSE;
+        *obj = ext.glCreateShaderObjectARB( GL_VERTEX_SHADER_ARB );
+        break;
+    case OBJ_PROGRAM_PIPELINE:
+        if (!ext.glGenProgramPipelines) return FALSE;
+        if (!(*obj = name)) ext.glGenProgramPipelines( 1, obj );
+        ext.glBindProgramPipeline( *obj );
+        break;
+    case OBJ_QUERY:
+        if (!ext.glGenQueries) return FALSE;
+        if (!(*obj = name)) ext.glGenQueries( 1, obj );
+        ext.glBeginQuery( GL_SAMPLES_PASSED, *obj );
+        ext.glEndQuery( GL_SAMPLES_PASSED );
+        break;
+    case OBJ_QUERY_ARB:
+        if (!ext.glGenQueriesARB) return FALSE;
+        if (!(*obj = name)) ext.glGenQueriesARB( 1, obj );
+        ext.glBeginQueryARB( GL_SAMPLES_PASSED_ARB, *obj );
+        ext.glEndQueryARB( GL_SAMPLES_PASSED_ARB );
+        break;
+    case OBJ_OCCLUSION_QUERY_NV:
+        if (!ext.glGenOcclusionQueriesNV) return FALSE;
+        if (!(*obj = name)) ext.glGenOcclusionQueriesNV( 1, obj );
+        ext.glBeginOcclusionQueryNV( *obj );
+        ext.glEndOcclusionQueryNV();
+        break;
+    case OBJ_RENDERBUFFER:
+        if (!ext.glGenRenderbuffers) return FALSE;
+        if (!(*obj = name)) ext.glGenRenderbuffers( 1, obj );
+        ext.glBindRenderbuffer( GL_RENDERBUFFER, *obj );
+        break;
+    case OBJ_RENDERBUFFER_EXT:
+        if (!ext.glGenRenderbuffersEXT) return FALSE;
+        if (!(*obj = name)) ext.glGenRenderbuffersEXT( 1, obj );
+        ext.glBindRenderbufferEXT( GL_RENDERBUFFER_EXT, *obj );
+        break;
+    case OBJ_SAMPLER:
+        if (!ext.glGenSamplers) return FALSE;
+        if (!(*obj = name)) ext.glGenSamplers( 1, obj );
+        ext.glBindSampler( 0, *obj );
+        break;
+    case OBJ_SEMAPHORE_EXT:
+    {
+        D3DKMT_OPENADAPTERFROMGDIDISPLAYNAME open_adapter = {0};
+        D3DKMT_DESTROYSYNCHRONIZATIONOBJECT destroy = {0};
+        D3DKMT_CREATESYNCHRONIZATIONOBJECT2 create2 = {0};
+        D3DKMT_DESTROYDEVICE destroy_device = {0};
+        D3DKMT_CREATEDEVICE create_device = {0};
+        D3DKMT_CLOSEADAPTER close_adapter = {0};
+        NTSTATUS status;
+
+        if (!ext.glGenSemaphoresEXT) return FALSE;
+
+        wcscpy( open_adapter.DeviceName, L"\\\\.\\DISPLAY1" );
+        status = D3DKMTOpenAdapterFromGdiDisplayName( &open_adapter );
+        ok_nt( STATUS_SUCCESS, status );
+        create_device.hAdapter = open_adapter.hAdapter;
+        status = D3DKMTCreateDevice( &create_device );
+        ok_nt( STATUS_SUCCESS, status );
+
+        create2.hDevice = create_device.hDevice;
+        create2.Info.Type = D3DDDI_FENCE;
+        create2.Info.Flags.Shared = 1;
+        create2.hSyncObject = create2.Info.SharedHandle = 0x1eadbeed;
+        status = D3DKMTCreateSynchronizationObject2( &create2 );
+        ok_nt( STATUS_SUCCESS, status );
+
+        if (!(*obj = name)) ext.glGenSemaphoresEXT( 1, obj );
+        ext.glImportSemaphoreWin32HandleEXT( *obj, GL_HANDLE_TYPE_OPAQUE_WIN32_KMT_EXT,
+                                             UlongToHandle( create2.Info.SharedHandle ) );
+
+        destroy.hSyncObject = create2.hSyncObject;
+        status = D3DKMTDestroySynchronizationObject( &destroy );
+        ok_nt( STATUS_SUCCESS, status );
+        destroy_device.hDevice = create_device.hDevice;
+        status = D3DKMTDestroyDevice( &destroy_device );
+        ok_nt( STATUS_SUCCESS, status );
+        close_adapter.hAdapter = open_adapter.hAdapter;
+        status = D3DKMTCloseAdapter( &close_adapter );
+        ok_nt( STATUS_SUCCESS, status );
+        break;
+    }
+    case OBJ_STATE_NV:
+        if (!ext.glCreateStatesNV) return FALSE;
+        ext.glCreateStatesNV( 1, obj );
+        break;
+    case OBJ_TEXTURE:
+        if (!(*obj = name)) glGenTextures( 1, obj );
+        glBindTexture( GL_TEXTURE_2D, *obj );
+        break;
+    case OBJ_TEXTURE_EXT:
+        if (!ext.glGenTexturesEXT) return FALSE;
+        if (!(*obj = name)) ext.glGenTexturesEXT( 1, obj );
+        ext.glBindTextureEXT( GL_TEXTURE_2D, *obj );
+        break;
+    case OBJ_TRANSFORM_FEEDBACK:
+        if (!ext.glGenTransformFeedbacks) return FALSE;
+        if (!(*obj = name)) ext.glGenTransformFeedbacks( 1, obj );
+        ext.glBindTransformFeedback( GL_TRANSFORM_FEEDBACK, *obj );
+        break;
+    case OBJ_TRANSFORM_FEEDBACK_NV:
+        if (!ext.glGenTransformFeedbacksNV) return FALSE;
+        if (!(*obj = name)) ext.glGenTransformFeedbacksNV( 1, obj );
+        ext.glBindTransformFeedbackNV( GL_TRANSFORM_FEEDBACK_NV, *obj );
+        break;
+    case OBJ_VERTEX_ARRAY:
+        if (!ext.glGenVertexArrays) return FALSE;
+        if (!(*obj = name)) ext.glGenVertexArrays( 1, obj );
+        ext.glBindVertexArray( *obj );
+        break;
+    case OBJ_VERTEX_ARRAY_APPLE:
+        if (!ext.glGenVertexArraysAPPLE) return FALSE;
+        if (!(*obj = name)) ext.glGenVertexArraysAPPLE( 1, obj );
+        ext.glBindVertexArrayAPPLE( *obj );
+        break;
+    case OBJ_TYPE_COUNT: return FALSE;
+    }
+
+    return TRUE;
+}
+
+/* some functions don't allow implicit names even in compat contexts, or even in core contexts */
+static BOOL is_implicit_allowed( enum object_type type, BOOL compat )
+{
+    switch (type)
+    {
+    case OBJ_BUFFER:                return compat;
+    case OBJ_BUFFER_ARB:            return compat;
+    case OBJ_DISPLAY_LIST:          return compat;
+    case OBJ_OCCLUSION_QUERY_NV:    return compat;
+    case OBJ_QUERY:                 return compat;
+    case OBJ_QUERY_ARB:             return compat;
+    case OBJ_TEXTURE:               return compat;
+    case OBJ_TEXTURE_EXT:           return compat;
+
+    /* never allow implicit allocation even in compat contexts */
+    case OBJ_FRAMEBUFFER:           return FALSE;
+    case OBJ_PROGRAM_PIPELINE:      return FALSE;
+    case OBJ_RENDERBUFFER:          return FALSE;
+    case OBJ_SAMPLER:               return FALSE;
+    case OBJ_TRANSFORM_FEEDBACK:    return FALSE;
+    case OBJ_VERTEX_ARRAY:          return FALSE;
+
+    /* always allow implicit allocation even in core contexts */
+    case OBJ_FENCE_APPLE:           return TRUE;
+    case OBJ_FENCE_NV:              return TRUE;
+    case OBJ_FRAMEBUFFER_EXT:       return TRUE;
+    case OBJ_PATH_NV:               return TRUE;
+    case OBJ_PROGRAM_ARB:           return TRUE;
+    case OBJ_PROGRAM_NV:            return TRUE;
+    case OBJ_RENDERBUFFER_EXT:      return TRUE;
+    case OBJ_SEMAPHORE_EXT:         return TRUE;
+    case OBJ_SHADER_ATI:            return TRUE;
+    case OBJ_SHADER_EXT:            return TRUE;
+    case OBJ_TRANSFORM_FEEDBACK_NV: return TRUE;
+    case OBJ_VERTEX_ARRAY_APPLE:    return TRUE;
+
+    /* some types are always allocated explicitly */
+    case OBJ_COMMAND_LIST_NV:       return TRUE;
+    case OBJ_MEMORY_OBJECT_EXT:     return TRUE;
+    case OBJ_OBJECT_BUFFER_ATI:     return TRUE;
+    case OBJ_PROGRAM_OBJECT:        return TRUE;
+    case OBJ_PROGRAM_OBJECT_ARB:    return TRUE;
+    case OBJ_SHADER_OBJECT:         return TRUE;
+    case OBJ_SHADER_OBJECT_ARB:     return TRUE;
+    case OBJ_STATE_NV:              return TRUE;
+
+    default:                        return FALSE;
+    }
+}
+
+static void test_object_creation( HDC winhdc )
+{
+    static const GLint compat_attribs[] =
+    {
+        WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
+        0, 0
+    };
+    static const GLint core_attribs[] =
+    {
+        WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
+        WGL_CONTEXT_MINOR_VERSION_ARB, 3,
+        WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
+        0, 0
+    };
+
+    GLuint obj;
+    HGLRC ctx;
+
+    for (UINT i = 0; i < OBJ_TYPE_COUNT; i++)
+    {
+        if (broken( i == OBJ_TRANSFORM_FEEDBACK )) continue; /* NVIDIA / AMD don't agree */
+
+        winetest_push_context( "%u %s compat", i, debugstr_object_type( i ) );
+
+        ctx = ext.wglCreateContextAttribsARB( winhdc, NULL, compat_attribs );
+        ok_ptr( ctx, !=, NULL );
+        ok_ret( TRUE, wglMakeCurrent( winhdc, ctx ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+        if ((i == OBJ_SEMAPHORE_EXT && winetest_platform_is_wine) || !create_object( i, 1, &obj ))
+        {
+            skip( "Skipping unsupported object type.\n" );
+            goto next;
+        }
+        if (!is_implicit_allowed( i, TRUE ))
+        {
+            todo_wine_if( i == OBJ_FRAMEBUFFER || i == OBJ_RENDERBUFFER )
+            ok_ret( GL_INVALID_OPERATION, glGetError() );
+            if (!winetest_platform_is_wine || (i != OBJ_FRAMEBUFFER && i != OBJ_RENDERBUFFER))
+            ok_ret( TRUE, create_object( i, 0, &obj ) );
+        }
+        ok_ret( GL_NO_ERROR, glGetError() );
+        ok_u4( obj, ==, 1 );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+        ok_ret( TRUE, wglDeleteContext( ctx ) );
+
+        winetest_pop_context();
+
+
+        winetest_push_context( "%u %s core", i, debugstr_object_type( i ) );
+
+        ctx = ext.wglCreateContextAttribsARB( winhdc, NULL, core_attribs );
+        ok_ptr( ctx, !=, NULL );
+        ok_ret( TRUE, wglMakeCurrent( winhdc, ctx ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+        ok_ret( TRUE, create_object( i, 1, &obj ) );
+        if (!is_implicit_allowed( i, FALSE ))
+        {
+            ok_ret( GL_INVALID_OPERATION, glGetError() );
+            ok_ret( TRUE, create_object( i, 0, &obj ) );
+        }
+        if (i == OBJ_DISPLAY_LIST) ok_ret( GL_INVALID_OPERATION, glGetError() );
+        else
+        {
+            /* Wine never allows implicit allocation in core contexts */
+            todo_wine_if( i == OBJ_FENCE_APPLE || i == OBJ_FENCE_NV || i == OBJ_FRAMEBUFFER_EXT || i == OBJ_PATH_NV ||
+                          i == OBJ_PROGRAM_ARB || i == OBJ_PROGRAM_NV || i == OBJ_SHADER_EXT || i == OBJ_SHADER_ATI ||
+                          i == OBJ_RENDERBUFFER_EXT || i == OBJ_SEMAPHORE_EXT || i == OBJ_TRANSFORM_FEEDBACK_NV ||
+                          i == OBJ_VERTEX_ARRAY_APPLE )
+            ok_ret( GL_NO_ERROR, glGetError() );
+            ok_u4( obj, ==, 1 );
+        }
+
+next:
+        ok_ret( TRUE, wglDeleteContext( ctx ) );
+        winetest_pop_context();
+    }
+}
+
+static void delete_object( enum object_type type, GLuint name )
+{
+    switch (type)
+    {
+    case OBJ_BUFFER: ext.glDeleteBuffers( 1, &name ); break;
+    case OBJ_BUFFER_ARB: ext.glDeleteBuffersARB( 1, &name ); break;
+    case OBJ_COMMAND_LIST_NV: ext.glDeleteCommandListsNV( 1, &name ); break;
+    case OBJ_FENCE_APPLE: ext.glDeleteFencesAPPLE( 1, &name ); break;
+    case OBJ_FENCE_NV: ext.glDeleteFencesNV( 1, &name ); break;
+    case OBJ_FRAMEBUFFER: ext.glDeleteFramebuffers( 1, &name ); break;
+    case OBJ_FRAMEBUFFER_EXT: ext.glDeleteFramebuffersEXT( 1, &name ); break;
+    case OBJ_DISPLAY_LIST: glDeleteLists( name, 1 ); break;
+    case OBJ_MEMORY_OBJECT_EXT: ext.glDeleteMemoryObjectsEXT( 1, &name ); break;
+    case OBJ_OBJECT_BUFFER_ATI: ext.glDeleteObjectBufferATI( name ); break;
+    case OBJ_PATH_NV: ext.glDeletePathsNV( name, 1 ); break;
+    case OBJ_PROGRAM_ARB: ext.glDeleteProgramsARB( 1, &name ); break;
+    case OBJ_PROGRAM_NV: ext.glDeleteProgramsNV( 1, &name ); break;
+    case OBJ_SHADER_EXT: ext.glDeleteVertexShaderEXT( name ); break;
+    case OBJ_SHADER_ATI: ext.glDeleteFragmentShaderATI( name ); break;
+    case OBJ_PROGRAM_OBJECT: ext.glDeleteProgram( name ); break;
+    case OBJ_PROGRAM_OBJECT_ARB: ext.glDeleteObjectARB( name ); break;
+    case OBJ_SHADER_OBJECT: ext.glDeleteShader( name ); break;
+    case OBJ_SHADER_OBJECT_ARB: ext.glDeleteObjectARB( name ); break;
+    case OBJ_PROGRAM_PIPELINE: ext.glDeleteProgramPipelines( 1, &name ); break;
+    case OBJ_QUERY: ext.glDeleteQueries( 1, &name ); break;
+    case OBJ_QUERY_ARB: ext.glDeleteQueriesARB( 1, &name ); break;
+    case OBJ_OCCLUSION_QUERY_NV: ext.glDeleteOcclusionQueriesNV( 1, &name ); break;
+    case OBJ_RENDERBUFFER: ext.glDeleteRenderbuffers( 1, &name ); break;
+    case OBJ_RENDERBUFFER_EXT: ext.glDeleteRenderbuffersEXT( 1, &name ); break;
+    case OBJ_SAMPLER: ext.glDeleteSamplers( 1, &name ); break;
+    case OBJ_SEMAPHORE_EXT: ext.glDeleteSemaphoresEXT( 1, &name ); break;
+    case OBJ_STATE_NV: ext.glDeleteStatesNV( 1, &name ); break;
+    case OBJ_TEXTURE: glDeleteTextures( 1, &name ); break;
+    case OBJ_TEXTURE_EXT: ext.glDeleteTexturesEXT( 1, &name ); break;
+    case OBJ_TRANSFORM_FEEDBACK: ext.glDeleteTransformFeedbacks( 1, &name ); break;
+    case OBJ_TRANSFORM_FEEDBACK_NV: ext.glDeleteTransformFeedbacksNV( 1, &name ); break;
+    case OBJ_VERTEX_ARRAY: ext.glDeleteVertexArrays( 1, &name ); break;
+    case OBJ_VERTEX_ARRAY_APPLE: ext.glDeleteVertexArraysAPPLE( 1, &name ); break;
+    case OBJ_TYPE_COUNT: return;
+    }
+}
+
+static GLboolean GLAPIENTRY is_program_object_arb( GLuint name )
+{
+    GLint type = 0xdeadbeef;
+    ext.glGetObjectParameterivARB( name, GL_OBJECT_TYPE_ARB, &type );
+    if (type != GL_PROGRAM_OBJECT_ARB) glGetError(); /* other glIs* functions don't set error on failure */
+    return type == GL_PROGRAM_OBJECT_ARB;
+}
+
+static GLboolean GLAPIENTRY is_shader_object_arb( GLuint name )
+{
+    GLint type = 0xdeadbeef;
+    ext.glGetObjectParameterivARB( name, GL_OBJECT_TYPE_ARB, &type );
+    if (type != GL_SHADER_OBJECT_ARB) glGetError(); /* other glIs* functions don't set error on failure */
+    return type == GL_SHADER_OBJECT_ARB;
+}
+
 static void test_sharelists(HDC winhdc)
 {
+    const struct object_test
+    {
+        enum object_type type;
+        GLboolean (*GLAPIENTRY exists)( GLuint name );
+        BOOL shared;
+        BOOL supported;
+    } object_tests[] =
+    {
+        { OBJ_BUFFER, ext.glIsBuffer, TRUE, !!ext.glIsBuffer },
+        { OBJ_BUFFER_ARB, ext.glIsBufferARB, TRUE, !!ext.glIsBufferARB },
+        { OBJ_FRAMEBUFFER, ext.glIsFramebuffer, TRUE, !!ext.glIsFramebuffer },
+        { OBJ_FRAMEBUFFER_EXT, ext.glIsFramebufferEXT, TRUE, !!ext.glIsFramebufferEXT },
+        { OBJ_RENDERBUFFER, ext.glIsRenderbuffer, TRUE, !!ext.glIsRenderbuffer },
+        { OBJ_RENDERBUFFER_EXT, ext.glIsRenderbufferEXT, TRUE, !!ext.glIsRenderbufferEXT },
+        { OBJ_TEXTURE, glIsTexture, TRUE, TRUE },
+        { OBJ_TEXTURE_EXT, ext.glIsTextureEXT, TRUE, !!ext.glIsTextureEXT },
+        { OBJ_SAMPLER, ext.glIsSampler, TRUE, !!ext.glIsSampler },
+        { OBJ_DISPLAY_LIST, glIsList, TRUE, TRUE },
+        { OBJ_PROGRAM_ARB, ext.glIsProgramARB, TRUE, !!ext.glIsProgramARB },
+        { OBJ_PROGRAM_NV, ext.glIsProgramNV, TRUE, !!ext.glIsProgramNV },
+        { OBJ_SEMAPHORE_EXT, ext.glIsSemaphoreEXT, TRUE, !!ext.glIsSemaphoreEXT },
+        { OBJ_MEMORY_OBJECT_EXT, ext.glIsMemoryObjectEXT, TRUE, !!ext.glIsMemoryObjectEXT },
+        { OBJ_PATH_NV, ext.glIsPathNV, TRUE, !!ext.glIsPathNV },
+        { OBJ_PROGRAM_OBJECT, ext.glIsProgram, TRUE, !!ext.glIsProgram },
+        { OBJ_PROGRAM_OBJECT_ARB, is_program_object_arb, TRUE, !!ext.glCreateProgramObjectARB },
+        { OBJ_SHADER_OBJECT, ext.glIsShader, TRUE, !!ext.glIsShader },
+        { OBJ_SHADER_OBJECT_ARB, is_shader_object_arb, TRUE, !!ext.glCreateShaderObjectARB },
+        { OBJ_SHADER_EXT, NULL, TRUE, !!ext.glGenVertexShadersEXT },
+        { OBJ_SHADER_ATI, NULL, TRUE, !!ext.glGenFragmentShadersATI },
+        /* non shared objects */
+        { OBJ_OBJECT_BUFFER_ATI, ext.glIsObjectBufferATI, FALSE /* needs confirmation */, !!ext.glIsObjectBufferATI },
+        { OBJ_COMMAND_LIST_NV, ext.glIsCommandListNV, FALSE, !!ext.glIsCommandListNV },
+        { OBJ_FENCE_APPLE, ext.glIsFenceAPPLE, FALSE, !!ext.glIsFenceAPPLE },
+        { OBJ_FENCE_NV, ext.glIsFenceNV, FALSE, !!ext.glIsFenceNV },
+        { OBJ_PROGRAM_PIPELINE, ext.glIsProgramPipeline, FALSE, !!ext.glIsProgramPipeline },
+        { OBJ_QUERY, ext.glIsQuery, FALSE, !!ext.glIsQuery },
+        { OBJ_QUERY_ARB, ext.glIsQueryARB, FALSE, !!ext.glIsQueryARB },
+        { OBJ_OCCLUSION_QUERY_NV, ext.glIsOcclusionQueryNV, FALSE, !!ext.glIsOcclusionQueryNV },
+        { OBJ_STATE_NV, ext.glIsStateNV, FALSE, !!ext.glIsStateNV },
+        { OBJ_TRANSFORM_FEEDBACK, ext.glIsTransformFeedback, FALSE, !!ext.glIsTransformFeedback },
+        { OBJ_TRANSFORM_FEEDBACK_NV, ext.glIsTransformFeedbackNV, FALSE, !!ext.glIsTransformFeedbackNV },
+        { OBJ_VERTEX_ARRAY, ext.glIsVertexArray, FALSE, !!ext.glIsVertexArray },
+        { OBJ_VERTEX_ARRAY_APPLE, ext.glIsVertexArrayAPPLE, FALSE, !!ext.glIsVertexArrayAPPLE },
+    };
     BOOL res, nvidia, amd, source_current, source_sharing, dest_current, dest_sharing;
-    HGLRC source, dest, other;
+    const char *extensions = (const char*)glGetString(GL_EXTENSIONS);
+    HGLRC source, dest, other, ctx1, ctx2, ctx3;
+    BOOL ms_hint_supported;
+
+    ms_hint_supported = gl_extension_supported(extensions, "GL_NV_multisample_filter_hint");
+    if (!ms_hint_supported)
+        skip("GL_NV_multisample_filter_hint is not supported.\n");
 
     res = wglShareLists(NULL, NULL);
     ok(!res, "Sharing display lists for no contexts passed!\n");
@@ -1211,8 +1684,15 @@ static void test_sharelists(HDC winhdc)
                         glDisable(GL_DITHER);
                         glDepthFunc(GL_LESS);
                         glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+                        glHint(GL_POINT_SMOOTH_HINT, GL_NICEST);
+                        glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+                        glHint(GL_POLYGON_SMOOTH_HINT, GL_NICEST);
+                        glHint(GL_FOG_HINT, GL_NICEST);
+                        if (ms_hint_supported)
+                            glHint(GL_MULTISAMPLE_FILTER_HINT_NV, GL_NICEST);
                         glShadeModel(GL_SMOOTH);
                         glClearColor(0.1, 0.2, 0.3, 1.0);
+
                     }
                     if (source_sharing)
                     {
@@ -1236,7 +1716,13 @@ static void test_sharelists(HDC winhdc)
                         glEnable(GL_FOG);
                         glEnable(GL_DITHER);
                         glDepthFunc(GL_GREATER);
-                        glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+                        glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_FASTEST);
+                        glHint(GL_POINT_SMOOTH_HINT, GL_FASTEST);
+                        glHint(GL_LINE_SMOOTH_HINT, GL_FASTEST);
+                        glHint(GL_POLYGON_SMOOTH_HINT, GL_FASTEST);
+                        glHint(GL_FOG_HINT, GL_FASTEST);
+                        if (ms_hint_supported)
+                            glHint(GL_MULTISAMPLE_FILTER_HINT_NV, GL_FASTEST);
                         glShadeModel(GL_FLAT);
                         glClearColor(0.3, 0.2, 0.1, 1.0);
                     }
@@ -1253,7 +1739,7 @@ static void test_sharelists(HDC winhdc)
                     if (source_current)
                     {
                         float floats[4];
-                        int ints[4];
+                        int ints[4], val;
 
                         res = wglMakeCurrent(winhdc, source);
                         ok(res, "Make source current failed\n");
@@ -1291,11 +1777,26 @@ static void test_sharelists(HDC winhdc)
                         ok(floats[1] == 0.2f, "got %f\n", floats[1]);
                         ok(floats[2] == 0.3f, "got %f\n", floats[2]);
                         ok(floats[3] == 1.0f, "got %f\n", floats[3]);
+                        glGetIntegerv(GL_PERSPECTIVE_CORRECTION_HINT, &val);
+                        ok(val == GL_NICEST, "got %#x\n", val);
+                        glGetIntegerv(GL_POINT_SMOOTH_HINT, &val);
+                        ok(val == GL_NICEST, "got %#x\n", val);
+                        glGetIntegerv(GL_LINE_SMOOTH_HINT, &val);
+                        ok(val == GL_NICEST, "got %#x\n", val);
+                        glGetIntegerv(GL_POLYGON_SMOOTH_HINT, &val);
+                        ok(val == GL_NICEST, "got %#x\n", val);
+                        glGetIntegerv(GL_FOG_HINT, &val);
+                        ok(val == GL_NICEST, "got %#x\n", val);
+                        if (ms_hint_supported)
+                        {
+                            glGetIntegerv(GL_MULTISAMPLE_FILTER_HINT_NV, &val);
+                            ok(val == GL_NICEST, "got %#x\n", val);
+                        }
                     }
                     if (dest_current)
                     {
                         float floats[4];
-                        int ints[4];
+                        int ints[4], val;
 
                         res = wglMakeCurrent(winhdc, dest);
                         ok(res, "Make dest current failed\n");
@@ -1333,6 +1834,21 @@ static void test_sharelists(HDC winhdc)
                         ok(floats[1] == 0.2f, "got %f\n", floats[1]);
                         ok(floats[2] == 0.1f, "got %f\n", floats[2]);
                         ok(floats[3] == 1.0f, "got %f\n", floats[3]);
+                        glGetIntegerv(GL_PERSPECTIVE_CORRECTION_HINT, &val);
+                        ok(val == GL_FASTEST, "got %#x\n", val);
+                        glGetIntegerv(GL_POINT_SMOOTH_HINT, &val);
+                        ok(val == GL_FASTEST, "got %#x\n", val);
+                        glGetIntegerv(GL_LINE_SMOOTH_HINT, &val);
+                        ok(val == GL_FASTEST, "got %#x\n", val);
+                        glGetIntegerv(GL_POLYGON_SMOOTH_HINT, &val);
+                        ok(val == GL_FASTEST, "got %#x\n", val);
+                        glGetIntegerv(GL_FOG_HINT, &val);
+                        ok(val == GL_FASTEST, "got %#x\n", val);
+                        if (ms_hint_supported)
+                        {
+                            glGetIntegerv(GL_MULTISAMPLE_FILTER_HINT_NV, &val);
+                            ok(val == GL_FASTEST, "got %#x\n", val);
+                        }
                     }
 
                     if (source_current || dest_current)
@@ -1357,6 +1873,379 @@ static void test_sharelists(HDC winhdc)
                 }
             }
         }
+    }
+
+    ctx1 = wglCreateContext( winhdc );
+    ok_ptr( ctx1, !=, NULL );
+    ok_ret( TRUE, wglMakeCurrent( winhdc, ctx1 ) );
+    ok_ret( GL_NO_ERROR, glGetError() );
+
+    for (UINT i = 0, expect = 1; i < ARRAY_SIZE(object_tests); i++)
+    {
+        const struct object_test *test = object_tests + i;
+        GLuint obj;
+
+        if (!test->supported || (test->type == OBJ_SEMAPHORE_EXT && winetest_platform_is_wine))
+        {
+            skip( "Skipping object type %s\n", debugstr_object_type( test->type ) );
+            expect--;
+            continue;
+        }
+
+        /* aliased object types share the same namespace */
+        if (i > 0 && same_object_type( test->type, test[-1].type )) expect++;
+        /* shaders and programs share the same namespace */
+        else if (test->type == OBJ_SHADER_OBJECT || test->type == OBJ_SHADER_OBJECT_ARB) expect++;
+        else expect = 1;
+
+        winetest_push_context( "%u %s", i, debugstr_object_type( test->type ) );
+
+        create_object( test->type, 0, &obj );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        ok_u4( obj, ==, expect );
+
+        winetest_pop_context();
+    }
+
+    ok_ret( TRUE, wglDeleteContext( ctx1 ) );
+
+    for (UINT i = 0; i < ARRAY_SIZE(object_tests); i++)
+    {
+        /* some functions don't allow implicit names even in compat contexts */
+        const struct object_test *test = object_tests + i;
+        GLuint obj1, obj2, obj3;
+
+        if (!test->exists || (test->type == OBJ_SEMAPHORE_EXT && winetest_platform_is_wine) ||
+            broken( test->type == OBJ_PROGRAM_ARB && amd /* crashes on destroy after sharing */ ))
+        {
+            skip( "Skipping object type %s\n", debugstr_object_type( test->type ) );
+            continue;
+        }
+
+        winetest_push_context( "%u %s", i, debugstr_object_type( test->type ) );
+
+        ctx1 = wglCreateContext( winhdc );
+        ok_ptr( ctx1, !=, NULL );
+        ctx2 = wglCreateContext( winhdc );
+        ok_ptr( ctx2, !=, NULL );
+        ctx3 = wglCreateContext( winhdc );
+        ok_ptr( ctx3, !=, NULL );
+
+        ok_ret( TRUE, wglMakeCurrent( winhdc, ctx1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+        /* create object 1 in ctx1 (lists #1) */
+        ok_ret( FALSE, test->exists( 1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        create_object( test->type, is_implicit_allowed( test->type, TRUE ) ? 1 : 0, &obj1 );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        ok_u4( obj1, ==, 1 );
+        ok_ret( TRUE, test->exists( obj1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+        for (UINT j = 0; j < ARRAY_SIZE(object_tests); j++)
+        {
+            const struct object_test *other = object_tests + j;
+            BOOL expect = i == j || same_object_type( test->type, other->type );
+            if (!other->exists) continue;
+            winetest_push_context( "%u %s", j, debugstr_object_type( other->type ) );
+            ok_ret( expect, other->exists( obj1 ) );
+            ok_ret( GL_NO_ERROR, glGetError() );
+            winetest_pop_context();
+        }
+
+        /* share ctx1 (lists #1) with ctx2 */
+        ok_ret( TRUE, wglShareLists( ctx1, ctx2 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        /* object 1 is still valid in ctx1 */
+        ok_ret( TRUE, test->exists( obj1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+        /* object 1 is now valid in ctx2 */
+        ok_ret( TRUE, wglMakeCurrent( winhdc, ctx2 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        if (!test->shared)
+        {
+            ok_ret( FALSE, test->exists( obj1 ) );
+            ok_ret( TRUE, wglDeleteContext( ctx1 ) );
+            ok_ret( TRUE, wglDeleteContext( ctx2 ) );
+            ok_ret( TRUE, wglDeleteContext( ctx3 ) );
+            winetest_pop_context();
+            continue;
+        }
+        ok_ret( TRUE, test->exists( obj1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+        /* object 1 is not valid in ctx3 */
+        ok_ret( TRUE, wglMakeCurrent( winhdc, ctx3 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        ok_ret( FALSE, test->exists( obj1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        /* share ctx1 (lists #1) with ctx3 */
+        ok_ret( TRUE, wglShareLists( ctx1, ctx3 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        /* object 1 is now valid there as well */
+        todo_wine ok_ret( TRUE, test->exists( obj1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+        /* object 1 is still valid in ctx2 */
+        ok_ret( TRUE, wglMakeCurrent( winhdc, ctx2 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        ok_ret( TRUE, test->exists( obj1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+        ok_ret( TRUE, wglDeleteContext( ctx1 ) );
+
+        /* now try the other way around */
+        ctx1 = wglCreateContext( winhdc );
+        ok_ptr( ctx1, !=, NULL );
+        ok_ret( TRUE, wglMakeCurrent( winhdc, ctx1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+        /* create object 2 in ctx1 (lists #2) */
+        ok_ret( FALSE, test->exists( 2 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        create_object( test->type, is_implicit_allowed( test->type, TRUE ) ? 2 : 0, &obj2 );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        if (obj2 != 2)
+        {
+            GLuint tmp = obj2;
+            create_object( test->type, is_implicit_allowed( test->type, TRUE ) ? 2 : 0, &obj2 );
+            delete_object( test->type, tmp );
+        }
+        ok_u4( obj2, ==, 2 );
+        ok_ret( TRUE, test->exists( obj2 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        /* object 1 in invalid in ctx1 */
+        ok_ret( FALSE, test->exists( obj1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+        /* cannot overwrite non-empty lists with some other */
+        todo_wine ok_ret( FALSE, wglShareLists( ctx1, ctx3 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        ok_ret( FALSE, wglShareLists( ctx2, ctx1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+        /* even after deleting all the objects */
+        delete_object( test->type, obj2 );
+        ok_ret( FALSE, test->exists( obj2 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        ok_ret( FALSE, wglShareLists( ctx2, ctx1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+
+        ok_ret( TRUE, wglMakeCurrent( winhdc, ctx2 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        ok_ret( TRUE, test->exists( obj1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        ok_ret( FALSE, test->exists( obj2 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        ok_ret( FALSE, test->exists( 3 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+        /* test creating objects in shared contexts */
+        create_object( test->type, is_implicit_allowed( test->type, TRUE ) ? 3 : 0, &obj3 );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        if (obj3 != 3)
+        {
+            GLuint tmp = obj3;
+            create_object( test->type, is_implicit_allowed( test->type, TRUE ) ? 3 : 0, &obj3 );
+            delete_object( test->type, tmp );
+        }
+        ok_u4( obj3, ==, 3 );
+        ok_ret( TRUE, wglMakeCurrent( winhdc, ctx3 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        todo_wine ok_ret( TRUE, test->exists( obj1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        ok_ret( FALSE, test->exists( obj2 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        todo_wine ok_ret( TRUE, test->exists( obj3 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+        /* test deleting objects in shared contexts */
+        delete_object( test->type, obj1 );
+        todo_wine_if( test->type == OBJ_PROGRAM_OBJECT || test->type == OBJ_PROGRAM_OBJECT_ARB ||
+                      test->type == OBJ_SHADER_OBJECT || test->type == OBJ_SHADER_OBJECT_ARB )
+        ok_ret( GL_NO_ERROR, glGetError() );
+        ok_ret( TRUE, wglMakeCurrent( winhdc, ctx2 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        todo_wine ok_ret( FALSE, test->exists( obj1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        ok_ret( FALSE, test->exists( obj2 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        ok_ret( TRUE, test->exists( obj3 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+        ok_ret( TRUE, wglDeleteContext( ctx1 ) );
+        ok_ret( TRUE, wglDeleteContext( ctx3 ) );
+
+        /* objects are still valid after shared context destruction */
+        todo_wine ok_ret( FALSE, test->exists( obj1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        ok_ret( FALSE, test->exists( obj2 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        ok_ret( TRUE, test->exists( obj3 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        ok_ret( TRUE, wglDeleteContext( ctx2 ) );
+
+        winetest_pop_context();
+    }
+
+    /* GLsync are pointers, test them separately */
+    if (ext.glIsSync)
+    {
+        GLsync obj1, obj2, obj3;
+        BOOL ret;
+
+        winetest_push_context( "sync" );
+
+        ctx1 = wglCreateContext( winhdc );
+        ok_ptr( ctx1, !=, NULL );
+        ctx2 = wglCreateContext( winhdc );
+        ok_ptr( ctx2, !=, NULL );
+        ctx3 = wglCreateContext( winhdc );
+        ok_ptr( ctx3, !=, NULL );
+
+        ok_ret( TRUE, wglMakeCurrent( winhdc, ctx1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+        /* create object 1 in ctx1 (lists #1) */
+        ok_ret( FALSE, ext.glIsSync( (GLsync)1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        obj1 = ext.glFenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        todo_wine ok_ptr( obj1, ==, (GLsync)1 );
+        ok_ret( TRUE, ext.glIsSync( obj1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+        /* share ctx1 (lists #1) with ctx2 */
+        ok_ret( TRUE, wglShareLists( ctx1, ctx2 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        /* object 1 is still valid in ctx1 */
+        ok_ret( TRUE, ext.glIsSync( obj1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+        /* object 1 is now valid in ctx2 */
+        ok_ret( TRUE, wglMakeCurrent( winhdc, ctx2 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        todo_wine ok_ret( TRUE, ext.glIsSync( obj1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+        /* object 1 is not valid in ctx3 */
+        ok_ret( TRUE, wglMakeCurrent( winhdc, ctx3 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        ret = ext.glIsSync( obj1 );
+        ok( !ret || broken(nvidia), "glIsSync returned %d\n", ret );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        /* share ctx1 (lists #1) with ctx3 */
+        ok_ret( TRUE, wglShareLists( ctx1, ctx3 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        /* object 1 is now valid there as well */
+        todo_wine ok_ret( TRUE, ext.glIsSync( obj1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+        /* object 1 is still valid in ctx2 */
+        ok_ret( TRUE, wglMakeCurrent( winhdc, ctx2 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        todo_wine ok_ret( TRUE, ext.glIsSync( obj1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+        ok_ret( TRUE, wglDeleteContext( ctx1 ) );
+
+        /* now try the other way around */
+        ctx1 = wglCreateContext( winhdc );
+        ok_ptr( ctx1, !=, NULL );
+        ok_ret( TRUE, wglMakeCurrent( winhdc, ctx1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+        /* create object 2 in ctx1 (lists #2) */
+        ok_ret( FALSE, ext.glIsSync( (GLsync)2 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        obj2 = ext.glFenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        if (obj2 != (GLsync)2)
+        {
+            GLsync tmp = obj2;
+            obj2 = ext.glFenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
+            ext.glDeleteSync( tmp );
+        }
+        todo_wine ok_ptr( obj2, ==, (GLsync)2 );
+        ok_ret( TRUE, ext.glIsSync( obj2 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        /* object 1 in invalid in ctx1 */
+        ret = ext.glIsSync( obj1 );
+        ok( !ret || broken(nvidia), "glIsSync returned %d\n", ret );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+        /* cannot overwrite non-empty lists with some other */
+        todo_wine ok_ret( FALSE, wglShareLists( ctx1, ctx3 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        ret = wglShareLists( ctx2, ctx1 );
+        ok( !ret || broken(nvidia), "wglShareLists returned %d\n", ret );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+        /* even after deleting all the objects */
+        ext.glDeleteSync( obj2 );
+        ok_ret( FALSE, ext.glIsSync( obj2 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        ret = wglShareLists( ctx2, ctx1 );
+        ok( !ret || broken(nvidia), "wglShareLists returned %d\n", ret );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+
+        ok_ret( TRUE, wglMakeCurrent( winhdc, ctx2 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        todo_wine ok_ret( TRUE, ext.glIsSync( obj1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        ok_ret( FALSE, ext.glIsSync( obj2 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        ok_ret( FALSE, ext.glIsSync( (GLsync)3 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+        /* test creating objects in shared contexts */
+        obj3 = ext.glFenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        if (obj3 != (GLsync)3)
+        {
+            GLsync tmp = obj3;
+            obj3 = ext.glFenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
+            ext.glDeleteSync( tmp );
+        }
+        todo_wine ok_ptr( obj3, ==, (GLsync)3 );
+        ok_ret( TRUE, wglMakeCurrent( winhdc, ctx3 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        todo_wine ok_ret( TRUE, ext.glIsSync( obj1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        ok_ret( FALSE, ext.glIsSync( obj2 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        todo_wine ok_ret( TRUE, ext.glIsSync( obj3 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+        /* test deleting objects in shared contexts */
+        ext.glDeleteSync( obj1 );
+        todo_wine ok_ret( GL_NO_ERROR, glGetError() );
+        ok_ret( TRUE, wglMakeCurrent( winhdc, ctx2 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        ok_ret( FALSE, ext.glIsSync( obj1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        todo_wine ok_ret( FALSE, ext.glIsSync( obj2 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        ok_ret( TRUE, ext.glIsSync( obj3 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+
+        ok_ret( TRUE, wglDeleteContext( ctx1 ) );
+        ok_ret( TRUE, wglDeleteContext( ctx3 ) );
+
+        /* objects are still valid after shared context destruction */
+        ok_ret( FALSE, ext.glIsSync( obj1 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        todo_wine ok_ret( FALSE, ext.glIsSync( obj2 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        ok_ret( TRUE, ext.glIsSync( obj3 ) );
+        ok_ret( GL_NO_ERROR, glGetError() );
+        ok_ret( TRUE, wglDeleteContext( ctx2 ) );
+
+        winetest_pop_context();
     }
 }
 
@@ -1386,9 +2275,8 @@ static void test_makecurrent(HDC winhdc)
 
     SetLastError( 0xdeadbeef );
     ret = wglMakeCurrent( NULL, NULL );
-    ok( !ret || broken(ret) /* nt4 */, "wglMakeCurrent succeeded\n" );
-    if (!ret) ok( GetLastError() == ERROR_INVALID_HANDLE,
-                  "Expected ERROR_INVALID_HANDLE, got error=%lx\n", GetLastError() );
+    ok( !ret, "wglMakeCurrent succeeded\n" );
+    ok( GetLastError() == ERROR_INVALID_HANDLE, "Expected ERROR_INVALID_HANDLE, got error=%lx\n", GetLastError() );
 
     ret = wglMakeCurrent( winhdc, NULL );
     ok( ret, "wglMakeCurrent failed\n" );
@@ -1403,9 +2291,8 @@ static void test_makecurrent(HDC winhdc)
 
     SetLastError( 0xdeadbeef );
     ret = wglMakeCurrent( NULL, NULL );
-    ok( !ret || broken(ret) /* nt4 */, "wglMakeCurrent succeeded\n" );
-    if (!ret) ok( GetLastError() == ERROR_INVALID_HANDLE,
-                  "Expected ERROR_INVALID_HANDLE, got error=%lx\n", GetLastError() );
+    ok( !ret, "wglMakeCurrent succeeded\n" );
+    ok( GetLastError() == ERROR_INVALID_HANDLE, "Expected ERROR_INVALID_HANDLE, got error=%lx\n", GetLastError() );
 
     ret = wglMakeCurrent( winhdc, hglrc );
     ok( ret, "wglMakeCurrent failed\n" );
@@ -1422,22 +2309,21 @@ static void test_colorbits(HDC hdc)
     BOOL res;
     int iPixelFormat = 0;
 
-    if (!pwglChoosePixelFormatARB)
+    if (!ext.wglChoosePixelFormatARB)
     {
         win_skip("wglChoosePixelFormatARB is not available\n");
         return;
     }
 
     /* We need a pixel format with at least one bit of alpha */
-    res = pwglChoosePixelFormatARB(hdc, iAttribs, NULL, 1, &iPixelFormat, &nFormats);
+    res = ext.wglChoosePixelFormatARB( hdc, iAttribs, NULL, 1, &iPixelFormat, &nFormats );
     if(res == FALSE || nFormats == 0)
     {
         skip("No suitable pixel formats found\n");
         return;
     }
 
-    res = pwglGetPixelFormatAttribivARB(hdc, iPixelFormat, 0, ARRAY_SIZE(iAttribList), iAttribList,
-            iAttribRet);
+    res = ext.wglGetPixelFormatAttribivARB( hdc, iPixelFormat, 0, ARRAY_SIZE(iAttribList), iAttribList, iAttribRet );
     if(res == FALSE)
     {
         skip("wglGetPixelFormatAttribivARB failed\n");
@@ -1461,7 +2347,7 @@ static void test_gdi_dbuf(HDC hdc)
     int iPixelFormat;
     BOOL res;
 
-    if (!pwglGetPixelFormatAttribivARB)
+    if (!ext.wglGetPixelFormatAttribivARB)
     {
         win_skip("wglGetPixelFormatAttribivARB is not available\n");
         return;
@@ -1470,8 +2356,7 @@ static void test_gdi_dbuf(HDC hdc)
     nFormats = DescribePixelFormat(hdc, 0, 0, NULL);
     for(iPixelFormat = 1;iPixelFormat <= nFormats;iPixelFormat++)
     {
-        res = pwglGetPixelFormatAttribivARB(hdc, iPixelFormat, 0, ARRAY_SIZE(iAttribList),
-                iAttribList, iAttribRet);
+        res = ext.wglGetPixelFormatAttribivARB( hdc, iPixelFormat, 0, ARRAY_SIZE(iAttribList), iAttribList, iAttribRet );
         ok(res!=FALSE, "wglGetPixelFormatAttribivARB failed for pixel format %d\n", iPixelFormat);
         if(res == FALSE)
             continue;
@@ -1489,7 +2374,7 @@ static void test_acceleration(HDC hdc)
     int res;
     PIXELFORMATDESCRIPTOR pfd;
 
-    if (!pwglGetPixelFormatAttribivARB)
+    if (!ext.wglGetPixelFormatAttribivARB)
     {
         win_skip("wglGetPixelFormatAttribivARB is not available\n");
         return;
@@ -1498,8 +2383,7 @@ static void test_acceleration(HDC hdc)
     nFormats = DescribePixelFormat(hdc, 0, 0, NULL);
     for(iPixelFormat = 1; iPixelFormat <= nFormats; iPixelFormat++)
     {
-        res = pwglGetPixelFormatAttribivARB(hdc, iPixelFormat, 0, ARRAY_SIZE(iAttribList),
-                iAttribList, iAttribRet);
+        res = ext.wglGetPixelFormatAttribivARB( hdc, iPixelFormat, 0, ARRAY_SIZE(iAttribList), iAttribList, iAttribRet );
         ok(res!=FALSE, "wglGetPixelFormatAttribivARB failed for pixel format %d\n", iPixelFormat);
         if(res == FALSE)
             continue;
@@ -1652,6 +2536,11 @@ static void test_bitmap_rendering( BOOL use_dib )
     ok( !!hglrc, "wglCreateContext failed, error %lu\n", GetLastError() );
     ret = wglMakeCurrent( hdc, hglrc );
     ok( ret, "wglMakeCurrent failed, error %lu\n", GetLastError() );
+
+    ext.wglGetExtensionsStringEXT = (void *)wglGetProcAddress( "wglGetExtensionsStringEXT" );
+    todo_wine ok( !ext.wglGetExtensionsStringEXT, "got wglGetExtensionsStringEXT %p\n", ext.wglGetExtensionsStringEXT );
+    ext.wglGetExtensionsStringARB = (void *)wglGetProcAddress( "wglGetExtensionsStringARB" );
+    todo_wine ok( !ext.wglGetExtensionsStringARB, "got wglGetExtensionsStringARB %p\n", ext.wglGetExtensionsStringARB );
 
     glGetIntegerv( GL_READ_BUFFER, &object );
     ok( object == GL_FRONT, "got %u\n", object );
@@ -2299,12 +3188,12 @@ static void test_make_current_read(HDC hdc)
     }
 
     /* Test what wglGetCurrentReadDCARB does for wglMakeCurrent as the spec doesn't mention it */
-    hread = pwglGetCurrentReadDCARB();
+    hread = ext.wglGetCurrentReadDCARB();
     trace("hread %p, hdc %p\n", hread, hdc);
     ok(hread == hdc, "wglGetCurrentReadDCARB failed for standard wglMakeCurrent\n");
 
-    pwglMakeContextCurrentARB(hdc, hdc, hglrc);
-    hread = pwglGetCurrentReadDCARB();
+    ext.wglMakeContextCurrentARB( hdc, hdc, hglrc );
+    hread = ext.wglGetCurrentReadDCARB();
     ok(hread == hdc, "wglGetCurrentReadDCARB failed for wglMakeContextCurrent\n");
 
     wglMakeCurrent(hdc, oldctx);
@@ -2343,8 +3232,8 @@ static void test_opengl3(HDC hdc)
         HGLRC gl3Ctx;
         int attribs[] = {WGL_CONTEXT_MAJOR_VERSION_ARB, 1, 0};
 
-        gl3Ctx = pwglCreateContextAttribsARB(hdc, 0, attribs);
-        ok(gl3Ctx != 0, "pwglCreateContextAttribsARB for a 1.x context failed!\n");
+        gl3Ctx = ext.wglCreateContextAttribsARB( hdc, 0, attribs );
+        ok( gl3Ctx != 0, "ext.wglCreateContextAttribsARB for a 1.x context failed!\n" );
         wglDeleteContext(gl3Ctx);
     }
 
@@ -2353,8 +3242,8 @@ static void test_opengl3(HDC hdc)
         HGLRC gl3Ctx;
         DWORD error;
         SetLastError(0xdeadbeef);
-        gl3Ctx = pwglCreateContextAttribsARB((HDC)0xdeadbeef, 0, 0);
-        ok(gl3Ctx == 0, "pwglCreateContextAttribsARB using an invalid HDC passed\n");
+        gl3Ctx = ext.wglCreateContextAttribsARB( (HDC)0xdeadbeef, 0, 0 );
+        ok( gl3Ctx == 0, "ext.wglCreateContextAttribsARB using an invalid HDC passed\n" );
         error = GetLastError();
         ok(error == ERROR_DC_NOT_FOUND || error == ERROR_INVALID_HANDLE ||
            broken(error == ERROR_DS_GENERIC_ERROR) ||
@@ -2368,8 +3257,8 @@ static void test_opengl3(HDC hdc)
         HGLRC gl3Ctx;
         DWORD error;
         SetLastError(0xdeadbeef);
-        gl3Ctx = pwglCreateContextAttribsARB(hdc, (HGLRC)0xdeadbeef, 0);
-        ok(gl3Ctx == 0, "pwglCreateContextAttribsARB using an invalid shareList passed\n");
+        gl3Ctx = ext.wglCreateContextAttribsARB( hdc, (HGLRC)0xdeadbeef, 0 );
+        ok( gl3Ctx == 0, "ext.wglCreateContextAttribsARB using an invalid shareList passed\n" );
         error = GetLastError();
         /* The Nvidia implementation seems to return hresults instead of win32 error codes */
         ok(error == ERROR_INVALID_OPERATION || error == ERROR_INVALID_DATA ||
@@ -2380,13 +3269,27 @@ static void test_opengl3(HDC hdc)
     /* Try to create an OpenGL 3.0 context */
     {
         int attribs[] = {WGL_CONTEXT_MAJOR_VERSION_ARB, 3, WGL_CONTEXT_MINOR_VERSION_ARB, 0, 0};
-        HGLRC gl3Ctx = pwglCreateContextAttribsARB(hdc, 0, attribs);
+        HGLRC gl3Ctx = ext.wglCreateContextAttribsARB( hdc, 0, attribs );
+        const GLubyte *extension;
+        GLint num;
 
         if(gl3Ctx == NULL)
         {
             skip("Skipping the rest of the WGL_ARB_create_context test due to lack of OpenGL 3.0\n");
             return;
         }
+
+        wglMakeCurrent(hdc, gl3Ctx);
+
+        glGetIntegerv(GL_NUM_EXTENSIONS, &num);
+        ok(num > 0, "got %u\n", num);
+        check_gl_error(0);
+        extension = ext.glGetStringi( GL_EXTENSIONS, 0 );
+        ok( !!extension, "got %p\n", extension );
+        check_gl_error(0);
+        extension = ext.glGetStringi( GL_EXTENSIONS, num );
+        ok( !extension, "got %p\n", extension );
+        check_gl_error(GL_INVALID_VALUE);
 
         wglDeleteContext(gl3Ctx);
     }
@@ -2398,12 +3301,12 @@ static void test_opengl3(HDC hdc)
         int attribs[] = {WGL_CONTEXT_MAJOR_VERSION_ARB, 3, WGL_CONTEXT_MINOR_VERSION_ARB, 0, 0};
         int attribs_future[] = {WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB, WGL_CONTEXT_MAJOR_VERSION_ARB, 3, WGL_CONTEXT_MINOR_VERSION_ARB, 0, 0};
 
-        HGLRC gl3Ctx = pwglCreateContextAttribsARB(hdc, glCtx, attribs);
+        HGLRC gl3Ctx = ext.wglCreateContextAttribsARB( hdc, glCtx, attribs );
         ok(gl3Ctx != NULL, "Sharing of a display list between OpenGL 3.0 and OpenGL 1.x/2.x failed!\n");
         if(gl3Ctx)
             wglDeleteContext(gl3Ctx);
 
-        gl3Ctx = pwglCreateContextAttribsARB(hdc, glCtx, attribs_future);
+        gl3Ctx = ext.wglCreateContextAttribsARB( hdc, glCtx, attribs_future );
         ok(gl3Ctx != NULL, "Sharing of a display list between a forward compatible OpenGL 3.0 context and OpenGL 1.x/2.x failed!\n");
         if(gl3Ctx)
             wglDeleteContext(gl3Ctx);
@@ -2418,8 +3321,8 @@ static void test_opengl3(HDC hdc)
         int attribs[] = {WGL_CONTEXT_MAJOR_VERSION_ARB, 3, WGL_CONTEXT_MINOR_VERSION_ARB, 0, 0};
         BOOL res;
 
-        gl3Ctx = pwglCreateContextAttribsARB(hdc, 0, attribs);
-        ok(gl3Ctx != 0, "pwglCreateContextAttribsARB for a 3.0 context failed!\n");
+        gl3Ctx = ext.wglCreateContextAttribsARB( hdc, 0, attribs );
+        ok( gl3Ctx != 0, "ext.wglCreateContextAttribsARB for a 3.0 context failed!\n" );
 
         /* OpenGL 3.0 allows offscreen rendering WITHOUT a drawable
          * Neither AMD or Nvidia support it at this point. The WGL_ARB_create_context specs also say that
@@ -2507,67 +3410,465 @@ static void test_minimized(void)
 
 static void test_framebuffer(void)
 {
-    static const PIXELFORMATDESCRIPTOR pf_desc =
+    PIXELFORMATDESCRIPTOR pfd =
     {
-        sizeof(PIXELFORMATDESCRIPTOR),
-        1,                     /* version */
-        PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
-        PFD_TYPE_RGBA,
-        24,                    /* 24-bit color depth */
-        0, 0, 0, 0, 0, 0,      /* color bits */
-        0,                     /* alpha buffer */
-        0,                     /* shift bit */
-        0,                     /* accumulation buffer */
-        0, 0, 0, 0,            /* accum bits */
-        32,                    /* z-buffer */
-        0,                     /* stencil buffer */
-        0,                     /* auxiliary buffer */
-        PFD_MAIN_PLANE,        /* main layer */
-        0,                     /* reserved */
-        0, 0, 0                /* layer masks */
+        .nSize = sizeof(PIXELFORMATDESCRIPTOR),
+        .nVersion = 1,
+        .dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
+        .iPixelType = PFD_TYPE_RGBA,
+        .cColorBits = 24,
     };
-    int pixel_format;
+
+    int format;
+    GLuint fbo, rbos[2], buffers[2];
+    HWND hwnd, hwnd2;
+    HGLRC ctx, ctx2;
+    HDC hdc, hdc2;
     GLenum status;
-    HWND window;
-    HGLRC ctx;
-    BOOL ret;
-    HDC dc;
+    GLint value;
+    BOOL amd;
+
 
     /* Test the default framebuffer status for a window that becomes visible after wglMakeCurrent() */
-    window = CreateWindowA("static", "opengl32_test", WS_POPUP, 0, 0, 640, 480, 0, 0, 0, 0);
-    ok(!!window, "Failed to create window, last error %#lx.\n", GetLastError());
-    dc = GetDC(window);
-    ok(!!dc, "Failed to get DC.\n");
-    pixel_format = ChoosePixelFormat(dc, &pf_desc);
-    if (!pixel_format)
-    {
-        win_skip("Failed to find pixel format.\n");
-        ReleaseDC(window, dc);
-        DestroyWindow(window);
-        return;
-    }
+    hwnd = CreateWindowW( L"static", NULL, WS_POPUP, 0, 0, 200, 200, NULL, NULL, NULL, NULL );
+    ok_ptr( hwnd, !=, NULL );
+    hdc = GetDC( hwnd );
+    ok_ptr( hdc, !=, NULL );
+    format = ChoosePixelFormat( hdc, &pfd );
+    ok_u4( format, >, 0 );
+    ok_ret( TRUE, SetPixelFormat( hdc, format, &pfd ) );
 
-    ret = SetPixelFormat(dc, pixel_format, &pf_desc);
-    ok(ret, "Failed to set pixel format, last error %#lx.\n", GetLastError());
-    ctx = wglCreateContext(dc);
-    ok(!!ctx, "Failed to create GL context, last error %#lx.\n", GetLastError());
-    ret = wglMakeCurrent(dc, ctx);
-    ok(ret, "Failed to make context current, last error %#lx.\n", GetLastError());
+    ctx = wglCreateContext( hdc );
+    ok_ptr( ctx, !=, NULL );
+    ok_ret( TRUE, wglMakeCurrent( hdc, ctx ) );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ReleaseDC( hwnd, hdc );
 
-    ShowWindow(window, SW_SHOW);
+    ShowWindow( hwnd, SW_SHOW );
     flush_events();
 
-    pglBindFramebuffer(GL_FRAMEBUFFER, 0);
+    ext.glBindFramebuffer( GL_FRAMEBUFFER, 0 );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    status = ext.glCheckFramebufferStatus( GL_FRAMEBUFFER );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( status, ==, GL_FRAMEBUFFER_COMPLETE );
 
-    status = pglCheckFramebufferStatus(GL_FRAMEBUFFER);
-    ok(status == GL_FRAMEBUFFER_COMPLETE, "Expected %#x, got %#x.\n", GL_FRAMEBUFFER_COMPLETE, status);
+    ok_ret( TRUE, wglDeleteContext( ctx ) );
+    DestroyWindow( hwnd );
 
-    ret = wglMakeCurrent(NULL, NULL);
-    ok(ret, "Failed to clear current context, last error %#lx.\n", GetLastError());
-    ret = wglDeleteContext(ctx);
-    ok(ret, "Failed to delete GL context, last error %#lx.\n", GetLastError());
-    ReleaseDC(window, dc);
-    DestroyWindow(window);
+
+    hwnd = CreateWindowW( L"static", NULL, WS_POPUP, 0, 0, 200, 200, NULL, NULL, NULL, NULL );
+    ok_ptr( hwnd, !=, NULL );
+    hdc = GetDC( hwnd );
+    ok_ptr( hdc, !=, NULL );
+    format = ChoosePixelFormat( hdc, &pfd );
+    ok_u4( format, >, 0 );
+    ok_ret( TRUE, SetPixelFormat( hdc, format, &pfd ) );
+
+    ctx = wglCreateContext( hdc );
+    ok_ptr( ctx, !=, NULL );
+    ok_ret( TRUE, wglMakeCurrent( hdc, ctx ) );
+    ReleaseDC( hwnd, hdc );
+
+    amd = strstr( (const char*)glGetString(GL_VENDOR), "AMD" ) ||
+          strstr( (const char*)glGetString(GL_VENDOR), "ATI" );
+
+    status = ext.glCheckFramebufferStatus( GL_FRAMEBUFFER );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( status, ==, GL_FRAMEBUFFER_COMPLETE );
+
+    /* only glGetFramebufferParameterivEXT allows querying draw/read buffers */
+    ext.glGetFramebufferParameteriv( GL_FRAMEBUFFER, GL_DRAW_BUFFER, &value );
+    ok_ret( GL_INVALID_ENUM, glGetError() );
+    ext.glGetNamedFramebufferParameteriv( 0, GL_DRAW_BUFFER, &value );
+    ok_ret( GL_INVALID_ENUM, glGetError() );
+    ext.glGetNamedFramebufferParameterivEXT( 0, GL_DRAW_BUFFER, &value );
+    ok_ret( GL_INVALID_ENUM, glGetError() );
+    ext.glGetFramebufferParameterivEXT( 0, GL_DRAW_BUFFER, &value );
+    if (broken( amd )) ok_ret( GL_INVALID_ENUM, glGetError() );
+    else ok_x4( value, ==, GL_BACK );
+    ext.glGetNamedFramebufferParameterivEXT( 0, GL_READ_BUFFER, &value );
+    ok_ret( GL_INVALID_ENUM, glGetError() );
+    ext.glGetFramebufferParameterivEXT( 0, GL_READ_BUFFER, &value );
+    if (broken( amd )) ok_ret( GL_INVALID_ENUM, glGetError() );
+    else ok_x4( value, ==, GL_BACK );
+    ok_ret( GL_NO_ERROR, glGetError() );
+
+    ext.glGetFramebufferParameteriv( GL_FRAMEBUFFER, GL_DOUBLEBUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_TRUE );
+    ext.glGetFramebufferParameteriv( GL_FRAMEBUFFER, GL_STEREO, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_FALSE );
+
+    ShowWindow( hwnd, SW_SHOW );
+    flush_events();
+
+    status = ext.glCheckFramebufferStatus( GL_FRAMEBUFFER );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( status, ==, GL_FRAMEBUFFER_COMPLETE );
+    ext.glGetFramebufferParameterivEXT( 0, GL_DRAW_BUFFER, &value );
+    if (broken( amd )) ok_ret( GL_INVALID_ENUM, glGetError() );
+    else ok_x4( value, ==, GL_BACK );
+    ext.glGetFramebufferParameterivEXT( 0, GL_READ_BUFFER, &value );
+    if (broken( amd )) ok_ret( GL_INVALID_ENUM, glGetError() );
+    else ok_x4( value, ==, GL_BACK );
+    ext.glGetFramebufferParameteriv( GL_FRAMEBUFFER, GL_DOUBLEBUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_TRUE );
+    ext.glGetFramebufferParameteriv( GL_FRAMEBUFFER, GL_STEREO, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_FALSE );
+
+
+    ext.glCreateFramebuffers( 1, &fbo );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ext.glBindFramebuffer( GL_FRAMEBUFFER, fbo );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    status = ext.glCheckFramebufferStatus( GL_FRAMEBUFFER );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( status, ==, GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT );
+    ext.glGetFramebufferParameterivEXT( fbo, GL_DRAW_BUFFER, &value );
+    if (broken( amd )) ok_ret( GL_INVALID_ENUM, glGetError() );
+    else ok_x4( value, ==, GL_COLOR_ATTACHMENT0 );
+    ext.glGetFramebufferParameterivEXT( fbo, GL_READ_BUFFER, &value );
+    if (broken( amd )) ok_ret( GL_INVALID_ENUM, glGetError() );
+    else ok_x4( value, ==, GL_COLOR_ATTACHMENT0 );
+    ext.glGetFramebufferParameteriv( GL_FRAMEBUFFER, GL_DOUBLEBUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, broken( amd ) ? GL_TRUE : GL_FALSE );
+    ext.glGetFramebufferParameteriv( GL_FRAMEBUFFER, GL_STEREO, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_FALSE );
+
+
+    ext.glCreateRenderbuffers( 2, rbos );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ext.glBindRenderbuffer( GL_RENDERBUFFER, rbos[0] );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ext.glRenderbufferStorage( GL_RENDERBUFFER, GL_RGBA, 1, 1 );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ext.glFramebufferRenderbuffer( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rbos[0] );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ext.glBindRenderbuffer( GL_RENDERBUFFER, rbos[1] );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ext.glRenderbufferStorage( GL_RENDERBUFFER, GL_RGBA, 1, 1 );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ext.glFramebufferRenderbuffer( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_RENDERBUFFER, rbos[1] );
+    ok_ret( GL_NO_ERROR, glGetError() );
+
+    status = ext.glCheckFramebufferStatus( GL_FRAMEBUFFER );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( status, ==, GL_FRAMEBUFFER_COMPLETE );
+    ext.glGetFramebufferParameterivEXT( fbo, GL_DRAW_BUFFER, &value );
+    if (broken( amd )) ok_ret( GL_INVALID_ENUM, glGetError() );
+    else ok_x4( value, ==, GL_COLOR_ATTACHMENT0 );
+    ext.glGetFramebufferParameterivEXT( fbo, GL_READ_BUFFER, &value );
+    if (broken( amd )) ok_ret( GL_INVALID_ENUM, glGetError() );
+    else ok_x4( value, ==, GL_COLOR_ATTACHMENT0 );
+    ext.glGetFramebufferParameteriv( GL_FRAMEBUFFER, GL_DOUBLEBUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, broken( amd ) ? GL_TRUE : GL_FALSE );
+    ext.glGetFramebufferParameteriv( GL_FRAMEBUFFER, GL_STEREO, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_FALSE );
+
+
+    ext.glBindFramebuffer( GL_READ_FRAMEBUFFER, fbo );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ext.glBindFramebuffer( GL_DRAW_FRAMEBUFFER, 0 );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    glGetIntegerv( GL_DRAW_FRAMEBUFFER_BINDING, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_u4( value, ==, 0 );
+    glGetIntegerv( GL_READ_FRAMEBUFFER_BINDING, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_u4( value, ==, fbo );
+
+    glGetIntegerv( GL_DRAW_BUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_BACK );
+    glGetIntegerv( GL_READ_BUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_COLOR_ATTACHMENT0 );
+    ext.glGetFramebufferParameteriv( GL_FRAMEBUFFER, GL_DOUBLEBUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_TRUE );
+    ext.glGetFramebufferParameteriv( GL_FRAMEBUFFER, GL_STEREO, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_FALSE );
+    ext.glGetFramebufferParameteriv( GL_READ_FRAMEBUFFER, GL_DOUBLEBUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, broken( amd ) ? GL_TRUE : GL_FALSE );
+    ext.glGetFramebufferParameteriv( GL_READ_FRAMEBUFFER, GL_STEREO, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_FALSE );
+
+
+    glDrawBuffer( GL_FRONT_AND_BACK );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    glReadBuffer( GL_FRONT_LEFT );
+    ok_ret( GL_INVALID_OPERATION, glGetError() );
+    glReadBuffer( GL_COLOR_ATTACHMENT1 );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    glGetIntegerv( GL_DRAW_BUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_FRONT_AND_BACK );
+    glGetIntegerv( GL_DRAW_BUFFER1, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_NONE );
+    glGetIntegerv( GL_READ_BUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_COLOR_ATTACHMENT1 );
+
+    ext.glGetFramebufferParameterivEXT( 0, GL_DRAW_BUFFER, &value );
+    if (broken( amd )) ok_ret( GL_INVALID_ENUM, glGetError() );
+    else ok_x4( value, ==, GL_FRONT_AND_BACK );
+    ext.glGetFramebufferParameterivEXT( 0, GL_READ_BUFFER, &value );
+    if (broken( amd )) ok_ret( GL_INVALID_ENUM, glGetError() );
+    else ok_x4( value, ==, GL_BACK );
+    ext.glGetFramebufferParameterivEXT( fbo, GL_DRAW_BUFFER, &value );
+    if (broken( amd )) ok_ret( GL_INVALID_ENUM, glGetError() );
+    else ok_x4( value, ==, GL_COLOR_ATTACHMENT0 );
+    ext.glGetFramebufferParameterivEXT( fbo, GL_READ_BUFFER, &value );
+    if (broken( amd )) ok_ret( GL_INVALID_ENUM, glGetError() );
+    else ok_x4( value, ==, GL_COLOR_ATTACHMENT1 );
+    ok_ret( GL_NO_ERROR, glGetError() );
+
+
+    hdc = GetDC( hwnd );
+    ok_ptr( hdc, !=, NULL );
+    ctx2 = ext.wglCreateContextAttribsARB( hdc, ctx, NULL );
+    ok_ptr( ctx2, !=, NULL );
+
+    hwnd2 = CreateWindowW( L"static", NULL, WS_POPUP, 0, 0, 200, 200, NULL, NULL, NULL, NULL );
+    ok_ptr( hwnd2, !=, NULL );
+    hdc2 = GetDC( hwnd2 );
+    ok_ptr( hdc2, !=, NULL );
+    pfd.dwFlags &= ~PFD_DOUBLEBUFFER;
+    format = ChoosePixelFormat( hdc2, &pfd );
+    ok_u4( format, >, 0 );
+    ok_ret( TRUE, SetPixelFormat( hdc2, format, &pfd ) );
+
+    if (!broken( amd )) /* AMD allows to mix DCs with different pixel formats */
+    {
+        SetLastError( 0xdeadbeef );
+        todo_wine ok_ret( FALSE, ext.wglMakeContextCurrentARB( hdc, hdc2, ctx2 ) );
+        todo_wine ok_ret( ERROR_INVALID_PIXEL_FORMAT, LOWORD( GetLastError() ) );
+        ok_ret( TRUE, wglDeleteContext( ctx2 ) );
+        ctx2 = ext.wglCreateContextAttribsARB( hdc2, ctx, NULL );
+        ok_ptr( ctx2, !=, NULL );
+        ok_ret( FALSE, ext.wglMakeContextCurrentARB( hdc, hdc2, ctx2 ) );
+        ok_ret( ERROR_INVALID_PIXEL_FORMAT, LOWORD( GetLastError() ) );
+    }
+
+    ok_ret( TRUE, ext.wglMakeContextCurrentARB( hdc2, hdc2, ctx2 ) );
+
+    glGetIntegerv( GL_DRAW_FRAMEBUFFER_BINDING, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_u4( value, ==, 0 );
+    glGetIntegerv( GL_READ_FRAMEBUFFER_BINDING, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_u4( value, ==, 0 );
+
+    ext.glGetFramebufferParameteriv( GL_READ_FRAMEBUFFER, GL_DOUBLEBUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    todo_wine ok_x4( value, ==, GL_FALSE );
+    ext.glGetFramebufferParameteriv( GL_READ_FRAMEBUFFER, GL_STEREO, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_FALSE );
+    glGetIntegerv( GL_DRAW_BUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_FRONT );
+    glGetIntegerv( GL_READ_BUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_FRONT );
+
+    glDrawBuffer( GL_FRONT_AND_BACK );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    glDrawBuffer( GL_RIGHT );
+    ok_ret( GL_INVALID_OPERATION, glGetError() );
+    glGetIntegerv( GL_DRAW_BUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_FRONT_AND_BACK );
+    glGetIntegerv( GL_DRAW_BUFFER1, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_NONE );
+    glGetIntegerv( GL_READ_BUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_FRONT );
+    buffers[0] = GL_FRONT_LEFT;
+    buffers[1] = GL_FRONT_LEFT;
+    ext.glDrawBuffers( 2, buffers );
+    ok_ret( GL_INVALID_OPERATION, glGetError() );
+    buffers[0] = GL_FRONT_LEFT;
+    buffers[1] = GL_BACK_LEFT;
+    ext.glDrawBuffers( 2, buffers );
+    ok_ret( GL_INVALID_OPERATION, glGetError() );
+    buffers[0] = GL_FRONT_AND_BACK;
+    buffers[1] = GL_FRONT_LEFT;
+    ext.glDrawBuffers( 2, buffers );
+    todo_wine ok_ret( GL_INVALID_ENUM, glGetError() );
+    glGetIntegerv( GL_DRAW_BUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_FRONT_AND_BACK );
+    glGetIntegerv( GL_DRAW_BUFFER1, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_NONE );
+    glGetIntegerv( GL_READ_BUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_FRONT );
+
+    glReadBuffer( GL_NONE );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    glGetIntegerv( GL_DRAW_BUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_FRONT_AND_BACK );
+    glGetIntegerv( GL_DRAW_BUFFER1, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_NONE );
+    glGetIntegerv( GL_READ_BUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_NONE );
+
+    glDrawBuffer( GL_NONE );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    glGetIntegerv( GL_DRAW_BUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_NONE );
+    glGetIntegerv( GL_DRAW_BUFFER1, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_NONE );
+    glGetIntegerv( GL_READ_BUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_NONE );
+
+    ext.glGetFramebufferParameterivEXT( fbo, GL_DRAW_BUFFER, &value );
+    if (broken( amd )) ok_ret( GL_INVALID_ENUM, glGetError() );
+    else ok_x4( value, ==, GL_COLOR_ATTACHMENT0 );
+    ext.glGetFramebufferParameterivEXT( fbo, GL_READ_BUFFER, &value );
+    if (broken( amd )) ok_ret( GL_INVALID_ENUM, glGetError() );
+    else ok_x4( value, ==, GL_COLOR_ATTACHMENT1 );
+    ok_ret( GL_NO_ERROR, glGetError() );
+
+    ok_ret( TRUE, wglDeleteContext( ctx2 ) );
+    ReleaseDC( hwnd2, hdc2 );
+    DestroyWindow( hwnd2 );
+
+
+    hwnd2 = CreateWindowW( L"static", NULL, WS_POPUP, 0, 0, 200, 200, NULL, NULL, NULL, NULL );
+    ok_ptr( hwnd2, !=, NULL );
+    hdc2 = GetDC( hwnd2 );
+    ok_ptr( hdc2, !=, NULL );
+    pfd.dwFlags |= PFD_DOUBLEBUFFER;
+    format = ChoosePixelFormat( hdc2, &pfd );
+    ok_u4( format, >, 0 );
+    ok_ret( TRUE, SetPixelFormat( hdc2, format, &pfd ) );
+
+    ok_ret( TRUE, ext.wglMakeContextCurrentARB( hdc, hdc2, ctx ) );
+
+    glGetIntegerv( GL_DRAW_FRAMEBUFFER_BINDING, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_u4( value, ==, 0 );
+    glGetIntegerv( GL_READ_FRAMEBUFFER_BINDING, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_u4( value, ==, fbo );
+
+    status = ext.glCheckFramebufferStatus( GL_FRAMEBUFFER );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( status, ==, GL_FRAMEBUFFER_COMPLETE );
+    glGetIntegerv( GL_DRAW_BUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_FRONT_AND_BACK );
+    glGetIntegerv( GL_READ_BUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_COLOR_ATTACHMENT1 );
+
+    status = ext.glCheckFramebufferStatus( GL_READ_FRAMEBUFFER );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( status, ==, GL_FRAMEBUFFER_COMPLETE );
+    ext.glGetFramebufferParameterivEXT( fbo, GL_DRAW_BUFFER, &value );
+    if (broken( amd )) ok_ret( GL_INVALID_ENUM, glGetError() );
+    else ok_x4( value, ==, GL_COLOR_ATTACHMENT0 );
+    ext.glGetFramebufferParameterivEXT( fbo, GL_READ_BUFFER, &value );
+    if (broken( amd )) ok_ret( GL_INVALID_ENUM, glGetError() );
+    else ok_x4( value, ==, GL_COLOR_ATTACHMENT1 );
+    ok_ret( GL_NO_ERROR, glGetError() );
+
+    ok_ret( TRUE, ext.wglMakeContextCurrentARB( hdc2, hdc, ctx ) );
+    ReleaseDC( hwnd, hdc );
+    ReleaseDC( hwnd2, hdc2 );
+
+    glGetIntegerv( GL_DRAW_FRAMEBUFFER_BINDING, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_u4( value, ==, 0 );
+    glGetIntegerv( GL_READ_FRAMEBUFFER_BINDING, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_u4( value, ==, fbo );
+
+    glGetIntegerv( GL_DRAW_BUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_FRONT_AND_BACK );
+    glGetIntegerv( GL_READ_BUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_COLOR_ATTACHMENT1 );
+
+    buffers[0] = GL_FRONT_LEFT;
+    buffers[1] = GL_BACK_LEFT;
+    ext.glDrawBuffers( 2, buffers );
+    todo_wine ok_ret( GL_NO_ERROR, glGetError() );
+    glGetIntegerv( GL_DRAW_BUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_FRONT_LEFT );
+    glGetIntegerv( GL_DRAW_BUFFER1, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_BACK_LEFT );
+    glGetIntegerv( GL_READ_BUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_COLOR_ATTACHMENT1 );
+
+    glDrawBuffer( GL_FRONT_AND_BACK );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    glGetIntegerv( GL_DRAW_BUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_FRONT_AND_BACK );
+    glGetIntegerv( GL_DRAW_BUFFER1, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_NONE );
+    glGetIntegerv( GL_READ_BUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_COLOR_ATTACHMENT1 );
+
+    buffers[0] = GL_FRONT_LEFT;
+    buffers[1] = GL_BACK_LEFT;
+    ext.glDrawBuffers( 2, buffers );
+    todo_wine ok_ret( GL_NO_ERROR, glGetError() );
+    glGetIntegerv( GL_DRAW_BUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_FRONT_LEFT );
+    glGetIntegerv( GL_DRAW_BUFFER1, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_BACK_LEFT );
+    glGetIntegerv( GL_READ_BUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_COLOR_ATTACHMENT1 );
+
+    glDrawBuffer( GL_NONE );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    glGetIntegerv( GL_DRAW_BUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_NONE );
+    glGetIntegerv( GL_DRAW_BUFFER1, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_NONE );
+    glGetIntegerv( GL_READ_BUFFER, &value );
+    ok_ret( GL_NO_ERROR, glGetError() );
+    ok_x4( value, ==, GL_COLOR_ATTACHMENT1 );
+
+
+    ok_ret( TRUE, wglDeleteContext( ctx ) );
+    DestroyWindow( hwnd );
+    DestroyWindow( hwnd2 );
 }
 
 static DWORD CALLBACK test_window_dc_thread( void *arg )
@@ -3081,7 +4382,7 @@ static void test_destroy_read(HDC oldhdc)
     ctx = wglCreateContext(draw_dc);
     ok(!!ctx, "Failed to create GL context, last error %#lx.\n", GetLastError());
 
-    ret = pwglMakeContextCurrentARB(draw_dc, read_dc, ctx);
+    ret = ext.wglMakeContextCurrentARB( draw_dc, read_dc, ctx );
     ok(ret, "Failed to make context current, last error %#lx.\n", GetLastError());
 
     glCopyPixels(0, 0, 640, 480, GL_COLOR);
@@ -3117,7 +4418,7 @@ static void test_destroy_read(HDC oldhdc)
     if (0) /* This crashes with Nvidia drivers on Windows. */
     {
         SetLastError(0xdeadbeef);
-        ret = pwglMakeContextCurrentARB(draw_dc, read_dc, ctx);
+        ret = ext.wglMakeContextCurrentARB( draw_dc, read_dc, ctx );
         err = GetLastError();
         ok(!ret && err == ERROR_INVALID_HANDLE,
                 "Unexpected behavior when making context current, ret %d, last error %#lx.\n", ret, err);
@@ -3136,7 +4437,7 @@ static void test_destroy_read(HDC oldhdc)
     ok(!ret && err == ERROR_INVALID_HANDLE, "Unexpected behavior with SwapBuffer, last error %#lx.\n", err);
 
     SetLastError(0xdeadbeef);
-    ret = pwglMakeContextCurrentARB(draw_dc, read_dc, ctx);
+    ret = ext.wglMakeContextCurrentARB( draw_dc, read_dc, ctx );
     err = GetLastError();
     ok(!ret && (err == ERROR_INVALID_HANDLE || err == 0xc0070006),
             "Unexpected behavior when making context current, ret %d, last error %#lx.\n", ret, err);
@@ -3149,7 +4450,7 @@ static void test_destroy_read(HDC oldhdc)
     ok(wglGetCurrentContext() == oldctx, "Wrong current context.\n");
 
     SetLastError(0xdeadbeef);
-    ret = pwglMakeContextCurrentARB(draw_dc, read_dc, ctx);
+    ret = ext.wglMakeContextCurrentARB( draw_dc, read_dc, ctx );
     err = GetLastError();
     ok(!ret && (err == ERROR_INVALID_HANDLE || err == 0xc0070006),
             "Unexpected behavior when making context current, last error %#lx.\n", err);
@@ -3220,13 +4521,13 @@ static void test_swap_control(HDC oldhdc)
     ret = wglMakeCurrent(dc1, ctx1);
     ok(ret, "Failed to make context current, last error %#lx.\n", GetLastError());
 
-    interval = pwglGetSwapIntervalEXT();
+    interval = ext.wglGetSwapIntervalEXT();
     ok(interval == 1, "Expected default swap interval 1, got %d\n", interval);
 
-    ret = pwglSwapIntervalEXT(0);
+    ret = ext.wglSwapIntervalEXT( 0 );
     ok(ret, "Failed to set swap interval to 0, last error %#lx.\n", GetLastError());
 
-    interval = pwglGetSwapIntervalEXT();
+    interval = ext.wglGetSwapIntervalEXT();
     ok(interval == 0, "Expected swap interval 0, got %d\n", interval);
 
     /* Check what interval we get on a second context on the same drawable.*/
@@ -3236,7 +4537,7 @@ static void test_swap_control(HDC oldhdc)
     ret = wglMakeCurrent(dc1, ctx2);
     ok(ret, "Failed to make context current, last error %#lx.\n", GetLastError());
 
-    interval = pwglGetSwapIntervalEXT();
+    interval = ext.wglGetSwapIntervalEXT();
     ok(interval == 0, "Expected swap interval 0, got %d\n", interval);
 
     /* A second window is created to see whether its swap interval was affected
@@ -3258,7 +4559,7 @@ static void test_swap_control(HDC oldhdc)
     /* Since the second window lacks the swap interval, this proves that the interval
      * is not global or shared among contexts.
      */
-    interval = pwglGetSwapIntervalEXT();
+    interval = ext.wglGetSwapIntervalEXT();
     ok(interval == 1, "Expected default swap interval 1, got %d\n", interval);
 
     /* Test if setting the parent of a window resets the swap interval. */
@@ -3268,7 +4569,7 @@ static void test_swap_control(HDC oldhdc)
     old_parent = SetParent(window1, window2);
     ok(!!old_parent, "Failed to make window1 a child of window2, last error %#lx.\n", GetLastError());
 
-    interval = pwglGetSwapIntervalEXT();
+    interval = ext.wglGetSwapIntervalEXT();
     ok(interval == 0, "Expected swap interval 0, got %d\n", interval);
 
     ret = wglDeleteContext(ctx1);
@@ -3321,14 +4622,14 @@ static void test_wglChoosePixelFormatARB(HDC hdc)
     unsigned int test, i;
     int res, swap_method;
 
-    if (!pwglChoosePixelFormatARB)
+    if (!ext.wglChoosePixelFormatARB)
     {
         skip("wglChoosePixelFormatARB is not available\n");
         return;
     }
 
     format_count = 0;
-    res = pwglChoosePixelFormatARB(hdc, attrib_list, NULL, ARRAY_SIZE(formats), formats, &format_count);
+    res = ext.wglChoosePixelFormatARB( hdc, attrib_list, NULL, ARRAY_SIZE(formats), formats, &format_count );
     ok(res, "Got unexpected result %d.\n", res);
 
     memset(&last_fmt, 0, sizeof(last_fmt));
@@ -3361,7 +4662,7 @@ static void test_wglChoosePixelFormatARB(HDC hdc)
     }
 
     format_count = 0;
-    res = pwglChoosePixelFormatARB(hdc, attrib_list_flags, NULL, ARRAY_SIZE(formats), formats, &format_count);
+    res = ext.wglChoosePixelFormatARB( hdc, attrib_list_flags, NULL, ARRAY_SIZE(formats), formats, &format_count );
     ok(res, "Got unexpected result %d.\n", res);
 
     for (i = 0; i < format_count; ++i)
@@ -3388,14 +4689,14 @@ static void test_wglChoosePixelFormatARB(HDC hdc)
         winetest_push_context("swap method %#x", swap_methods[test]);
         format_count = 0;
         attrib_list_swap[1] = swap_methods[test];
-        res = pwglChoosePixelFormatARB(hdc, attrib_list_swap, NULL, ARRAY_SIZE(formats), formats, &format_count);
+        res = ext.wglChoosePixelFormatARB( hdc, attrib_list_swap, NULL, ARRAY_SIZE(formats), formats, &format_count );
         ok(res, "got %d.\n", res);
         if (swap_methods[test] != WGL_SWAP_COPY_ARB)
             ok(format_count, "got no formats.\n");
         trace("count %d.\n", format_count);
         for (i = 0; i < format_count; ++i)
         {
-            res = pwglGetPixelFormatAttribivARB(hdc, formats[i], 0, 1, attrib_list_swap, &swap_method);
+            res = ext.wglGetPixelFormatAttribivARB( hdc, formats[i], 0, 1, attrib_list_swap, &swap_method );
             ok(res, "got %d.\n", res);
             ok(swap_method == swap_methods[test]
                /* AMD */
@@ -3479,7 +4780,7 @@ static void test_copy_context(HDC hdc)
     ok(ret, "wglMakeCurrent failed, last error %#lx.\n", GetLastError());
 }
 
-static void test_child_window(HWND hwnd, PIXELFORMATDESCRIPTOR *pfd)
+static void test_child_window( HWND hwnd, const PIXELFORMATDESCRIPTOR *pfd )
 {
     int pixel_format;
     DWORD t1, t;
@@ -3528,13 +4829,6 @@ static void test_child_window(HWND hwnd, PIXELFORMATDESCRIPTOR *pfd)
     DestroyWindow(child);
 }
 
-#define check_gl_error(exp) check_gl_error_(__LINE__, exp)
-static void check_gl_error_( unsigned int line, GLenum exp )
-{
-    GLenum err = glGetError();
-    ok_(__FILE__,line)( err == exp, "glGetError returned %x, expected %x\n", err, exp );
-}
-
 static void test_gl_error( HDC hdc )
 {
     HGLRC rc, old_rc;
@@ -3542,7 +4836,7 @@ static void test_gl_error( HDC hdc )
     BOOL ret;
     GLsync sync;
 
-    if (!pglDeleteSync)
+    if (!ext.glDeleteSync)
     {
         skip( "glDeleteSync not available\n" );
         return;
@@ -3559,33 +4853,33 @@ static void test_gl_error( HDC hdc )
     check_gl_error( GL_INVALID_ENUM );
     check_gl_error( GL_NO_ERROR );
 
-    pglDeleteSync( (GLsync)0xdeadbeef );
+    ext.glDeleteSync( (GLsync)0xdeadbeef );
     check_gl_error( GL_INVALID_VALUE );
     check_gl_error( GL_NO_ERROR );
 
     glGetIntegerv( 0xdeadbeef, &i );
-    pglDeleteSync( (GLsync)0xdeadbeef );
+    ext.glDeleteSync( (GLsync)0xdeadbeef );
     check_gl_error( GL_INVALID_ENUM );
     check_gl_error( GL_NO_ERROR );
 
-    pglDeleteSync( (GLsync)0xdeadbeef );
+    ext.glDeleteSync( (GLsync)0xdeadbeef );
     glGetIntegerv( 0xdeadbeef, &i );
     check_gl_error( GL_INVALID_VALUE );
     check_gl_error( GL_NO_ERROR );
 
-    ret = pglIsSync( (GLsync)0xdeadbeef );
+    ret = ext.glIsSync( (GLsync)0xdeadbeef );
     ok( !ret, "glIsSync returned %x\n", ret );
     check_gl_error( GL_NO_ERROR );
 
-    sync = pglFenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
+    sync = ext.glFenceSync( GL_SYNC_GPU_COMMANDS_COMPLETE, 0 );
     ok( !!sync, "got %p\n", sync );
     check_gl_error( GL_NO_ERROR );
 
-    ret = pglIsSync( sync );
+    ret = ext.glIsSync( sync );
     ok( !!ret, "glIsSync returned %x\n", ret );
     check_gl_error( GL_NO_ERROR );
 
-    pglDeleteSync( sync );
+    ext.glDeleteSync( sync );
     check_gl_error( GL_NO_ERROR );
 
     wglMakeCurrent( hdc, old_rc );
@@ -3598,7 +4892,7 @@ static void test_memory_map( HDC hdc)
     const char *dst_ptr, *version;
     char *src_ptr, *ptr;
     HGLRC rc, old_rc;
-    GLuint src, dst;
+    GLuint src, dst, objs1[0x10], objs2[0x10];
     char data[0x1000];
     BOOL ret;
 
@@ -3621,68 +4915,106 @@ static void test_memory_map( HDC hdc)
         }
     }
 
-    pglGenBuffers( 1, &src );
-    pglGenBuffers( 1, &dst );
+    src = 128;
+    ok_ret( FALSE, ext.glIsBuffer( src ) );
+    ok_ret( 0, glGetError() );
+    ext.glDeleteBuffers( 1, &src );
+    ok_ret( 0, glGetError() );
 
-    pglBindBuffer( GL_ARRAY_BUFFER, src );
-    pglBufferData( GL_ARRAY_BUFFER, sizeof(data), NULL, GL_STATIC_DRAW );
+    ok_ret( FALSE, ext.glIsBuffer( src ) );
+    ok_ret( 0, glGetError() );
+    ok_ret( FALSE, ext.glIsBuffer( 0xffffffff ) );
+    ok_ret( 0, glGetError() );
+    ext.glBindBuffer( GL_ARRAY_BUFFER, 0xffffffff );
+    ok_ret( 0, glGetError() );
+    ok_ret( TRUE, ext.glIsBuffer( 0xffffffff ) );
+    ok_ret( 0, glGetError() );
 
-    src_ptr = pglMapBuffer( GL_ARRAY_BUFFER, GL_WRITE_ONLY );
+    ext.glGenBuffers( 1, &src );
+    ok_ret( 0, glGetError() );
+    ext.glBindBuffer( GL_ARRAY_BUFFER, src );
+    ok_ret( 0, glGetError() );
+    ok_ret( TRUE, ext.glIsBuffer( src ) );
+    ok_ret( 0, glGetError() );
+
+    ext.glGenBuffers( ARRAY_SIZE(objs1), objs1 );
+    ok_ret( 0, glGetError() );
+    ext.glDeleteBuffers( ARRAY_SIZE(objs1) / 2, objs1 );
+    ok_ret( 0, glGetError() );
+    ext.glGenBuffers( ARRAY_SIZE(objs2), objs2 );
+    ok_ret( 0, glGetError() );
+    ext.glGenBuffers( 1, &dst );
+    ok_ret( 0, glGetError() );
+    ext.glDeleteBuffers( ARRAY_SIZE(objs1) / 2, objs1 + ARRAY_SIZE(objs1) / 2 );
+    ok_ret( 0, glGetError() );
+    ext.glDeleteBuffers( ARRAY_SIZE(objs2), objs2 );
+    ok_ret( 0, glGetError() );
+
+    src = 0xffffffff;
+    ext.glDeleteBuffers( 1, &src );
+    ok_ret( 0, glGetError() );
+    ok_ret( FALSE, ext.glIsBuffer( 0xffffffff ) );
+    ok_ret( 0, glGetError() );
+
+    ext.glBindBuffer( GL_ARRAY_BUFFER, src );
+    ext.glBufferData( GL_ARRAY_BUFFER, sizeof(data), NULL, GL_STATIC_DRAW );
+
+    src_ptr = ext.glMapBuffer( GL_ARRAY_BUFFER, GL_WRITE_ONLY );
     check_gl_error( GL_NO_ERROR );
     ok( !((UINT_PTR)src_ptr & 0xf), "pointer not aligned\n" );
     for (i = 0; i < sizeof(data); i++) src_ptr[i] = 'a' + i;
 
-    ptr = pglMapBuffer( GL_ARRAY_BUFFER, GL_WRITE_ONLY );
+    ptr = ext.glMapBuffer( GL_ARRAY_BUFFER, GL_WRITE_ONLY );
     check_gl_error( GL_INVALID_OPERATION );
     ok( !ptr, "repeated glMapBuffer returned %p\n", ptr );
 
-    pglUnmapBuffer( GL_ARRAY_BUFFER );
+    ext.glUnmapBuffer( GL_ARRAY_BUFFER );
     check_gl_error( GL_NO_ERROR );
 
-    pglUnmapBuffer( GL_ARRAY_BUFFER );
+    ext.glUnmapBuffer( GL_ARRAY_BUFFER );
     check_gl_error( GL_INVALID_OPERATION );
 
-    pglBindBuffer( GL_ARRAY_BUFFER, dst );
-    pglBufferData( GL_ARRAY_BUFFER, sizeof(data), NULL, GL_STATIC_DRAW );
+    ext.glBindBuffer( GL_ARRAY_BUFFER, dst );
+    ext.glBufferData( GL_ARRAY_BUFFER, sizeof(data), NULL, GL_STATIC_DRAW );
 
-    pglBindBuffer( GL_COPY_READ_BUFFER, src );
-    pglBindBuffer( GL_COPY_WRITE_BUFFER, dst );
-    pglCopyBufferSubData( GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, sizeof(data) );
+    ext.glBindBuffer( GL_COPY_READ_BUFFER, src );
+    ext.glBindBuffer( GL_COPY_WRITE_BUFFER, dst );
+    ext.glCopyBufferSubData( GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, sizeof(data) );
 
-    dst_ptr = pglMapBuffer( GL_COPY_WRITE_BUFFER, GL_READ_ONLY );
+    dst_ptr = ext.glMapBuffer( GL_COPY_WRITE_BUFFER, GL_READ_ONLY );
     check_gl_error( GL_NO_ERROR );
     ok( !((UINT_PTR)dst_ptr & 0xf), "pointer not aligned\n" );
     ok( !memcmp( dst_ptr, "abcdef", 6 ), "unexpected src data %s\n", debugstr_an(src_ptr, 6) );
-    pglUnmapBuffer( GL_COPY_WRITE_BUFFER );
+    ext.glUnmapBuffer( GL_COPY_WRITE_BUFFER );
 
-    if (pglMapBufferRange)
+    if (ext.glMapBufferRange)
     {
-        pglBindBuffer( GL_ARRAY_BUFFER, src );
-        src_ptr = pglMapBufferRange( GL_ARRAY_BUFFER, 3, 4, GL_MAP_READ_BIT | GL_MAP_WRITE_BIT );
+        ext.glBindBuffer( GL_ARRAY_BUFFER, src );
+        src_ptr = ext.glMapBufferRange( GL_ARRAY_BUFFER, 3, 4, GL_MAP_READ_BIT | GL_MAP_WRITE_BIT );
         check_gl_error( GL_NO_ERROR );
         ok( ((UINT_PTR)src_ptr & 0xf) == 3, "pointer not aligned\n" );
 
         ok( !memcmp( src_ptr, "defg", 4 ), "unexpected src data %s\n", debugstr_an(src_ptr, 4) );
         for (i = 0; i < 4; i++) src_ptr[i] += 'A' - 'a';
 
-        pglUnmapBuffer( GL_ARRAY_BUFFER );
+        ext.glUnmapBuffer( GL_ARRAY_BUFFER );
 
-        src_ptr = pglMapBufferRange( GL_ARRAY_BUFFER, 2, 10, GL_MAP_READ_BIT );
+        src_ptr = ext.glMapBufferRange( GL_ARRAY_BUFFER, 2, 10, GL_MAP_READ_BIT );
         ok( ((UINT_PTR)src_ptr & 0xf) == 2, "pointer not aligned\n" );
 
         ok( !memcmp( src_ptr, "cDEFGhijkl", 10 ), "unexpected src data %s\n", debugstr_an(src_ptr, 10) );
 
-        pglUnmapBuffer( GL_ARRAY_BUFFER );
+        ext.glUnmapBuffer( GL_ARRAY_BUFFER );
 
-        pglCopyBufferSubData( GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, sizeof(data) );
+        ext.glCopyBufferSubData( GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, sizeof(data) );
 
-        pglBindBuffer( GL_ARRAY_BUFFER, dst );
-        dst_ptr = pglMapBufferRange( GL_ARRAY_BUFFER, 2, 10, GL_MAP_READ_BIT );
+        ext.glBindBuffer( GL_ARRAY_BUFFER, dst );
+        dst_ptr = ext.glMapBufferRange( GL_ARRAY_BUFFER, 2, 10, GL_MAP_READ_BIT );
         ok( ((UINT_PTR)dst_ptr & 0xf) == 2, "pointer not aligned\n" );
 
         ok( !memcmp( dst_ptr, "cDEFGhijkl", 10 ), "unexpected src data %s\n", debugstr_an(dst_ptr, 10) );
 
-        pglUnmapBuffer( GL_ARRAY_BUFFER );
+        ext.glUnmapBuffer( GL_ARRAY_BUFFER );
         check_gl_error( GL_NO_ERROR );
     }
     else skip( "glMapBufferRange not available\n" );
@@ -3690,116 +5022,114 @@ static void test_memory_map( HDC hdc)
     if (have_persistent_storage)
     {
         for (i = 0; i < sizeof(data); i++) data[i] = '0' + i;
-        pglBufferStorage( GL_COPY_READ_BUFFER, sizeof(data), data,
-                          GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT );
+        ext.glBufferStorage( GL_COPY_READ_BUFFER, sizeof(data), data,
+                             GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT );
 
-        pglBufferStorage( GL_COPY_WRITE_BUFFER, sizeof(data), NULL,
-                          GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT );
+        ext.glBufferStorage( GL_COPY_WRITE_BUFFER, sizeof(data), NULL,
+                             GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT );
 
-        src_ptr = pglMapBufferRange( GL_COPY_READ_BUFFER, 2, sizeof(data) - 2,
-                                     GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_FLUSH_EXPLICIT_BIT | GL_MAP_PERSISTENT_BIT );
+        src_ptr = ext.glMapBufferRange( GL_COPY_READ_BUFFER, 2, sizeof(data) - 2,
+                                        GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_FLUSH_EXPLICIT_BIT | GL_MAP_PERSISTENT_BIT );
         ok( ((UINT_PTR)src_ptr & 0xf) == 2, "pointer not aligned\n" );
 
-        dst_ptr = pglMapBufferRange( GL_COPY_WRITE_BUFFER, 0, sizeof(data),
-                                     GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT );
+        dst_ptr = ext.glMapBufferRange( GL_COPY_WRITE_BUFFER, 0, sizeof(data),
+                                        GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT );
         ok( ((UINT_PTR)dst_ptr & 0xf) == 0, "pointer not aligned\n" );
 
         ok( src_ptr[0] == '2', "src_ptr[0] = %x (%c)\n", src_ptr[0], src_ptr[0] );
         src_ptr[0] += 'a' - '0';
-        pglFlushMappedBufferRange( GL_COPY_READ_BUFFER, 0, 16 );
+        ext.glFlushMappedBufferRange( GL_COPY_READ_BUFFER, 0, 16 );
 
-        pglCopyBufferSubData( GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, sizeof(data) );
+        ext.glCopyBufferSubData( GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, sizeof(data) );
         glFinish();
         ok( !memcmp( dst_ptr, "01c3456789", 8 ), "unexpected dst data %s\n", debugstr_an(dst_ptr, 10) );
 
         src_ptr[1] += 'A' - '0';
-        pglCopyBufferSubData( GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, sizeof(data) );
+        ext.glCopyBufferSubData( GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, sizeof(data) );
         glFinish();
         ok( !memcmp( dst_ptr, "01cD456789", 8 ), "unexpected dst data %s\n", debugstr_an(dst_ptr, 10) );
 
-        pglUnmapBuffer( GL_COPY_WRITE_BUFFER );
-        pglUnmapBuffer( GL_COPY_READ_BUFFER );
+        ext.glUnmapBuffer( GL_COPY_WRITE_BUFFER );
+        ext.glUnmapBuffer( GL_COPY_READ_BUFFER );
         check_gl_error( GL_NO_ERROR );
     }
 
-    pglDeleteBuffers( 1, &src );
-    pglDeleteBuffers( 1, &dst );
+    ext.glDeleteBuffers( 1, &src );
+    ext.glDeleteBuffers( 1, &dst );
 
     if (major > 4 || (major == 4 && minor >= 5))
     {
-        pglCreateBuffers( 1, &src );
-        pglCreateBuffers( 1, &dst );
+        ext.glCreateBuffers( 1, &src );
+        ext.glCreateBuffers( 1, &dst );
         check_gl_error( GL_NO_ERROR );
 
-        pglNamedBufferData( src, 0x1000, NULL, GL_STATIC_DRAW );
+        ext.glNamedBufferData( src, 0x1000, NULL, GL_STATIC_DRAW );
         check_gl_error( GL_NO_ERROR );
 
-        src_ptr = pglMapNamedBuffer( src, GL_WRITE_ONLY );
+        src_ptr = ext.glMapNamedBuffer( src, GL_WRITE_ONLY );
         check_gl_error( GL_NO_ERROR );
         ok( !((UINT_PTR)src_ptr & 0xf), "pointer not aligned\n" );
         for (i = 0; i < 0x1000; i++) src_ptr[i] = 'a' + i;
 
-        ptr = pglMapNamedBuffer( src, GL_WRITE_ONLY );
+        ptr = ext.glMapNamedBuffer( src, GL_WRITE_ONLY );
         check_gl_error( GL_INVALID_OPERATION );
         ok( !ptr, "repeated glMapBuffer returned %p\n", ptr );
 
-        pglUnmapNamedBuffer( src );
+        ext.glUnmapNamedBuffer( src );
         check_gl_error( GL_NO_ERROR );
 
-        pglUnmapNamedBuffer( src );
+        ext.glUnmapNamedBuffer( src );
         check_gl_error( GL_INVALID_OPERATION );
 
-        pglNamedBufferData( dst, 0x1000, NULL, GL_STATIC_DRAW );
+        ext.glNamedBufferData( dst, 0x1000, NULL, GL_STATIC_DRAW );
 
-        pglCopyNamedBufferSubData( src, dst, 0, 0, 0x1000 );
+        ext.glCopyNamedBufferSubData( src, dst, 0, 0, 0x1000 );
 
-        dst_ptr = pglMapNamedBuffer( dst, GL_READ_ONLY );
+        dst_ptr = ext.glMapNamedBuffer( dst, GL_READ_ONLY );
         check_gl_error( GL_NO_ERROR );
         ok( !((UINT_PTR)dst_ptr & 0xf), "pointer not aligned\n" );
         ok( !memcmp( dst_ptr, "abcdef", 6 ), "unexpected src data %s\n", debugstr_an(src_ptr, 6) );
-        pglUnmapNamedBuffer( dst );
+        ext.glUnmapNamedBuffer( dst );
 
-        pglDeleteBuffers( 1, &src );
-        pglDeleteBuffers( 1, &dst );
+        ext.glDeleteBuffers( 1, &src );
+        ext.glDeleteBuffers( 1, &dst );
 
-        pglCreateBuffers( 1, &src );
-        pglCreateBuffers( 1, &dst );
+        ext.glCreateBuffers( 1, &src );
+        ext.glCreateBuffers( 1, &dst );
 
         for (i = 0; i < sizeof(data); i++) data[i] = '0' + i;
-        pglNamedBufferStorage( src, sizeof(data), data,
-                               GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT );
+        ext.glNamedBufferStorage( src, sizeof(data), data,
+                                  GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT );
 
-        pglNamedBufferStorage( dst, sizeof(data), NULL,
-                               GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT );
+        ext.glNamedBufferStorage( dst, sizeof(data), NULL,
+                                  GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT );
 
-        src_ptr = pglMapNamedBufferRange( src, 2, sizeof(data) - 2,
-                                          GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_FLUSH_EXPLICIT_BIT | GL_MAP_PERSISTENT_BIT );
+        src_ptr = ext.glMapNamedBufferRange( src, 2, sizeof(data) - 2, GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_FLUSH_EXPLICIT_BIT | GL_MAP_PERSISTENT_BIT );
         ok( ((UINT_PTR)src_ptr & 0xf) == 2, "pointer not aligned\n" );
 
-        dst_ptr = pglMapNamedBufferRange( dst, 0, sizeof(data),
-                                          GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT );
+        dst_ptr = ext.glMapNamedBufferRange( dst, 0, sizeof(data), GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT );
         check_gl_error( GL_NO_ERROR );
         ok( ((UINT_PTR)dst_ptr & 0xf) == 0, "pointer not aligned\n" );
 
         ok( src_ptr[0] == '2', "src_ptr[0] = %x (%c)\n", src_ptr[0], src_ptr[0] );
         src_ptr[0] += 'a' - '0';
-        pglFlushMappedNamedBufferRange( src, 0, 16 );
+        ext.glFlushMappedNamedBufferRange( src, 0, 16 );
         check_gl_error( GL_NO_ERROR );
 
-        pglCopyNamedBufferSubData( src, dst, 0, 0, sizeof(data) );
+        ext.glCopyNamedBufferSubData( src, dst, 0, 0, sizeof(data) );
         glFinish();
         ok( !memcmp( dst_ptr, "01c3456789", 8 ), "unexpected dst data %s\n", debugstr_an(dst_ptr, 10) );
 
         src_ptr[1] += 'A' - '0';
-        pglCopyNamedBufferSubData( src, dst, 0, 0, sizeof(data) );
+        ext.glCopyNamedBufferSubData( src, dst, 0, 0, sizeof(data) );
         glFinish();
         ok( !memcmp( dst_ptr, "01cD456789", 8 ), "unexpected dst data %s\n", debugstr_an(dst_ptr, 10) );
 
-        pglUnmapNamedBuffer( src );
-        pglUnmapNamedBuffer( dst );
+        ext.glUnmapNamedBuffer( src );
+        ext.glUnmapNamedBuffer( dst );
 
-        pglDeleteBuffers( 1, &src );
-        pglDeleteBuffers( 1, &dst );
+        ext.glDeleteBuffers( 1, &src );
+        ext.glDeleteBuffers( 1, &dst );
         check_gl_error( GL_NO_ERROR );
     }
     else skip( "Named buffers not supported by OpenGL %s\n", version );
@@ -3809,153 +5139,135 @@ static void test_memory_map( HDC hdc)
 
 START_TEST(opengl)
 {
-    HWND hwnd;
-    PIXELFORMATDESCRIPTOR pfd = {
-        sizeof(PIXELFORMATDESCRIPTOR),
-        1,                     /* version */
-        PFD_DRAW_TO_WINDOW |
-        PFD_SUPPORT_OPENGL |
-        PFD_DOUBLEBUFFER,
-        PFD_TYPE_RGBA,
-        24,                    /* 24-bit color depth */
-        0, 0, 0, 0, 0, 0,      /* color bits */
-        0,                     /* alpha buffer */
-        0,                     /* shift bit */
-        0,                     /* accumulation buffer */
-        0, 0, 0, 0,            /* accum bits */
-        32,                    /* z-buffer */
-        0,                     /* stencil buffer */
-        0,                     /* auxiliary buffer */
-        PFD_MAIN_PLANE,        /* main layer */
-        0,                     /* reserved */
-        0, 0, 0                /* layer masks */
+    const PIXELFORMATDESCRIPTOR pfd =
+    {
+        .nSize = sizeof(PIXELFORMATDESCRIPTOR),
+        .nVersion = 1,
+        .dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
+        .iPixelType = PFD_TYPE_RGBA,
+        .cColorBits = 24,
     };
 
-    hwnd = CreateWindowA("static", "Title", WS_OVERLAPPEDWINDOW, 10, 10, 200, 200, NULL, NULL,
-            NULL, NULL);
-    ok(hwnd != NULL, "err: %ld\n", GetLastError());
-    if (hwnd)
+    HMODULE gdi32 = GetModuleHandleA( "gdi32.dll" );
+    int format, res;
+    const char *tmp;
+    HGLRC hglrc;
+    HWND hwnd;
+    HDC hdc;
+
+    pD3DKMTCreateDCFromMemory = (void *)GetProcAddress( gdi32, "D3DKMTCreateDCFromMemory" );
+    pD3DKMTDestroyDCFromMemory = (void *)GetProcAddress( gdi32, "D3DKMTDestroyDCFromMemory" );
+
+    hwnd = CreateWindowW( L"static", NULL, WS_OVERLAPPEDWINDOW | WS_VISIBLE, 10, 10, 200, 200, NULL,
+                          NULL, NULL, NULL );
+    ok_ptr( hwnd, !=, NULL );
+
+    check_gl_error( GL_INVALID_OPERATION );
+
+    hdc = GetDC( hwnd );
+    format = ChoosePixelFormat( hdc, &pfd );
+    if (!format)
     {
-        HMODULE gdi32 = GetModuleHandleA("gdi32.dll");
-        HDC hdc;
-        int iPixelFormat, res;
-        HGLRC hglrc;
-        DWORD error;
+        win_skip( "Unable to find pixel format.\n" );
+        goto cleanup;
+    }
 
-        pD3DKMTCreateDCFromMemory  = (void *)GetProcAddress( gdi32, "D3DKMTCreateDCFromMemory" );
-        pD3DKMTDestroyDCFromMemory = (void *)GetProcAddress( gdi32, "D3DKMTDestroyDCFromMemory" );
+    hglrc = wglCreateContext( hdc );
+    ok_ptr( hglrc, ==, NULL );
+    ok_ret( ERROR_INVALID_PIXEL_FORMAT, GetLastError() );
+    ok_ret( TRUE, SetPixelFormat( hdc, format, &pfd ) );
+    ok_ptr( glGetString( GL_RENDERER ), ==, NULL );
+    ok_ptr( glGetString( GL_VERSION ), ==, NULL );
+    ok_ptr( glGetString( GL_VENDOR ), ==, NULL );
 
-        check_gl_error( GL_INVALID_OPERATION );
-        ShowWindow(hwnd, SW_SHOW);
+    test_bitmap_rendering( TRUE );
+    test_bitmap_rendering( FALSE );
+    test_16bit_bitmap_rendering();
+    test_d3dkmt_rendering();
+    test_minimized();
+    test_window_dc();
+    test_message_window();
+    test_dc( hwnd, hdc );
 
-        hdc = GetDC(hwnd);
+    hglrc = wglCreateContext( hdc );
+    res = wglMakeCurrent( hdc, hglrc );
+    ok( res, "wglMakeCurrent failed!\n" );
+    if (!res)
+    {
+        skip( "Skipping OpenGL tests without a current context\n" );
+        goto cleanup;
+    }
+    trace( "OpenGL renderer: %s\n", glGetString( GL_RENDERER ) );
+    trace( "OpenGL driver version: %s\n", glGetString( GL_VERSION ) );
+    trace( "OpenGL vendor: %s\n", glGetString( GL_VENDOR ) );
 
-        iPixelFormat = ChoosePixelFormat(hdc, &pfd);
-        if(iPixelFormat == 0)
-        {
-            /* This should never happen as ChoosePixelFormat always returns a closest match, but currently this fails in Wine if we don't have glX */
-            win_skip("Unable to find pixel format.\n");
-            goto cleanup;
-        }
+    /* Initialisation of WGL functions depends on an implicit WGL context. For this reason we can't load them before making
+     * any WGL call :( On Wine this would work but not on real Windows because there can be different implementations (software, ICD, MCD).
+     */
+    init_functions();
 
-        /* We shouldn't be able to create a context from a hdc which doesn't have a pixel format set */
-        hglrc = wglCreateContext(hdc);
-        ok(hglrc == NULL, "wglCreateContext should fail when no pixel format has been set, but it passed\n");
-        error = GetLastError();
-        ok(error == ERROR_INVALID_PIXEL_FORMAT, "expected ERROR_INVALID_PIXEL_FORMAT for wglCreateContext without a pixelformat set, but received %#lx\n", error);
+    test_getprocaddress( hdc );
+    test_deletecontext( hwnd, hdc );
+    test_makecurrent( hdc );
+    test_copy_context( hdc );
 
-        res = SetPixelFormat(hdc, iPixelFormat, &pfd);
-        ok(res, "SetPixelformat failed: %lx\n", GetLastError());
+    /* The lack of wglGetExtensionsStringARB in general means broken software rendering or the lack of decent OpenGL support, skip tests in such cases */
+    if (!ext.wglGetExtensionsStringARB)
+    {
+        win_skip( "wglGetExtensionsStringARB is not available\n" );
+        goto cleanup;
+    }
 
-        test_bitmap_rendering( TRUE );
-        test_bitmap_rendering( FALSE );
-        test_16bit_bitmap_rendering();
-        test_d3dkmt_rendering();
-        test_minimized();
-        test_window_dc();
-        test_message_window();
-        test_dc(hwnd, hdc);
+    test_choosepixelformat();
+    test_choosepixelformat_flag_is_ignored_when_unset( PFD_DRAW_TO_WINDOW );
+    test_choosepixelformat_flag_is_ignored_when_unset( PFD_DRAW_TO_BITMAP );
+    test_choosepixelformat_flag_is_ignored_when_unset( PFD_SUPPORT_GDI );
+    test_choosepixelformat_flag_is_ignored_when_unset( PFD_SUPPORT_OPENGL );
+    test_wglChoosePixelFormatARB( hdc );
+    test_debug_message_callback();
+    test_setpixelformat( hdc );
+    test_destroy( hdc );
+    test_sharelists( hdc );
+    test_colorbits( hdc );
+    test_gdi_dbuf( hdc );
+    test_acceleration( hdc );
+    test_framebuffer();
+    test_memory_map( hdc );
+    test_gl_error( hdc );
 
-        ok(!glGetString(GL_RENDERER) && !glGetString(GL_VERSION) && !glGetString(GL_VENDOR),
-           "Expected NULL string when no active context is set\n");
-        hglrc = wglCreateContext(hdc);
-        res = wglMakeCurrent(hdc, hglrc);
-        ok(res, "wglMakeCurrent failed!\n");
-        if(res)
-        {
-            trace("OpenGL renderer: %s\n", glGetString(GL_RENDERER));
-            trace("OpenGL driver version: %s\n", glGetString(GL_VERSION));
-            trace("OpenGL vendor: %s\n", glGetString(GL_VENDOR));
-        }
-        else
-        {
-            skip("Skipping OpenGL tests without a current context\n");
-            return;
-        }
+    tmp = ext.wglGetExtensionsStringEXT();
+    ok( tmp && *tmp, "got wgl_extensions %s\n", debugstr_a(tmp) );
+    wgl_extensions = tmp;
 
-        /* Initialisation of WGL functions depends on an implicit WGL context. For this reason we can't load them before making
-         * any WGL call :( On Wine this would work but not on real Windows because there can be different implementations (software, ICD, MCD).
-         */
-        init_functions();
+    tmp = ext.wglGetExtensionsStringARB( hdc );
+    ok( tmp && *tmp, "got wgl_extensions %s\n", debugstr_a(tmp) );
+    ok( !strcmp( tmp, wgl_extensions ), "got wgl_extensions %s\n", debugstr_a(tmp) );
 
-        test_getprocaddress(hdc);
-        test_deletecontext(hwnd, hdc);
-        test_makecurrent(hdc);
-        test_copy_context(hdc);
+    if (wgl_extensions == NULL) skip( "Skipping opengl32 tests because this OpenGL implementation "
+                                      "doesn't support WGL extensions!\n" );
 
-        /* The lack of wglGetExtensionsStringARB in general means broken software rendering or the lack of decent OpenGL support, skip tests in such cases */
-        if (!pwglGetExtensionsStringARB)
-        {
-            win_skip("wglGetExtensionsStringARB is not available\n");
-            return;
-        }
+    if (strstr( wgl_extensions, "WGL_ARB_create_context" ))
+    {
+        test_opengl3( hdc );
+        test_object_creation( hdc );
+    }
 
-        test_choosepixelformat();
-        test_choosepixelformat_flag_is_ignored_when_unset(PFD_DRAW_TO_WINDOW);
-        test_choosepixelformat_flag_is_ignored_when_unset(PFD_DRAW_TO_BITMAP);
-        test_choosepixelformat_flag_is_ignored_when_unset(PFD_SUPPORT_GDI);
-        test_choosepixelformat_flag_is_ignored_when_unset(PFD_SUPPORT_OPENGL);
-        test_wglChoosePixelFormatARB(hdc);
-        test_debug_message_callback();
-        test_setpixelformat(hdc);
-        test_destroy(hdc);
-        test_sharelists(hdc);
-        test_colorbits(hdc);
-        test_gdi_dbuf(hdc);
-        test_acceleration(hdc);
-        test_framebuffer();
-        test_memory_map(hdc);
-        test_gl_error(hdc);
+    if (strstr( wgl_extensions, "WGL_ARB_make_current_read" ))
+    {
+        test_make_current_read( hdc );
+        test_destroy_read( hdc );
+    }
+    else skip( "WGL_ARB_make_current_read not supported, skipping test\n" );
 
-        wgl_extensions = pwglGetExtensionsStringARB(hdc);
-        if(wgl_extensions == NULL) skip("Skipping opengl32 tests because this OpenGL implementation doesn't support WGL extensions!\n");
+    if (strstr( wgl_extensions, "WGL_ARB_pbuffer" )) test_pbuffers( hdc );
+    else skip( "WGL_ARB_pbuffer not supported, skipping pbuffer test\n" );
 
-        if(strstr(wgl_extensions, "WGL_ARB_create_context"))
-            test_opengl3(hdc);
+    if (strstr( wgl_extensions, "WGL_EXT_swap_control" )) test_swap_control( hdc );
+    else skip( "WGL_EXT_swap_control not supported, skipping test\n" );
 
-        if(strstr(wgl_extensions, "WGL_ARB_make_current_read"))
-        {
-            test_make_current_read(hdc);
-            test_destroy_read(hdc);
-        }
-        else
-            skip("WGL_ARB_make_current_read not supported, skipping test\n");
-
-        if(strstr(wgl_extensions, "WGL_ARB_pbuffer"))
-            test_pbuffers(hdc);
-        else
-            skip("WGL_ARB_pbuffer not supported, skipping pbuffer test\n");
-
-        if(strstr(wgl_extensions, "WGL_EXT_swap_control"))
-            test_swap_control(hdc);
-        else
-            skip("WGL_EXT_swap_control not supported, skipping test\n");
-
-        if (winetest_interactive)
-            test_child_window(hwnd, &pfd);
+    if (winetest_interactive) test_child_window( hwnd, &pfd );
 
 cleanup:
-        ReleaseDC(hwnd, hdc);
-        DestroyWindow(hwnd);
-    }
+    ReleaseDC( hwnd, hdc );
+    DestroyWindow( hwnd );
 }

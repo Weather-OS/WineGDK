@@ -30,7 +30,6 @@
 #include <IOKit/pwr_mgt/IOPMLib.h>
 
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 #include "macdrv.h"
 #include "shellapi.h"
 #include "wine/server.h"
@@ -288,7 +287,7 @@ static void setup_options(void)
 
     /* open the app-specific key */
 
-    appname = NtCurrentTeb()->Peb->ProcessParameters->ImagePathName.Buffer;
+    appname = RtlGetCurrentPeb()->ProcessParameters->ImagePathName.Buffer;
     if ((p = wcsrchr(appname, '/'))) appname = p + 1;
     if ((p = wcsrchr(appname, '\\'))) appname = p + 1;
     len = lstrlenW(appname);

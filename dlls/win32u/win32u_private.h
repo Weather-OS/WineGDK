@@ -93,6 +93,7 @@ extern void unregister_imm_window( HWND hwnd );
 /* input.c */
 extern BOOL grab_pointer;
 extern BOOL grab_fullscreen;
+extern BOOL is_mouse_in_pointer_enabled( HWND hwnd );
 extern HWND get_active_window(void);
 extern HWND get_capture(void);
 extern HWND get_focus(void);
@@ -304,6 +305,7 @@ extern void map_window_region( HWND from, HWND to, HRGN hrgn );
 extern BOOL screen_to_client( HWND hwnd, POINT *pt );
 extern LONG_PTR set_window_long( HWND hwnd, INT offset, UINT size, LONG_PTR newval,
                                  BOOL ansi );
+extern void set_window_normal_placement( HWND hwnd, RECT rect );
 extern BOOL set_window_pos( WINDOWPOS *winpos, int parent_x, int parent_y );
 extern UINT set_window_style_bits( HWND hwnd, UINT set_bits, UINT clear_bits );
 extern void update_window_state( HWND hwnd );
@@ -312,6 +314,7 @@ extern HWND get_shell_window(void);
 extern HWND get_progman_window(void);
 extern HWND get_taskman_window(void);
 extern BOOL is_client_surface_window( struct client_surface *surface, HWND hwnd );
+extern void add_window_client_surface( HWND hwnd, struct client_surface *surface );
 extern HICON get_window_icon_info( HWND hwnd, UINT type, HICON icon, ICONINFO *ret );
 extern void init_startup_info(void);
 
@@ -416,7 +419,7 @@ static inline UINT unicodez_to_ascii( char *dst, const WCHAR *src )
 
 static inline BOOL is_win9x(void)
 {
-    return NtCurrentTeb()->Peb->OSPlatformId == VER_PLATFORM_WIN32s;
+    return RtlGetCurrentPeb()->OSPlatformId == VER_PLATFORM_WIN32s;
 }
 
 static inline const char *debugstr_us( const UNICODE_STRING *us )

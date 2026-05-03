@@ -32,6 +32,7 @@
 #include "vbscript_defs.h"
 
 #include "wine/list.h"
+#include "wine/rbtree.h"
 
 typedef struct {
     void **blocks;
@@ -52,6 +53,7 @@ heap_pool_t *heap_pool_mark(heap_pool_t*);
 typedef struct _function_t function_t;
 typedef struct _vbscode_t vbscode_t;
 typedef struct _script_ctx_t script_ctx_t;
+typedef struct _exec_ctx_t exec_ctx_t;
 typedef struct _vbdisp_t vbdisp_t;
 
 typedef enum {
@@ -117,6 +119,8 @@ typedef struct _dynamic_var_t {
     const WCHAR *name;
     BOOL is_const;
     SAFEARRAY *array;
+    struct rb_entry entry;
+    size_t index;
 } dynamic_var_t;
 
 typedef struct {
@@ -126,10 +130,12 @@ typedef struct {
     dynamic_var_t **global_vars;
     size_t global_vars_cnt;
     size_t global_vars_size;
+    struct rb_tree var_tree;
 
     function_t **global_funcs;
     size_t global_funcs_cnt;
     size_t global_funcs_size;
+    struct rb_tree func_tree;
 
     class_desc_t *classes;
 
@@ -138,6 +144,8 @@ typedef struct {
 
     unsigned int rnd;
 } ScriptDisp;
+
+dynamic_var_t *script_disp_find_var(ScriptDisp *disp, const WCHAR *name);
 
 typedef struct _builtin_prop_t builtin_prop_t;
 
@@ -167,8 +175,11 @@ HRESULT disp_propput(script_ctx_t*,IDispatch*,DISPID,WORD,DISPPARAMS*);
 HRESULT get_disp_value(script_ctx_t*,IDispatch*,VARIANT*);
 void collect_objects(script_ctx_t*);
 HRESULT create_script_disp(script_ctx_t*,ScriptDisp**);
+HRESULT create_func_ref(script_ctx_t*,function_t*,IDispatch**);
+function_t *script_disp_find_func(ScriptDisp*,const WCHAR*);
 
 HRESULT to_int(VARIANT*,int*);
+HRESULT to_double(VARIANT*,double*);
 
 static inline unsigned arg_cnt(const DISPPARAMS *dp)
 {
@@ -193,7 +204,8 @@ struct vbcaller {
 
 struct _script_ctx_t {
     IActiveScriptSite *site;
-    LCID lcid;
+    LCID lcid;      /* current, mutable via SetLocale */
+    LCID host_lcid; /* embedder-supplied baseline (IActiveScriptSite::GetLCID) */
     UINT codepage;
 
     IInternetHostSecurityManager *secmgr;
@@ -202,8 +214,14 @@ struct _script_ctx_t {
 
     ScriptDisp *script_obj;
 
+    named_item_t *current_named_item;
+
     BuiltinDisp *global_obj;
     BuiltinDisp *err_obj;
+
+    exec_ctx_t *current_exec;
+    exec_ctx_t *caller_exec;
+    unsigned call_depth;
 
     EXCEPINFO ei;
     vbscode_t *error_loc_code;
@@ -251,6 +269,7 @@ typedef enum {
     X(hres,           1, ARG_UINT,    0)          \
     X(errmode,        1, ARG_INT,     0)          \
     X(eqv,            1, 0,           0)          \
+    X(erase,          1, ARG_BSTR,    0)          \
     X(exp,            1, 0,           0)          \
     X(gt,             1, 0,           0)          \
     X(gteq,           1, 0,           0)          \
@@ -296,6 +315,7 @@ typedef enum {
     X(val,            1, 0,           0)          \
     X(vcall,          1, ARG_UINT,    0)          \
     X(vcallv,         1, ARG_UINT,    0)          \
+    X(with,           1, 0,           0)          \
     X(xor,            1, 0,           0)
 
 typedef enum {
@@ -352,6 +372,8 @@ struct _function_t {
     unsigned code_off;
     vbscode_t *code_ctx;
     function_t *next;
+    struct rb_entry entry;
+    size_t index;
 };
 
 struct _vbscode_t {
@@ -387,14 +409,18 @@ static inline void grab_vbscode(vbscode_t *code)
 }
 
 void release_vbscode(vbscode_t*);
-HRESULT compile_script(script_ctx_t*,const WCHAR*,const WCHAR*,const WCHAR*,DWORD_PTR,unsigned,DWORD,vbscode_t**);
+HRESULT compile_script(script_ctx_t*,const WCHAR*,const WCHAR*,const WCHAR*,DWORD_PTR,unsigned,DWORD,BOOL,vbscode_t**);
 HRESULT compile_procedure(script_ctx_t*,const WCHAR*,const WCHAR*,const WCHAR*,DWORD_PTR,unsigned,DWORD,class_desc_t**);
 HRESULT exec_script(script_ctx_t*,BOOL,function_t*,vbdisp_t*,DISPPARAMS*,VARIANT*);
+HRESULT exec_global_code(script_ctx_t*,vbscode_t*,VARIANT*,BOOL);
+BOOL is_exec_local_scope(exec_ctx_t*);
+HRESULT exec_add_caller_dynamic_var(script_ctx_t*,exec_ctx_t*,const WCHAR*);
 void release_dynamic_var(dynamic_var_t*);
 named_item_t *lookup_named_item(script_ctx_t*,const WCHAR*,unsigned);
 void release_named_item(named_item_t*);
+void clear_error_loc(script_ctx_t*);
 void clear_ei(EXCEPINFO*);
-HRESULT report_script_error(script_ctx_t*,const vbscode_t*,unsigned);
+HRESULT report_script_error(script_ctx_t*,vbscode_t*,unsigned,BOOL);
 void detach_global_objects(script_ctx_t*);
 HRESULT get_builtin_id(BuiltinDisp*,const WCHAR*,DISPID*);
 HRESULT array_access(SAFEARRAY *array, DISPPARAMS *dp, VARIANT **ret);
@@ -410,6 +436,21 @@ static inline BOOL is_int32(double d)
 static inline BOOL is_digit(WCHAR c)
 {
     return '0' <= c && c <= '9';
+}
+
+/* ASCII-only case-insensitive compare for VBScript identifiers.
+ * VBScript identifiers are ASCII-only (Windows rejects all non-ASCII
+ * characters), so this avoids the expensive locale-aware wcsicmp. */
+static inline int vbs_wcsicmp(const WCHAR *s1, const WCHAR *s2)
+{
+    WCHAR c1, c2;
+    do {
+        c1 = *s1++;
+        c2 = *s2++;
+        if (c1 >= 'A' && c1 <= 'Z') c1 += 'a' - 'A';
+        if (c2 >= 'A' && c2 <= 'Z') c2 += 'a' - 'A';
+    } while (c1 && c1 == c2);
+    return c1 - c2;
 }
 
 HRESULT create_regexp(IDispatch**);

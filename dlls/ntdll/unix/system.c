@@ -74,7 +74,6 @@
 #endif
 
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 #include "windef.h"
 #include "winternl.h"
 #include "ddk/wdm.h"
@@ -263,6 +262,15 @@ static unsigned int logical_proc_info_ex_size, logical_proc_info_ex_alloc_size;
 static ULONG_PTR system_cpu_mask;
 
 static pthread_mutex_t timezone_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static const char default_tzinfo_dir[] = "/usr/share/zoneinfo";
+static const WCHAR Time_ZonesW[] = { '\\','R','e','g','i','s','t','r','y','\\',
+    'M','a','c','h','i','n','e','\\',
+    'S','o','f','t','w','a','r','e','\\',
+    'M','i','c','r','o','s','o','f','t','\\',
+    'W','i','n','d','o','w','s',' ','N','T','\\',
+    'C','u','r','r','e','n','t','V','e','r','s','i','o','n','\\',
+    'T','i','m','e',' ','Z','o','n','e','s',0 };
 
 /*******************************************************************************
  * Architecture specific feature detection for CPUs
@@ -2676,6 +2684,7 @@ static int weekday_to_mday(int year, int day, int mon, int day_of_week)
     do
     {
         date.tm_mday++;
+        date.tm_isdst = -1;
         tmp = mktime(&date);
     } while (date.tm_wday != day_of_week || date.tm_mon != mon);
 
@@ -2688,6 +2697,7 @@ static int weekday_to_mday(int year, int day, int mon, int day_of_week)
         struct tm *tm;
 
         date.tm_mday += 7;
+        date.tm_isdst = -1;
         tmp = mktime(&date);
         tm = localtime(&tmp);
         if (tm->tm_mon != mon)
@@ -2716,7 +2726,7 @@ static BOOL match_tz_date( const RTL_SYSTEM_TIME *st, const RTL_SYSTEM_TIME *reg
 
     return (st->wDay == wDay &&
             st->wHour == reg_st->wHour &&
-            st->wMinute == reg_st->wMinute &&
+            (st->wMinute == reg_st->wMinute || (st->wMinute == 30 && !reg_st->wMinute)) &&
             st->wSecond == reg_st->wSecond &&
             st->wMilliseconds == reg_st->wMilliseconds);
 }
@@ -2727,48 +2737,6 @@ static BOOL match_tz_info( const RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi,
     return (tzi->Bias == reg_tzi->Bias &&
             match_tz_date(&tzi->StandardDate, &reg_tzi->StandardDate) &&
             match_tz_date(&tzi->DaylightDate, &reg_tzi->DaylightDate));
-}
-
-static BOOL match_past_tz_bias( time_t past_time, LONG past_bias )
-{
-    LONG bias;
-    struct tm *tm;
-    if (!past_time) return TRUE;
-
-    tm = gmtime( &past_time );
-    bias = (LONG)(mktime(tm) - past_time) / 60;
-    return bias == past_bias;
-}
-
-static BOOL match_tz_name( const char *tz_name, const RTL_DYNAMIC_TIME_ZONE_INFORMATION *reg_tzi )
-{
-    static const struct {
-        WCHAR key_name[32];
-        const char *short_name;
-        time_t past_time;
-        LONG past_bias;
-    }
-    mapping[] =
-    {
-        { {'N','o','r','t','h',' ','K','o','r','e','a',' ','S','t','a','n','d','a','r','d',' ','T','i','m','e',0 },
-          "KST", 1451606400 /* 2016-01-01 00:00:00 UTC */, -510 },
-        { {'K','o','r','e','a',' ','S','t','a','n','d','a','r','d',' ','T','i','m','e',0 },
-          "KST", 1451606400 /* 2016-01-01 00:00:00 UTC */, -540 },
-        { {'T','o','k','y','o',' ','S','t','a','n','d','a','r','d',' ','T','i','m','e',0 },
-          "JST" },
-        { {'Y','a','k','u','t','s','k',' ','S','t','a','n','d','a','r','d',' ','T','i','m','e',0 },
-          "+09" }, /* YAKST was used until tzdata 2016f */
-    };
-    unsigned int i;
-
-    if (reg_tzi->DaylightDate.wMonth) return TRUE;
-    for (i = 0; i < ARRAY_SIZE(mapping); i++)
-    {
-        if (!wcscmp( mapping[i].key_name, reg_tzi->TimeZoneKeyName ))
-            return !strcmp( mapping[i].short_name, tz_name )
-                && match_past_tz_bias( mapping[i].past_time, mapping[i].past_bias );
-    }
-    return TRUE;
 }
 
 static BOOL reg_query_value( HKEY key, LPCWSTR name, DWORD type, void *data, DWORD count )
@@ -2789,32 +2757,83 @@ static BOOL reg_query_value( HKEY key, LPCWSTR name, DWORD type, void *data, DWO
     return TRUE;
 }
 
-static void find_reg_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, const char* tz_name, int year)
+static BOOL read_reg_tz_info( HANDLE key, UNICODE_STRING *zone_key_name, int year, RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi )
 {
     static const WCHAR stdW[] = { 'S','t','d',0 };
     static const WCHAR dltW[] = { 'D','l','t',0 };
     static const WCHAR mui_stdW[] = { 'M','U','I','_','S','t','d',0 };
     static const WCHAR mui_dltW[] = { 'M','U','I','_','D','l','t',0 };
     static const WCHAR tziW[] = { 'T','Z','I',0 };
-    static const WCHAR Time_ZonesW[] = { '\\','R','e','g','i','s','t','r','y','\\',
-        'M','a','c','h','i','n','e','\\',
-        'S','o','f','t','w','a','r','e','\\',
-        'M','i','c','r','o','s','o','f','t','\\',
-        'W','i','n','d','o','w','s',' ','N','T','\\',
-        'C','u','r','r','e','n','t','V','e','r','s','i','o','n','\\',
-        'T','i','m','e',' ','Z','o','n','e','s',0 };
     static const WCHAR Dynamic_DstW[] = { 'D','y','n','a','m','i','c',' ','D','S','T',0 };
+    HANDLE subkey, subkey_dyn;
+    OBJECT_ATTRIBUTES attr;
+    struct tz_reg_data
+    {
+        LONG bias;
+        LONG std_bias;
+        LONG dlt_bias;
+        RTL_SYSTEM_TIME std_date;
+        RTL_SYSTEM_TIME dlt_date;
+    } tz_data;
+    BOOL is_dynamic = FALSE;
+    UNICODE_STRING name;
+    BOOL ret = FALSE;
+    char buffer[16];
+    WCHAR yearW[16];
+
+    InitializeObjectAttributes( &attr, zone_key_name, 0, key, NULL );
+    if (NtOpenKey( &subkey, KEY_READ, &attr )) return FALSE;
+
+    memset( tzi, 0, sizeof(*tzi) );
+    memcpy(tzi->TimeZoneKeyName, zone_key_name->Buffer, zone_key_name->Length);
+    tzi->TimeZoneKeyName[zone_key_name->Length / sizeof(WCHAR)] = 0;
+
+    if (!reg_query_value(subkey, mui_stdW, REG_SZ, tzi->StandardName, sizeof(tzi->StandardName)) &&
+        !reg_query_value(subkey, stdW, REG_SZ, tzi->StandardName, sizeof(tzi->StandardName)))
+        goto done;
+
+    if (!reg_query_value(subkey, mui_dltW, REG_SZ, tzi->DaylightName, sizeof(tzi->DaylightName)) &&
+        !reg_query_value(subkey, dltW, REG_SZ, tzi->DaylightName, sizeof(tzi->DaylightName)))
+        goto done;
+
+    /* Check for Dynamic DST entry first */
+    name.Buffer = (WCHAR *)Dynamic_DstW;
+    name.Length = sizeof(Dynamic_DstW) - sizeof(WCHAR);
+    attr.RootDirectory = subkey;
+    attr.ObjectName = &name;
+    if (!NtOpenKey( &subkey_dyn, KEY_READ, &attr ))
+    {
+        snprintf( buffer, sizeof(buffer), "%u", year );
+        ascii_to_unicode( yearW, buffer, strlen(buffer) + 1 );
+        is_dynamic = reg_query_value( subkey_dyn, yearW, REG_BINARY, &tz_data, sizeof(tz_data) );
+        NtClose( subkey_dyn );
+    }
+    if (!is_dynamic && !reg_query_value( subkey, tziW, REG_BINARY, &tz_data, sizeof(tz_data) ))
+        goto done;
+
+    tzi->Bias = tz_data.bias;
+    tzi->StandardBias = tz_data.std_bias;
+    tzi->DaylightBias = tz_data.dlt_bias;
+    tzi->StandardDate = tz_data.std_date;
+    tzi->DaylightDate = tz_data.dlt_date;
+
+    ret = TRUE;
+
+done:
+    NtClose( subkey );
+    return ret;
+}
+
+static void find_reg_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year)
+{
     RTL_DYNAMIC_TIME_ZONE_INFORMATION reg_tzi;
-    HANDLE key, subkey, subkey_dyn = 0;
+    HANDLE key;
     ULONG idx, len;
     OBJECT_ATTRIBUTES attr;
     UNICODE_STRING nameW;
-    WCHAR yearW[16];
     char buffer[128];
     KEY_BASIC_INFORMATION *info = (KEY_BASIC_INFORMATION *)buffer;
 
-    snprintf( buffer, sizeof(buffer), "%u", year );
-    ascii_to_unicode( yearW, buffer, strlen(buffer) + 1 );
     init_unicode_string( &nameW, Time_ZonesW );
     InitializeObjectAttributes( &attr, &nameW, 0, 0, NULL );
     if (NtOpenKey( &key, KEY_READ, &attr )) return;
@@ -2822,50 +2841,9 @@ static void find_reg_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, const char*
     idx = 0;
     while (!NtEnumerateKey( key, idx++, KeyBasicInformation, buffer, sizeof(buffer), &len ))
     {
-        struct tz_reg_data
-        {
-            LONG bias;
-            LONG std_bias;
-            LONG dlt_bias;
-            RTL_SYSTEM_TIME std_date;
-            RTL_SYSTEM_TIME dlt_date;
-        } tz_data;
-        BOOL is_dynamic = FALSE;
-
         nameW.Buffer = info->Name;
         nameW.Length = info->NameLength;
-        attr.RootDirectory = key;
-        if (NtOpenKey( &subkey, KEY_READ, &attr )) continue;
-
-        memset( &reg_tzi, 0, sizeof(reg_tzi) );
-        memcpy(reg_tzi.TimeZoneKeyName, nameW.Buffer, nameW.Length);
-        reg_tzi.TimeZoneKeyName[nameW.Length/sizeof(WCHAR)] = 0;
-
-        if (!reg_query_value(subkey, mui_stdW, REG_SZ, reg_tzi.StandardName, sizeof(reg_tzi.StandardName)) &&
-            !reg_query_value(subkey, stdW, REG_SZ, reg_tzi.StandardName, sizeof(reg_tzi.StandardName)))
-            goto next;
-
-        if (!reg_query_value(subkey, mui_dltW, REG_SZ, reg_tzi.DaylightName, sizeof(reg_tzi.DaylightName)) &&
-            !reg_query_value(subkey, dltW, REG_SZ, reg_tzi.DaylightName, sizeof(reg_tzi.DaylightName)))
-            goto next;
-
-        /* Check for Dynamic DST entry first */
-        nameW.Buffer = (WCHAR *)Dynamic_DstW;
-        nameW.Length = sizeof(Dynamic_DstW) - sizeof(WCHAR);
-        attr.RootDirectory = subkey;
-        if (!NtOpenKey( &subkey_dyn, KEY_READ, &attr ))
-        {
-            is_dynamic = reg_query_value( subkey_dyn, yearW, REG_BINARY, &tz_data, sizeof(tz_data) );
-            NtClose( subkey_dyn );
-        }
-        if (!is_dynamic && !reg_query_value( subkey, tziW, REG_BINARY, &tz_data, sizeof(tz_data) ))
-            goto next;
-
-        reg_tzi.Bias = tz_data.bias;
-        reg_tzi.StandardBias = tz_data.std_bias;
-        reg_tzi.DaylightBias = tz_data.dlt_bias;
-        reg_tzi.StandardDate = tz_data.std_date;
-        reg_tzi.DaylightDate = tz_data.dlt_date;
+        if (!read_reg_tz_info( key, &nameW, year, &reg_tzi )) continue;
 
         TRACE("%s: bias %d\n", debugstr_us(&nameW), reg_tzi.Bias);
         TRACE("std (d/m/y): %u/%02u/%04u day of week %u %u:%02u:%02u.%03u bias %d\n",
@@ -2881,23 +2859,20 @@ static void find_reg_tz_info(RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, const char*
               reg_tzi.DaylightDate.wSecond, reg_tzi.DaylightDate.wMilliseconds,
               reg_tzi.DaylightBias);
 
-        if (match_tz_info( tzi, &reg_tzi ) && match_tz_name( tz_name, &reg_tzi ))
+        if (match_tz_info( tzi, &reg_tzi ))
         {
             *tzi = reg_tzi;
-            NtClose( subkey );
             NtClose( key );
             return;
         }
-    next:
-        NtClose( subkey );
     }
     NtClose( key );
 
     if (idx == 1) return;  /* registry info not initialized yet */
 
     FIXME("Can't find matching timezone information in the registry for "
-          "%s, bias %d, std (d/m/y): %u/%02u/%04u, dlt (d/m/y): %u/%02u/%04u\n",
-          tz_name, tzi->Bias,
+          "bias %d, std (d/m/y): %u/%02u/%04u, dlt (d/m/y): %u/%02u/%04u\n",
+          tzi->Bias,
           tzi->StandardDate.wDay, tzi->StandardDate.wMonth, tzi->StandardDate.wYear,
           tzi->DaylightDate.wDay, tzi->DaylightDate.wMonth, tzi->DaylightDate.wYear);
 }
@@ -2907,14 +2882,25 @@ static time_t find_dst_change(time_t start, time_t end, int *is_dst)
     struct tm *tm;
     ULONGLONG min = (sizeof(time_t) == sizeof(int)) ? (ULONG)start : start;
     ULONGLONG max = (sizeof(time_t) == sizeof(int)) ? (ULONG)end : end;
+    time_t pos;
 
     tm = localtime(&start);
     *is_dst = !tm->tm_isdst;
     TRACE("starting date isdst %d, %s", !*is_dst, ctime(&start));
 
+    for (pos = min; pos <= max; pos += 30 * 24 * 3600)
+    {
+        tm = localtime(&pos);
+        if (tm->tm_isdst == *is_dst)
+        {
+            max = pos;
+            break;
+        }
+    }
+
     while (min <= max)
     {
-        time_t pos = (min + max) / 2;
+        pos = (min + max) / 2;
         tm = localtime(&pos);
 
         if (tm->tm_isdst != *is_dst)
@@ -2925,14 +2911,99 @@ static time_t find_dst_change(time_t start, time_t end, int *is_dst)
     return min;
 }
 
+static BOOL get_tz_info_from_zoneinfo_name( RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, const char *name, int year )
+{
+    static const WCHAR wine_tz_map[] = { '\\','R','e','g','i','s','t','r','y','\\',
+        'M','a','c','h','i','n','e','\\',
+        'S','o','f','t','w','a','r','e','\\',
+        'W','i','n','e','\\',
+        'T','i','m','e',' ','Z','o','n','e','s','\\',
+        'T','Z',' ','M','a','p','p','i','n','g',
+        0 };
+
+    const char *tzinfo_dir = getenv( "TZDIR" );
+    UNICODE_STRING key_name, win_name;
+    WCHAR nameW[64], win_nameW[64];
+    OBJECT_ATTRIBUTES attr;
+    char buf[MAX_PATH];
+    HANDLE key;
+    BOOL ret;
+    FILE *f;
+
+    TRACE( "name %s.\n", debugstr_a( name ));
+
+    if (strlen(name) >= ARRAY_SIZE(nameW)) return FALSE;
+
+    if (!tzinfo_dir) tzinfo_dir = default_tzinfo_dir;
+    snprintf( buf, sizeof(buf), "%s/%s", tzinfo_dir, name );
+
+    if (!(f = fopen( buf, "r" )))
+    {
+        WARN( "Could not open %s.\n", debugstr_a( buf ));
+        return FALSE;
+    }
+    fclose( f );
+
+    init_unicode_string( &key_name, wine_tz_map );
+    InitializeObjectAttributes( &attr, &key_name, 0, NULL, NULL );
+    if (NtOpenKey( &key, KEY_READ, &attr )) return FALSE;
+
+    ascii_to_unicode( nameW, name, strlen( name ) + 1 );
+    ret = reg_query_value( key, nameW, REG_SZ, win_nameW, sizeof(win_nameW) );
+    NtClose( key );
+    if (!ret) return FALSE;
+    TRACE( "got %s for %s.\n", debugstr_w(win_nameW), debugstr_a( name ) );
+
+    init_unicode_string( &key_name, Time_ZonesW );
+    if (NtOpenKey( &key, KEY_READ, &attr )) return FALSE;
+    init_unicode_string( &win_name, win_nameW );
+    ret = read_reg_tz_info( key, &win_name, year, tzi );
+    NtClose( key );
+    return ret;
+}
+
+static BOOL get_system_config_tz_info( RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi, int year )
+{
+    char path[PATH_MAX];
+    const char *str;
+    int len;
+
+    if ((str = getenv( "TZ" )))
+    {
+        if (*str == ':') ++str;
+        return get_tz_info_from_zoneinfo_name( tzi, str, year );
+    }
+
+    if (!realpath( "/etc/localtime", path )) return FALSE;
+    len = sizeof( default_tzinfo_dir ) - 1;
+    if (strncmp( path, default_tzinfo_dir, len )) return FALSE;
+    if (path[len] != '/') return FALSE;
+    return get_tz_info_from_zoneinfo_name( tzi, path + len + 1, year );
+}
+
+static LONG64 get_current_tz_bias(void)
+{
+    ULONG high, low;
+
+    do
+    {
+        high = user_shared_data->TimeZoneBias.High1Time;
+        low = user_shared_data->TimeZoneBias.LowPart;
+    }
+    while (high != user_shared_data->TimeZoneBias.High2Time);
+
+    return ((LONG64)high << 32) | low;
+}
+
 static void get_timezone_info( RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi )
 {
     static RTL_DYNAMIC_TIME_ZONE_INFORMATION cached_tzi;
     static int current_year = -1, current_bias = 65535;
-    struct tm *tm;
-    char tz_name[16];
+    RTL_DYNAMIC_TIME_ZONE_INFORMATION reg_tzi;
+    struct tm *tm, tm1, tm2;
     time_t year_start, year_end, tmp, dlt = 0, std = 0;
     int is_dst, bias;
+    BOOL inverted_dst;
 
     mutex_lock( &timezone_mutex );
 
@@ -2948,24 +3019,26 @@ static void get_timezone_info( RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi )
         return;
     }
 
-    memset(tzi, 0, sizeof(*tzi));
-    if (!strftime(tz_name, sizeof(tz_name), "%Z", tm)) {
-        /* not enough room or another error */
-        tz_name[0] = '\0';
-    }
-
-    TRACE("tz data will be valid through year %d, bias %d\n", tm->tm_year + 1900, bias);
     current_year = tm->tm_year;
     current_bias = bias;
+    tm1 = tm2 = *tm;
+    tm1.tm_isdst = 0;
+    tm2.tm_isdst = 1;
+    inverted_dst = mktime(&tm1) < mktime(&tm2);
+    if (inverted_dst) bias += 60;
+
+    memset(tzi, 0, sizeof(*tzi));
+    TRACE("tz data will be valid through year %d, bias %d, inverted_dst %d\n", tm->tm_year + 1900, bias, inverted_dst);
 
     tzi->Bias = bias;
 
-    tm->tm_isdst = 0;
+    tm->tm_isdst = inverted_dst;
     tm->tm_mday = 1;
     tm->tm_mon = tm->tm_hour = tm->tm_min = tm->tm_sec = tm->tm_wday = tm->tm_yday = 0;
     year_start = mktime(tm);
     TRACE("year_start: %s", ctime(&year_start));
 
+    tm->tm_isdst = inverted_dst;
     tm->tm_mday = tm->tm_wday = tm->tm_yday = 0;
     tm->tm_mon = 12;
     tm->tm_hour = 23;
@@ -2974,12 +3047,14 @@ static void get_timezone_info( RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi )
     TRACE("year_end: %s", ctime(&year_end));
 
     tmp = find_dst_change(year_start, year_end, &is_dst);
+    if (inverted_dst) is_dst = !is_dst;
     if (is_dst)
         dlt = tmp;
     else
         std = tmp;
 
     tmp = find_dst_change(tmp, year_end, &is_dst);
+    if (inverted_dst) is_dst = !is_dst;
     if (is_dst)
         dlt = tmp;
     else
@@ -3035,7 +3110,17 @@ static void get_timezone_info( RTL_DYNAMIC_TIME_ZONE_INFORMATION *tzi )
             tzi->StandardBias);
     }
 
-    find_reg_tz_info(tzi, tz_name, current_year + 1900);
+    if (get_system_config_tz_info( &reg_tzi, current_year + 1900 ))
+    {
+        if (match_tz_info( tzi, &reg_tzi ))
+        {
+            cached_tzi = *tzi = reg_tzi;
+            mutex_unlock( &timezone_mutex );
+            return;
+        }
+        WARN( "System config TZ info didn't match guessed parameters, falling back to search.\n" );
+    }
+    find_reg_tz_info(tzi, current_year + 1900);
     cached_tzi = *tzi;
     mutex_unlock( &timezone_mutex );
 }
@@ -3227,27 +3312,10 @@ NTSTATUS WINAPI NtQuerySystemInformation( SYSTEM_INFORMATION_CLASS class,
 
     case SystemTimeOfDayInformation:  /* 3 */
     {
-        static LONGLONG last_bias;
-        static time_t last_utc;
-        struct tm *tm;
-        time_t utc;
         SYSTEM_TIMEOFDAY_INFORMATION sti = {{{ 0 }}};
 
         sti.BootTime.QuadPart = server_start_time;
-
-        utc = time( NULL );
-        pthread_mutex_lock( &timezone_mutex );
-        if (utc != last_utc)
-        {
-            last_utc = utc;
-            tm = gmtime( &utc );
-            last_bias = mktime( tm ) - utc;
-            tm = localtime( &utc );
-            if (tm->tm_isdst) last_bias -= 3600;
-            last_bias *= TICKSPERSEC;
-        }
-        sti.TimeZoneBias.QuadPart = last_bias;
-        pthread_mutex_unlock( &timezone_mutex );
+        sti.TimeZoneBias.QuadPart = get_current_tz_bias();
 
         NtQuerySystemTime( &sti.SystemTime );
 
@@ -4023,11 +4091,14 @@ NTSTATUS WINAPI NtQuerySystemInformationEx( SYSTEM_INFORMATION_CLASS class,
     }
 
     case SystemSupportedProcessorArchitectures:
+    case SystemSupportedProcessorArchitectures2:
     {
         SYSTEM_SUPPORTED_PROCESSOR_ARCHITECTURES_INFORMATION *machines = info;
         HANDLE process;
         ULONG i;
         USHORT machine = 0;
+        USHORT machines_to_return[8];
+        unsigned int machines_to_return_count = 0;
 
         if (!query || query_len < sizeof(HANDLE)) return STATUS_INVALID_PARAMETER;
         process = *(HANDLE *)query;
@@ -4042,7 +4113,18 @@ NTSTATUS WINAPI NtQuerySystemInformationEx( SYSTEM_INFORMATION_CLASS class,
             if (ret) return ret;
         }
 
-        len = (supported_machines_count + 1) * sizeof(*machines);
+        for (i = 0; i < supported_machines_count; i++)
+        {
+#ifdef __aarch64__
+            if (class == SystemSupportedProcessorArchitectures &&
+                supported_machines[i] == IMAGE_FILE_MACHINE_AMD64)
+                continue;
+#endif
+            machines_to_return[machines_to_return_count] = supported_machines[i];
+            machines_to_return_count++;
+        }
+
+        len = (machines_to_return_count + 1) * sizeof(*machines);
         if (size < len)
         {
             ret = STATUS_BUFFER_TOO_SMALL;
@@ -4051,20 +4133,23 @@ NTSTATUS WINAPI NtQuerySystemInformationEx( SYSTEM_INFORMATION_CLASS class,
         memset( machines, 0, len );
 
         /* native machine */
-        machines[0].Machine = supported_machines[0];
+        machines[0].Machine = machines_to_return[0];
         machines[0].UserMode = 1;
         machines[0].KernelMode = 1;
         machines[0].Native = 1;
-        machines[0].Process = (supported_machines[0] == machine || is_machine_64bit( machine ));
+        machines[0].Process = (machines_to_return[0] == machine ||
+                               (class == SystemSupportedProcessorArchitectures &&
+                                machine == IMAGE_FILE_MACHINE_AMD64));
         machines[0].WoW64Container = 0;
         machines[0].ReservedZero0 = 0;
-        /* wow64 machines */
-        for (i = 1; i < supported_machines_count; i++)
+        /* other machines */
+        for (i = 1; i < machines_to_return_count; i++)
         {
-            machines[i].Machine = supported_machines[i];
+            machines[i].Machine = machines_to_return[i];
             machines[i].UserMode = 1;
-            machines[i].Process = supported_machines[i] == machine;
-            machines[i].WoW64Container = 1;
+            machines[i].Process = machines_to_return[i] == machine;
+            if (!is_machine_64bit( machines_to_return[i] ))
+                machines[i].WoW64Container = 1;
         }
         ret = STATUS_SUCCESS;
         break;

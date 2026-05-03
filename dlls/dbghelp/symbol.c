@@ -231,7 +231,7 @@ struct symt_module* symt_new_module(struct module* module)
     return sym;
 }
 
-struct symt_compiland* symt_new_compiland(struct module* module, const char *filename)
+struct symt_compiland* symt_new_compiland(struct module* module, symref_t parent, const char *filename)
 {
     struct symt_compiland*    sym;
     symref_t*                 p;
@@ -241,13 +241,17 @@ struct symt_compiland* symt_new_compiland(struct module* module, const char *fil
     if ((sym = pool_alloc(&module->pool, sizeof(*sym))))
     {
         sym->symt.tag  = SymTagCompiland;
-        sym->container = symt_ptr_to_symref(&module->top->symt);
+        sym->container = parent;
         sym->address   = 0;
         sym->filename  = pool_strdup(&module->pool, filename);
         vector_init(&sym->vchildren, sizeof(symref_t), 0);
         sym->user      = NULL;
-        p = vector_add(&module->top->vchildren, &module->pool);
-        if (p) *p = symt_ptr_to_symref(&sym->symt);
+        if (symt_is_symref_ptr(parent))
+        {
+            if (parent != symt_ptr_to_symref(&module->top->symt)) FIXME("Unexpected parent\n");
+            p = vector_add(&module->top->vchildren, &module->pool);
+            if (p) *p = symt_ptr_to_symref(&sym->symt);
+        }
     }
     return sym;
 }
@@ -319,7 +323,7 @@ struct symt_data* symt_new_global_variable(struct module* module,
 
 static struct symt_function* init_function_or_inlinesite(struct module* module,
                                                          DWORD tag,
-                                                         struct symt* container,
+                                                         symref_t container,
                                                          const char* name,
                                                          symref_t sig_type,
                                                          DWORD_PTR user,
@@ -331,7 +335,7 @@ static struct symt_function* init_function_or_inlinesite(struct module* module,
     {
         sym->symt.tag   = tag;
         sym->hash_elt.name = pool_strdup(&module->pool, name);
-        sym->container  = symt_ptr_to_symref(container);
+        sym->container  = container;
         sym->type       = sig_type;
         vector_init(&sym->vlines,  sizeof(struct line_info), 0);
         vector_init(&sym->vchildren, sizeof(symref_t), 0);
@@ -342,7 +346,7 @@ static struct symt_function* init_function_or_inlinesite(struct module* module,
 }
 
 struct symt_function* symt_new_function(struct module* module,
-                                        struct symt_compiland* compiland,
+                                        symref_t compiland,
                                         const char* name,
                                         ULONG_PTR addr, ULONG_PTR size,
                                         symref_t sig_type, DWORD_PTR user)
@@ -352,17 +356,20 @@ struct symt_function* symt_new_function(struct module* module,
     TRACE_(dbghelp_symt)("Adding global function %s:%s @%Ix-%Ix\n",
                          debugstr_w(module->modulename), debugstr_a(name), addr, addr + size - 1);
 
-    if ((sym = init_function_or_inlinesite(module, SymTagFunction, &compiland->symt, name, sig_type, user, 1)))
+    if ((sym = init_function_or_inlinesite(module, SymTagFunction, compiland, name, sig_type, user, 1)))
     {
         symref_t* p;
         sym->ranges[0].low = addr;
         sym->ranges[0].high = addr + size;
         sym->next_inlinesite = NULL; /* first of list */
-        symt_add_module_ht(module, (struct symt_ht*)sym);
-        if (compiland)
+        if (symt_is_symref_ptr(compiland))
         {
-            p = vector_add(&compiland->vchildren, &module->pool);
-            if (p) *p = symt_ptr_to_symref(&sym->symt);
+            symt_add_module_ht(module, (struct symt_ht*)sym);
+            if (compiland)
+            {
+                p = vector_add(&((struct symt_compiland*)SYMT_SYMREF_TO_PTR(compiland))->vchildren, &module->pool);
+                if (p) *p = symt_ptr_to_symref(&sym->symt);
+            }
         }
     }
     return sym;
@@ -379,7 +386,7 @@ struct symt_function* symt_new_inlinesite(struct module* module,
     struct symt_function* sym;
 
     TRACE_(dbghelp_symt)("Adding inline site %s\n", debugstr_a(name));
-    if ((sym = init_function_or_inlinesite(module, SymTagInlineSite, container, name, sig_type, user, num_ranges)))
+    if ((sym = init_function_or_inlinesite(module, SymTagInlineSite, symt_ptr_to_symref(container), name, sig_type, user, num_ranges)))
     {
         symref_t* p;
         assert(container);
@@ -876,6 +883,7 @@ static BOOL symt_fill_sym_info_from_symref(struct module_pair* pair, const struc
     DWORD tag;
     DWORD64 size;
     WCHAR *name;
+    DWORD data_kind, offset;
 
     if (!symt_get_info_from_symref(pair->effective, symref, TI_GET_SYMTAG, &tag))
         return FALSE;
@@ -911,7 +919,7 @@ static BOOL symt_fill_sym_info_from_symref(struct module_pair* pair, const struc
         char *buffer;
         char *tmp;
 
-        if (sym_info->MaxNameLen && (buffer = malloc(len)))
+        if (len && (buffer = malloc(len)))
         {
             WideCharToMultiByte(CP_ACP, 0, name, -1, buffer, len, NULL, NULL);
             if (sym_info->Tag == SymTagPublicSymbol && (dbghelp_options & SYMOPT_UNDNAME) &&
@@ -928,6 +936,41 @@ static BOOL symt_fill_sym_info_from_symref(struct module_pair* pair, const struc
         LocalFree(name);
     }
     else symbol_setname(sym_info, "");
+
+    switch (sym_info->Tag)
+    {
+    case SymTagData:
+        if (symt_get_info_from_symref(pair->effective, symref, TI_GET_DATAKIND, &data_kind))
+            switch (data_kind)
+            {
+            case DataIsGlobal:
+            case DataIsFileStatic:
+            case DataIsStaticLocal:
+                if (symt_get_info_from_symref(pair->effective, symref, TI_GET_ADDRESSOFFSET, &offset))
+                    sym_info->Flags |= SYMFLAG_TLSREL;
+                break;
+            case DataIsConstant:
+                if (symt_get_info_from_symref(pair->effective, symref, TI_GET_VALUE, &sym_info->Value))
+                    sym_info->Flags |= SYMFLAG_VALUEPRESENT;
+                break;
+            default:
+                FIXME("Unhandled kind (%lu) in sym data\n", data_kind);
+                break;
+            }
+        else WARN("Couldn't get data kind\n");
+        break;
+    case SymTagUDT:
+    case SymTagEnum:
+    case SymTagFunctionType:
+    case SymTagPointerType:
+    case SymTagArrayType:
+    case SymTagBaseType:
+    case SymTagTypedef:
+        break;
+    default:
+        FIXME("%Ix => %lu %s %lu %I64x\n",
+              symref, sym_info->Tag, debugstr_a(sym_info->Name), sym_info->Size, sym_info->Address);
+    }
 
     TRACE_(dbghelp_symt)("%Ix => %s %lu %I64x\n",
                          symref, debugstr_a(sym_info->Name), sym_info->Size, sym_info->Address);
@@ -1188,7 +1231,6 @@ symref_t symt_find_nearest(struct module *module, DWORD_PTR addr)
             if (result == MR_SUCCESS)
             {
                 recursive--;
-                if (!symt_is_symref_ptr(symref)) FIXME("No support for this case yet\n");
                 return symref;
             }
             /* fall back in all the other cases */
@@ -1221,10 +1263,13 @@ static symref_t symt_find_symref_at(struct module* module, DWORD_PTR addr)
     return nearest;
 }
 
+/* callers really expect a symt ptr from here, so fail when found
+ * symbol is a symref
+ */
 struct symt_ht* symt_find_symbol_at(struct module* module, DWORD_PTR addr)
 {
     symref_t nearest = symt_find_symref_at(module, addr);
-    return (struct symt_ht*)SYMT_SYMREF_TO_PTR(nearest);
+    return (symt_is_symref_ptr(nearest)) ? (struct symt_ht*)SYMT_SYMREF_TO_PTR(nearest) : NULL;
 }
 
 static BOOL symt_enum_locals_helper(struct module_pair* pair,

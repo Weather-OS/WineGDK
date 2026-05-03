@@ -30,7 +30,6 @@
 #include <alsa/asoundlib.h>
 
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 #include "windef.h"
 #include "winbase.h"
 #include "winternl.h"
@@ -881,6 +880,12 @@ static NTSTATUS alsa_create_stream(void *args)
 
     stream->mmdev_period_frames = muldiv(params->fmt->nSamplesPerSec,
             stream->mmdev_period_rt, 10000000);
+
+    if (stream->mmdev_period_frames == 0)
+    {
+        params->result = E_INVALIDARG;
+        goto exit;
+    }
 
     /* Buffer 4 ALSA periods if large enough, else 4 mmdevapi periods */
     stream->alsa_bufsize_frames = stream->mmdev_period_frames * 4;

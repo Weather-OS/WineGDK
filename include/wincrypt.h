@@ -1942,6 +1942,7 @@ static const WCHAR MS_ENH_RSA_AES_PROV_XP_W[] = { 'M','i','c','r','o','s','o','f
 /* Key Specs*/
 #define AT_KEYEXCHANGE          1
 #define AT_SIGNATURE            2
+#define CERT_NCRYPT_KEY_SPEC    0xffffffff
 
 /* Provider Types */
 #define PROV_RSA_FULL             1
@@ -3497,7 +3498,8 @@ typedef struct _CERT_CHAIN_ENGINE_CONFIG
     DWORD       MaximumCachedCertificates;
     DWORD       CycleDetectionModulus;
     HCERTSTORE  hExclusiveRoot;
-    HCERTSTORE  hExclusiveRootTrustedPeople;
+    HCERTSTORE  hExclusiveTrustedPeople;
+    DWORD       dwExclusiveFlags;
 } CERT_CHAIN_ENGINE_CONFIG, *PCERT_CHAIN_ENGINE_CONFIG;
 
 /* message-related definitions */
@@ -4704,6 +4706,11 @@ BOOL WINAPI CryptRetrieveObjectByUrlW(LPCWSTR pszURL, LPCSTR pszObjectOid,
 HRESULT WINAPI FindCertsByIssuer(PCERT_CHAIN pCertChains, DWORD *pcbCertChains,
  DWORD *pcCertChains, BYTE* pbEncodedIssuerName, DWORD cbEncodedIssuerName,
  LPCWSTR pwszPurpose, DWORD dwKeySpec);
+
+#define CRYPT_ACQUIRE_NCRYPT_KEY_FLAGS_MASK  0x00070000
+#define CRYPT_ACQUIRE_ALLOW_NCRYPT_KEY_FLAG  0x00010000
+#define CRYPT_ACQUIRE_PREFER_NCRYPT_KEY_FLAG 0x00020000
+#define CRYPT_ACQUIRE_ONLY_NCRYPT_KEY_FLAG   0x00040000
 
 #ifdef __cplusplus
 }

@@ -630,7 +630,7 @@ static void swapchain_gl_present(struct wined3d_swapchain *swapchain,
 
     TRACE("Presenting DC %p.\n", context_gl->dc);
 
-    pixel_format = &wined3d_adapter_gl(swapchain->device->adapter)->pixel_formats[context_gl->pixel_format];
+    pixel_format = &wined3d_adapter_gl(swapchain->device->adapter)->pixel_formats[context_gl->pixel_format - 1];
     if (context_gl->dc == wined3d_device_gl(swapchain->device)->backup_dc
             || (pixel_format->swap_method != WGL_SWAP_COPY_ARB
             && swapchain_present_is_partial_copy(swapchain, dst_rect)))

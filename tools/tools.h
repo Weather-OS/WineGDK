@@ -110,8 +110,8 @@ struct target
         PLATFORM_FREEBSD,
         PLATFORM_SOLARIS,
         PLATFORM_WINDOWS,
+        PLATFORM_WINDOWS_GNU,
         PLATFORM_MINGW,
-        PLATFORM_CYGWIN
     } platform;
 };
 
@@ -571,7 +571,7 @@ static inline struct target get_default_target(void)
 #elif defined(__sun)
     target.platform = PLATFORM_SOLARIS;
 #elif defined(__CYGWIN__)
-    target.platform = PLATFORM_CYGWIN;
+    target.platform = PLATFORM_MINGW;
 #elif defined(_WIN32)
     target.platform = PLATFORM_MINGW;
 #else
@@ -617,11 +617,16 @@ static inline void set_target_ptr_size( struct target *target, unsigned int size
 }
 
 
+static inline bool is_llvm_pe_target( struct target target )
+{
+    return target.platform == PLATFORM_WINDOWS ||
+           target.platform == PLATFORM_WINDOWS_GNU;
+}
+
+
 static inline bool is_pe_target( struct target target )
 {
-    return (target.platform == PLATFORM_WINDOWS ||
-            target.platform == PLATFORM_MINGW ||
-            target.platform == PLATFORM_CYGWIN);
+    return (is_llvm_pe_target( target ) || target.platform == PLATFORM_MINGW);
 }
 
 
@@ -668,10 +673,10 @@ static inline int get_platform_from_name( const char *name )
         { "freebsd",     PLATFORM_FREEBSD },
         { "solaris",     PLATFORM_SOLARIS },
         { "mingw32",     PLATFORM_MINGW },
-        { "windows-gnu", PLATFORM_MINGW },
+        { "windows-gnu", PLATFORM_WINDOWS_GNU },
         { "winnt",       PLATFORM_MINGW },
         { "windows",     PLATFORM_WINDOWS },
-        { "cygwin",      PLATFORM_CYGWIN },
+        { "cygwin",      PLATFORM_MINGW },
     };
     unsigned int i;
 

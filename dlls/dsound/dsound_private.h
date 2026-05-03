@@ -32,7 +32,7 @@
 
 #include "wine/list.h"
 
-#define DS_MAX_CHANNELS 6
+#define DS_MAX_CHANNELS 8
 
 extern int ds_hel_buflen;
 
@@ -146,8 +146,6 @@ struct IDirectSoundBufferImpl
     DSVOLUMEPAN                 volpan;
     DSBUFFERDESC                dsbd;
     /* used for frequency conversion (PerfectPitch) */
-    ULONG                       freqneeded;
-    DWORD                       firstep;
     float                       firgain;
     LONG64                      freqAdjustNum,freqAdjustDen;
     LONG64                      freqAccNum;

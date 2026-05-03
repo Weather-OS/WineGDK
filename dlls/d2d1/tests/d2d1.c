@@ -2438,9 +2438,11 @@ static void test_color_brush(BOOL d3d11)
     D2D1_COLOR_F color, tmp_color;
     struct d2d1_test_context ctx;
     ID2D1SolidColorBrush *brush;
+    struct resource_readback rb;
     ID2D1RenderTarget *rt;
     D2D1_RECT_F rect;
     float opacity;
+    DWORD colour;
     HRESULT hr;
     BOOL match;
 
@@ -2513,6 +2515,39 @@ static void test_color_brush(BOOL d3d11)
     ok(match, "Surface does not match.\n");
 
     ID2D1SolidColorBrush_Release(brush);
+
+    /* Test solid color brushes with out of range opacity values */
+    ID2D1RenderTarget_SetDpi(rt, 96.0f, 96.0f);
+    ID2D1RenderTarget_SetAntialiasMode(rt, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+    ID2D1RenderTarget_BeginDraw(rt);
+    set_matrix_identity(&matrix);
+    ID2D1RenderTarget_SetTransform(rt, &matrix);
+    set_color(&color, 0.0f, 0.0f, 0.0f, 1.0f);
+    ID2D1RenderTarget_Clear(rt, &color);
+    set_color(&color, 0.5f, 0.0f, 0.0f, 1.0f);
+    hr = ID2D1RenderTarget_CreateSolidColorBrush(rt, &color, NULL, &brush);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    ID2D1SolidColorBrush_SetOpacity(brush, 255.0f);
+    opacity = ID2D1SolidColorBrush_GetOpacity(brush);
+    ok(opacity == 255.0f, "Got unexpected opacity %.8e.\n", opacity);
+    set_rect(&rect, 0.0f, 0.0f, 1.0f, 1.0f);
+    ID2D1RenderTarget_FillRectangle(rt, &rect, (ID2D1Brush *)brush);
+    ID2D1SolidColorBrush_SetOpacity(brush, -255.0f);
+    opacity = ID2D1SolidColorBrush_GetOpacity(brush);
+    ok(opacity == -255.0f, "Got unexpected opacity %.8e.\n", opacity);
+    set_rect(&rect, 1.0f, 0.0f, 2.0f, 1.0f);
+    ID2D1RenderTarget_FillRectangle(rt, &rect, (ID2D1Brush *)brush);
+    ID2D1SolidColorBrush_Release(brush);
+    hr = ID2D1RenderTarget_EndDraw(rt, NULL, NULL);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    get_surface_readback(&ctx, &rb);
+    colour = get_readback_colour(&rb, 0, 0);
+    ok(compare_colour(colour, 0xff7f0000, 1), "Got unexpected colour 0x%08lx.\n", colour);
+    colour = get_readback_colour(&rb, 1, 0);
+    ok(compare_colour(colour, 0xff010000, 1), "Got unexpected colour 0x%08lx.\n", colour);
+    release_resource_readback(&rb);
+
     release_test_context(&ctx);
 }
 
@@ -2527,6 +2562,7 @@ static void test_bitmap_brush(BOOL d3d11)
     D2D1_RECT_F src_rect, dst_rect;
     struct d2d1_test_context ctx;
     D2D1_EXTEND_MODE extend_mode;
+    struct resource_readback rb;
     ID2D1BitmapBrush1 *brush1;
     ID2D1BitmapBrush *brush;
     D2D1_SIZE_F image_size;
@@ -2538,6 +2574,7 @@ static void test_bitmap_brush(BOOL d3d11)
     unsigned int i;
     ULONG refcount;
     float opacity;
+    DWORD colour;
     HRESULT hr;
     BOOL match;
 
@@ -2567,6 +2604,10 @@ static void test_bitmap_brush(BOOL d3d11)
         0xff0000ff, 0xffff00ff, 0xff000000, 0xff7f7f7f,
         0xffffffff, 0xffffffff, 0xffffffff, 0xff000000,
         0xffffffff, 0xff000000, 0xff000000, 0xff000000,
+    };
+    static const DWORD opacity_test_bitmap_data[] =
+    {
+        0xff7f0000
     };
 
     if (!init_test_context(&ctx, d3d11))
@@ -2900,6 +2941,88 @@ static void test_bitmap_brush(BOOL d3d11)
     ID2D1BitmapBrush_Release(brush);
     refcount = ID2D1Bitmap_Release(bitmap);
     ok(!refcount, "Bitmap has %lu references left.\n", refcount);
+
+    /* Test ID2D1RenderTarget_DrawBitmap() with out of range opacity values */
+    set_size_u(&size, 1, 1);
+    bitmap_desc.pixelFormat.format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    bitmap_desc.pixelFormat.alphaMode = D2D1_ALPHA_MODE_PREMULTIPLIED;
+    bitmap_desc.dpiX = 96.0f;
+    bitmap_desc.dpiY = 96.0f;
+    hr = ID2D1RenderTarget_CreateBitmap(rt, size, opacity_test_bitmap_data,
+        sizeof(*bitmap_data), &bitmap_desc, &bitmap);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    ID2D1RenderTarget_SetDpi(rt, 96.0f, 96.0f);
+    ID2D1RenderTarget_SetAntialiasMode(rt, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+    ID2D1RenderTarget_BeginDraw(rt);
+    set_color(&color, 0.0f, 0.0f, 0.0f, 1.0f);
+    ID2D1RenderTarget_Clear(rt, &color);
+    set_rect(&dst_rect, 0.0f, 0.0f, 1.0f, 1.0f);
+    ID2D1RenderTarget_DrawBitmap(rt, bitmap, &dst_rect, 255.0f,
+            D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR, NULL);
+    set_rect(&dst_rect, 1.0f, 0.0f, 2.0f, 1.0f);
+    ID2D1RenderTarget_DrawBitmap(rt, bitmap, &dst_rect, -255.0f,
+            D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR, NULL);
+    hr = ID2D1RenderTarget_EndDraw(rt, NULL, NULL);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    get_surface_readback(&ctx, &rb);
+    colour = get_readback_colour(&rb, 0, 0);
+    ok(compare_colour(colour, 0xff7f0000, 1), "Got unexpected colour 0x%08lx.\n", colour);
+    colour = get_readback_colour(&rb, 1, 0);
+    ok(compare_colour(colour, 0xff010000, 1), "Got unexpected colour 0x%08lx.\n", colour);
+    release_resource_readback(&rb);
+
+    /* Test ID2D1DeviceContext_DrawBitmap() with out of range opacity values */
+    ID2D1DeviceContext_BeginDraw(ctx.context);
+    set_color(&color, 0.0f, 0.0f, 0.0f, 1.0f);
+    ID2D1DeviceContext_Clear(ctx.context, &color);
+    set_rect(&dst_rect, 0.0f, 0.0f, 1.0f, 1.0f);
+    ID2D1DeviceContext_DrawBitmap(ctx.context, bitmap, &dst_rect, 255.0f,
+            D2D1_INTERPOLATION_MODE_NEAREST_NEIGHBOR, NULL, NULL);
+    set_rect(&dst_rect, 1.0f, 0.0f, 2.0f, 1.0f);
+    ID2D1DeviceContext_DrawBitmap(ctx.context, bitmap, &dst_rect, -255.0f,
+            D2D1_INTERPOLATION_MODE_NEAREST_NEIGHBOR, NULL, NULL);
+    hr = ID2D1DeviceContext_EndDraw(ctx.context, NULL, NULL);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    get_surface_readback(&ctx, &rb);
+    colour = get_readback_colour(&rb, 0, 0);
+    ok(compare_colour(colour, 0xff7f0000, 1), "Got unexpected colour 0x%08lx.\n", colour);
+    colour = get_readback_colour(&rb, 1, 0);
+    ok(compare_colour(colour, 0xff010000, 1), "Got unexpected colour 0x%08lx.\n", colour);
+    release_resource_readback(&rb);
+
+    /* Test bitmap brushes with out of range opacity values */
+    ID2D1RenderTarget_BeginDraw(rt);
+    set_matrix_identity(&matrix);
+    ID2D1RenderTarget_SetTransform(rt, &matrix);
+    set_color(&color, 0.0f, 0.0f, 0.0f, 1.0f);
+    ID2D1RenderTarget_Clear(rt, &color);
+    hr = ID2D1RenderTarget_CreateBitmapBrush(rt, bitmap, NULL, NULL, &brush);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    ID2D1BitmapBrush_SetOpacity(brush, 255.0f);
+    opacity = ID2D1BitmapBrush_GetOpacity(brush);
+    ok(opacity == 255.0f, "Got unexpected opacity %.8e.\n", opacity);
+    set_rect(&dst_rect, 0.0f, 0.0f, 1.0f, 1.0f);
+    ID2D1RenderTarget_FillRectangle(rt, &dst_rect, (ID2D1Brush *)brush);
+    ID2D1BitmapBrush_SetOpacity(brush, -255.0f);
+    opacity = ID2D1BitmapBrush_GetOpacity(brush);
+    ok(opacity == -255.0f, "Got unexpected opacity %.8e.\n", opacity);
+    set_rect(&dst_rect, 1.0f, 0.0f, 2.0f, 1.0f);
+    ID2D1RenderTarget_FillRectangle(rt, &dst_rect, (ID2D1Brush *)brush);
+    ID2D1BitmapBrush_Release(brush);
+    hr = ID2D1RenderTarget_EndDraw(rt, NULL, NULL);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    get_surface_readback(&ctx, &rb);
+    colour = get_readback_colour(&rb, 0, 0);
+    ok(compare_colour(colour, 0xff7f0000, 1), "Got unexpected colour 0x%08lx.\n", colour);
+    colour = get_readback_colour(&rb, 1, 0);
+    ok(compare_colour(colour, 0xff010000, 1), "Got unexpected colour 0x%08lx.\n", colour);
+    release_resource_readback(&rb);
+
+    ID2D1Bitmap_Release(bitmap);
     release_test_context(&ctx);
 }
 
@@ -4726,6 +4849,14 @@ static void test_path_geometry(BOOL d3d11)
     /* ComputeArea */
     hr = ID2D1Factory_CreatePathGeometry(factory, &geometry);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    area = 123.0f;
+    hr = ID2D1PathGeometry_ComputeArea(geometry, NULL, 1.0f, &area);
+    todo_wine
+    ok(hr == D2DERR_WRONG_STATE, "Got unexpected hr %#lx.\n", hr);
+    todo_wine
+    ok(area == 123.0f, "Unexpected area value %.8e.\n", area);
+
     hr = ID2D1PathGeometry_Open(geometry, &sink);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
 
@@ -11428,10 +11559,14 @@ static void test_colour_space(BOOL d3d11)
 
 static void test_geometry_group(BOOL d3d11)
 {
+    ID2D1TransformedGeometry *transformed_geometry;
     struct d2d1_test_context ctx;
     ID2D1Geometry *geometries[2];
     ID2D1GeometryGroup *group;
     D2D1_MATRIX_3X2_F matrix;
+    ID2D1PathGeometry *path;
+    ID2D1GeometrySink *sink;
+    D2D1_POINT_2F point;
     D2D1_RECT_F rect;
     HRESULT hr;
     BOOL match;
@@ -11471,6 +11606,64 @@ static void test_geometry_group(BOOL d3d11)
     ID2D1Geometry_Release(geometries[0]);
     ID2D1Geometry_Release(geometries[1]);
 
+    /* Empty path. */
+    hr = ID2D1Factory_CreatePathGeometry(ctx.factory, &path);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    hr = ID2D1Factory_CreateGeometryGroup(ctx.factory, D2D1_FILL_MODE_ALTERNATE, (ID2D1Geometry **)&path, 1, &group);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    hr = ID2D1GeometryGroup_GetBounds(group, NULL, &rect);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    match = compare_rect(&rect, INFINITY, INFINITY, FLT_MAX, FLT_MAX, 0);
+    ok(match, "Got unexpected rectangle {%.8e, %.8e, %.8e, %.8e}.\n",
+            rect.left, rect.top, rect.right, rect.bottom);
+
+    hr = ID2D1PathGeometry_Open(path, &sink);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    set_point(&point, 160.0f, 240.0f);
+    ID2D1GeometrySink_BeginFigure(sink, point, D2D1_FIGURE_BEGIN_FILLED);
+    line_to(sink, 240.0f, 240.0f);
+    line_to(sink, 240.0f, 720.0f);
+    line_to(sink, 160.0f, 720.0f);
+    ID2D1GeometrySink_EndFigure(sink, D2D1_FIGURE_END_OPEN);
+    ID2D1GeometrySink_Close(sink);
+    ID2D1GeometrySink_Release(sink);
+
+    hr = ID2D1GeometryGroup_GetBounds(group, NULL, &rect);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    match = compare_rect(&rect, INFINITY, INFINITY, FLT_MAX, FLT_MAX, 0);
+    ok(match, "Got unexpected rectangle {%.8e, %.8e, %.8e, %.8e}.\n",
+            rect.left, rect.top, rect.right, rect.bottom);
+
+    ID2D1GeometryGroup_Release(group);
+
+    hr = ID2D1Factory_CreateGeometryGroup(ctx.factory, D2D1_FILL_MODE_ALTERNATE, (ID2D1Geometry **)&path, 1, &group);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    hr = ID2D1GeometryGroup_GetBounds(group, NULL, &rect);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    match = compare_rect(&rect, 160.0f, 240.0f, 240.0f, 720.0f, 0);
+    ok(match, "Got unexpected rectangle {%.8e, %.8e, %.8e, %.8e}.\n",
+            rect.left, rect.top, rect.right, rect.bottom);
+
+    ID2D1GeometryGroup_Release(group);
+
+    /* Group using transformed geometry */
+    set_matrix_identity(&matrix);
+    scale_matrix(&matrix, 2.0f, 4.0f);
+    hr = ID2D1Factory_CreateTransformedGeometry(ctx.factory, (ID2D1Geometry *)path, &matrix,
+            &transformed_geometry);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    hr = ID2D1Factory_CreateGeometryGroup(ctx.factory, D2D1_FILL_MODE_ALTERNATE,
+            (ID2D1Geometry **)&transformed_geometry, 1, &group);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+
+    ID2D1GeometryGroup_Release(group);
+
+    ID2D1TransformedGeometry_Release(transformed_geometry);
+
+    ID2D1PathGeometry_Release(path);
     release_test_context(&ctx);
 }
 
@@ -11888,6 +12081,13 @@ static void test_builtin_effect(BOOL d3d11)
             ok(image_a == NULL, "Got unexpected image_a %p.\n", image_a);
             winetest_pop_context();
         }
+
+        /* Test setting NULL bitmap */
+        image_a = (ID2D1Image *)0xdeadbeef;
+        ID2D1Effect_SetInput(effect, 0, (ID2D1Image *)NULL, FALSE);
+        ID2D1Effect_GetInput(effect, 0, &image_a);
+        ok(image_a == NULL, "Got unexpected image_a %p.\n", image_a);
+
         ID2D1Bitmap_Release(bitmap);
 
         ID2D1Effect_Release(effect);
@@ -17548,7 +17748,6 @@ static void test_path_geometry_stream(BOOL d3d11)
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
 
     hr = ID2D1PathGeometry_Stream(geometry, &stream_sink.ID2D1GeometrySink_iface);
-    todo_wine
     ok(hr == D2DERR_WRONG_STATE, "Got unexpected hr %#lx.\n", hr);
 
     hr = ID2D1PathGeometry_Open(geometry, &sink);
@@ -17564,10 +17763,8 @@ static void test_path_geometry_stream(BOOL d3d11)
     ID2D1GeometrySink_Release(sink);
 
     hr = ID2D1PathGeometry_Stream(geometry, &stream_sink.ID2D1GeometrySink_iface);
-    todo_wine
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
-    if (SUCCEEDED(hr))
-        geometry_sink_check(&stream_sink, D2D1_FILL_MODE_ALTERNATE, 1, &expected_figures[0], 1);
+    geometry_sink_check(&stream_sink, D2D1_FILL_MODE_ALTERNATE, 1, &expected_figures[0], 1);
     geometry_sink_cleanup(&stream_sink);
     ID2D1PathGeometry_Release(geometry);
 
@@ -17658,12 +17855,26 @@ static void test_transformed_geometry(BOOL d3d11)
     area = 0.0f;
     hr = ID2D1TransformedGeometry_ComputeArea(geometry, NULL, 0.0f, &area);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
-    ok(area > 0.0f, "Unexpected value %.8e.\n", area);
+    ok(compare_float(area, 50.0f, 0), "Unexpected value %.8e.\n", area);
 
     area = 0.0f;
     hr = ID2D1TransformedGeometry_ComputeArea(geometry2, NULL, 0.0f, &area);
     ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
-    ok(area > 0.0f, "Unexpected value %.8e.\n", area);
+    ok(compare_float(area, 50.0f, 0), "Unexpected value %.8e.\n", area);
+
+    set_rect(&bounds, 1.0f, 2.0f, 3.0f, 4.0f);
+    hr = ID2D1TransformedGeometry_GetBounds(geometry, NULL, &bounds);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    match = compare_rect(&bounds, 240.0f, 720.0f, 250.0f, 730.0f, 0);
+    ok(match, "Got unexpected bounds {%.8e, %.8e, %.8e, %.8e}.\n",
+            bounds.left, bounds.top, bounds.right, bounds.bottom);
+
+    set_rect(&bounds, 1.0f, 2.0f, 3.0f, 4.0f);
+    hr = ID2D1TransformedGeometry_GetBounds(geometry2, NULL, &bounds);
+    ok(hr == S_OK, "Got unexpected hr %#lx.\n", hr);
+    match = compare_rect(&bounds, 720.0f, 2160.0f, 730.0f, 2170.0f, 0);
+    ok(match, "Got unexpected bounds {%.8e, %.8e, %.8e, %.8e}.\n",
+            bounds.left, bounds.top, bounds.right, bounds.bottom);
 
     ID2D1TransformedGeometry_Release(geometry2);
     ID2D1TransformedGeometry_Release(geometry);
@@ -17870,7 +18081,7 @@ START_TEST(d2d1)
     queue_test(test_wic_bitmap_format);
     queue_d3d10_test(test_math);
     queue_d3d10_test(test_colour_space);
-    queue_test(test_geometry_group);
+    queue_d3d10_test(test_geometry_group);
     queue_test(test_mt_factory);
     queue_d3d10_test(test_effect_register);
     queue_test(test_effect_context);

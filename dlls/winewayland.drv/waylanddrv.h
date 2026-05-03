@@ -235,6 +235,7 @@ struct wayland_window_config
     double scale;
     BOOL visible;
     BOOL managed;
+    BOOL minimized;
 };
 
 struct wayland_client_surface
@@ -392,6 +393,7 @@ void wayland_keyboard_init(struct wl_keyboard *wl_keyboard);
 void wayland_keyboard_deinit(void);
 const KBDTABLES *WAYLAND_KbdLayerDescriptor(HKL hkl);
 void WAYLAND_ReleaseKbdTables(const KBDTABLES *);
+void activate_keyboard_hkl(HWND hwnd, BOOL ime);
 
 /**********************************************************************
  *          Wayland pointer

@@ -30287,6 +30287,46 @@ coclass DOMParser
 }
 
 /*****************************************************************************
+ *    IDOMXmlSerializer interface
+ */
+[
+    object,
+    oleautomation,
+    dual,
+    uuid(3051077d-98b5-11cf-bb82-00aa00bdce0b)
+]
+interface IDOMXmlSerializer : IDispatch
+{
+    [id(DISPID_IDOMXMLSERIALIZER_SERIALIZETOSTRING)]
+    HRESULT serializeToString([in] IHTMLDOMNode *node, [retval, out] BSTR *pString);
+}
+
+/*****************************************************************************
+ *    DispXMLSerializer dispinterface
+ */
+[
+    hidden,
+    uuid(305900ad-98b5-11cf-bb82-00aa00bdce0b)
+]
+dispinterface DispXMLSerializer
+{
+properties:
+methods:
+    [id(DISPID_IDOMXMLSERIALIZER_SERIALIZETOSTRING)]
+    BSTR serializeToString([in] IHTMLDOMNode *node);
+}
+
+[
+    noncreatable,
+    uuid(3051077e-98b5-11cf-bb82-00aa00bdce0b)
+]
+coclass XMLSerializer
+{
+    [default] dispinterface DispXMLSerializer;
+    interface IDOMXmlSerializer;
+}
+
+/*****************************************************************************
  *    IXMLGenericParse interface
  */
 [

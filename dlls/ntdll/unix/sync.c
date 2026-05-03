@@ -65,7 +65,6 @@
 #endif
 
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 #include "windef.h"
 #include "winternl.h"
 #include "ddk/wdm.h"
@@ -872,7 +871,7 @@ static NTSTATUS inproc_query_mutex( HANDLE handle, MUTANT_BASIC_INFORMATION *inf
 
 static int get_inproc_alert_fd(void)
 {
-    struct ntdll_thread_data *data = ntdll_get_thread_data();
+    struct thread_data *data = get_thread_data();
     obj_handle_t token;
     sigset_t sigset;
     int fd;
@@ -3585,7 +3584,7 @@ static LONGLONG update_timeout( ULONGLONG end )
  */
 NTSTATUS WINAPI NtWaitForAlertByThreadId( const void *address, const LARGE_INTEGER *timeout )
 {
-    union tid_alert_entry *entry = get_tid_alert_entry( NtCurrentTeb()->ClientId.UniqueThread );
+    union tid_alert_entry *entry = get_tid_alert_entry( ULongToHandle(get_thread_data()->tid) );
 
     TRACE( "%p %s\n", address, debugstr_timeout( timeout ) );
 

@@ -4692,6 +4692,7 @@ sync_test("prototype props", function() {
         ["overrideMimeType",11], "readyState", "removeEventListener", ["response",10], "responseBody", "responseText", ["responseType",10], "responseXML", "send",
         "setRequestHeader", "status", "statusText", "timeout", ["upload",10], ["withCredentials",10]
     ], [ "DONE", "HEADERS_RECEIVED", "LOADING", "OPENED", "UNSENT", ["msCaching",11], ["msCachingEnabled",11] ]);
+    check(XMLSerializer, [ "serializeToString" ]);
 });
 
 sync_test("constructors", function() {
@@ -4895,7 +4896,7 @@ async_test("window own props", function() {
             ["URL",10], ["ValidityState",10], ["VideoPlaybackQuality",11], ["WebGLActiveInfo",11], ["WebGLBuffer",11], ["WebGLContextEvent",11],
             ["WebGLFramebuffer",11], ["WebGLObject",11], ["WebGLProgram",11], ["WebGLRenderbuffer",11], ["WebGLRenderingContext",11], ["WebGLShader",11], ["WebGLShaderPrecisionFormat",11],
             ["WebGLTexture",11], ["WebGLUniformLocation",11], ["WEBGL_compressed_texture_s3tc",11], ["WEBGL_debug_renderer_info",11], ["WebSocket",10], "WheelEvent", ["Worker",10],
-            ["XMLHttpRequestEventTarget",10], "XMLSerializer"
+            ["XMLHttpRequestEventTarget",10]
         ]);
         next_test();
     }

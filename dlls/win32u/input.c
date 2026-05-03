@@ -31,7 +31,6 @@
 #endif
 
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 #include "win32u_private.h"
 #include "ntuser_private.h"
 #include "wine/server.h"
@@ -405,6 +404,7 @@ static const KBDTABLES kbdus_tables =
 };
 
 static LONG clipping_cursor; /* clipping thread counter */
+static LONG enable_mouse_in_pointer = -1;
 
 BOOL grab_pointer = TRUE;
 BOOL grab_fullscreen = FALSE;
@@ -943,7 +943,7 @@ DWORD get_last_input_time(void)
 {
     DWORD ret;
 
-    SERVER_START_REQ( get_last_input_time )
+    SERVER_START_REQ( set_user_input_time )
     {
         wine_server_call( req );
         ret = reply->time;
@@ -2608,15 +2608,22 @@ void toggle_caret( HWND hwnd )
     if (ret && !hidden) display_caret( hwnd, &r );
 }
 
-
 /**********************************************************************
  *       NtUserEnableMouseInPointer    (win32u.@)
  */
 BOOL WINAPI NtUserEnableMouseInPointer( BOOL enable )
 {
-    FIXME( "enable %u stub!\n", enable );
-    RtlSetLastWin32Error( ERROR_CALL_NOT_IMPLEMENTED );
-    return FALSE;
+    LONG prev;
+
+    TRACE( "enable %u\n", enable );
+
+    if ((prev = InterlockedCompareExchange( &enable_mouse_in_pointer, !!enable, -1 )) != -1 && prev != enable)
+    {
+        RtlSetLastWin32Error( ERROR_ACCESS_DENIED );
+        return FALSE;
+    }
+
+    return TRUE;
 }
 
 /**********************************************************************
@@ -2634,9 +2641,14 @@ BOOL WINAPI NtUserEnableMouseInPointerForThread( void )
  */
 BOOL WINAPI NtUserIsMouseInPointerEnabled(void)
 {
-    FIXME( "stub!\n" );
-    RtlSetLastWin32Error( ERROR_CALL_NOT_IMPLEMENTED );
-    return FALSE;
+    BOOL ret = ReadNoFence( &enable_mouse_in_pointer ) == 1;
+    TRACE( "-> %d.\n", ret );
+    return ret;
+}
+
+BOOL is_mouse_in_pointer_enabled( HWND hwnd )
+{
+    return ReadNoFence( &enable_mouse_in_pointer ) == 1;
 }
 
 static BOOL is_captured_by_system(void)
@@ -2839,4 +2851,13 @@ INT WINAPI NtUserScheduleDispatchNotification( HWND hwnd )
         return 2;
 
     return 0;
+}
+
+/**********************************************************************
+ *       NtUserInitializeTouchInjection    (win32u.@)
+ */
+BOOL WINAPI NtUserInitializeTouchInjection( UINT max_count, UINT mode )
+{
+    FIXME( "max_count %u, mode %#x stub!\n", max_count, mode );
+    return TRUE;
 }

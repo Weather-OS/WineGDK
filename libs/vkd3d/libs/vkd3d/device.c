@@ -109,6 +109,7 @@ static const struct vkd3d_optional_extension_info optional_device_extensions[] =
     VK_EXTENSION(EXT_FRAGMENT_SHADER_INTERLOCK, EXT_fragment_shader_interlock),
     VK_EXTENSION(EXT_MUTABLE_DESCRIPTOR_TYPE, EXT_mutable_descriptor_type),
     VK_EXTENSION(EXT_ROBUSTNESS_2, EXT_robustness2),
+    VK_EXTENSION(EXT_SAMPLER_FILTER_MINMAX, EXT_sampler_filter_minmax),
     VK_EXTENSION(EXT_SHADER_DEMOTE_TO_HELPER_INVOCATION, EXT_shader_demote_to_helper_invocation),
     VK_EXTENSION(EXT_SHADER_STENCIL_EXPORT, EXT_shader_stencil_export),
     VK_EXTENSION(EXT_SHADER_VIEWPORT_INDEX_LAYER, EXT_shader_viewport_index_layer),
@@ -232,18 +233,18 @@ static HRESULT vkd3d_vk_descriptor_heap_layouts_init(struct d3d12_device *device
         switch (device->vk_descriptor_heap_layouts[set].type)
         {
             case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-                device->vk_descriptor_heap_layouts[set].count = limits->uniform_buffer_max_descriptors;
+                device->vk_descriptor_heap_layouts[set].count = limits->max_cbv_descriptor_count;
                 break;
             case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
             case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-                device->vk_descriptor_heap_layouts[set].count = limits->sampled_image_max_descriptors;
+                device->vk_descriptor_heap_layouts[set].count = limits->max_srv_descriptor_count;
                 break;
             case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
             case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-                device->vk_descriptor_heap_layouts[set].count = limits->storage_image_max_descriptors;
+                device->vk_descriptor_heap_layouts[set].count = limits->max_uav_descriptor_count;
                 break;
             case VK_DESCRIPTOR_TYPE_SAMPLER:
-                device->vk_descriptor_heap_layouts[set].count = limits->sampler_max_descriptors;
+                device->vk_descriptor_heap_layouts[set].count = limits->max_sampler_descriptor_count;
                 break;
             default:
                 ERR("Unhandled descriptor type %#x.\n", device->vk_descriptor_heap_layouts[set].type);
@@ -835,6 +836,7 @@ struct vkd3d_physical_device_info
     /* properties */
     VkPhysicalDeviceDescriptorIndexingPropertiesEXT descriptor_indexing_properties;
     VkPhysicalDeviceMaintenance3Properties maintenance3_properties;
+    VkPhysicalDeviceSamplerFilterMinmaxPropertiesEXT filter_minmax_properties;
     VkPhysicalDeviceTexelBufferAlignmentPropertiesEXT texel_buffer_alignment_properties;
     VkPhysicalDeviceTransformFeedbackPropertiesEXT xfb_properties;
     VkPhysicalDeviceVertexAttributeDivisorPropertiesEXT vertex_divisor_properties;
@@ -900,6 +902,8 @@ static void vkd3d_chain_physical_device_info_structures(struct vkd3d_physical_de
         vk_prepend_struct(&info->properties2, &info->maintenance3_properties);
     if (vulkan_info->EXT_descriptor_indexing)
         vk_prepend_struct(&info->properties2, &info->descriptor_indexing_properties);
+    if (vulkan_info->EXT_sampler_filter_minmax)
+        vk_prepend_struct(&info->properties2, &info->filter_minmax_properties);
     if (vulkan_info->EXT_texel_buffer_alignment)
         vk_prepend_struct(&info->properties2, &info->texel_buffer_alignment_properties);
     if (vulkan_info->EXT_transform_feedback)
@@ -936,6 +940,7 @@ static void vkd3d_physical_device_info_init(struct vkd3d_physical_device_info *i
     info->properties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
     info->maintenance3_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_3_PROPERTIES;
     info->descriptor_indexing_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_PROPERTIES_EXT;
+    info->filter_minmax_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_FILTER_MINMAX_PROPERTIES_EXT;
     info->texel_buffer_alignment_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TEXEL_BUFFER_ALIGNMENT_PROPERTIES_EXT;
     info->xfb_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TRANSFORM_FEEDBACK_PROPERTIES_EXT;
     info->vertex_divisor_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_ATTRIBUTE_DIVISOR_PROPERTIES_EXT;
@@ -1017,6 +1022,7 @@ static void vkd3d_trace_physical_device_limits(const struct vkd3d_physical_devic
     const VkPhysicalDeviceLimits *limits = &info->properties2.properties.limits;
     const VkPhysicalDeviceDescriptorIndexingPropertiesEXT *descriptor_indexing;
     const VkPhysicalDeviceTexelBufferAlignmentPropertiesEXT *buffer_alignment;
+    const VkPhysicalDeviceSamplerFilterMinmaxPropertiesEXT *minmax;
     const VkPhysicalDeviceMaintenance3Properties *maintenance3;
     const VkPhysicalDeviceTransformFeedbackPropertiesEXT *xfb;
 
@@ -1195,6 +1201,11 @@ static void vkd3d_trace_physical_device_limits(const struct vkd3d_physical_devic
     TRACE("  VkPhysicalDeviceMaintenance3Properties:\n");
     TRACE("    maxPerSetDescriptors: %u.\n", maintenance3->maxPerSetDescriptors);
     TRACE("    maxMemoryAllocationSize: %#"PRIx64".\n", maintenance3->maxMemoryAllocationSize);
+
+    minmax = &info->filter_minmax_properties;
+    TRACE("  VkPhysicalDeviceSamplerFilterMinmaxPropertiesEXT:\n");
+    TRACE("    filterMinmaxSingleComponentFormats: %#x.\n", minmax->filterMinmaxSingleComponentFormats);
+    TRACE("    filterMinmaxImageComponentMapping: %#x.\n", minmax->filterMinmaxImageComponentMapping);
 
     buffer_alignment = &info->texel_buffer_alignment_properties;
     TRACE("  VkPhysicalDeviceTexelBufferAlignmentPropertiesEXT:\n");
@@ -1476,11 +1487,11 @@ static void vkd3d_init_feature_level(struct vkd3d_vulkan_info *vk_info,
 static void vkd3d_device_descriptor_limits_init(struct vkd3d_device_descriptor_limits *limits,
         const VkPhysicalDeviceLimits *device_limits)
 {
-    limits->uniform_buffer_max_descriptors = device_limits->maxDescriptorSetUniformBuffers;
-    limits->sampled_image_max_descriptors = device_limits->maxDescriptorSetSampledImages;
-    limits->storage_buffer_max_descriptors = device_limits->maxDescriptorSetStorageBuffers;
-    limits->storage_image_max_descriptors = device_limits->maxDescriptorSetStorageImages;
-    limits->sampler_max_descriptors = min(device_limits->maxDescriptorSetSamplers, VKD3D_MAX_DESCRIPTOR_SET_SAMPLERS);
+    limits->max_cbv_descriptor_count = device_limits->maxDescriptorSetUniformBuffers;
+    limits->max_srv_descriptor_count = device_limits->maxDescriptorSetSampledImages;
+    limits->max_uav_descriptor_count = device_limits->maxDescriptorSetStorageImages;
+    limits->max_sampler_descriptor_count = min(device_limits->maxDescriptorSetSamplers,
+            VKD3D_MAX_DESCRIPTOR_SET_SAMPLERS);
 }
 
 static void vkd3d_device_vk_heaps_descriptor_limits_init(struct vkd3d_device_descriptor_limits *limits,
@@ -1500,22 +1511,19 @@ static void vkd3d_device_vk_heaps_descriptor_limits_init(struct vkd3d_device_des
         uav_divisor = properties->maxDescriptorSetUpdateAfterBindSampledImages >= (3u << 20) ? 3 : 2;
     }
 
-    limits->uniform_buffer_max_descriptors = min(min(properties->maxDescriptorSetUpdateAfterBindUniformBuffers,
+    limits->max_cbv_descriptor_count = min(min(properties->maxDescriptorSetUpdateAfterBindUniformBuffers,
             properties->maxPerStageDescriptorUpdateAfterBindUniformBuffers - root_provision),
             VKD3D_MAX_DESCRIPTOR_SET_CBVS_SRVS_UAVS);
-    limits->sampled_image_max_descriptors = min(min(properties->maxDescriptorSetUpdateAfterBindSampledImages,
+    limits->max_srv_descriptor_count = min(min(properties->maxDescriptorSetUpdateAfterBindSampledImages,
             properties->maxPerStageDescriptorUpdateAfterBindSampledImages / srv_divisor - root_provision),
             VKD3D_MAX_DESCRIPTOR_SET_CBVS_SRVS_UAVS);
-    limits->storage_buffer_max_descriptors = min(min(properties->maxDescriptorSetUpdateAfterBindStorageBuffers,
-            properties->maxPerStageDescriptorUpdateAfterBindStorageBuffers - root_provision),
-            VKD3D_MAX_DESCRIPTOR_SET_CBVS_SRVS_UAVS);
-    limits->storage_image_max_descriptors = min(min(properties->maxDescriptorSetUpdateAfterBindStorageImages,
+    limits->max_uav_descriptor_count = min(min(properties->maxDescriptorSetUpdateAfterBindStorageImages,
             properties->maxPerStageDescriptorUpdateAfterBindStorageImages / uav_divisor - root_provision),
             VKD3D_MAX_DESCRIPTOR_SET_CBVS_SRVS_UAVS);
-    limits->sampler_max_descriptors = min(min(properties->maxDescriptorSetUpdateAfterBindSamplers,
+    limits->max_sampler_descriptor_count = min(min(properties->maxDescriptorSetUpdateAfterBindSamplers,
             properties->maxPerStageDescriptorUpdateAfterBindSamplers - root_provision),
             VKD3D_MAX_DESCRIPTOR_SET_CBVS_SRVS_UAVS);
-    limits->sampler_max_descriptors = min(limits->sampler_max_descriptors, VKD3D_MAX_DESCRIPTOR_SET_SAMPLERS);
+    limits->max_sampler_descriptor_count = min(limits->max_sampler_descriptor_count, VKD3D_MAX_DESCRIPTOR_SET_SAMPLERS);
 }
 
 static bool d3d12_device_supports_typed_uav_load_additional_formats(const struct d3d12_device *device)
@@ -1865,6 +1873,12 @@ static HRESULT vkd3d_init_device_caps(struct d3d12_device *device,
         vulkan_info->KHR_zero_initialize_workgroup_memory = false;
 
     physical_device_info->formats4444_features.formatA4B4G4R4 = VK_FALSE;
+
+    if (!vulkan_info->EXT_sampler_filter_minmax)
+        WARN("Sampler min/max reduction filtering is not supported.\n");
+    else if (!physical_device_info->filter_minmax_properties.filterMinmaxSingleComponentFormats
+            || !physical_device_info->filter_minmax_properties.filterMinmaxImageComponentMapping)
+        WARN("Sampler min/max reduction filtering is only partially supported.");
 
     vulkan_info->texel_buffer_alignment_properties = physical_device_info->texel_buffer_alignment_properties;
 
@@ -2713,13 +2727,13 @@ static void device_init_descriptor_pool_sizes(struct d3d12_device *device)
     const struct vkd3d_device_descriptor_limits *limits = &device->vk_info.descriptor_limits;
     unsigned int *pool_sizes = device->vk_pool_limits;
 
-    pool_sizes[VKD3D_SHADER_DESCRIPTOR_TYPE_CBV] = min(limits->uniform_buffer_max_descriptors,
+    pool_sizes[VKD3D_SHADER_DESCRIPTOR_TYPE_CBV] = min(limits->max_cbv_descriptor_count,
             VKD3D_MAX_VIRTUAL_HEAP_DESCRIPTORS_PER_TYPE);
-    pool_sizes[VKD3D_SHADER_DESCRIPTOR_TYPE_SRV] = min(limits->sampled_image_max_descriptors,
+    pool_sizes[VKD3D_SHADER_DESCRIPTOR_TYPE_SRV] = min(limits->max_srv_descriptor_count,
             VKD3D_MAX_VIRTUAL_HEAP_DESCRIPTORS_PER_TYPE);
-    pool_sizes[VKD3D_SHADER_DESCRIPTOR_TYPE_UAV] = min(limits->storage_image_max_descriptors,
+    pool_sizes[VKD3D_SHADER_DESCRIPTOR_TYPE_UAV] = min(limits->max_uav_descriptor_count,
             VKD3D_MAX_VIRTUAL_HEAP_DESCRIPTORS_PER_TYPE);
-    pool_sizes[VKD3D_SHADER_DESCRIPTOR_TYPE_SAMPLER] = min(limits->sampler_max_descriptors,
+    pool_sizes[VKD3D_SHADER_DESCRIPTOR_TYPE_SAMPLER] = min(limits->max_sampler_descriptor_count,
             VKD3D_MAX_VIRTUAL_HEAP_DESCRIPTORS_PER_TYPE);
 };
 

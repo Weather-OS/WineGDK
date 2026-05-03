@@ -792,7 +792,7 @@ static BOOL dwarf2_fill_in_variant(struct module *module, VARIANT *v, const stru
         return FALSE;
     }
     /* native always stores in the shortest format in variant */
-    if (bt == btChar || bt == btInt || bt == btLong)
+    if (bt == btChar || bt == btInt || bt == btLong || bt == btBool)
     {
         if (sinteger == (signed char)sinteger)
         {
@@ -2449,7 +2449,7 @@ static struct symt* dwarf2_parse_subprogram(dwarf2_debug_info_t* di)
         return NULL;
     }
 
-    subpgm.top_func = symt_new_function(di->unit_ctx->module_ctx->module, di->unit_ctx->compiland,
+    subpgm.top_func = symt_new_function(di->unit_ctx->module_ctx->module, symt_ptr_to_symref(&di->unit_ctx->compiland->symt),
                                         dwarf2_get_cpp_name(di, name.u.string),
                                         addr_ranges[0].low, addr_ranges[0].high - addr_ranges[0].low,
                                         symt_ptr_to_symref(dwarf2_parse_subroutine_type(di)), 0);
@@ -3063,7 +3063,7 @@ static BOOL dwarf2_parse_compilation_unit(dwarf2_parse_context_t* ctx)
             ctx->language = language.u.uvalue;
 
             tmp = source_build_path(comp_dir.u.string, name.u.string);
-            ctx->compiland = symt_new_compiland(ctx->module_ctx->module, tmp);
+            ctx->compiland = symt_new_compiland(ctx->module_ctx->module, symt_ptr_to_symref(&ctx->module_ctx->module->top->symt), tmp);
             HeapFree(GetProcessHeap(), 0, tmp);
             ctx->compiland->address = ctx->module_ctx->load_offset + low_pc.u.uvalue;
             dwarf2_cache_cuhead(ctx->module_ctx->module, ctx->module_ctx->module->format_info[DFI_DWARF]->u.dwarf2_info, ctx->compiland, &ctx->head);
@@ -4215,13 +4215,20 @@ static BOOL dwarf2_load_CU_module(dwarf2_parse_module_context_t* module_ctx, str
     mod_ctx.end_data = mod_ctx.data + sections[section_debug].size;
     while (mod_ctx.data < mod_ctx.end_data)
     {
-        dwarf2_parse_context_t **punit_ctx = vector_add(&module_ctx->unit_contexts, &module_ctx->module->pool);
+        dwarf2_parse_context_t* unit;
 
-        if (!(*punit_ctx = pool_alloc(&module_ctx->module->pool, sizeof(dwarf2_parse_context_t))))
+        if (!(unit = pool_alloc(&module_ctx->module->pool, sizeof(dwarf2_parse_context_t))))
             return FALSE;
 
-        (*punit_ctx)->module_ctx = module_ctx;
-        dwarf2_parse_compilation_unit_head(*punit_ctx, &mod_ctx);
+        unit->module_ctx = module_ctx;
+        if (dwarf2_parse_compilation_unit_head(unit, &mod_ctx))
+        {
+            dwarf2_parse_context_t **punit_ctx = vector_add(&module_ctx->unit_contexts, &module_ctx->module->pool);
+            if (!punit_ctx) return FALSE;
+            *punit_ctx = unit;
+        }
+        else
+            pool_free(&module_ctx->module->pool, unit);
     }
 
     /* phase2: load content of all CU

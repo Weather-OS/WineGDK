@@ -29,7 +29,6 @@
 #include "config.h"
 
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 #include "macdrv.h"
 #include "winuser.h"
 #include "shellapi.h"
@@ -338,9 +337,9 @@ static WINE_CLIPFORMAT* natural_format_for_format(UINT format_id)
 
 static ATOM register_clipboard_format(const WCHAR *name)
 {
-    ATOM atom;
-    if (NtAddAtom(name, lstrlenW(name) * sizeof(WCHAR), &atom)) return 0;
-    return atom;
+    UNICODE_STRING name_str;
+    RtlInitUnicodeString(&name_str, name);
+    return NtUserRegisterWindowMessage(&name_str);
 }
 
 
@@ -579,8 +578,8 @@ static CPTABLEINFO *get_ansi_cp(void)
     static CPTABLEINFO cp;
     if (!cp.CodePage)
     {
-        if (NtCurrentTeb()->Peb->AnsiCodePageData)
-            RtlInitCodePageTable(NtCurrentTeb()->Peb->AnsiCodePageData, &cp);
+        if (RtlGetCurrentPeb()->AnsiCodePageData)
+            RtlInitCodePageTable(RtlGetCurrentPeb()->AnsiCodePageData, &cp);
         else
             RtlInitCodePageTable(utf8_hdr, &cp);
     }

@@ -29,9 +29,11 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#ifdef HAVE_LINUX_MEMFD_H
+# include <linux/memfd.h>
+#endif
 
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 #include "windef.h"
 #include "winternl.h"
 #include "ddk/wdm.h"
@@ -164,7 +166,9 @@ struct mapping
     struct ranges       *committed;  /* list of committed ranges in this mapping */
     struct shared_map   *shared;     /* temp file for shared PE mapping */
     char                *exp_name;   /* export name (for PE image mapping) */
+    void                *ver_res;    /* version resource (for PE image mapping) */
     data_size_t          exp_len;    /* length of export name (for PE image mapping) */
+    data_size_t          ver_len;    /* length of version resource (for PE image mapping) */
 };
 
 static void mapping_dump( struct object *obj, int verbose );
@@ -365,6 +369,13 @@ static int create_temp_file( file_pos_t size )
     char tmpfn[16];
     int fd;
 
+#if defined(HAVE_MEMFD_CREATE) && defined(MFD_EXEC)
+    if ((fd = memfd_create( "wine-mapping", MFD_EXEC )) != -1)
+    {
+        if (grow_file( fd, size )) return fd;
+        close( fd );
+    }
+#endif
     if (temp_dir_fd == -1)
     {
         temp_dir_fd = server_dir_fd;
@@ -720,11 +731,12 @@ static int load_data_dir( void *dir, size_t dir_size, size_t va, size_t size, si
 }
 
 /* load EXPORT_DIRECTORY.Name from its section */
-static int load_export_name( char **ret_buf, size_t va, size_t size, size_t align_mask,
+static int load_export_name( char **ret_buf, IMAGE_DATA_DIRECTORY *data, size_t align_mask,
                              int unix_fd, IMAGE_SECTION_HEADER *sec, unsigned int nb_sec )
 {
     char *end, buffer[1024];
     IMAGE_EXPORT_DIRECTORY exp;
+    size_t va = data->VirtualAddress, size = data->Size;
     int ret = load_data_dir( &exp, sizeof(exp), va, size, align_mask, unix_fd, sec, nb_sec );
 
     if (ret != sizeof(exp)) return 0;
@@ -738,11 +750,85 @@ static int load_export_name( char **ret_buf, size_t va, size_t size, size_t alig
     return end - buffer;
 }
 
+/* find a resource entry by id */
+static size_t find_resource_id( const IMAGE_RESOURCE_DIRECTORY_ENTRY *entries, unsigned int count,
+                                unsigned int id, int want_dir )
+{
+    for (unsigned int i = 0; i < count; i++)
+        if (entries[i].Id == id && !entries[i].DataIsDirectory == !want_dir)
+            return entries[i].OffsetToDirectory;
+    return 0;
+}
+
+/* find a resource entry in a directory */
+static size_t find_resource_entry( unsigned int id, IMAGE_DATA_DIRECTORY *data,
+                                   size_t offset, size_t align_mask, int unix_fd,
+                                   IMAGE_SECTION_HEADER *sec, unsigned int nb_sec )
+{
+    IMAGE_RESOURCE_DIRECTORY_ENTRY *entries;
+    IMAGE_RESOURCE_DIRECTORY res;
+    size_t size;
+    int ret;
+
+    if (offset >= data->Size) return 0;
+    ret = load_data_dir( &res, sizeof(res), data->VirtualAddress + offset, data->Size - offset,
+                         align_mask, unix_fd, sec, nb_sec );
+    if (ret != sizeof(res)) return 0;
+    offset += ret + res.NumberOfNamedEntries * sizeof(*entries);
+    if (offset >= data->Size) return 0;
+    size = res.NumberOfIdEntries * sizeof(*entries);
+    if (!(entries = malloc( size ))) return 0;
+    ret = load_data_dir( entries, size, data->VirtualAddress + offset, data->Size - offset,
+                         align_mask, unix_fd, sec, nb_sec );
+    offset = 0;
+    if (ret >= sizeof(*entries))
+    {
+        unsigned int count = ret / sizeof(*entries);
+        if (!id)  /* try various languages */
+        {
+            if (!(offset = find_resource_id( entries, count, 0x0409, 0 )) &&
+                !(offset = find_resource_id( entries, count, 0x0000, 0 )) &&
+                !entries[0].DataIsDirectory)
+                offset = entries[0].OffsetToData;
+        }
+        else offset = find_resource_id( entries, count, id, 1 );
+    }
+    free( entries );
+    return offset;
+}
+
+/* load the version resource */
+static int load_version_resource( void **ret_buf, IMAGE_DATA_DIRECTORY *data, size_t align_mask,
+                                  int unix_fd, IMAGE_SECTION_HEADER *sec, unsigned int nb_sec )
+{
+    IMAGE_RESOURCE_DATA_ENTRY entry;
+    size_t offset;
+    int ret;
+
+    if (!(offset = find_resource_entry( RT_VERSION, data, 0, align_mask, unix_fd, sec, nb_sec ))) return 0;
+    if (!(offset = find_resource_entry( 1, data, offset, align_mask, unix_fd, sec, nb_sec ))) return 0;
+    if (!(offset = find_resource_entry( 0, data, offset, align_mask, unix_fd, sec, nb_sec ))) return 0;
+    if (offset >= data->Size) return 0;
+    ret = load_data_dir( &entry, sizeof(entry), data->VirtualAddress + offset, data->Size - offset,
+                         align_mask, unix_fd, sec, nb_sec );
+    if (ret != sizeof(entry)) return 0;
+    if (!(*ret_buf = malloc( entry.Size + 3 ))) return 0;
+    if ((ret = load_data_dir( *ret_buf, entry.Size, entry.OffsetToData, entry.Size,
+                              align_mask, unix_fd, sec, nb_sec )) > 0)
+    {
+        if (ret % 4) memset( (char *)*ret_buf + ret, 0, 4 - ret % 4 );
+        return (ret + 3) & ~3;
+    }
+    free( *ret_buf );
+    return 0;
+}
+
 /* load the CLR header from its section */
-static int load_clr_header( IMAGE_COR20_HEADER *hdr, size_t va, size_t size, size_t align_mask,
+static int load_clr_header( IMAGE_COR20_HEADER *hdr, IMAGE_DATA_DIRECTORY *data, size_t align_mask,
                             int unix_fd, IMAGE_SECTION_HEADER *sec, unsigned int nb_sec )
 {
-    int ret = load_data_dir( hdr, sizeof(*hdr), va, size, align_mask, unix_fd, sec, nb_sec );
+    int ret = load_data_dir( hdr, sizeof(*hdr), data->VirtualAddress, data->Size,
+                             align_mask, unix_fd, sec, nb_sec );
 
     if (ret <= 0) return 0;
     if (ret < sizeof(*hdr)) memset( (char *)hdr + ret, 0, sizeof(*hdr) - ret );
@@ -752,11 +838,12 @@ static int load_clr_header( IMAGE_COR20_HEADER *hdr, size_t va, size_t size, siz
 }
 
 /* load the LOAD_CONFIG header from its section */
-static int load_cfg_header( IMAGE_LOAD_CONFIG_DIRECTORY64 *cfg, size_t va, size_t size, size_t align_mask,
+static int load_cfg_header( IMAGE_LOAD_CONFIG_DIRECTORY64 *cfg, IMAGE_DATA_DIRECTORY *data, size_t align_mask,
                             int unix_fd, IMAGE_SECTION_HEADER *sec, unsigned int nb_sec )
 {
     unsigned int cfg_size;
-    int ret = load_data_dir( cfg, sizeof(*cfg), va, size, align_mask, unix_fd, sec, nb_sec );
+    int ret = load_data_dir( cfg, sizeof(*cfg), data->VirtualAddress, data->Size,
+                             align_mask, unix_fd, sec, nb_sec );
 
     if (ret <= 0) return 0;
     cfg_size = ret;
@@ -796,8 +883,9 @@ static unsigned int get_image_params( struct mapping *mapping, file_pos_t file_s
     } cfg;
     off_t pos;
     int size, has_relocs;
-    size_t mz_size, clr_va = 0, clr_size = 0, exp_va, exp_size, cfg_va, cfg_size, align_mask;
-    unsigned int i, ret;
+    IMAGE_DATA_DIRECTORY *data_dirs, *exp_dir, *res_dir, *cfg_dir, *clr_dir;
+    size_t mz_size, align_mask;
+    unsigned int i, ret, nb_data_dirs;
 
     /* load the headers */
 
@@ -835,16 +923,6 @@ static unsigned int get_image_params( struct mapping *mapping, file_pos_t file_s
             if (!(nt.opt.hdr32.DllCharacteristics & IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE))
                 return STATUS_INVALID_IMAGE_FORMAT;
         }
-        if (nt.opt.hdr32.NumberOfRvaAndSizes > IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR)
-        {
-            clr_va = nt.opt.hdr32.DataDirectory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR].VirtualAddress;
-            clr_size = nt.opt.hdr32.DataDirectory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR].Size;
-        }
-        exp_va = nt.opt.hdr32.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress;
-        exp_size = nt.opt.hdr32.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].Size;
-        cfg_va = nt.opt.hdr32.DataDirectory[IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG].VirtualAddress;
-        cfg_size = nt.opt.hdr32.DataDirectory[IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG].Size;
-
         mapping->image.base            = nt.opt.hdr32.ImageBase;
         mapping->image.entry_point     = nt.opt.hdr32.AddressOfEntryPoint;
         mapping->image.map_size        = nt.opt.hdr32.SizeOfImage;
@@ -862,11 +940,8 @@ static unsigned int get_image_params( struct mapping *mapping, file_pos_t file_s
                                           nt.opt.hdr32.SectionAlignment & page_mask);
         mapping->image.header_size     = nt.opt.hdr32.SizeOfHeaders;
         mapping->image.checksum        = nt.opt.hdr32.CheckSum;
-
-        has_relocs = (nt.opt.hdr32.NumberOfRvaAndSizes > IMAGE_DIRECTORY_ENTRY_BASERELOC &&
-                      nt.opt.hdr32.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress &&
-                      nt.opt.hdr32.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].Size &&
-                      !(nt.FileHeader.Characteristics & IMAGE_FILE_RELOCS_STRIPPED));
+        nb_data_dirs                   = nt.opt.hdr32.NumberOfRvaAndSizes;
+        data_dirs                      = nt.opt.hdr32.DataDirectory;
         break;
 
     case IMAGE_NT_OPTIONAL_HDR64_MAGIC:
@@ -883,16 +958,6 @@ static unsigned int get_image_params( struct mapping *mapping, file_pos_t file_s
             if (!(nt.opt.hdr64.DllCharacteristics & IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE))
                 return STATUS_INVALID_IMAGE_FORMAT;
         }
-        if (nt.opt.hdr64.NumberOfRvaAndSizes > IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR)
-        {
-            clr_va = nt.opt.hdr64.DataDirectory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR].VirtualAddress;
-            clr_size = nt.opt.hdr64.DataDirectory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR].Size;
-        }
-        exp_va = nt.opt.hdr64.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress;
-        exp_size = nt.opt.hdr64.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].Size;
-        cfg_va = nt.opt.hdr64.DataDirectory[IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG].VirtualAddress;
-        cfg_size = nt.opt.hdr64.DataDirectory[IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG].Size;
-
         mapping->image.base            = nt.opt.hdr64.ImageBase;
         mapping->image.entry_point     = nt.opt.hdr64.AddressOfEntryPoint;
         mapping->image.map_size        = nt.opt.hdr64.SizeOfImage;
@@ -910,16 +975,24 @@ static unsigned int get_image_params( struct mapping *mapping, file_pos_t file_s
                                           nt.opt.hdr64.SectionAlignment & page_mask);
         mapping->image.header_size     = nt.opt.hdr64.SizeOfHeaders;
         mapping->image.checksum        = nt.opt.hdr64.CheckSum;
-
-        has_relocs = (nt.opt.hdr64.NumberOfRvaAndSizes > IMAGE_DIRECTORY_ENTRY_BASERELOC &&
-                      nt.opt.hdr64.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress &&
-                      nt.opt.hdr64.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].Size &&
-                      !(nt.FileHeader.Characteristics & IMAGE_FILE_RELOCS_STRIPPED));
+        nb_data_dirs                   = nt.opt.hdr64.NumberOfRvaAndSizes;
+        data_dirs                      = nt.opt.hdr64.DataDirectory;
         break;
 
     default:
         return STATUS_INVALID_IMAGE_FORMAT;
     }
+
+#define GET_DATA_DIR(dir) \
+    (dir < nb_data_dirs && data_dirs[dir].VirtualAddress && data_dirs[dir].Size ? &data_dirs[dir] : NULL)
+
+    exp_dir = GET_DATA_DIR( IMAGE_DIRECTORY_ENTRY_EXPORT );
+    res_dir = GET_DATA_DIR( IMAGE_DIRECTORY_ENTRY_RESOURCE );
+    cfg_dir = GET_DATA_DIR( IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG );
+    clr_dir = GET_DATA_DIR( IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR );
+    has_relocs = (GET_DATA_DIR( IMAGE_DIRECTORY_ENTRY_BASERELOC ) &&
+                  !(nt.FileHeader.Characteristics & IMAGE_FILE_RELOCS_STRIPPED));
+#undef GET_DATA_DIR
 
     mapping->image.is_hybrid     = 0;
     mapping->image.padding       = 0;
@@ -931,7 +1004,7 @@ static unsigned int get_image_params( struct mapping *mapping, file_pos_t file_s
     mapping->image.zerobits      = 0; /* FIXME */
     mapping->image.file_size     = file_size;
     mapping->image.image_flags   = 0;
-    mapping->image.loader_flags  = clr_va && clr_size;
+    mapping->image.loader_flags  = !!clr_dir;
     mapping->image.wine_builtin  = (mz_size == sizeof(mz) &&
                                     !memcmp( mz.buffer, builtin_signature, sizeof(builtin_signature) ));
     mapping->image.wine_fakedll  = (mz_size == sizeof(mz) &&
@@ -940,7 +1013,7 @@ static unsigned int get_image_params( struct mapping *mapping, file_pos_t file_s
     if (mapping->image.alignment & page_mask)
         mapping->image.image_flags |= IMAGE_FLAGS_ImageMappedFlat;
     else if ((mapping->image.dll_charact & IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE) &&
-             (has_relocs || mapping->image.contains_code) && !(clr_va && clr_size))
+             (has_relocs || mapping->image.contains_code) && !clr_dir)
         mapping->image.image_flags |= IMAGE_FLAGS_ImageDynamicallyRelocated;
 
     align_mask = max( mapping->image.alignment - 1, page_mask );
@@ -966,11 +1039,16 @@ static unsigned int get_image_params( struct mapping *mapping, file_pos_t file_s
     }
 
     if (mapping->image.wine_builtin || mapping->image.wine_fakedll)
-        mapping->exp_len = load_export_name( &mapping->exp_name, exp_va, exp_size, align_mask,
-                                             unix_fd, sec, nt.FileHeader.NumberOfSections );
+    {
+        if (exp_dir) mapping->exp_len = load_export_name( &mapping->exp_name, exp_dir, align_mask,
+                                                          unix_fd, sec, nt.FileHeader.NumberOfSections );
+    }
+    else if (res_dir)
+        mapping->ver_len = load_version_resource( &mapping->ver_res, res_dir, align_mask,
+                                                  unix_fd, sec, nt.FileHeader.NumberOfSections );
 
-    if (load_clr_header( &clr, clr_va, clr_size, align_mask,
-                         unix_fd, sec, nt.FileHeader.NumberOfSections ) &&
+    if (clr_dir &&
+        load_clr_header( &clr, clr_dir, align_mask, unix_fd, sec, nt.FileHeader.NumberOfSections ) &&
         (clr.Flags & COMIMAGE_FLAGS_ILONLY))
     {
         mapping->image.image_flags |= IMAGE_FLAGS_ComPlusILOnly;
@@ -983,8 +1061,8 @@ static unsigned int get_image_params( struct mapping *mapping, file_pos_t file_s
         }
     }
 
-    if (load_cfg_header( &cfg.cfg64, cfg_va, cfg_size, align_mask,
-                         unix_fd, sec, nt.FileHeader.NumberOfSections ))
+    if (cfg_dir && load_cfg_header( &cfg.cfg64, cfg_dir, align_mask,
+                                    unix_fd, sec, nt.FileHeader.NumberOfSections ))
     {
         if (nt.opt.hdr32.Magic == IMAGE_NT_OPTIONAL_HDR32_MAGIC)
             mapping->image.is_hybrid = !!cfg.cfg32.CHPEMetadataPointer;
@@ -1058,7 +1136,9 @@ static struct mapping *create_mapping( struct object *root, const struct unicode
     mapping->shared      = NULL;
     mapping->committed   = NULL;
     mapping->exp_name    = NULL;
+    mapping->ver_res     = NULL;
     mapping->exp_len     = 0;
+    mapping->ver_len     = 0;
 
     if (!(mapping->flags = get_mapping_flags( handle, flags ))) goto error;
 
@@ -1149,7 +1229,9 @@ struct mapping *create_fd_mapping( struct object *root, const struct unicode_str
     mapping->shared    = NULL;
     mapping->committed = NULL;
     mapping->exp_name  = NULL;
+    mapping->ver_res   = NULL;
     mapping->exp_len   = 0;
+    mapping->ver_len   = 0;
     mapping->flags     = SEC_FILE;
     mapping->fd        = (struct fd *)grab_object( fd );
     set_fd_user( mapping->fd, &mapping_fd_ops, NULL );
@@ -1262,6 +1344,7 @@ static void mapping_destroy( struct object *obj )
     if (mapping->committed) release_object( mapping->committed );
     if (mapping->shared) release_object( mapping->shared );
     free( mapping->exp_name );
+    free( mapping->ver_res );
 }
 
 static enum server_fd_type mapping_get_fd_type( struct fd *fd )
@@ -1555,12 +1638,19 @@ DECL_HANDLER(get_mapping_info)
         void *data;
 
         if (mapping->fd) get_nt_name( mapping->fd, &name );
-        reply->total = sizeof(struct pe_image_info) + name.len + mapping->exp_len;
-        size = min( reply->total, get_reply_max_size() );
+        size = reply->total = sizeof(struct pe_image_info) + mapping->ver_len + name.len + mapping->exp_len;
+        if (size > get_reply_max_size()) size = sizeof(struct pe_image_info) + mapping->ver_len + name.len;
+        if (size > get_reply_max_size()) size = sizeof(struct pe_image_info) + mapping->ver_len;
+        if (size > get_reply_max_size()) size = sizeof(struct pe_image_info);
         if ((data = set_reply_data_size( size )))
         {
             data = mem_append( data, &mapping->image, min( sizeof(struct pe_image_info), size ));
-            if (size >= sizeof(struct pe_image_info) + name.len)
+            if (size >= sizeof(struct pe_image_info) + mapping->ver_len)
+            {
+                data = mem_append( data, mapping->ver_res, mapping->ver_len );
+                reply->ver_len = mapping->ver_len;
+            }
+            if (size >= sizeof(struct pe_image_info) + mapping->ver_len + name.len)
             {
                 data = mem_append( data, name.str, name.len );
                 reply->name_len = name.len;

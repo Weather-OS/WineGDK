@@ -22,6 +22,8 @@
 #pragma makedep unix
 #endif
 
+#define __ANDROID_UNAVAILABLE_SYMBOLS_ARE_WEAK__
+
 #include "config.h"
 
 #include <stdarg.h>
@@ -30,7 +32,6 @@
 #include <link.h>
 
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 #include "windef.h"
 #include "winbase.h"
 #include "winreg.h"
@@ -49,7 +50,6 @@ static const unsigned int screen_bpp = 32;  /* we don't support other modes */
 static RECT monitor_rc_work;
 static int device_init_done;
 
-PNTAPCFUNC register_window_callback;
 UINT64 start_device_callback;
 
 typedef struct
@@ -85,7 +85,7 @@ void init_monitors( int width, int height )
            wine_dbgstr_rect( &rect ), wine_dbgstr_rect( &monitor_rc_work ));
 
     /* if we're notified from Java thread, update registry */
-    if (*p_java_vm) NtUserCallNoParam( NtUserCallNoParam_DisplayModeChanged );
+    if (java_vm) NtUserCallNoParam( NtUserCallNoParam_DisplayModeChanged );
 }
 
 
@@ -169,7 +169,7 @@ void set_screen_dpi( DWORD dpi )
  */
 static void fetch_display_metrics(void)
 {
-    if (*p_java_vm) return;  /* for Java threads it will be set when the top view is created */
+    if (java_vm) return;  /* for Java threads it will be set when the top view is created */
 
     SERVER_START_REQ( get_window_rectangles )
     {
@@ -309,6 +309,7 @@ static const struct user_driver_funcs android_drv_funcs =
     .pUpdateDisplayDevices = ANDROID_UpdateDisplayDevices,
     .pCreateDesktop = ANDROID_CreateDesktop,
     .pCreateWindow = ANDROID_CreateWindow,
+    .pSetDesktopWindow = ANDROID_SetDesktopWindow,
     .pDesktopWindowProc = ANDROID_DesktopWindowProc,
     .pDestroyWindow = ANDROID_DestroyWindow,
     .pProcessEvents = ANDROID_ProcessEvents,
@@ -335,159 +336,20 @@ static const JNINativeMethod methods[] =
 #define DECL_FUNCPTR(f) typeof(f) * p##f = NULL
 #define LOAD_FUNCPTR(lib, func) do { \
     if ((p##func = dlsym( lib, #func )) == NULL) \
-        { ERR( "can't find symbol %s\n", #func); return; } \
+        { ERR( "can't find symbol %s\n", #func); abort(); return; } \
     } while(0)
 
 DECL_FUNCPTR( __android_log_print );
 DECL_FUNCPTR( ANativeWindow_fromSurface );
 DECL_FUNCPTR( ANativeWindow_release );
-DECL_FUNCPTR( hw_get_module );
-
-#ifndef DT_GNU_HASH
-#define DT_GNU_HASH 0x6ffffef5
-#endif
-
-static unsigned int gnu_hash( const char *name )
-{
-    unsigned int h = 5381;
-    while (*name) h = h * 33 + (unsigned char)*name++;
-    return h;
-}
-
-static unsigned int hash_symbol( const char *name )
-{
-    unsigned int hi, hash = 0;
-    while (*name)
-    {
-        hash = (hash << 4) + (unsigned char)*name++;
-        hi = hash & 0xf0000000;
-        hash ^= hi;
-        hash ^= hi >> 24;
-    }
-    return hash;
-}
-
-static void *find_symbol( const struct dl_phdr_info* info, const char *var, int type )
-{
-    const ElfW(Dyn) *dyn = NULL;
-    const ElfW(Phdr) *ph;
-    const ElfW(Sym) *symtab = NULL;
-    const Elf32_Word *hashtab = NULL;
-    const Elf32_Word *gnu_hashtab = NULL;
-    const char *strings = NULL;
-    Elf32_Word idx;
-
-    for (ph = info->dlpi_phdr; ph < &info->dlpi_phdr[info->dlpi_phnum]; ++ph)
-    {
-        if (PT_DYNAMIC == ph->p_type)
-        {
-            dyn = (const ElfW(Dyn) *)(info->dlpi_addr + ph->p_vaddr);
-            break;
-        }
-    }
-    if (!dyn) return NULL;
-
-    while (dyn->d_tag)
-    {
-        if (dyn->d_tag == DT_STRTAB)
-            strings = (const char*)(info->dlpi_addr + dyn->d_un.d_ptr);
-        if (dyn->d_tag == DT_SYMTAB)
-            symtab = (const ElfW(Sym) *)(info->dlpi_addr + dyn->d_un.d_ptr);
-        if (dyn->d_tag == DT_HASH)
-            hashtab = (const Elf32_Word *)(info->dlpi_addr + dyn->d_un.d_ptr);
-        if (dyn->d_tag == DT_GNU_HASH)
-            gnu_hashtab = (const Elf32_Word *)(info->dlpi_addr + dyn->d_un.d_ptr);
-        dyn++;
-    }
-
-    if (!symtab || !strings) return NULL;
-
-    if (gnu_hashtab)  /* new style hash table */
-    {
-        const unsigned int hash   = gnu_hash(var);
-        const Elf32_Word nbuckets = gnu_hashtab[0];
-        const Elf32_Word symbias  = gnu_hashtab[1];
-        const Elf32_Word nwords   = gnu_hashtab[2];
-        const ElfW(Addr) *bitmask = (const ElfW(Addr) *)(gnu_hashtab + 4);
-        const Elf32_Word *buckets = (const Elf32_Word *)(bitmask + nwords);
-        const Elf32_Word *chains  = buckets + nbuckets - symbias;
-
-        if (!(idx = buckets[hash % nbuckets])) return NULL;
-        do
-        {
-            if ((chains[idx] & ~1u) == (hash & ~1u) &&
-                ELF32_ST_BIND(symtab[idx].st_info) == STB_GLOBAL &&
-                ELF32_ST_TYPE(symtab[idx].st_info) == type &&
-                !strcmp( strings + symtab[idx].st_name, var ))
-                return (void *)(info->dlpi_addr + symtab[idx].st_value);
-        } while (!(chains[idx++] & 1u));
-    }
-    else if (hashtab)  /* old style hash table */
-    {
-        const unsigned int hash   = hash_symbol( var );
-        const Elf32_Word nbuckets = hashtab[0];
-        const Elf32_Word *buckets = hashtab + 2;
-        const Elf32_Word *chains  = buckets + nbuckets;
-
-        for (idx = buckets[hash % nbuckets]; idx; idx = chains[idx])
-        {
-            if (ELF32_ST_BIND(symtab[idx].st_info) == STB_GLOBAL &&
-                ELF32_ST_TYPE(symtab[idx].st_info) == type &&
-                !strcmp( strings + symtab[idx].st_name, var ))
-                return (void *)(info->dlpi_addr + symtab[idx].st_value);
-        }
-    }
-    return NULL;
-}
-
-static int enum_libs( struct dl_phdr_info* info, size_t size, void* data )
-{
-    const char *p;
-
-    if (!info->dlpi_name) return 0;
-    if (!(p = strrchr( info->dlpi_name, '/' ))) return 0;
-    if (strcmp( p, "/libhardware.so" )) return 0;
-    TRACE( "found libhardware at %p\n", info->dlpi_phdr );
-    phw_get_module = find_symbol( info, "hw_get_module", STT_FUNC );
-    return 1;
-}
-
-static void load_hardware_libs(void)
-{
-    const struct hw_module_t *module;
-    int ret;
-    void *libhardware;
-
-    if ((libhardware = dlopen( "libhardware.so", RTLD_GLOBAL )))
-    {
-        LOAD_FUNCPTR( libhardware, hw_get_module );
-    }
-    else
-    {
-        /* Android >= N disallows loading libhardware, so we load libandroid (which imports
-         * libhardware), and then we can find libhardware in the list of loaded libraries.
-         */
-        if (!dlopen( "libandroid.so", RTLD_GLOBAL ))
-        {
-            ERR( "failed to load libandroid.so: %s\n", dlerror() );
-            return;
-        }
-        dl_iterate_phdr( enum_libs, 0 );
-        if (!phw_get_module)
-        {
-            ERR( "failed to find hw_get_module\n" );
-            return;
-        }
-    }
-
-    if ((ret = phw_get_module( GRALLOC_HARDWARE_MODULE_ID, &module )))
-    {
-        ERR( "failed to load gralloc module err %d\n", ret );
-        return;
-    }
-
-    init_gralloc( module );
-}
+DECL_FUNCPTR( AHardwareBuffer_describe );
+DECL_FUNCPTR( AHardwareBuffer_acquire );
+DECL_FUNCPTR( AHardwareBuffer_release );
+DECL_FUNCPTR( AHardwareBuffer_lock );
+DECL_FUNCPTR( AHardwareBuffer_unlock );
+DECL_FUNCPTR( AHardwareBuffer_recvHandleFromUnixSocket );
+DECL_FUNCPTR( AHardwareBuffer_sendHandleToUnixSocket );
+DECL_FUNCPTR( ANativeWindowBuffer_getHardwareBuffer );
 
 static void load_android_libs(void)
 {
@@ -496,63 +358,54 @@ static void load_android_libs(void)
     if (!(libandroid = dlopen( "libandroid.so", RTLD_GLOBAL )))
     {
         ERR( "failed to load libandroid.so: %s\n", dlerror() );
+        abort();
         return;
     }
     if (!(liblog = dlopen( "liblog.so", RTLD_GLOBAL )))
     {
         ERR( "failed to load liblog.so: %s\n", dlerror() );
+        abort();
         return;
     }
     LOAD_FUNCPTR( liblog, __android_log_print );
     LOAD_FUNCPTR( libandroid, ANativeWindow_fromSurface );
     LOAD_FUNCPTR( libandroid, ANativeWindow_release );
+    LOAD_FUNCPTR( libandroid, AHardwareBuffer_describe );
+    LOAD_FUNCPTR( libandroid, AHardwareBuffer_acquire );
+    LOAD_FUNCPTR( libandroid, AHardwareBuffer_release );
+    LOAD_FUNCPTR( libandroid, AHardwareBuffer_lock );
+    LOAD_FUNCPTR( libandroid, AHardwareBuffer_unlock );
+    LOAD_FUNCPTR( libandroid, AHardwareBuffer_recvHandleFromUnixSocket );
+    LOAD_FUNCPTR( libandroid, AHardwareBuffer_sendHandleToUnixSocket );
+    LOAD_FUNCPTR( libandroid, ANativeWindowBuffer_getHardwareBuffer );
 }
 
 #undef DECL_FUNCPTR
 #undef LOAD_FUNCPTR
 
-JavaVM **p_java_vm = NULL;
-jobject *p_java_object = NULL;
-unsigned short *p_java_gdt_sel = NULL;
-
 static HRESULT android_init( void *arg )
 {
-    struct init_params *params = arg;
     pthread_mutexattr_t attr;
     jclass class;
-    jobject object;
     JNIEnv *jni_env;
-    JavaVM *java_vm;
-    void *ntdll;
 
-    if (!(ntdll = dlopen( "ntdll.so", RTLD_NOW ))) return STATUS_UNSUCCESSFUL;
-
-    p_java_vm = dlsym( ntdll, "java_vm" );
-    p_java_object = dlsym( ntdll, "java_object" );
-    p_java_gdt_sel = dlsym( ntdll, "java_gdt_sel" );
-
-    object = *p_java_object;
-
-    load_hardware_libs();
+    load_android_libs();
 
     pthread_mutexattr_init( &attr );
     pthread_mutexattr_settype( &attr, PTHREAD_MUTEX_RECURSIVE );
-    pthread_mutex_init( &drawable_mutex, &attr );
     pthread_mutex_init( &win_data_mutex, &attr );
     pthread_mutexattr_destroy( &attr );
 
-    register_window_callback = params->register_window_callback;
-    start_device_callback = params->start_device_callback;
+    start_device_callback = (UINT64)(UINT_PTR)arg;
 
-    if ((java_vm = *p_java_vm))  /* running under Java */
+    if (java_vm)  /* running under Java */
     {
 #ifdef __i386__
         WORD old_fs;
         __asm__( "mov %%fs,%0" : "=r" (old_fs) );
 #endif
-        load_android_libs();
         (*java_vm)->AttachCurrentThread( java_vm, &jni_env, 0 );
-        class = (*jni_env)->GetObjectClass( jni_env, object );
+        class = (*jni_env)->GetObjectClass( jni_env, java_object );
         (*jni_env)->RegisterNatives( jni_env, class, methods, ARRAY_SIZE( methods ));
         (*jni_env)->DeleteLocalRef( jni_env, class );
 #ifdef __i386__
@@ -570,7 +423,6 @@ const unixlib_entry_t __wine_unix_call_funcs[] =
     android_init,
     android_java_init,
     android_java_uninit,
-    android_register_window,
 };
 
 

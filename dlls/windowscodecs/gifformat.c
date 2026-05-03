@@ -607,7 +607,7 @@ static HRESULT copy_interlaced_pixels(const BYTE *srcbuffer,
     if (dststride < rc->Width)
         return E_INVALIDARG;
 
-    if ((dststride * rc->Height) > dstbuffersize)
+    if ((dststride * (rc->Height - 1)) + rc->Width > dstbuffersize)
         return E_INVALIDARG;
 
     row_offset = rc->X;

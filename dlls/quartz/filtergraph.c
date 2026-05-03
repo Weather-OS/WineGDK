@@ -473,6 +473,7 @@ static ULONG WINAPI FilterGraphInner_Release(IUnknown *iface)
 
         flush_media_events(This);
         CloseHandle(This->media_event_handle);
+        CloseHandle(This->hEventCompletion);
 
         EnterCriticalSection(&message_cs);
         if (This->threaded && !--message_thread_refcount)
@@ -1791,6 +1792,7 @@ static HRESULT graph_start(struct filter_graph *graph, REFERENCE_TIME stream_sta
     }
     if (list_empty(&graph->media_events))
         ResetEvent(graph->media_event_handle);
+    ResetEvent(graph->hEventCompletion);
 
     if (graph->defaultclock && !graph->refClock)
         IFilterGraph2_SetDefaultSyncSource(&graph->IFilterGraph2_iface);
@@ -5387,16 +5389,27 @@ static HRESULT WINAPI MediaEventSink_Notify(IMediaEventSink *iface, LONG code,
 
     EnterCriticalSection(&graph->event_cs);
 
-    if (code == EC_COMPLETE && graph->HandleEcComplete)
+    if (code == EC_COMPLETE)
     {
-        if (++graph->EcCompleteCount == graph->nRenderers)
+        if (!graph->HandleEcComplete ||
+            ++graph->EcCompleteCount == graph->nRenderers)
         {
+            if (graph->HandleEcComplete)
+            {
+                param1 = S_OK;
+                param2 = 0;
+                graph->current_pos = graph->stream_stop;
+            }
             if (graph->media_events_disabled)
+            {
                 SetEvent(graph->media_event_handle);
+                graph->CompletionStatus = 0;
+            }
             else
-                queue_media_event(graph, EC_COMPLETE, S_OK, 0);
-            graph->CompletionStatus = EC_COMPLETE;
-            graph->current_pos = graph->stream_stop;
+            {
+                queue_media_event(graph, EC_COMPLETE, param1, param2);
+                graph->CompletionStatus = EC_COMPLETE;
+            }
             SetEvent(graph->hEventCompletion);
         }
     }

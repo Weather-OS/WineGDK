@@ -520,9 +520,12 @@ BOOL validate_service_config(struct service_entry *entry)
     case SERVICE_WIN32_OWN_PROCESS | SERVICE_INTERACTIVE_PROCESS:
     case SERVICE_WIN32_SHARE_PROCESS | SERVICE_INTERACTIVE_PROCESS:
         /* These can be only run as LocalSystem */
-        if (entry->config.lpServiceStartName && wcsicmp(entry->config.lpServiceStartName, L"LocalSystem") != 0)
+        if (entry->config.lpServiceStartName &&
+            wcsicmp(entry->config.lpServiceStartName, L"LocalSystem") != 0 &&
+            wcsicmp(entry->config.lpServiceStartName, L".\\LocalSystem") != 0)
         {
-            WINE_ERR("Service %s is interactive but has a start name\n", wine_dbgstr_w(entry->name));
+            WINE_ERR("Service %s is interactive but has the disallowed account name %s\n",
+                     wine_dbgstr_w(entry->name), wine_dbgstr_w(entry->config.lpServiceStartName));
             return FALSE;
         }
         break;

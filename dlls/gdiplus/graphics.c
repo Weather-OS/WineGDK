@@ -4544,6 +4544,35 @@ end:
     return retval;
 }
 
+static void bitmap_scanline_span_fill(GpBitmap *dst_bitmap, const DWORD *src_row, int row_x,
+    int start_x, int end_x, int y, CompositingMode comp_mode)
+{
+    int x;
+
+    for (x = start_x; x < end_x; x++)
+    {
+        ARGB dst_color, src_color;
+
+        src_color = src_row[x - row_x];
+
+        if (comp_mode == CompositingModeSourceCopy)
+        {
+            if (!(src_color & 0xff000000))
+                GdipBitmapSetPixel(dst_bitmap, x, y, 0);
+            else
+                GdipBitmapSetPixel(dst_bitmap, x, y, src_color);
+        }
+        else
+        {
+            if (!(src_color & 0xff000000))
+                continue;
+
+            GdipBitmapGetPixel(dst_bitmap, x, y, &dst_color);
+            GdipBitmapSetPixel(dst_bitmap, x, y, color_over(dst_color, src_color));
+        }
+    }
+}
+
 static GpStatus SOFTWARE_GdipFillPath(GpGraphics *graphics, GpBrush *brush, GpPath *path)
 {
     GpStatus stat;
@@ -4795,7 +4824,7 @@ GpStatus WINGDIPAPI GdipFillRectanglesI(GpGraphics *graphics, GpBrush *brush, GD
     return ret;
 }
 
-static GpStatus get_clipped_region_hrgn(GpGraphics* graphics, GpRegion* region, HRGN *hrgn)
+static GpStatus get_clipped_device_region(GpGraphics* graphics, GpRegion* region, GpRegion** clipped_region)
 {
     GpStatus status;
     GpRegion *tmp_region, *device_region;
@@ -4860,7 +4889,24 @@ static GpStatus get_clipped_region_hrgn(GpGraphics* graphics, GpRegion* region, 
         }
 
         if (status == Ok)
-            status = GdipGetRegionHRgn(device_region, NULL, hrgn);
+            *clipped_region = device_region;
+        else
+            GdipDeleteRegion(device_region);
+    }
+
+    return status;
+}
+
+static GpStatus get_clipped_region_hrgn(GpGraphics* graphics, GpRegion* region, HRGN *hrgn)
+{
+    GpStatus status;
+    GpRegion *device_region;
+
+    status = get_clipped_device_region(graphics, region, &device_region);
+
+    if (status == Ok)
+    {
+        status = GdipGetRegionHRgn(device_region, NULL, hrgn);
 
         GdipDeleteRegion(device_region);
     }
@@ -4916,13 +4962,50 @@ end:
     return status;
 }
 
+static GpStatus alpha_blend_pixels_gpregion(GpGraphics *graphics, INT dst_x, INT dst_y,
+    const BYTE *src, INT src_width, INT src_height, INT src_stride, GpRegion* region)
+{
+    struct span_list spans = {0};
+    RECT bounds;
+    GpStatus stat;
+
+    bounds.left = dst_x;
+    bounds.top = dst_y;
+    bounds.right = dst_x + src_width;
+    bounds.bottom = dst_y + src_height;
+    stat = region_element_to_spans(&region->node, &bounds, &spans);
+
+    if (stat == Ok)
+    {
+        GpBitmap *dst_bitmap = (GpBitmap*)graphics->image;
+        CompositingMode comp_mode = graphics->compmode;
+        size_t i;
+
+        for (i = 0; i < spans.length; i++)
+        {
+            struct span *span = &spans.spans[i];
+            const BYTE *row;
+
+            assert(span->y >= dst_y);
+            assert(span->y - dst_y < src_height);
+
+            row = src + (span->y - dst_y) * src_stride;
+            bitmap_scanline_span_fill(dst_bitmap, (const DWORD *)row, dst_x, span->x[0], span->x[1], span->y, comp_mode);
+        }
+    }
+
+    free(spans.spans);
+
+    return stat;
+}
+
 static GpStatus SOFTWARE_GdipFillRegion(GpGraphics *graphics, GpBrush *brush,
     GpRegion* region)
 {
     GpStatus stat;
     DWORD *pixel_data;
-    HRGN hregion;
-    RECT bound_rect;
+    HRGN hregion = NULL;
+    GpRegion* device_region = NULL;
     GpRect gp_bound_rect;
 
     if (!brush_can_fill_pixels(brush))
@@ -4931,22 +5014,46 @@ static GpStatus SOFTWARE_GdipFillRegion(GpGraphics *graphics, GpBrush *brush,
     stat = gdi_transform_acquire(graphics);
 
     if (stat == Ok)
-        stat = get_clipped_region_hrgn(graphics, region, &hregion);
-
-    if (stat == Ok && GetRgnBox(hregion, &bound_rect) == NULLREGION)
     {
-        DeleteObject(hregion);
-        gdi_transform_release(graphics);
-        return Ok;
+        if (graphics->image && graphics->image->type == ImageTypeBitmap)
+        {
+            stat = get_clipped_device_region(graphics, region, &device_region);
+
+            if (stat == Ok)
+                stat = GdipGetRegionBoundsI(device_region, graphics, &gp_bound_rect);
+
+            if (stat == Ok && gp_bound_rect.Width == 0 && gp_bound_rect.Height == 0)
+            {
+                GdipDeleteRegion(device_region);
+                gdi_transform_release(graphics);
+                return Ok;
+            }
+        }
+        else
+        {
+            RECT bound_rect;
+
+            stat = get_clipped_region_hrgn(graphics, region, &hregion);
+
+            if (stat == Ok && GetRgnBox(hregion, &bound_rect) == NULLREGION)
+            {
+                DeleteObject(hregion);
+                gdi_transform_release(graphics);
+                return Ok;
+            }
+
+            if (stat == Ok)
+            {
+                gp_bound_rect.X = bound_rect.left;
+                gp_bound_rect.Y = bound_rect.top;
+                gp_bound_rect.Width = bound_rect.right - bound_rect.left;
+                gp_bound_rect.Height = bound_rect.bottom - bound_rect.top;
+            }
+        }
     }
 
     if (stat == Ok)
     {
-        gp_bound_rect.X = bound_rect.left;
-        gp_bound_rect.Y = bound_rect.top;
-        gp_bound_rect.Width = bound_rect.right - bound_rect.left;
-        gp_bound_rect.Height = bound_rect.bottom - bound_rect.top;
-
         pixel_data = calloc(gp_bound_rect.Width * gp_bound_rect.Height, sizeof(*pixel_data));
         if (!pixel_data)
             stat = OutOfMemory;
@@ -4957,10 +5064,17 @@ static GpStatus SOFTWARE_GdipFillRegion(GpGraphics *graphics, GpBrush *brush,
                 &gp_bound_rect, gp_bound_rect.Width);
 
             if (stat == Ok)
-                stat = alpha_blend_pixels_hrgn(graphics, gp_bound_rect.X,
-                    gp_bound_rect.Y, (BYTE*)pixel_data, gp_bound_rect.Width,
-                    gp_bound_rect.Height, gp_bound_rect.Width * 4, hregion,
-                    PixelFormat32bppARGB);
+            {
+                if (hregion)
+                    stat = alpha_blend_pixels_hrgn(graphics, gp_bound_rect.X,
+                        gp_bound_rect.Y, (BYTE*)pixel_data, gp_bound_rect.Width,
+                        gp_bound_rect.Height, gp_bound_rect.Width * 4, hregion,
+                        PixelFormat32bppARGB);
+                else
+                    stat = alpha_blend_pixels_gpregion(graphics, gp_bound_rect.X,
+                        gp_bound_rect.Y, (BYTE*)pixel_data, gp_bound_rect.Width,
+                        gp_bound_rect.Height, gp_bound_rect.Width * 4, device_region);
+            }
 
             free(pixel_data);
         }
@@ -4968,6 +5082,7 @@ static GpStatus SOFTWARE_GdipFillRegion(GpGraphics *graphics, GpBrush *brush,
         DeleteObject(hregion);
     }
 
+    GdipDeleteRegion(device_region);
     gdi_transform_release(graphics);
 
     return stat;
@@ -5143,8 +5258,21 @@ GpStatus WINGDIPAPI GdipGetNearestColor(GpGraphics *graphics, ARGB* argb)
     {
         static int once;
         GpBitmap *bitmap = (GpBitmap *)graphics->image;
-        if (IsIndexedPixelFormat(bitmap->format) && !once++)
-            FIXME("(%p, %p): Passing color unmodified\n", graphics, argb);
+        if (IsIndexedPixelFormat(bitmap->format))
+        {
+            if (!once++)
+                FIXME("(%p, %p): Passing indexed color unmodified\n", graphics, argb);
+        }
+        else if (bitmap->format == PixelFormat16bppRGB565)
+        {
+            /* 16bpp RGB565: Keep top 5 bits for R and B channels, top 6 bits for G channel */
+            *argb = (*argb & 0x00F8FCF8) | 0xFF000000;
+        }
+        else if (bitmap->format == PixelFormat16bppRGB555)
+        {
+            /* 16bpp RGB555: Keep top 5 bits for R, G, B channels */
+            *argb = (*argb & 0x00F8F8F8) | 0xFF000000;
+        }
     }
 
     return Ok;
@@ -5858,7 +5986,7 @@ GpStatus WINGDIPAPI GdipMeasureCharacterRanges(GpGraphics* graphics,
     struct measure_ranges_args args;
     HDC hdc, temp_hdc=NULL;
     RectF scaled_rect;
-    REAL margin_x;
+    REAL margin_x, offsety = 0.0f;
 
     TRACE("(%p %s %d %p %s %p %d %p)\n", graphics, debugstr_wn(string, length),
             length, font, debugstr_rectf(layoutRect), stringFormat, regionCount, regions);
@@ -5884,14 +6012,34 @@ GpStatus WINGDIPAPI GdipMeasureCharacterRanges(GpGraphics* graphics,
     if (stringFormat->attr)
         TRACE("may be ignoring some format flags: attr %x\n", stringFormat->attr);
 
+    if (stringFormat->line_align != StringAlignmentNear)
+    {
+        RectF bounds, in_rect = *layoutRect;
+        in_rect.Height = 0.0f; /* avoid height clipping */
+        GdipMeasureString(graphics, string, length, font, &in_rect, stringFormat, &bounds, NULL, NULL);
+
+        TRACE("bounds %s\n", debugstr_rectf(&bounds));
+
+        if (stringFormat->line_align == StringAlignmentCenter)
+            offsety = (layoutRect->Height - bounds.Height) / 2.0f;
+        else if (stringFormat->line_align == StringAlignmentFar)
+            offsety = layoutRect->Height - bounds.Height;
+    }
+    TRACE("line align %d, offsety %f\n", stringFormat->line_align, offsety);
 
     margin_x = stringFormat->generic_typographic ? 0.0 : font->emSize / 6.0;
     margin_x *= units_scale(font->unit, graphics->unit, graphics->xres, graphics->printer_display);
     transform_properties(graphics, NULL, TRUE, &args.rel_width, &args.rel_height, NULL);
     scaled_rect.X = (layoutRect->X + margin_x) * args.rel_width;
-    scaled_rect.Y = layoutRect->Y * args.rel_height;
+    scaled_rect.Y = (layoutRect->Y + offsety) * args.rel_height;
     scaled_rect.Width = layoutRect->Width * args.rel_width;
     scaled_rect.Height = layoutRect->Height * args.rel_height;
+    if (scaled_rect.Width >= 0.5f)
+    {
+        scaled_rect.Width -= margin_x * 2.0f * args.rel_width;
+        if (scaled_rect.Width < 0.5f) /* doesn't fit */
+            scaled_rect.Width = 0.5f;
+    }
 
     if (scaled_rect.Width >= 1 << 23) scaled_rect.Width = 1 << 23;
     if (scaled_rect.Height >= 1 << 23) scaled_rect.Height = 1 << 23;
@@ -5959,18 +6107,6 @@ static GpStatus measure_string_callback(struct gdip_format_string_info *info)
 
     if (args->linesfilled)
         (*args->linesfilled)++;
-
-    switch (info->format ? info->format->align : StringAlignmentNear)
-    {
-    case StringAlignmentCenter:
-        bounds->X = bounds->X + (info->rect->Width/2) - (bounds->Width/2);
-        break;
-    case StringAlignmentFar:
-        bounds->X = bounds->X + info->rect->Width - bounds->Width;
-        break;
-    default:
-        break;
-    }
 
     return Ok;
 }
@@ -6057,6 +6193,33 @@ GpStatus WINGDIPAPI GdipMeasureString(GpGraphics *graphics,
 
     if (lines)
         bounds->Width += margin_x * 2.0;
+
+    if (lines && format)
+    {
+        switch (format->align)
+        {
+        case StringAlignmentCenter:
+            bounds->X = rect->X + (rect->Width - bounds->Width) / 2.0f;
+            break;
+        case StringAlignmentFar:
+            bounds->X = rect->X + rect->Width - bounds->Width;
+            break;
+        default:
+            break;
+        }
+
+        switch (format->line_align)
+        {
+        case StringAlignmentCenter:
+            bounds->Y = rect->Y + (rect->Height - bounds->Height) / 2.0f;
+            break;
+        case StringAlignmentFar:
+            bounds->Y = rect->Y + rect->Height - bounds->Height;
+            break;
+        default:
+            break;
+        }
+    }
 
     SelectObject(hdc, oldfont);
     DeleteObject(gdifont);

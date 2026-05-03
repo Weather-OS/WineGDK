@@ -495,7 +495,7 @@ typedef ULONG           UCSCHAR;
 /* 'Extended/Wide' numerical types */
 #ifndef _ULONGLONG_
 # define _ULONGLONG_
-# ifdef _MSC_VER
+# if defined(_MSC_VER) || defined(__MINGW32__)
 typedef signed __int64   LONGLONG;
 typedef unsigned __int64 ULONGLONG;
 # else
@@ -616,7 +616,7 @@ typedef DWORD FLONG;
 
 /* Defines */
 
-#ifndef WIN32_NO_STATUS
+#if !defined(WIN32_NO_STATUS) && !defined(UMDF_USING_NTSTATUS) && !defined(_NTSTATUS_)
 
 #define STATUS_WAIT_0                    ((DWORD) 0x00000000)
 #define STATUS_ABANDONED_WAIT_0          ((DWORD) 0x00000080)
@@ -1495,7 +1495,11 @@ typedef struct _KNONVOLATILE_CONTEXT_POINTERS
 #define XSTATE_AVX512_ZMM_H          6
 #define XSTATE_AVX512_ZMM            7
 #define XSTATE_IPT                   8
+#define XSTATE_PASID                 10
 #define XSTATE_CET_U                 11
+#define XSTATE_CET_S                 12
+#define XSTATE_AMX_TILE_CONFIG       17
+#define XSTATE_AMX_TILE_DATA         18
 #define XSTATE_LWP                   62
 #define MAXIMUM_XSTATE_FEATURES      64
 
@@ -1503,6 +1507,16 @@ typedef struct _KNONVOLATILE_CONTEXT_POINTERS
 #define XSTATE_MASK_LEGACY_SSE              (1 << XSTATE_LEGACY_SSE)
 #define XSTATE_MASK_LEGACY                  (XSTATE_MASK_LEGACY_FLOATING_POINT | XSTATE_MASK_LEGACY_SSE)
 #define XSTATE_MASK_GSSE                    (1 << XSTATE_GSSE)
+#define XSTATE_MASK_AVX                     XSTATE_MASK_GSSE
+#define XSTATE_MASK_MPX                     ((1 << XSTATE_MPX_BNDREGS) | (1 << XSTATE_MPX_BNDCSR))
+#define XSTATE_MASK_AVX512                  ((1 << XSTATE_AVX512_KMASK) | (1 << XSTATE_AVX512_ZMM_H) | (1 << XSTATE_AVX512_ZMM))
+#define XSTATE_MASK_IPT                     (1 << XSTATE_IPT)
+#define XSTATE_MASK_PASID                   (1 << XSTATE_PASID)
+#define XSTATE_MASK_CET_U                   (1 << XSTATE_CET_U)
+#define XSTATE_MASK_CET_S                   (1 << XSTATE_CET_S)
+#define XSTATE_MASK_AMX_TILE_CONFIG         (1 << XSTATE_AMX_TILE_CONFIG)
+#define XSTATE_MASK_AMX_TILE_DATA           (1 << XSTATE_AMX_TILE_DATA)
+#define XSTATE_MASK_LWP                     ((UINT64)1 << XSTATE_LWP)
 
 typedef struct _XSTATE_FEATURE
 {
@@ -2385,6 +2399,13 @@ typedef void (CALLBACK *PTERMINATION_HANDLER)(BOOLEAN,DWORD64);
 #define EXCEPTION_COLLIDED_UNWIND    0x40
 #define EXCEPTION_SOFTWARE_ORIGINATE 0x80
 
+#define EXCEPTION_UNWIND (EXCEPTION_UNWINDING |EXCEPTION_EXIT_UNWIND \
+                          | EXCEPTION_TARGET_UNWIND | EXCEPTION_COLLIDED_UNWIND)
+
+#define IS_UNWINDING(flags)     ((flags & EXCEPTION_UNWIND) != 0)
+#define IS_DISPATCHING(flags)   ((flags & EXCEPTION_UNWIND) == 0)
+#define IS_TARGET_UNWIND(flags) (flags & EXCEPTION_TARGET_UNWIND)
+
 /*
  * The exception record used by Win32 to give additional information
  * about exception to exception handlers.
@@ -2459,6 +2480,64 @@ typedef struct _EXCEPTION_REGISTRATION_RECORD
 
 typedef LONG (CALLBACK *PVECTORED_EXCEPTION_HANDLER)(PEXCEPTION_POINTERS ExceptionInfo);
 
+/* duplicate the contents of rtlsupportapi.h */
+#ifndef _APISETRTLSUPPORT_
+#define _APISETRTLSUPPORT_
+
+NTSYSAPI void   WINAPI RtlCaptureContext(CONTEXT*);
+NTSYSAPI void   WINAPI RtlCaptureContext2(CONTEXT*);
+NTSYSAPI USHORT WINAPI RtlCaptureStackBackTrace(ULONG,ULONG,void**,ULONG*);
+NTSYSAPI void   WINAPI RtlGetCallersAddress(void**,void**);
+NTSYSAPI void   WINAPI RtlRaiseException(EXCEPTION_RECORD*);
+NTSYSAPI void    CDECL RtlRestoreContext(CONTEXT*,EXCEPTION_RECORD*);
+NTSYSAPI void   WINAPI RtlUnwind(void*,void*,EXCEPTION_RECORD*,void*);
+NTSYSAPI void*  WINAPI RtlPcToFileHeader(void*,void**);
+NTSYSAPI ULONG  WINAPI RtlWalkFrameChain(void**,ULONG,ULONG);
+
+#ifndef __i386__
+
+#define UNWIND_HISTORY_TABLE_SIZE 12
+
+typedef struct _UNWIND_HISTORY_TABLE_ENTRY
+{
+    ULONG_PTR         ImageBase;
+    PRUNTIME_FUNCTION FunctionEntry;
+} UNWIND_HISTORY_TABLE_ENTRY, *PUNWIND_HISTORY_TABLE_ENTRY;
+
+typedef struct _UNWIND_HISTORY_TABLE
+{
+    DWORD     Count;
+    BYTE      LocalHint;
+    BYTE      GlobalHint;
+    BYTE      Search;
+    BYTE      Once;
+    ULONG_PTR LowAddress;
+    ULONG_PTR HighAddress;
+    UNWIND_HISTORY_TABLE_ENTRY Entry[UNWIND_HISTORY_TABLE_SIZE];
+} UNWIND_HISTORY_TABLE, *PUNWIND_HISTORY_TABLE;
+
+typedef PRUNTIME_FUNCTION (CALLBACK *PGET_RUNTIME_FUNCTION_CALLBACK)(DWORD_PTR,PVOID);
+
+#define RTL_VIRTUAL_UNWIND2_VALIDATE_PAC 0x0001
+
+NTSYSAPI BOOLEAN             CDECL RtlAddFunctionTable(RUNTIME_FUNCTION*,ULONG,ULONG_PTR);
+NTSYSAPI LONG               WINAPI RtlAddGrowableFunctionTable(void**,PRUNTIME_FUNCTION,ULONG,ULONG,ULONG_PTR,ULONG_PTR);
+NTSYSAPI BOOLEAN             CDECL RtlDeleteFunctionTable(RUNTIME_FUNCTION*);
+NTSYSAPI void               WINAPI RtlDeleteGrowableFunctionTable(void*);
+NTSYSAPI void               WINAPI RtlGrowFunctionTable(void*,ULONG);
+NTSYSAPI BOOLEAN             CDECL RtlInstallFunctionTableCallback(ULONG_PTR,ULONG_PTR,ULONG,PGET_RUNTIME_FUNCTION_CALLBACK,PVOID,PCWSTR);
+NTSYSAPI PRUNTIME_FUNCTION  WINAPI RtlLookupFunctionEntry(ULONG_PTR,ULONG_PTR*,UNWIND_HISTORY_TABLE*);
+NTSYSAPI PRUNTIME_FUNCTION  WINAPI RtlLookupFunctionTable(ULONG_PTR,ULONG_PTR*,ULONG*);
+NTSYSAPI void               WINAPI RtlUnwindEx(void*,void*,EXCEPTION_RECORD*,void*,CONTEXT*,UNWIND_HISTORY_TABLE*);
+NTSYSAPI PEXCEPTION_ROUTINE WINAPI RtlVirtualUnwind(ULONG,ULONG_PTR,ULONG_PTR,RUNTIME_FUNCTION*,CONTEXT*,void**,ULONG_PTR*,KNONVOLATILE_CONTEXT_POINTERS*);
+NTSYSAPI LONG               WINAPI RtlVirtualUnwind2(ULONG,ULONG_PTR,ULONG_PTR,RUNTIME_FUNCTION*,CONTEXT*,BOOLEAN*,void**,ULONG_PTR*,KNONVOLATILE_CONTEXT_POINTERS*,ULONG_PTR*,ULONG_PTR*,PEXCEPTION_ROUTINE*,ULONG);
+#ifdef __x86_64__
+NTSYSAPI BOOLEAN            WINAPI RtlIsEcCode(ULONG_PTR);
+#endif
+
+#endif  /* __i386__ */
+#endif  /* _APISETRTLSUPPORT_ */
+
 typedef struct _NT_TIB
 {
 	struct _EXCEPTION_REGISTRATION_RECORD *ExceptionList;
@@ -2472,6 +2551,28 @@ typedef struct _NT_TIB
 	PVOID ArbitraryUserPointer;
 	struct _NT_TIB *Self;
 } NT_TIB, *PNT_TIB;
+
+typedef struct _NT_TIB32
+{
+    ULONG ExceptionList;        /* 0000 */
+    ULONG StackBase;            /* 0004 */
+    ULONG StackLimit;           /* 0008 */
+    ULONG SubSystemTib;         /* 000c */
+    ULONG FiberData;            /* 0010 */
+    ULONG ArbitraryUserPointer; /* 0014 */
+    ULONG Self;                 /* 0018 */
+} NT_TIB32;
+
+typedef struct _NT_TIB64
+{
+    ULONG64 ExceptionList;        /* 0000 */
+    ULONG64 StackBase;            /* 0008 */
+    ULONG64 StackLimit;           /* 0010 */
+    ULONG64 SubSystemTib;         /* 0018 */
+    ULONG64 FiberData;            /* 0020 */
+    ULONG64 ArbitraryUserPointer; /* 0028 */
+    ULONG64 Self;                 /* 0030 */
+} NT_TIB64;
 
 struct _TEB;
 
@@ -4555,7 +4656,7 @@ typedef DWORD SECURITY_INFORMATION, *PSECURITY_INFORMATION;
 typedef WORD SECURITY_DESCRIPTOR_CONTROL, *PSECURITY_DESCRIPTOR_CONTROL;
 
 /* The security descriptor structure */
-typedef struct {
+typedef struct _SECURITY_DESCRIPTOR_RELATIVE {
     BYTE Revision;
     BYTE Sbz1;
     SECURITY_DESCRIPTOR_CONTROL Control;
@@ -4565,7 +4666,7 @@ typedef struct {
     DWORD Dacl;
 } SECURITY_DESCRIPTOR_RELATIVE, *PISECURITY_DESCRIPTOR_RELATIVE;
 
-typedef struct {
+typedef struct _SECURITY_DESCRIPTOR {
     BYTE Revision;
     BYTE Sbz1;
     SECURITY_DESCRIPTOR_CONTROL Control;
@@ -6280,7 +6381,6 @@ NTSYSAPI VOID WINAPI RtlRunOnceInitialize(PRTL_RUN_ONCE);
 NTSYSAPI DWORD WINAPI RtlRunOnceExecuteOnce(PRTL_RUN_ONCE,PRTL_RUN_ONCE_INIT_FN,PVOID,PVOID*);
 NTSYSAPI DWORD WINAPI RtlRunOnceBeginInitialize(PRTL_RUN_ONCE, DWORD, PVOID*);
 NTSYSAPI DWORD WINAPI RtlRunOnceComplete(PRTL_RUN_ONCE, DWORD, PVOID);
-NTSYSAPI WORD WINAPI RtlCaptureStackBackTrace(DWORD,DWORD,void**,DWORD*);
 
 typedef struct _RTL_BARRIER {
     DWORD Reserved1;
@@ -7023,7 +7123,9 @@ typedef enum _FIRMWARE_TYPE
 /* Intrinsic functions */
 
 #define BitScanForward _BitScanForward
+#define BitScanForward64 _BitScanForward64
 #define BitScanReverse _BitScanReverse
+#define BitScanReverse64 _BitScanReverse64
 #define InterlockedAdd _InlineInterlockedAdd
 #define InterlockedAnd _InterlockedAnd
 #define InterlockedAnd64 _InterlockedAnd64
@@ -7083,6 +7185,16 @@ DECLSPEC_NORETURN void __fastfail(unsigned int);
 #pragma intrinsic(_InterlockedOr)
 #pragma intrinsic(_InterlockedXor)
 #pragma intrinsic(__fastfail)
+
+#if defined(_WIN64) || __has_builtin(_BitScanForward64)
+BOOLEAN _BitScanForward64(unsigned long*,unsigned __int64);
+#pragma intrinsic(_BitScanForward64)
+#endif
+
+#if defined(_WIN64) || __has_builtin(_BitScanReverse64)
+BOOLEAN _BitScanReverse64(unsigned long*,unsigned __int64);
+#pragma intrinsic(_BitScanReverse64)
+#endif
 
 #if !defined(__i386__) || __has_builtin(_InterlockedAnd64)
 __int64   _InterlockedAnd64(__int64 volatile *, __int64);
@@ -7315,9 +7427,21 @@ static FORCEINLINE BOOLEAN WINAPI BitScanForward(DWORD *index, DWORD mask)
     return mask != 0;
 }
 
+static FORCEINLINE BOOLEAN WINAPI BitScanForward64(DWORD *index, DWORD64 mask)
+{
+    *index = __builtin_ctzll( mask );
+    return mask != 0;
+}
+
 static FORCEINLINE BOOLEAN WINAPI BitScanReverse(DWORD *index, DWORD mask)
 {
     *index = 31 - __builtin_clz( mask );
+    return mask != 0;
+}
+
+static FORCEINLINE BOOLEAN WINAPI BitScanReverse64(DWORD *index, DWORD64 mask)
+{
+    *index = 63 - __builtin_clzll( mask );
     return mask != 0;
 }
 
@@ -7685,6 +7809,9 @@ static FORCEINLINE DWORD64 UnsignedMultiply128( DWORD64 a, DWORD64 b, DWORD64 *h
     return (DWORD64)v;
 }
 #endif
+
+#define Int32x32To64(a,b)  ((INT64)(INT)(a) * (INT64)(INT)(b))
+#define UInt32x32To64(a,b) ((UINT64)(UINT)(a) * (UINT64)(UINT)(b))
 
 #ifdef __cplusplus
 }

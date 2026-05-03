@@ -25,7 +25,6 @@
 #include <stdarg.h>
 
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 #include "windef.h"
 #include "winnt.h"
 #include "ntgdi_private.h"
@@ -169,7 +168,7 @@ static const char *usercall_names[NtUserCallCount] =
 #undef USER32_CALLBACK_ENTRY
 };
 
-static NTSTATUS init( void *args )
+NTSTATUS __wine_unix_lib_init(void)
 {
 #ifdef _WIN64
     if (NtCurrentTeb()->WowTebOffset)
@@ -184,8 +183,3 @@ static NTSTATUS init( void *args )
     ntdll_add_syscall_debug_info( 1, syscall_names, usercall_names );
     return STATUS_SUCCESS;
 }
-
-const unixlib_entry_t __wine_unix_call_funcs[] =
-{
-    init,
-};

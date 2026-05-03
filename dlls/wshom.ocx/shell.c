@@ -1064,8 +1064,19 @@ static HRESULT WINAPI WshShortcut_put_RelativePath(IWshShortcut *iface, BSTR rhs
 static HRESULT WINAPI WshShortcut_get_TargetPath(IWshShortcut *iface, BSTR *Path)
 {
     WshShortcut *This = impl_from_IWshShortcut(iface);
-    FIXME("(%p)->(%p): stub\n", This, Path);
-    return E_NOTIMPL;
+    WCHAR fn[MAX_PATH];
+    HRESULT hr;
+
+    TRACE("(%p)->(%p)\n", This, Path);
+
+    if (FAILED(hr = IShellLinkW_GetPath(This->link, fn, ARRAY_SIZE(fn), NULL, 0)))
+    {
+        *Path = NULL;
+        return hr;
+    }
+
+    *Path = SysAllocString(fn);
+    return S_OK;
 }
 
 static HRESULT WINAPI WshShortcut_put_TargetPath(IWshShortcut *iface, BSTR Path)
@@ -1168,6 +1179,7 @@ static const IWshShortcutVtbl WshShortcutVtbl = {
 static HRESULT WshShortcut_Create(const WCHAR *path, IDispatch **shortcut)
 {
     WshShortcut *object;
+    IPersistFile *pf;
     HRESULT hr;
 
     *shortcut = NULL;
@@ -1195,6 +1207,12 @@ static HRESULT WshShortcut_Create(const WCHAR *path, IDispatch **shortcut)
 
     init_classinfo(&IID_IWshShortcut, (IUnknown *)&object->IWshShortcut_iface, &object->classinfo);
     *shortcut = (IDispatch *)&object->IWshShortcut_iface;
+
+    if (SUCCEEDED(hr = IShellLinkW_QueryInterface(object->link, &IID_IPersistFile, (void **)&pf)))
+    {
+        IPersistFile_Load(pf, path, 0);
+        IPersistFile_Release(pf);
+    }
 
     return S_OK;
 }

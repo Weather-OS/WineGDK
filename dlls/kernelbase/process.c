@@ -22,7 +22,6 @@
 #include <string.h>
 
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 #include "windef.h"
 #include "winbase.h"
 #include "winnls.h"
@@ -828,6 +827,38 @@ BOOL WINAPI DECLSPEC_HOTPATCH GetHandleInformation( HANDLE handle, DWORD *flags 
 
 
 /***********************************************************************
+ *           GetMachineTypeAttributes   (kernelbase.@)
+ */
+HRESULT WINAPI GetMachineTypeAttributes( USHORT machine, MACHINE_ATTRIBUTES *attr )
+{
+    SYSTEM_SUPPORTED_PROCESSOR_ARCHITECTURES_INFORMATION machines[8];
+    HANDLE process = NULL;
+    NTSTATUS status;
+
+    status = NtQuerySystemInformationEx( SystemSupportedProcessorArchitectures2, &process, sizeof(process),
+                                         machines, sizeof(machines), NULL );
+    if (status) return HRESULT_FROM_NT(status);
+
+    *attr = 0;
+
+    for (unsigned int i = 0; machines[i].Machine; i++)
+    {
+        if (machines[i].Machine == machine)
+        {
+            if (machines[i].KernelMode)
+                *attr |= KernelEnabled;
+            if (machines[i].UserMode)
+                *attr |= UserEnabled;
+            if (machines[i].WoW64Container)
+                *attr |= Wow64Container;
+        }
+    }
+
+    return S_OK;
+}
+
+
+/***********************************************************************
  *           GetPriorityClass   (kernelbase.@)
  */
 DWORD WINAPI DECLSPEC_HOTPATCH GetPriorityClass( HANDLE process )
@@ -1059,7 +1090,7 @@ BOOL WINAPI GetProcessInformation( HANDLE process, PROCESS_INFORMATION_CLASS inf
                 return FALSE;
             }
 
-            status = NtQuerySystemInformationEx( SystemSupportedProcessorArchitectures, &process, sizeof(process),
+            status = NtQuerySystemInformationEx( SystemSupportedProcessorArchitectures2, &process, sizeof(process),
                     machines, sizeof(machines), NULL );
             if (status) return set_ntstatus( status );
 
@@ -1284,7 +1315,7 @@ BOOL WINAPI DECLSPEC_HOTPATCH SetProcessWorkingSetSizeEx( HANDLE process, SIZE_T
 /******************************************************************************
  *           TerminateProcess   (kernelbase.@)
  */
-BOOL WINAPI DECLSPEC_HOTPATCH TerminateProcess( HANDLE handle, DWORD exit_code )
+BOOL WINAPI DECLSPEC_HOTPATCH TerminateProcess( HANDLE handle, UINT exit_code )
 {
     if (!handle)
     {

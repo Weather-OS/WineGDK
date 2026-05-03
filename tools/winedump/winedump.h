@@ -143,6 +143,8 @@ extern void *dump_base;
 extern size_t dump_total_len;
 
 BOOL globals_dump_sect(const char*);
+BOOL globals_dump_sect_with_option(const char *, const char *, const char **);
+BOOL globals_dump_sect_with_range(const char *, unsigned *, unsigned *);
 
 /* Names to use for output DLL */
 #define OUTPUT_DLL_NAME \
@@ -276,7 +278,7 @@ extern void tlb_dump_resource( void *ptr, size_t size, const char *prefix );
 
 BOOL            codeview_dump_symbols(const void* root, unsigned long start, unsigned long size);
 BOOL            codeview_dump_types_from_offsets(const void* table, const DWORD* offsets, unsigned num_types);
-BOOL            codeview_dump_types_from_block(const void* table, unsigned long len);
+BOOL            codeview_dump_types_from_block(const void* table, unsigned long len, unsigned int cvtyp_from, unsigned int cvtyp_to);
 void            codeview_dump_linetab(const char* linetab, BOOL pascal_str, const char* pfx);
 void            codeview_dump_linetab2(const char* linetab, DWORD size, const PDB_STRING_TABLE*, const char* pfx);
 const char*     pdb_get_string_table_entry(const PDB_STRING_TABLE* table, unsigned ofs);

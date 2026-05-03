@@ -30,12 +30,12 @@
 #include <stdbool.h>
 #include <sys/types.h>
 #include <math.h>
+#include <intrin.h>
 #include <limits.h>
 #include <float.h>
 #define LIBVKD3D_SHADER_SOURCE
 #include <vkd3d_shader.h>
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 #define COBJMACROS
 #include "windef.h"
 #include "winbase.h"
@@ -434,13 +434,7 @@ static inline unsigned short float_32_to_16(const float *in)
 
 static inline unsigned int wined3d_popcount(unsigned int x)
 {
-#if defined(__MINGW32__)
-    return __builtin_popcount(x);
-#else
-    x -= x >> 1 & 0x55555555;
-    x = (x & 0x33333333) + (x >> 2 & 0x33333333);
-    return ((x + (x >> 4)) & 0x0f0f0f0f) * 0x01010101 >> 24;
-#endif
+    return __popcnt(x);
 }
 
 static inline int wined3d_uint32_compare(uint32_t x, uint32_t y)
@@ -2072,7 +2066,6 @@ extern const struct wined3d_light WINED3D_default_light;
 
 struct wined3d_pixel_format
 {
-    int iPixelFormat; /* WGL pixel format */
     int iPixelType; /* WGL pixel type e.g. WGL_TYPE_RGBA_ARB, WGL_TYPE_RGBA_FLOAT_ARB or WGL_TYPE_COLORINDEX_ARB */
     int redSize, greenSize, blueSize, alphaSize, colorSize;
     int depthSize, stencilSize;
@@ -2326,6 +2319,7 @@ enum wined3d_pci_device
     CARD_NVIDIA_GEFORCE_RTX3090TI   = 0x2203,
     CARD_NVIDIA_TESLA_T4            = 0x1eb8,
     CARD_NVIDIA_AMPERE_A10          = 0x2236,
+    CARD_NVIDIA_AMPERE_A10G         = 0x2237,
     CARD_NVIDIA_GEFORCE_RTX4060     = 0x2882,
     CARD_NVIDIA_GEFORCE_RTX4060M    = 0x28a0,
     CARD_NVIDIA_GEFORCE_RTX4060TI8G = 0x2803,
@@ -4547,6 +4541,7 @@ extern enum wined3d_format_id pixelformat_for_depth(DWORD depth);
 #define WINED3D_FORMAT_ATTR_CAST_TO_BLOCK           0x00000800
 #define WINED3D_FORMAT_ATTR_PLANAR                  0x00001000
 #define WINED3D_FORMAT_ATTR_SHADOW                  0x00002000
+#define WINED3D_FORMAT_ATTR_UNSIGNED                0x00004000
 
 /* Pixel format capabilities */
 #define WINED3D_FORMAT_CAP_POSTPIXELSHADER_BLENDING     0x00000001

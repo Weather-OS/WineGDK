@@ -587,6 +587,7 @@ static void InternetSetFilePointer_test(const char *host, const char *path)
 {
     BYTE expect_response[8192], buf[8192];
     HINTERNET hi = 0, hic = 0, hor = 0;
+    HANDLE file = INVALID_HANDLE_VALUE;
     BOOL res, expected;
     DWORD count, size, i, pos, err;
 
@@ -706,6 +707,8 @@ static void InternetSetFilePointer_test(const char *host, const char *path)
     expected = pos == INVALID_SET_FILE_POINTER && err == ERROR_INTERNET_INVALID_OPERATION;
     ok(expected, "Expected ERROR_INTERNET_INVALID_OPERATION. Got %lu\n", err);
 
+    SET_EXPECT(INTERNET_STATUS_CLOSING_CONNECTION);
+    SET_EXPECT(INTERNET_STATUS_CONNECTION_CLOSED);
     SET_EXPECT(INTERNET_STATUS_HANDLE_CLOSING);
     InternetCloseHandle(hor);
 
@@ -843,6 +846,88 @@ static void InternetSetFilePointer_test(const char *host, const char *path)
 
     CLEAR_NOTIFIED(INTERNET_STATUS_RECEIVING_RESPONSE);
     CLEAR_NOTIFIED(INTERNET_STATUS_RESPONSE_RECEIVED);
+
+    SET_EXPECT(INTERNET_STATUS_CLOSING_CONNECTION);
+    SET_EXPECT(INTERNET_STATUS_CONNECTION_CLOSED);
+    SET_EXPECT(INTERNET_STATUS_HANDLE_CLOSING);
+    InternetCloseHandle(hor);
+
+    SET_EXPECT(INTERNET_STATUS_HANDLE_CREATED);
+    hor = HttpOpenRequestA(hic, NULL, path, NULL, NULL, NULL,
+                           INTERNET_FLAG_RELOAD,
+                           0xdeadbead);
+    ok(hor != 0x0, "HttpOpenRequest failed: %lu\n", GetLastError());
+    if(hor == 0x0) goto abort;
+    CHECK_NOTIFIED(INTERNET_STATUS_HANDLE_CREATED);
+
+    SET_OPTIONAL(INTERNET_STATUS_CONNECTING_TO_SERVER);
+    SET_OPTIONAL(INTERNET_STATUS_CONNECTED_TO_SERVER);
+
+    SET_EXPECT(INTERNET_STATUS_SENDING_REQUEST);
+    SET_EXPECT(INTERNET_STATUS_REQUEST_SENT);
+    SET_EXPECT(INTERNET_STATUS_RECEIVING_RESPONSE);
+    SET_EXPECT(INTERNET_STATUS_RESPONSE_RECEIVED);
+
+    res = HttpSendRequestA(hor, NULL, 0, NULL, 0);
+    err = !res ? GetLastError() : NO_ERROR;
+    expected = res && err == NO_ERROR;
+    ok(expected, "HttpSendRequest failed: %lu\n", err);
+
+    CHECK_NOTIFIED(INTERNET_STATUS_SENDING_REQUEST);
+    CHECK_NOTIFIED(INTERNET_STATUS_REQUEST_SENT);
+    CHECK_NOTIFIED(INTERNET_STATUS_RECEIVING_RESPONSE);
+    CHECK_NOTIFIED(INTERNET_STATUS_RESPONSE_RECEIVED);
+
+    SetLastError(0xdeadbeef);
+    res = InternetReadFile(hor, buf, 10, &count);
+    err = !res ? GetLastError() : NO_ERROR;
+    ok(res, "InternetReadFile failed: %lu\n", err);
+    ok(count, "InternetReadFile returned no content\n");
+
+    SetLastError(0xdeadbeef);
+    pos = InternetSetFilePointer(hor, INT_MAX, NULL, FILE_BEGIN, 0);
+    err = pos == INVALID_SET_FILE_POINTER ? GetLastError() : NO_ERROR;
+    expected = pos == INT_MAX && err == NO_ERROR;
+    ok(expected, "Expected position %#x. Got %#lx. GetLastError() %lu\n", INT_MAX, pos, err);
+
+    SetLastError(0xdeadbeef);
+    res = InternetReadFile(hor, buf, 1024, &count);
+    err = !res ? GetLastError() : NO_ERROR;
+    ok(!res, "InternetReadFile succeeded unexpectedly\n");
+    ok(err == ERROR_NOACCESS, "InternetReadFile unexpected error %lu\n", err);
+
+    SetLastError(0xdeadbeef);
+    res = InternetReadFile(hor, buf, 1024, &count);
+    err = !res ? GetLastError() : NO_ERROR;
+    ok(!res, "InternetReadFile succeeded unexpectedly\n");
+    ok(err == ERROR_INTERNET_INCORRECT_HANDLE_STATE, "InternetReadFile unexpected error %lu\n", err);
+
+    SetLastError(0xdeadbeef);
+    pos = InternetSetFilePointer(hor, 0, NULL, FILE_BEGIN, 0);
+    err = pos == INVALID_SET_FILE_POINTER ? GetLastError() : NO_ERROR;
+    expected = pos == INVALID_SET_FILE_POINTER && err == ERROR_INTERNET_INVALID_OPERATION;
+    ok(expected, "Expected position %#x. Got %#lx. GetLastError() %lu\n", INVALID_SET_FILE_POINTER, pos, err);
+
+    count = 0;
+    SetLastError(0xdeadbeef);
+    res = InternetQueryDataAvailable(hor, &count, 0x0, 0x0);
+    err = !res ? GetLastError() : NO_ERROR;
+    ok(!res, "InternetQueryDataAvailable succeeded unexpectedly\n");
+    ok(err == ERROR_INTERNET_INCORRECT_HANDLE_STATE, "InternetQueryDataAvailable unexpected error %lu\n", err);
+    ok(count == 0, "InternetQueryDataAvailable unexpected count: %lu\n", count);
+
+    size = ARRAY_SIZE(buf);
+    res = InternetQueryOptionA(hor, INTERNET_OPTION_URL, buf, &size);
+    ok(res, "InternetQueryOptionA(INTERNET_OPTION_URL) failed with error %ld\n", GetLastError());
+
+    res = TRUE;
+    res = InternetSetOptionA(hor, INTERNET_OPTION_HTTP_DECODING, &res, sizeof(res));
+    ok(res, "InternetSetOption(INTERNET_OPTION_HTTP_DECODING) failed: %ld\n", GetLastError());
+
+    res = InternetLockRequestFile(hor, &file);
+    if (res)
+        InternetUnlockRequestFile(file);
+    ok(res, "InternetLockRequestFile failed: %ld\n", GetLastError());
 
 abort:
     SET_OPTIONAL(INTERNET_STATUS_CLOSING_CONNECTION);

@@ -19,7 +19,6 @@
 
 #define COBJMACROS
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 #define USE_COM_CONTEXT_DEF
 #include "objbase.h"
 #include "ctxtcall.h"
@@ -3424,6 +3423,16 @@ BOOL WINAPI CoIsOle1Class(REFCLSID clsid)
 {
     FIXME("%s\n", debugstr_guid(clsid));
     return FALSE;
+}
+
+/***********************************************************************
+ *           CoRegisterActivationFilter  (combase.@)
+ */
+HRESULT WINAPI CoRegisterActivationFilter(IActivationFilter *filter)
+{
+    FIXME("%p stub\n", filter);
+
+    return E_NOTIMPL;
 }
 
 /***********************************************************************

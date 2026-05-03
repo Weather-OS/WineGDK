@@ -2747,6 +2747,7 @@ static void test_window_style(void)
     RECT fullscreen_rect, r;
     HWND window, window2;
     IDirectDraw7 *ddraw;
+    unsigned int i;
     HRESULT hr;
     ULONG ref;
     BOOL ret;
@@ -2957,10 +2958,19 @@ static void test_window_style(void)
     ok(tmp & WS_VISIBLE, "Expected WS_VISIBLE.\n");
     tmp = GetWindowLongA(window, GWL_EXSTYLE);
     ok(tmp & WS_EX_TOPMOST, "Expected WS_EX_TOPMOST.\n");
-    ret = ShowWindow(window, SW_HIDE);
-    ok(ret, "ShowWindow failed, error %#lx.\n", GetLastError());
-    ret = SetWindowPos(window, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
-    ok(ret, "SetWindowPos failed, error %#lx.\n", GetLastError());
+    for (i = 0; i < 5; ++i)
+    {
+        /* Try a few times to hide the window. Something in Win11 26H1 shows it again and makes it
+         * topmost. This is in addition to the ddraw periodic check below, which only makes it
+         * topmost but not visible */
+        ret = SetWindowPos(window, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_HIDEWINDOW);
+        ok(ret, "SetWindowPos failed, error %#lx.\n", GetLastError());
+        tmp = GetWindowLongA(window, GWL_STYLE);
+        if (!(tmp & WS_VISIBLE))
+            break;
+        Sleep(100);
+    }
+    ok(i < 5, "Failed to hide the window.\n");
     tmp = GetWindowLongA(window, GWL_STYLE);
     ok(!(tmp & WS_VISIBLE), "Got unexpected WS_VISIBLE.\n");
     tmp = GetWindowLongA(window, GWL_EXSTYLE);
@@ -15937,6 +15947,7 @@ static void test_map_synchronisation(void)
     unsigned int colour, i, j, tri_count;
     IDirect3DVertexBuffer7 *buffer;
     D3DVERTEXBUFFERDESC vb_desc;
+    BOOL small_buffer = FALSE;
     IDirect3DDevice7 *device;
     BOOL unsynchronised, ret;
     IDirectDrawSurface7 *rt;
@@ -16084,7 +16095,15 @@ static void test_map_synchronisation(void)
     for (i = 0; i < ARRAY_SIZE(tests); ++i)
     {
         hr = IDirect3D7_CreateVertexBuffer(d3d, &vb_desc, &buffer, 0);
-        ok(SUCCEEDED(hr), "Failed to create vertex buffer, hr %#lx.\n", hr);
+        ok(SUCCEEDED(hr) || hr == D3DERR_TOOMANYVERTICES, "Failed to create vertex buffer, hr %#lx.\n", hr);
+        if (hr == D3DERR_TOOMANYVERTICES && vb_desc.dwNumVertices >= 65535)
+        {
+            trace("Test draw needs more than 64k vertices, test results might be flaky.\n");
+            small_buffer = TRUE;
+            vb_desc.dwNumVertices = 65534;
+            hr = IDirect3D7_CreateVertexBuffer(d3d, &vb_desc, &buffer, 0);
+            ok(SUCCEEDED(hr), "Failed to create vertex buffer, hr %#lx.\n", hr);
+        }
         hr = IDirect3DVertexBuffer7_Lock(buffer, DDLOCK_DISCARDCONTENTS, (void **)&quads, NULL);
         ok(SUCCEEDED(hr), "Failed to lock vertex buffer, hr %#lx.\n", hr);
         for (j = 0; j < vb_desc.dwNumVertices / 4; ++j)
@@ -16113,6 +16132,7 @@ static void test_map_synchronisation(void)
 
         colour = get_surface_color(rt, 320, 240);
         unsynchronised = compare_color(colour, 0x00ffff00, 1);
+        flaky_if(small_buffer && tests[i].unsynchronised)
         ok(tests[i].unsynchronised == unsynchronised, "Expected %s map for flags %#x.\n",
                 tests[i].unsynchronised ? "unsynchronised" : "synchronised", tests[i].flags);
 
@@ -18307,11 +18327,17 @@ static void test_caps(void)
         {
             .dwSize = sizeof(DDSURFACEDESC2),
             .dwFlags = DDSD_CAPS | DDSD_PIXELFORMAT | DDSD_WIDTH | DDSD_HEIGHT,
-            .ddsCaps.dwCaps = DDSCAPS_ZBUFFER,
-            .ddpfPixelFormat.dwSize = sizeof(DDPIXELFORMAT),
-            .ddpfPixelFormat.dwFlags = DDPF_ZBUFFER,
-            .ddpfPixelFormat.dwZBufferBitDepth = depth_caps[i].depth,
-            .ddpfPixelFormat.dwZBitMask = depth_caps[i].mask,
+            .ddsCaps =
+            {
+                .dwCaps = DDSCAPS_ZBUFFER,
+            },
+            .ddpfPixelFormat =
+            {
+                .dwSize = sizeof(DDPIXELFORMAT),
+                .dwFlags = DDPF_ZBUFFER,
+                .dwZBufferBitDepth = depth_caps[i].depth,
+                .dwZBitMask = depth_caps[i].mask,
+            },
             .dwWidth = 64,
             .dwHeight = 64,
         };
@@ -18394,11 +18420,17 @@ static void test_caps(void)
         {
             .dwSize = sizeof(DDSURFACEDESC2),
             .dwFlags = DDSD_CAPS | DDSD_PIXELFORMAT | DDSD_WIDTH | DDSD_HEIGHT,
-            .ddsCaps.dwCaps = DDSCAPS_ZBUFFER,
-            .ddpfPixelFormat.dwSize = sizeof(DDPIXELFORMAT),
-            .ddpfPixelFormat.dwFlags = DDPF_ZBUFFER,
-            .ddpfPixelFormat.dwZBufferBitDepth = depth_caps[i].depth,
-            .ddpfPixelFormat.dwZBitMask = depth_caps[i].mask,
+            .ddsCaps =
+            {
+                .dwCaps = DDSCAPS_ZBUFFER,
+            },
+            .ddpfPixelFormat =
+            {
+                .dwSize = sizeof(DDPIXELFORMAT),
+                .dwFlags = DDPF_ZBUFFER,
+                .dwZBufferBitDepth = depth_caps[i].depth,
+                .dwZBitMask = depth_caps[i].mask,
+            },
             .dwWidth = 64,
             .dwHeight = 64,
         };

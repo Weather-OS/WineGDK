@@ -18,6 +18,7 @@
 
 #include <errno.h>
 #include <stdarg.h>
+#include <malloc.h>
 
 #define COBJMACROS
 
@@ -77,6 +78,7 @@ extern const vtable_ptr bad_cast_vtable;
 extern const vtable_ptr range_error_vtable;
 /* ??_7bad_function_call@std@@6B@ */
 extern const vtable_ptr bad_function_call_vtable;
+extern const vtable_ptr regex_error_vtable;
 
 /* ??0exception@@QAE@ABQBD@Z */
 /* ??0exception@@QEAA@AEBQEBD@Z */
@@ -902,6 +904,90 @@ DEFINE_RTTI_DATA(bad_function_call, 0, ".?AVbad_function_call@std@@", exception_
 DEFINE_CXX_TYPE(bad_function_call, MSVCP_exception_dtor, exception_cxx_type_info)
 #endif
 
+#if _MSVCP_VER >= 110
+/* regex_error class data */
+enum regex_constants {
+    error_collate,
+    error_ctype,
+    error_escape,
+    error_backref,
+    error_brack,
+    error_paren,
+    error_brace,
+    error_badbrace,
+    error_range,
+    error_space,
+    error_badrepeat,
+    error_complexity,
+    error_stack,
+    error_parse,
+    error_syntax
+};
+
+typedef struct {
+    runtime_error base;
+    enum regex_constants err;
+} regex_error;
+
+static regex_error* regex_error_ctor(regex_error *this, enum regex_constants err)
+{
+    const char *str;
+
+    TRACE("%p %d\n", this, err);
+
+    switch(err)
+    {
+    case error_collate: str = "regex_error(error_collate)"; break;
+    case error_ctype: str = "regex_error(error_ctype)"; break;
+    case error_escape: str = "regex_error(error_escape)"; break;
+    case error_backref: str = "regex_error(error_backref)"; break;
+    case error_brack: str = "regex_error(error_brack)"; break;
+    case error_paren: str = "regex_error(error_paren)"; break;
+    case error_brace: str = "regex_error(error_brace)"; break;
+    case error_badbrace: str = "regex_error(error_badbrace)"; break;
+    case error_range: str = "regex_error(error_range)"; break;
+    case error_space: str = "regex_error(error_space)"; break;
+    case error_badrepeat: str = "regex_error(error_badrepeat)"; break;
+    case error_complexity: str = "regex_error(error_complexity)"; break;
+    case error_stack: str = "regex_error(error_stack)"; break;
+    case error_parse: str = "regex_error(error_parse)"; break;
+    case error_syntax: str = "regex_error(error_syntax)"; break;
+    default: str = "regex_error"; break;
+    }
+
+    MSVCP_runtime_error_ctor(&this->base, &str);
+    this->err = err;
+    this->base.e.vtable = &regex_error_vtable;
+    return this;
+}
+
+DEFINE_THISCALL_WRAPPER(regex_error_copy_ctor, 8)
+regex_error* __thiscall regex_error_copy_ctor(
+        regex_error *this, regex_error *rhs)
+{
+    TRACE("%p %p\n", this, rhs);
+    runtime_error_copy_ctor(&this->base, &rhs->base);
+    this->err = rhs->err;
+    this->base.e.vtable = &regex_error_vtable;
+    return this;
+}
+
+DEFINE_RTTI_DATA(regex_error, 0, ".?AVregex_error@std@@",
+        runtime_error_rtti_base_descriptor, exception_rtti_base_descriptor)
+DEFINE_CXX_TYPE(regex_error, MSVCP_runtime_error_dtor,
+        runtime_error_cxx_type_info, exception_cxx_type_info)
+
+void __cdecl DECLSPEC_NORETURN _Xregex_error(enum regex_constants err)
+{
+    regex_error e;
+
+    TRACE("(%d)\n", err);
+
+    regex_error_ctor(&e, err);
+    _CxxThrowException(&e, &regex_error_exception_type);
+}
+#endif
+
 /* ?_Nomemory@std@@YAXXZ */
 void __cdecl DECLSPEC_NORETURN _Nomemory(void)
 {
@@ -1077,6 +1163,9 @@ typedef struct
     LONG *ref; /* not binary compatible with native */
 } exception_ptr;
 
+static inline void copy_exception( void *object, void **dest, UINT catch_flags,
+                                   const cxx_type_info *type, uintptr_t base );
+
 static void exception_ptr_rethrow(const exception_ptr *ep)
 {
     TRACE("(%p)\n", ep);
@@ -1088,6 +1177,20 @@ static void exception_ptr_rethrow(const exception_ptr *ep)
 
         MSVCP_exception_ctor(&e, &exception_msg);
         _CxxThrowException(&e, &exception_exception_type);
+        return;
+    }
+    if (ep->rec->ExceptionCode == CXX_EXCEPTION)
+    {
+        void **e;
+        void *obj = (void*)ep->rec->ExceptionInformation[1];
+        const cxx_exception_type *et = (void*)ep->rec->ExceptionInformation[2];
+        uintptr_t base = cxx_rva_base( et );
+        const cxx_type_info_table *table = cxx_rva( et->type_info_table, base );
+        const cxx_type_info *ti = cxx_rva( table->info[0], base );
+
+        e = alloca(ti->size);
+        copy_exception(obj, e, 0, ti, base);
+        _CxxThrowException(e, et);
         return;
     }
 
@@ -1138,10 +1241,6 @@ void __cdecl _Throw_C_error(int code)
 
     _CxxThrowException(&se, &system_error_exception_type);
 }
-#endif
-
-#if _MSVCP_VER >= 140
-void** CDECL __current_exception(void);
 
 /* compute the this pointer for a base class of a given type */
 static inline void *get_this_pointer( const this_ptr_offsets *off, void *object )
@@ -1219,6 +1318,10 @@ static inline void copy_exception( void *object, void **dest, UINT catch_flags,
     }
 }
 
+#endif
+
+#if _MSVCP_VER >= 140
+
 int __cdecl __uncaught_exceptions(void)
 {
     return *__processing_throw();
@@ -1284,10 +1387,7 @@ void __cdecl __ExceptionPtrAssign(exception_ptr *ep, const exception_ptr *assign
 {
     TRACE("(%p %p)\n", ep, assign);
 
-    /* don't destroy object stored in ep */
-    if (ep->ref)
-        InterlockedDecrement(ep->ref);
-
+    __ExceptionPtrDestroy(ep);
     *ep = *assign;
     if (ep->ref)
         InterlockedIncrement(ep->ref);
@@ -1301,6 +1401,8 @@ void __cdecl __ExceptionPtrRethrow(const exception_ptr *ep)
 {
     exception_ptr_rethrow(ep);
 }
+
+void** CDECL __current_exception(void);
 
 /*********************************************************************
  * ?__ExceptionPtrCurrentException@@YAXPAX@Z
@@ -1348,6 +1450,17 @@ void __cdecl __ExceptionPtrCurrentException(exception_ptr *ep)
 bool __cdecl __ExceptionPtrToBool(exception_ptr *ep)
 {
     return !!ep->rec;
+}
+
+/*********************************************************************
+ * ?__ExceptionPtrSwap@@YAXPAX0@Z
+ * ?__ExceptionPtrSwap@@YAXPEAX0@Z
+ */
+void __cdecl __ExceptionPtrSwap(exception_ptr *a, exception_ptr *b)
+{
+    exception_ptr tmp = *a;
+    *a = *b;
+    *b = tmp;
 }
 
 /*********************************************************************
@@ -1425,6 +1538,9 @@ __ASM_BLOCK_BEGIN(exception_vtables)
     EXCEPTION_VTABLE(future_error,
             VTABLE_ADD_FUNC(MSVCP_logic_error_vector_dtor)
             VTABLE_ADD_FUNC(MSVCP_future_error_what));
+    EXCEPTION_VTABLE(regex_error,
+            VTABLE_ADD_FUNC(MSVCP_runtime_error_vector_dtor)
+            VTABLE_ADD_FUNC(MSVCP_runtime_error_what));
 #endif
 #if _MSVCP_VER > 110
     EXCEPTION_VTABLE(_System_error,
@@ -1493,6 +1609,7 @@ void init_exception(void *base)
     INIT_RTTI(runtime_error, base);
 #if _MSVCP_VER >= 110
     INIT_RTTI(future_error, base);
+    INIT_RTTI(regex_error, base);
 #endif
 #if _MSVCP_VER > 110
     INIT_RTTI(_System_error, base);
@@ -1514,6 +1631,7 @@ void init_exception(void *base)
     INIT_CXX_TYPE(runtime_error, base);
 #if _MSVCP_VER >= 110
     INIT_CXX_TYPE(future_error, base);
+    INIT_CXX_TYPE(regex_error, base);
 #endif
 #if _MSVCP_VER > 110
     INIT_CXX_TYPE(_System_error, base);

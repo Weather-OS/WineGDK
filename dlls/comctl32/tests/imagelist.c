@@ -2204,6 +2204,8 @@ static void test_iconsize(void)
 static void test_create_destroy(void)
 {
     HIMAGELIST himl;
+    IMAGEINFO info;
+    HBITMAP hbm;
     INT cx, cy;
     BOOL rc;
     INT ret;
@@ -2263,6 +2265,18 @@ static void test_create_destroy(void)
     ok(himl == NULL, "got %p\n", himl);
     himl = pImageList_Create(1, -1, ILC_COLORDDB, 4, 4);
     ok(himl == NULL, "got %p\n", himl);
+
+    /* Test creating an imagelist with an excessively large initial image count */
+    himl = pImageList_Create(32, 32, ILC_COLOR32, 0xc0c0c0, 10);
+    ok(himl != NULL, "got %p\n", himl);
+    hbm = create_bitmap(32, 32, 0, "");
+    ret = pImageList_Add(himl, hbm, NULL);
+    ok(ret != -1, "Failed to add an image.\n");
+    ret = pImageList_GetImageInfo(himl, 0, &info);
+    ok(ret, "got %d\n", ret);
+    ok(info.hbmImage != NULL, "got %p\n", info.hbmImage);
+    DeleteObject(hbm);
+    pImageList_Destroy(himl);
 }
 
 static void check_color_table(const char *name, HDC hdc, HIMAGELIST himl, UINT ilc,
@@ -2466,9 +2480,18 @@ static void test_color_table(UINT ilc)
 
 static void test_copy(void)
 {
+    /* each line is a 1x1 bitmap */
+    static const UINT32 test_bitmaps[] =
+    {
+        0x00654321,
+        0x00ABCDEF,
+    };
     HIMAGELIST dst, src;
+    HBITMAP hbm;
+    UINT32 bits;
     BOOL ret;
     int count;
+    HDC hdc;
 
     dst = pImageList_Create(5, 11, ILC_COLOR, 1, 1);
     count = pImageList_GetImageCount(dst);
@@ -2484,6 +2507,30 @@ static void test_copy(void)
     ok(count == 0, "Expected no image in dst ImageList, got %d\n", count);
 
     pImageList_Destroy(dst);
+    pImageList_Destroy(src);
+
+    /* Test swapping images */
+    src = pImageList_Create(1, 1, ILC_COLOR32 | ILC_MASK, 2, 1);
+
+    hdc = CreateCompatibleDC(0);
+    hbm = create_test_bitmap(hdc, 1, 1, 32, &test_bitmaps[0]);
+    ret = pImageList_AddMasked(src, hbm, RGB(0xff, 0x00, 0x00));
+    ok(ret == 0, "ImageList_AddMasked() returned %d, expected %d.\n", ret, 0);
+    DeleteObject(hbm);
+    hbm = create_test_bitmap(hdc, 1, 1, 32, &test_bitmaps[1]);
+    ret = pImageList_AddMasked(src, hbm, RGB(0xff, 0x00, 0x00));
+    ok(ret == 1, "ImageList_AddMasked() returned %d, expected %d.\n", ret, 1);
+    DeleteObject(hbm);
+    DeleteDC(hdc);
+
+    ret = pImageList_Copy(src, 0, src, 1, ILCF_SWAP);
+    ok(ret, "ImageList_Copy() failed.\n");
+
+    image_list_get_image_bits_by_bitmap(src, 0, &bits);
+    ok(colour_match(bits, test_bitmaps[1]), "Got unexpected color %08x.\n", bits);
+    image_list_get_image_bits_by_bitmap(src, 1, &bits);
+    ok(colour_match(bits, test_bitmaps[0]), "Got unexpected color %08x.\n", bits);
+
     pImageList_Destroy(src);
 }
 

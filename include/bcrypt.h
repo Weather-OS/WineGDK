@@ -40,6 +40,14 @@
 typedef LONG NTSTATUS;
 #endif
 
+#ifndef BCRYPT_SUCCESS
+#define BCRYPT_SUCCESS(st) ((NTSTATUS)(st) >= 0)
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #define BCRYPT_ALGORITHM_NAME       L"AlgorithmName"
 #define BCRYPT_AUTH_TAG_LENGTH      L"AuthTagLength"
@@ -119,6 +127,7 @@ typedef LONG NTSTATUS;
 #define BCRYPT_CHAIN_MODE_GCM       L"ChainingModeGCM"
 
 #define BCRYPT_ECC_CURVE_NAME             L"ECCCurveName"
+#define BCRYPT_ECC_CURVE_25519            L"curve25519"
 #define BCRYPT_ECC_CURVE_BRAINPOOLP256R1  L"brainpoolP256r1"
 #define BCRYPT_ECC_CURVE_SECP256R1        L"secP256r1"
 #define BCRYPT_ECC_CURVE_SECP384R1        L"secP384r1"
@@ -212,6 +221,7 @@ static const WCHAR BCRYPT_CHAIN_MODE_CCM[] = {'C','h','a','i','n','i','n','g','M
 static const WCHAR BCRYPT_CHAIN_MODE_GCM[] = {'C','h','a','i','n','i','n','g','M','o','d','e','G','C','M',0};
 
 static const WCHAR BCRYPT_ECC_CURVE_NAME[] = {'E','C','C','C','u','r','v','e','N','a','m','e',0};
+static const WCHAR BCRYPT_ECC_CURVE_25519[] = {'c','u','r','v','e','2','5','5','1','9',0};
 static const WCHAR BCRYPT_ECC_CURVE_BRAINPOOLP256R1[] = {'b','r','a','i','n','p','o','o','l','P','2','5','6','r','1',0};
 static const WCHAR BCRYPT_ECC_CURVE_SECP256R1[] = {'s','e','c','P','2','5','6','r','1',0};
 static const WCHAR BCRYPT_ECC_CURVE_SECP384R1[] = {'s','e','c','P','3','8','4','r','1',0};
@@ -239,6 +249,9 @@ static const WCHAR BCRYPT_DH_PARAMETERS[] = {'D','H','P','a','r','a','m','e','t'
 #define BCRYPT_ECDH_PRIVATE_P384_MAGIC 0x344b4345
 #define BCRYPT_ECDH_PUBLIC_P521_MAGIC  0x354b4345
 #define BCRYPT_ECDH_PRIVATE_P521_MAGIC 0x364b4345
+
+#define BCRYPT_ECDH_PUBLIC_GENERIC_MAGIC  0x504b4345
+#define BCRYPT_ECDH_PRIVATE_GENERIC_MAGIC 0x564b4345
 
 #define BCRYPT_CIPHER_OPERATION                 0x00000001
 #define BCRYPT_HASH_OPERATION                   0x00000002
@@ -594,5 +607,9 @@ NTSTATUS WINAPI BCryptSecretAgreement(BCRYPT_KEY_HANDLE, BCRYPT_KEY_HANDLE, BCRY
 NTSTATUS WINAPI BCryptSetProperty(BCRYPT_HANDLE, LPCWSTR, PUCHAR, ULONG, ULONG);
 NTSTATUS WINAPI BCryptSignHash(BCRYPT_KEY_HANDLE, void *, PUCHAR, ULONG, PUCHAR, ULONG, ULONG *, ULONG);
 NTSTATUS WINAPI BCryptVerifySignature(BCRYPT_KEY_HANDLE, void *, UCHAR *, ULONG, UCHAR *, ULONG, ULONG);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  /* __WINE_BCRYPT_H */

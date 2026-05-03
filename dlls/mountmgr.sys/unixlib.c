@@ -36,6 +36,10 @@
 #ifdef HAVE_SYS_STATVFS_H
 # include <sys/statvfs.h>
 #endif
+#ifdef __APPLE__
+# include <CoreFoundation/CoreFoundation.h>
+# include <sys/param.h>
+#endif
 #include <unistd.h>
 
 #include "unixlib.h"
@@ -311,6 +315,35 @@ static NTSTATUS set_dosdev_symlink( void *args )
     return status;
 }
 
+#ifdef __APPLE__
+static LONGLONG get_free_bytes_for_important_data(int fd)
+{
+    CFURLRef url = NULL;
+    CFNumberRef num = NULL;
+    char *path = NULL;
+    LONGLONG space = -1;
+
+    if (!(path = malloc( MAXPATHLEN ))) goto done;
+    if (fcntl( fd, F_GETPATH, path ) == -1) goto done;
+    if (!(url = CFURLCreateFromFileSystemRepresentation( NULL, (UInt8 *)path, strlen( path ), false ))) goto done;
+    if (!CFURLCopyResourcePropertyForKey( url, kCFURLVolumeAvailableCapacityForImportantUsageKey, &num, NULL )) goto done;
+    CFNumberGetValue( num, kCFNumberLongLongType, &space );
+    if (space == 0)
+    {
+        /* It's unlikely that a writeable disk has exactly 0 free bytes. This
+         * probably means the disk is read-only, or is not APFS. Fall back to
+         * statfs. */
+        space = -1;
+    }
+
+done:
+    free( path );
+    if (url) CFRelease( url );
+    if (num) CFRelease( num );
+    return space;
+}
+#endif
+
 static NTSTATUS get_volume_size_info( void *args )
 {
     const struct get_volume_size_info_params *params = args;
@@ -326,6 +359,10 @@ static NTSTATUS get_volume_size_info( void *args )
     struct statvfs stfs;
 #else
     struct statfs stfs;
+#endif
+
+#ifdef __APPLE__
+    LONGLONG important_free_bytes;
 #endif
 
     if (!unix_mount) return STATUS_NO_SUCH_DEVICE;
@@ -365,6 +402,12 @@ static NTSTATUS get_volume_size_info( void *args )
     }
     bsize = stfs.f_bsize;
 #endif
+
+#ifdef __APPLE__
+    important_free_bytes = get_free_bytes_for_important_data( fd );
+    if (important_free_bytes != -1) stfs.f_bavail = stfs.f_bfree = important_free_bytes / bsize;
+#endif
+
     if (bsize == 2048)  /* assume CD-ROM */
     {
         info->bytes_per_sector = 2048;

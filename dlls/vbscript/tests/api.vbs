@@ -830,6 +830,10 @@ Call ok(x(2) = "def", "Split(""abc--def"",""-"")(2)=" & x(2))
 x = Split("abcdefghi","def")
 Call ok(x(0) = "abc", "Split(""abcdefghi"",""def"")(0)=" & x(0))
 Call ok(x(1) = "ghi", "Split(""abcdefghi"",""def"")(1)=" & x(1))
+x = Split("", ",")
+Call ok(UBound(x) = -1, "UBound(Split("""","",""))=" & UBound(x))
+x = Split("")
+Call ok(UBound(x) = -1, "UBound(Split(""""))=" & UBound(x))
 x = Split("12345",3)
 Call ok(x(0) = "12", "Split(""12345"",3)(0)=" & x(0))
 Call ok(x(1) = "45", "Split(""12345"",3)(1)=" & x(1))
@@ -2140,6 +2144,59 @@ if Asc(Chr(&h81)) = &h8145 then
 end if
 call testAscError()
 
+sub testAscW(arg, expected)
+    dim x
+    x = AscW(arg)
+    call ok(x = expected, "AscW: x = " & x & " expected " & expected)
+    call ok(getVT(x) = "VT_I2*", "AscW: getVT = " & getVT(x))
+end sub
+
+call testAscW("T", 84)
+call testAscW("test", 116)
+call testAscW("3", 51)
+call testAscW(3, 51)
+call testAscW(Chr(0), 0)
+call testAscW(Chr(255), 255)
+if isEnglishLang then testAscW true, 84
+
+sub testAscWError()
+    on error resume next
+    call Err.clear()
+    call AscW(null)
+    Call ok(Err.number = 94, "AscW null: Err.number = " & Err.number)
+    call Err.clear()
+    call AscW(empty)
+    Call ok(Err.number = 5, "AscW empty: Err.number = " & Err.number)
+    call Err.clear()
+    call AscW("")
+    Call ok(Err.number = 5, "AscW """": Err.number = " & Err.number)
+end sub
+
+call testAscWError()
+
+Call ok(getVT(ChrW(120)) = "VT_BSTR", "getVT(ChrW(120)) = " & getVT(ChrW(120)))
+Call ok(ChrW(120) = "x", "ChrW(120) = " & ChrW(120))
+Call ok(ChrW(0) <> "", "ChrW(0) = """"")
+Call ok(ChrW(120.5) = "x", "ChrW(120.5) = " & ChrW(120.5))
+Call ok(ChrW(119.5) = "x", "ChrW(119.5) = " & ChrW(119.5))
+Call ok(ChrW("120") = "x", "ChrW(""120"") = " & ChrW("120"))
+Call ok(ChrW(255) = Chr(255), "ChrW(255) <> Chr(255)")
+Call ok(ChrW(0) = Chr(0), "ChrW(0) <> Chr(0)")
+Call ok(AscW(ChrW(8364)) = 8364, "AscW(ChrW(8364)) = " & AscW(ChrW(8364)))
+Call ok(AscW(ChrW(65535)) = -1, "AscW(ChrW(65535)) = " & AscW(ChrW(65535)))
+
+sub testChrWError()
+    on error resume next
+    call Err.clear()
+    call ChrW(65536)
+    call ok(Err.number = 5, "ChrW 65536: Err.number = " & Err.number)
+    call Err.clear()
+    call ChrW(-32769)
+    call ok(Err.number = 5, "ChrW -32769: Err.number = " & Err.number)
+end sub
+
+call testChrWError()
+
 sub testErrNumber(n)
     call ok(err.number = n, "err.number = " & err.number & " expected " & n)
 end sub
@@ -2337,6 +2394,113 @@ call testDateAdd(DateSerial(2000, 1, 1), "ww", 1, DateSerial(2000, 1, 8))
 call testDateAdd(DateSerial(2000, 1, 1), "ww", -1, DateSerial(1999, 12, 25))
 call testDateAdd(DateSerial(2000, 1, 1), "Ww", -1, DateSerial(1999, 12, 25))
 call testDateAddError()
+
+sub testDatePart(interval, d, expected)
+    dim x
+    x = DatePart(interval, d)
+    call ok(x = expected, "DatePart(""" & interval & """, " & d & ") = " & x & " expected " & expected)
+    call ok(getVT(x) = "VT_I2*", "getVT = " & getVT(x))
+end sub
+
+sub testDatePartFdow(interval, d, fdow, expected)
+    dim x
+    x = DatePart(interval, d, fdow)
+    call ok(x = expected, "DatePart(""" & interval & """, " & d & ", " & fdow & ") = " & x & " expected " & expected)
+end sub
+
+sub testDatePartFull(interval, d, fdow, fwoy, expected)
+    dim x
+    x = DatePart(interval, d, fdow, fwoy)
+    call ok(x = expected, "DatePart(""" & interval & """, " & d & ", " & fdow & ", " & fwoy & ") = " & x & " expected " & expected)
+end sub
+
+dim datepartDate
+datepartDate = DateSerial(2000, 3, 15) + TimeSerial(14, 30, 45)
+
+' Basic interval tests
+call testDatePart("yyyy", datepartDate, 2000)
+call testDatePart("q", datepartDate, 1)
+call testDatePart("m", datepartDate, 3)
+call testDatePart("y", datepartDate, 75)
+call testDatePart("d", datepartDate, 15)
+call testDatePart("w", datepartDate, 4)
+call testDatePart("ww", datepartDate, 12)
+call testDatePart("h", datepartDate, 14)
+call testDatePart("n", datepartDate, 30)
+call testDatePart("s", datepartDate, 45)
+
+' Case insensitive
+call testDatePart("YYYY", datepartDate, 2000)
+call testDatePart("Q", datepartDate, 1)
+
+' Quarter boundaries
+call testDatePart("q", DateSerial(2000, 1, 1), 1)
+call testDatePart("q", DateSerial(2000, 3, 31), 1)
+call testDatePart("q", DateSerial(2000, 4, 1), 2)
+call testDatePart("q", DateSerial(2000, 6, 30), 2)
+call testDatePart("q", DateSerial(2000, 7, 1), 3)
+call testDatePart("q", DateSerial(2000, 9, 30), 3)
+call testDatePart("q", DateSerial(2000, 10, 1), 4)
+call testDatePart("q", DateSerial(2000, 12, 31), 4)
+
+' Day of year
+call testDatePart("y", DateSerial(2000, 1, 1), 1)
+call testDatePart("y", DateSerial(2000, 12, 31), 366)
+call testDatePart("y", DateSerial(2000, 3, 1), 61)
+
+' Weekday with firstdayofweek (2000-01-01 is Saturday)
+call testDatePartFdow("w", DateSerial(2000, 1, 1), vbSunday, 7)
+call testDatePartFdow("w", DateSerial(2000, 1, 1), vbMonday, 6)
+call testDatePartFdow("w", DateSerial(2000, 1, 1), vbSaturday, 1)
+
+' Week of year with firstdayofweek and firstweekofyear
+call testDatePartFull("ww", DateSerial(2000, 1, 1), vbSunday, vbFirstJan1, 1)
+call testDatePartFull("ww", DateSerial(2000, 1, 1), vbMonday, vbFirstJan1, 1)
+call testDatePartFull("ww", DateSerial(2000, 1, 1), vbSunday, vbFirstFourDays, 52)
+call testDatePartFull("ww", DateSerial(2000, 1, 1), vbSunday, vbFirstFullWeek, 52)
+
+sub testDatePartError()
+    on error resume next
+    dim x
+
+    ' Null date returns Null
+    err.clear
+    x = DatePart("yyyy", null)
+    call ok(getVT(x) = "VT_NULL*", "null date getVT = " & getVT(x))
+    call ok(err.number = 0, "null date err = " & err.number)
+
+    ' Null interval is error 94
+    err.clear
+    x = DatePart(null, datepartDate)
+    call ok(err.number = 94, "null interval err = " & err.number)
+
+    ' Invalid interval is error 5
+    err.clear
+    x = DatePart("k", datepartDate)
+    call ok(err.number = 5, "invalid interval err = " & err.number)
+
+    ' String date conversion
+    err.clear
+    x = DatePart("yyyy", "2000-03-15")
+    call ok(x = 2000, "string date = " & x)
+    call ok(err.number = 0, "string date err = " & err.number)
+
+    ' Invalid firstdayofweek
+    err.clear
+    x = DatePart("w", datepartDate, 8)
+    call ok(err.number = 5, "fdow=8 err = " & err.number)
+
+    err.clear
+    x = DatePart("w", datepartDate, -1)
+    call ok(err.number = 5, "fdow=-1 err = " & err.number)
+
+    ' Invalid firstweekofyear
+    err.clear
+    x = DatePart("ww", datepartDate, vbSunday, 4)
+    call ok(err.number = 5, "fwoy=4 err = " & err.number)
+end sub
+
+call testDatePartError()
 
 sub testWeekday(d, firstday, wd)
     dim x, x2
@@ -2619,5 +2783,255 @@ end sub
 
 call testFormatNumber()
 call testFormatNumberError()
+
+' Escape tests
+Call ok(Escape("hello") = "hello", "Escape(""hello"") = " & Escape("hello"))
+Call ok(Escape("hello world") = "hello%20world", "Escape(""hello world"") = " & Escape("hello world"))
+Call ok(Escape("@") = "@", "@ should not be escaped")
+Call ok(Escape("*") = "*", "* should not be escaped")
+Call ok(Escape("_") = "_", "_ should not be escaped")
+Call ok(Escape("+") = "+", "+ should not be escaped")
+Call ok(Escape("-") = "-", "- should not be escaped")
+Call ok(Escape(".") = ".", ". should not be escaped")
+Call ok(Escape("/") = "/", "/ should not be escaped")
+Call ok(Escape("ABC") = "ABC", "ABC should not be escaped")
+Call ok(Escape("abc") = "abc", "abc should not be escaped")
+Call ok(Escape("012") = "012", "012 should not be escaped")
+Call ok(Escape("<") = "%3C", "< escape = " & Escape("<"))
+Call ok(Escape(">") = "%3E", "> escape = " & Escape(">"))
+Call ok(Escape(" ") = "%20", "space escape = " & Escape(" "))
+Call ok(Escape("=") = "%3D", "= escape = " & Escape("="))
+Call ok(Escape("&") = "%26", "& escape = " & Escape("&"))
+Call ok(Escape(Unescape("%u20AC")) = "%u20AC", "Euro sign roundtrip escape")
+Call ok(Escape(Unescape("%u0100")) = "%u0100", "U+0100 roundtrip escape")
+Call ok(Escape("") = "", "Escape("""") should be empty")
+Call ok(getVT(Escape("test")) = "VT_BSTR", "getVT(Escape) = " & getVT(Escape("test")))
+
+' Unescape tests
+Call ok(Unescape("hello") = "hello", "Unescape(""hello"") = " & Unescape("hello"))
+Call ok(Unescape("hello%20world") = "hello world", "Unescape(""hello%20world"") = " & Unescape("hello%20world"))
+Call ok(Unescape("%3C%3E") = "<>", "Unescape(""%3C%3E"") = " & Unescape("%3C%3E"))
+Call ok(Unescape("%3c") = "<", "Unescape(""%3c"") lowercase")
+Call ok(Unescape("%3C") = "<", "Unescape(""%3C"") uppercase")
+Call ok(Unescape("%") = "%", "Unescape(""%"") incomplete")
+Call ok(Unescape("%2") = "%2", "Unescape(""%2"") incomplete")
+Call ok(Unescape("%2G") = "%2G", "Unescape(""%2G"") invalid hex")
+Call ok(Unescape(Escape("hello world!")) = "hello world!", "Roundtrip basic")
+Call ok(Unescape("") = "", "Unescape("""") should be empty")
+Call ok(getVT(Unescape("test")) = "VT_BSTR", "getVT(Unescape) = " & getVT(Unescape("test")))
+
+sub testEscapeError()
+    on error resume next
+    dim r
+
+    call Err.clear()
+    r = Escape(Null)
+    Call ok(Err.number = 94, "Escape(Null) Err.number = " & Err.number)
+
+    call Err.clear()
+    r = Unescape(Null)
+    Call ok(Err.number = 94, "Unescape(Null) Err.number = " & Err.number)
+end sub
+
+call testEscapeError()
+
+' Filter tests
+Dim filterArr, filterResult
+filterArr = Array("apple", "banana", "grape", "pineapple", "orange")
+
+' Include matches (default)
+filterResult = Filter(filterArr, "ap")
+Call ok(UBound(filterResult) = 2, "Filter include UBound = " & UBound(filterResult))
+Call ok(LBound(filterResult) = 0, "Filter include LBound = " & LBound(filterResult))
+Call ok(filterResult(0) = "apple", "Filter include (0) = " & filterResult(0))
+Call ok(filterResult(1) = "grape", "Filter include (1) = " & filterResult(1))
+Call ok(filterResult(2) = "pineapple", "Filter include (2) = " & filterResult(2))
+
+' Exclude matches
+filterResult = Filter(filterArr, "ap", False)
+Call ok(UBound(filterResult) = 1, "Filter exclude UBound = " & UBound(filterResult))
+Call ok(filterResult(0) = "banana", "Filter exclude (0) = " & filterResult(0))
+Call ok(filterResult(1) = "orange", "Filter exclude (1) = " & filterResult(1))
+
+' Case-sensitive (default binary compare)
+filterResult = Filter(filterArr, "AP")
+Call ok(UBound(filterResult) = -1, "Filter case-sensitive UBound = " & UBound(filterResult))
+
+' Case-insensitive (text compare)
+filterResult = Filter(filterArr, "AP", True, 1)
+Call ok(UBound(filterResult) = 2, "Filter text compare UBound = " & UBound(filterResult))
+
+' Empty search string returns all elements
+filterResult = Filter(filterArr, "")
+Call ok(UBound(filterResult) = UBound(filterArr), "Filter empty search UBound = " & UBound(filterResult))
+
+' No matches returns empty array
+filterResult = Filter(filterArr, "xyz")
+Call ok(UBound(filterResult) = -1, "Filter no match UBound = " & UBound(filterResult))
+
+' Single element match
+filterResult = Filter(Array("hello"), "ell")
+Call ok(UBound(filterResult) = 0, "Filter single match UBound = " & UBound(filterResult))
+Call ok(filterResult(0) = "hello", "Filter single match (0) = " & filterResult(0))
+
+' Single element no match
+filterResult = Filter(Array("hello"), "xyz")
+Call ok(UBound(filterResult) = -1, "Filter single no match UBound = " & UBound(filterResult))
+
+sub testFilterError()
+    on error resume next
+    dim r
+
+    call Err.clear()
+    r = Filter(Null, "test")
+    Call ok(Err.number = 94, "Filter(Null) Err.number = " & Err.number)
+
+    call Err.clear()
+    r = Filter(filterArr, Null)
+    Call ok(Err.number = 94, "Filter(arr, Null) Err.number = " & Err.number)
+
+    call Err.clear()
+    r = Filter("not_array", "test")
+    Call ok(Err.number = 13, "Filter(string) Err.number = " & Err.number)
+
+    call Err.clear()
+    r = Filter(filterArr, "ap", True, 5)
+    Call ok(Err.number = 5, "Filter(mode=5) Err.number = " & Err.number)
+end sub
+
+call testFilterError()
+
+' GetLocale/SetLocale tests
+Dim origLocale
+origLocale = GetLocale()
+Call ok(getVT(GetLocale()) = "VT_I4", "getVT(GetLocale()) = " & getVT(GetLocale()))
+
+Dim prevLocale
+prevLocale = SetLocale(1033)
+Call ok(getVT(prevLocale) = "VT_I4*", "getVT(SetLocale result) = " & getVT(prevLocale))
+Call ok(prevLocale = origLocale, "SetLocale(1033) returned " & prevLocale & " expected " & origLocale)
+Call ok(GetLocale() = 1033, "GetLocale() after SetLocale(1033) = " & GetLocale())
+
+prevLocale = SetLocale(1031)
+Call ok(prevLocale = 1033, "SetLocale(1031) returned " & prevLocale & " expected 1033")
+Call ok(GetLocale() = 1031, "GetLocale() after SetLocale(1031) = " & GetLocale())
+
+' SetLocale with string locale name
+prevLocale = SetLocale("en-us")
+Call ok(prevLocale = 1031, "SetLocale(""en-us"") returned " & prevLocale & " expected 1031")
+Call ok(GetLocale() = 1033, "GetLocale() after SetLocale(""en-us"") = " & GetLocale())
+
+' SetLocale with numeric string
+prevLocale = SetLocale("1031")
+Call ok(prevLocale = 1033, "SetLocale(""1031"") returned " & prevLocale & " expected 1033")
+Call ok(GetLocale() = 1031, "GetLocale() after SetLocale(""1031"") = " & GetLocale())
+
+' SetLocale() with no args resets to system default
+SetLocale(1033)
+prevLocale = SetLocale()
+Call ok(prevLocale = 1033, "SetLocale() returned " & prevLocale & " expected 1033")
+
+sub testSetLocaleError()
+    on error resume next
+
+    ' SetLocale(Null) should raise error 94
+    call Err.clear()
+    call SetLocale(Null)
+    Call ok(Err.number = 94, "SetLocale(Null) Err.number = " & Err.number)
+
+    ' SetLocale with invalid numeric LCID should raise error 447
+    call Err.clear()
+    dim prev
+    prev = SetLocale(99999)
+    Call ok(Err.number = 447, "SetLocale(99999) Err.number = " & Err.number)
+end sub
+
+call testSetLocaleError()
+
+' Restore original locale
+SetLocale(origLocale)
+Call ok(GetLocale() = origLocale, "GetLocale() after restore = " & GetLocale() & " expected " & origLocale)
+
+' LenB tests
+Call ok(LenB("") = 0, "LenB("""") = " & LenB(""))
+Call ok(LenB("A") = 2, "LenB(""A"") = " & LenB("A"))
+Call ok(LenB("ABC") = 6, "LenB(""ABC"") = " & LenB("ABC"))
+Call ok(LenB("hello") = 10, "LenB(""hello"") = " & LenB("hello"))
+Call ok(getVT(LenB("A")) = "VT_I4", "getVT(LenB) = " & getVT(LenB("A")))
+Call ok(IsNull(LenB(Null)), "LenB(Null) should be Null")
+
+' LeftB tests
+Call ok(LeftB("ABC", 0) = "", "LeftB(""ABC"", 0) = """ & LeftB("ABC", 0) & """")
+Call ok(LeftB("ABC", 2) = "A", "LeftB(""ABC"", 2) = " & LeftB("ABC", 2))
+Call ok(LeftB("ABC", 4) = "AB", "LeftB(""ABC"", 4) = " & LeftB("ABC", 4))
+Call ok(LeftB("ABC", 6) = "ABC", "LeftB(""ABC"", 6) = " & LeftB("ABC", 6))
+Call ok(LeftB("ABC", 100) = "ABC", "LeftB(""ABC"", 100) = " & LeftB("ABC", 100))
+Call ok(LenB(LeftB("ABC", 3)) = 3, "LenB(LeftB(""ABC"", 3)) = " & LenB(LeftB("ABC", 3)))
+
+' RightB tests
+Call ok(RightB("ABC", 0) = "", "RightB(""ABC"", 0) = """ & RightB("ABC", 0) & """")
+Call ok(RightB("ABC", 2) = "C", "RightB(""ABC"", 2) = " & RightB("ABC", 2))
+Call ok(RightB("ABC", 4) = "BC", "RightB(""ABC"", 4) = " & RightB("ABC", 4))
+Call ok(RightB("ABC", 100) = "ABC", "RightB(""ABC"", 100) = " & RightB("ABC", 100))
+Call ok(LenB(RightB("ABC", 3)) = 3, "LenB(RightB(""ABC"", 3)) = " & LenB(RightB("ABC", 3)))
+
+' MidB tests
+Call ok(MidB("ABC", 1, 2) = "A", "MidB(""ABC"", 1, 2) = " & MidB("ABC", 1, 2))
+Call ok(MidB("ABC", 3, 2) = "B", "MidB(""ABC"", 3, 2) = " & MidB("ABC", 3, 2))
+Call ok(MidB("ABC", 1) = "ABC", "MidB(""ABC"", 1) = " & MidB("ABC", 1))
+Call ok(MidB("ABC", 3) = "BC", "MidB(""ABC"", 3) = " & MidB("ABC", 3))
+Call ok(LenB(MidB("ABC", 2, 2)) = 2, "LenB(MidB(""ABC"", 2, 2)) = " & LenB(MidB("ABC", 2, 2)))
+
+sub testByteSubstrErrors()
+    on error resume next
+    dim r
+
+    call Err.clear()
+    r = LeftB("ABC", -1)
+    Call ok(Err.number = 5, "LeftB(-1) Err.number = " & Err.number)
+end sub
+
+call testByteSubstrErrors()
+
+' InStrB tests
+Call ok(InStrB("ABC", "B") = 3, "InStrB(""ABC"", ""B"") = " & InStrB("ABC", "B"))
+Call ok(InStrB("ABC", "D") = 0, "InStrB(""ABC"", ""D"") = " & InStrB("ABC", "D"))
+Call ok(InStrB("ABC", "A") = 1, "InStrB(""ABC"", ""A"") = " & InStrB("ABC", "A"))
+Call ok(InStrB("ABCABC", "B") = 3, "InStrB(""ABCABC"", ""B"") = " & InStrB("ABCABC", "B"))
+
+' AscB tests
+Call ok(AscB("A") = 65, "AscB(""A"") = " & AscB("A"))
+Call ok(AscB("a") = 97, "AscB(""a"") = " & AscB("a"))
+Call ok(AscB("ABC") = 65, "AscB(""ABC"") = " & AscB("ABC"))
+Call ok(getVT(AscB("A")) = "VT_UI1", "getVT(AscB) = " & getVT(AscB("A")))
+
+' ChrB tests
+Call ok(AscB(ChrB(65)) = 65, "AscB(ChrB(65)) roundtrip = " & AscB(ChrB(65)))
+Call ok(LenB(ChrB(65)) = 1, "LenB(ChrB(65)) = " & LenB(ChrB(65)))
+Call ok(AscB(ChrB(0)) = 0, "AscB(ChrB(0)) = " & AscB(ChrB(0)))
+Call ok(AscB(ChrB(255)) = 255, "AscB(ChrB(255)) = " & AscB(ChrB(255)))
+
+sub testByteCharErrors()
+    on error resume next
+    dim r
+
+    call Err.clear()
+    r = AscB("")
+    Call ok(Err.number = 5, "AscB("""") Err.number = " & Err.number)
+
+    call Err.clear()
+    r = AscB(Null)
+    Call ok(Err.number = 94, "AscB(Null) Err.number = " & Err.number)
+
+    call Err.clear()
+    r = ChrB(256)
+    Call ok(Err.number = 6, "ChrB(256) Err.number = " & Err.number)
+
+    call Err.clear()
+    r = ChrB(-1)
+    Call ok(Err.number = 6, "ChrB(-1) Err.number = " & Err.number)
+end sub
+
+call testByteCharErrors()
 
 Call reportSuccess()

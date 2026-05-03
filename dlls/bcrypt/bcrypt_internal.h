@@ -94,6 +94,7 @@ enum chain_mode
 enum ecc_curve_id
 {
     ECC_CURVE_NONE,
+    ECC_CURVE_25519,
     ECC_CURVE_P256R1,
     ECC_CURVE_P384R1,
     ECC_CURVE_P521R1,
@@ -146,8 +147,8 @@ struct key
 struct secret
 {
     struct object hdr;
-    struct key *privkey;
-    struct key *pubkey;
+    UCHAR        *derived_key;
+    ULONG         derived_key_len;
 };
 
 struct key_symmetric_set_auth_data_params

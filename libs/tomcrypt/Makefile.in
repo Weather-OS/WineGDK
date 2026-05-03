@@ -1,4 +1,4 @@
-EXTLIB    = libtomcrypt.a
+STATICLIB = libtomcrypt.a
 EXTRAINCL = $(TOMCRYPT_PE_CFLAGS)
 EXTRADEFS = -D_ACRTIMP= -DLTC_NO_TEST -DMP_32BIT=
 

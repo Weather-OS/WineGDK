@@ -861,7 +861,12 @@ static void test_GetCurrentThemeName(void)
     hRes = GetCurrentThemeName(currentTheme, ARRAY_SIZE(currentTheme), currentColor,
                                ARRAY_SIZE(currentColor), currentSize,  ARRAY_SIZE(currentSize));
     if (bThemeActive)
+    {
+        WCHAR *p;
         ok( hRes == S_OK, "Expected S_OK, got 0x%08lx\n", hRes);
+        p = wcsrchr(currentTheme, '\\');
+        ok(p && !wcsicmp(p+1, L"aero.msstyles"), "got %s\n", debugstr_w(currentTheme));
+    }
     else
         ok( hRes == E_PROP_ID_UNSUPPORTED, "Expected E_PROP_ID_UNSUPPORTED, got 0x%08lx\n", hRes);
 }

@@ -139,7 +139,7 @@
 @ stdcall CoQueryClientBlanket(ptr ptr ptr ptr ptr ptr ptr)
 @ stdcall CoQueryProxyBlanket(ptr ptr ptr ptr ptr ptr ptr ptr)
 @ stub CoReactivateObject
-@ stub CoRegisterActivationFilter
+@ stdcall CoRegisterActivationFilter(ptr)
 @ stdcall CoRegisterChannelHook(ptr ptr)
 @ stdcall CoRegisterClassObject(ptr ptr long long ptr)
 @ stdcall CoRegisterInitializeSpy(ptr ptr)
@@ -290,7 +290,7 @@
 @ stdcall RoActivateInstance(ptr ptr)
 @ stub RoCaptureErrorContext
 @ stub RoClearError
-@ stub RoFailFastWithErrorContext
+@ stdcall RoFailFastWithErrorContext(long)
 @ stub RoFreeParameterizedTypeExtra
 @ stub RoGetActivatableClassRegistration
 @ stdcall RoGetActivationFactory(ptr ptr ptr)

@@ -429,13 +429,52 @@ LONG WINAPI KeReleaseMutex( PRKMUTEX mutex, BOOLEAN wait )
 /***********************************************************************
  *           KeInitializeGuardedMutex   (NTOSKRNL.EXE.@)
  */
-void WINAPI KeInitializeGuardedMutex(PKGUARDED_MUTEX mutex)
+DEFINE_FASTCALL1_WRAPPER(KeInitializeGuardedMutex)
+void FASTCALL KeInitializeGuardedMutex(PKGUARDED_MUTEX mutex)
 {
     TRACE("mutex %p.\n", mutex);
     mutex->Count = FM_LOCK_BIT;
     mutex->Owner = NULL;
     mutex->Contention = 0;
     KeInitializeEvent(&mutex->Event, SynchronizationEvent, FALSE);
+}
+
+/***********************************************************************
+ *           KeAcquireGuardedMutexUnsafe   (NTOSKRNL.EXE.@)
+ */
+DEFINE_FASTCALL1_WRAPPER(KeAcquireGuardedMutexUnsafe)
+void FASTCALL KeAcquireGuardedMutexUnsafe(PKGUARDED_MUTEX mutex)
+{
+    ExAcquireFastMutexUnsafe((PFAST_MUTEX)mutex);
+}
+
+/***********************************************************************
+ *           KeAcquireGuardedMutex   (NTOSKRNL.EXE.@)
+ */
+DEFINE_FASTCALL1_WRAPPER(KeAcquireGuardedMutex)
+void FASTCALL KeAcquireGuardedMutex(PKGUARDED_MUTEX mutex)
+{
+    /* FIXME: Enter Guarded Region */
+    KeAcquireGuardedMutexUnsafe(mutex);
+}
+
+/***********************************************************************
+ *           KeReleaseGuardedMutexUnsafe   (NTOSKRNL.EXE.@)
+ */
+DEFINE_FASTCALL1_WRAPPER(KeReleaseGuardedMutexUnsafe)
+void FASTCALL KeReleaseGuardedMutexUnsafe(PKGUARDED_MUTEX mutex)
+{
+    ExReleaseFastMutexUnsafe((PFAST_MUTEX)mutex);
+}
+
+/***********************************************************************
+ *           KeReleaseGuardedMutex   (NTOSKRNL.EXE.@)
+ */
+DEFINE_FASTCALL1_WRAPPER(KeReleaseGuardedMutex)
+void FASTCALL KeReleaseGuardedMutex(PKGUARDED_MUTEX mutex)
+{
+    KeReleaseGuardedMutexUnsafe(mutex);
+    /* FIXME: Leave Guarded Region */
 }
 
 static void CALLBACK ke_timer_complete_proc(PTP_CALLBACK_INSTANCE instance, void *timer_, PTP_TIMER tp_timer)

@@ -680,11 +680,13 @@ extern INT_PTR CALLBACK test_wgi_dialog_proc( HWND hwnd, UINT msg, WPARAM wparam
 
         case PSN_RESET:
         case PSN_KILLACTIVE:
+            if (!thread) break;
             SetEvent( thread_stop );
             MsgWaitForMultipleObjects( 1, &thread, FALSE, INFINITE, 0 );
             CloseHandle( state_event );
             CloseHandle( thread_stop );
             CloseHandle( thread );
+            thread = NULL;
 
             clear_devices();
 

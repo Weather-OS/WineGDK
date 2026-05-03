@@ -815,6 +815,7 @@ struct wined3d_adapter_gl
 
     struct wined3d_gl_info gl_info;
 
+    /* Indexed by the WGL pixel format index minus 1. */
     struct wined3d_pixel_format *pixel_formats;
     unsigned int pixel_format_count;
 };

@@ -7,7 +7,6 @@
 #include <stddef.h>
 
 #include "ntstatus.h"
-#define WIN32_NO_STATUS
 #include "windef.h"
 #include "winbase.h"
 #include "winternl.h"
@@ -31,13 +30,6 @@ struct wglCopyContext_params
     BOOL ret;
 };
 
-struct wglCreateContext_params
-{
-    TEB *teb;
-    HDC hDc;
-    HGLRC ret;
-};
-
 struct wglDeleteContext_params
 {
     TEB *teb;
@@ -50,21 +42,6 @@ struct wglGetPixelFormat_params
     TEB *teb;
     HDC hdc;
     int ret;
-};
-
-struct wglGetProcAddress_params
-{
-    TEB *teb;
-    LPCSTR lpszProc;
-    PROC ret;
-};
-
-struct wglMakeCurrent_params
-{
-    TEB *teb;
-    HDC hDc;
-    HGLRC newContext;
-    BOOL ret;
 };
 
 struct wglSetPixelFormat_params
@@ -25734,19 +25711,6 @@ struct wglFreeMemoryNV_params
     void *pointer;
 };
 
-struct wglGetExtensionsStringARB_params
-{
-    TEB *teb;
-    HDC hdc;
-    const char *ret;
-};
-
-struct wglGetExtensionsStringEXT_params
-{
-    TEB *teb;
-    const char *ret;
-};
-
 struct wglGetPbufferDCARB_params
 {
     TEB *teb;
@@ -25892,11 +25856,8 @@ enum unix_funcs
     unix_process_detach,
     unix_get_pixel_formats,
     unix_wglCopyContext,
-    unix_wglCreateContext,
     unix_wglDeleteContext,
     unix_wglGetPixelFormat,
-    unix_wglGetProcAddress,
-    unix_wglMakeCurrent,
     unix_wglSetPixelFormat,
     unix_wglShareLists,
     unix_wglSwapBuffers,
@@ -28976,8 +28937,6 @@ enum unix_funcs
     unix_wglCreatePbufferARB,
     unix_wglDestroyPbufferARB,
     unix_wglFreeMemoryNV,
-    unix_wglGetExtensionsStringARB,
-    unix_wglGetExtensionsStringEXT,
     unix_wglGetPbufferDCARB,
     unix_wglGetPixelFormatAttribfvARB,
     unix_wglGetPixelFormatAttribivARB,

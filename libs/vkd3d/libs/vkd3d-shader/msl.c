@@ -34,7 +34,7 @@ struct msl_src
 
 struct msl_dst
 {
-    const struct vkd3d_shader_dst_param *vsir;
+    const struct vsir_dst_operand *vsir;
     struct vkd3d_string_buffer *register_name;
     struct vkd3d_string_buffer *mask;
 };
@@ -71,7 +71,7 @@ struct msl_resource_type_info
 };
 
 static void msl_print_subscript(struct vkd3d_string_buffer *buffer, struct msl_generator *gen,
-        const struct vkd3d_shader_src_param *rel_addr, unsigned int offset);
+        const struct vsir_src_operand *rel_addr, unsigned int offset);
 
 static void VKD3D_PRINTF_FUNC(3, 4) msl_compiler_error(struct msl_generator *gen,
         enum vkd3d_shader_error error, const char *fmt, ...)
@@ -554,7 +554,7 @@ static void msl_print_bitcast(struct vkd3d_string_buffer *dst, struct msl_genera
 }
 
 static void msl_print_src_with_type(struct vkd3d_string_buffer *buffer, struct msl_generator *gen,
-    const struct vkd3d_shader_src_param *vsir_src, uint32_t mask, enum vsir_data_type data_type)
+    const struct vsir_src_operand *vsir_src, uint32_t mask, enum vsir_data_type data_type)
 {
     const struct vkd3d_shader_register *reg = &vsir_src->reg;
     struct vkd3d_string_buffer *register_name;
@@ -573,7 +573,7 @@ static void msl_print_src_with_type(struct vkd3d_string_buffer *buffer, struct m
 }
 
 static void msl_src_init(struct msl_src *msl_src, struct msl_generator *gen,
-        const struct vkd3d_shader_src_param *vsir_src, uint32_t mask)
+        const struct vsir_src_operand *vsir_src, uint32_t mask)
 {
     msl_src->str = vkd3d_string_buffer_get(&gen->string_buffers);
     msl_print_src_with_type(msl_src->str, gen, vsir_src, mask, vsir_src->reg.data_type);
@@ -586,7 +586,7 @@ static void msl_dst_cleanup(struct msl_dst *dst, struct vkd3d_string_buffer_cach
 }
 
 static uint32_t msl_dst_init(struct msl_dst *msl_dst, struct msl_generator *gen,
-        const struct vkd3d_shader_instruction *ins, const struct vkd3d_shader_dst_param *vsir_dst)
+        const struct vkd3d_shader_instruction *ins, const struct vsir_dst_operand *vsir_dst)
 {
     uint32_t write_mask = vsir_dst->write_mask;
     enum msl_data_type dst_data_type;
@@ -612,7 +612,7 @@ static uint32_t msl_dst_init(struct msl_dst *msl_dst, struct msl_generator *gen,
 }
 
 static void msl_print_subscript(struct vkd3d_string_buffer *buffer, struct msl_generator *gen,
-        const struct vkd3d_shader_src_param *rel_addr, unsigned int offset)
+        const struct vsir_src_operand *rel_addr, unsigned int offset)
 {
     struct msl_src r;
 
@@ -803,7 +803,7 @@ static void msl_begin_block(struct msl_generator *gen)
 }
 
 static void msl_print_condition(struct vkd3d_string_buffer *buffer, struct msl_generator *gen,
-        enum vkd3d_shader_conditional_op op, const struct vkd3d_shader_src_param *arg)
+        enum vkd3d_shader_conditional_op op, const struct vsir_src_operand *arg)
 {
     const char *condition;
     struct msl_src src;
@@ -1028,9 +1028,9 @@ static void msl_sample(struct msl_generator *gen, const struct vkd3d_shader_inst
 {
     bool bias, compare, comparison_sampler, dynamic_offset, gather, grad, lod, lod_zero, offset;
     const struct msl_resource_type_info *resource_type_info;
-    const struct vkd3d_shader_src_param *resource, *sampler;
     unsigned int resource_id, resource_idx, resource_space;
     unsigned int sampler_id, sampler_idx, sampler_space;
+    const struct vsir_src_operand *resource, *sampler;
     unsigned int srv_binding = 0, sampler_binding = 0;
     const struct vkd3d_shader_descriptor_info1 *d;
     enum vkd3d_shader_resource_type resource_type;
@@ -2401,8 +2401,8 @@ int msl_compile(struct vsir_program *program, uint64_t config_flags,
         return ret;
 
     VKD3D_ASSERT(program->normalisation_level == VSIR_NORMALISED_SM6);
-    VKD3D_ASSERT(program->has_descriptor_info);
-    VKD3D_ASSERT(program->has_no_modifiers);
+    VKD3D_ASSERT(program->normalisation_flags.has_descriptor_info);
+    VKD3D_ASSERT(program->normalisation_flags.has_no_modifiers);
 
     if ((ret = msl_generator_init(&generator, program, compile_info, message_context)) < 0)
         return ret;

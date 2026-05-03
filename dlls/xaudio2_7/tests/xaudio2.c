@@ -1444,12 +1444,20 @@ static void test_XAudio2CreateWithVersionInfo(void)
 {
     IXAudio2 *audio;
     HRESULT hr;
+    HMODULE mod = GetModuleHandleA("xaudio2_8.dll");
+    HRESULT (WINAPI *pXAudio2CreateWithVersionInfo)(IXAudio2**, UINT32, XAUDIO2_PROCESSOR, DWORD);
+    pXAudio2CreateWithVersionInfo = (void *)GetProcAddress(mod, "XAudio2CreateWithVersionInfo");
 
-    hr = XAudio2CreateWithVersionInfo(&audio, 0, XAUDIO2_DEFAULT_PROCESSOR, 0);
+    if(!pXAudio2CreateWithVersionInfo){ /* not available up to win10-1709 */
+        win_skip("Function XAudio2CreateWithVersionInfo not present in xaudio2_8.dll\n");
+        return;
+    }
+
+    hr = pXAudio2CreateWithVersionInfo(&audio, 0, XAUDIO2_DEFAULT_PROCESSOR, 0);
     ok(hr == S_OK, "got %#lx.\n", hr);
     IXAudio2_Release(audio);
 
-    hr = XAudio2CreateWithVersionInfo(&audio, 0, XAUDIO2_DEFAULT_PROCESSOR, ~0);
+    hr = pXAudio2CreateWithVersionInfo(&audio, 0, XAUDIO2_DEFAULT_PROCESSOR, ~0);
     ok(hr == S_OK, "got %#lx.\n", hr);
     IXAudio2_Release(audio);
 }
