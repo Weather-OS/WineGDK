@@ -1694,7 +1694,9 @@ HRESULT WINAPI SHMultiFileProperties(IDataObject *pdtobj, DWORD flags)
 enum copy_engine_opcode
 {
     COPY_ENGINE_MOVE,
+    COPY_ENGINE_RENAME,
     COPY_ENGINE_REMOVE_DIRECTORY_SILENT,
+    COPY_ENGINE_DELETE
 };
 
 #define TSF_UNKNOWN_MEGRE_FLAG 0x1000
@@ -1769,6 +1771,12 @@ static HRESULT add_operation(struct file_operation *operation, enum copy_engine_
     if (folder)
     {
         IShellItem_AddRef(folder);
+        op->folder = folder;
+    } else if ( opcode == COPY_ENGINE_RENAME )
+    {
+        op->opcode = COPY_ENGINE_MOVE;
+        
+        if ( FAILED( hr = IShellItem_GetParent(item, &folder) )) goto error;
         op->folder = folder;
     }
     if (!(op->name = wcsdup(name)))
@@ -1869,6 +1877,22 @@ static HRESULT notify_post_move_item(IFileOperationProgressSink *sink, struct fi
     struct notify_move_item_param *p = context;
 
     return IFileOperationProgressSink_PostMoveItem(sink, op->tsf, p->item, op->folder, op->name, p->result, p->new_item);
+}
+
+static HRESULT notify_pre_delete_item(IFileOperationProgressSink *sink, struct file_operation *operations,
+        struct copy_engine_operation *op, void *context)
+{
+    struct notify_move_item_param *p = context;
+
+    return IFileOperationProgressSink_PreDeleteItem(sink, op->tsf & ~TSF_UNKNOWN_MEGRE_FLAG, p->item);
+}
+
+static HRESULT notify_post_delete_item(IFileOperationProgressSink *sink, struct file_operation *operations,
+        struct copy_engine_operation *op, void *context)
+{
+    struct notify_move_item_param *p = context;
+
+    return IFileOperationProgressSink_PostDeleteItem(sink, op->tsf, p->item,  p->result, p->new_item);
 }
 
 static void set_file_operation_progress(struct file_operation *operation, unsigned int total, unsigned int sofar)
@@ -1984,6 +2008,34 @@ static HRESULT copy_engine_move(struct file_operation *operation, struct copy_en
     return COPYENGINE_S_NOT_HANDLED;
 }
 
+static HRESULT copy_engine_delete(struct file_operation *operation, struct copy_engine_operation *op, IShellItem *src_item)
+{
+    WCHAR item_path[MAX_PATH];
+    DWORD src_attrs;
+    WCHAR *str;
+    HRESULT hr;
+
+    FIXME("something here is happening!\n");
+
+    if (FAILED(hr = IShellItem_GetDisplayName(src_item, SIGDN_FILESYSPATH, &str)))
+    {
+        FIXME("hr was %#lx\n", hr);
+        return hr;
+    }
+    wcscpy_s(item_path, ARRAY_SIZE(item_path), str);
+    CoTaskMemFree(str);
+
+    FIXME("item path is %s\n", debugstr_w(item_path));
+
+    if ((src_attrs = GetFileAttributesW(item_path)) == INVALID_FILE_ATTRIBUTES)
+        return HRESULT_FROM_WIN32(GetLastError());
+
+    if (DeleteFileW(item_path))
+        return HRESULT_FROM_WIN32(GetLastError());
+
+    return S_OK;
+}
+
 static HRESULT perform_file_operations(struct file_operation *operation)
 {
     struct copy_engine_operation *op;
@@ -2013,6 +2065,7 @@ static HRESULT perform_file_operations(struct file_operation *operation)
                 break;
             }
 
+            case COPY_ENGINE_RENAME:
             case COPY_ENGINE_MOVE:
             {
                 struct notify_move_item_param p;
@@ -2037,6 +2090,26 @@ static HRESULT perform_file_operations(struct file_operation *operation)
                 IShellItem_Release(p.item);
                 if (p.new_item)
                     IShellItem_Release(p.new_item);
+                break;
+            }
+
+            case COPY_ENGINE_DELETE:
+            {
+                struct notify_move_item_param p;
+
+                FIXME("failing here1\n");
+                if (FAILED(hr = SHCreateItemFromIDList(op->item_pidl, &IID_IShellItem, (void**)&p.item)))
+                    break;
+                if (FAILED((hr = file_operation_notify(operation, op, FALSE, &p, notify_pre_delete_item))))
+                {
+                    IShellItem_Release(p.item);
+                    return hr;
+                }
+                hr = copy_engine_delete(operation, op, p.item);
+                p.result = hr;
+                if (FAILED(hr = file_operation_notify(operation, op, TRUE, &p, notify_post_delete_item))) return hr;
+                hr = p.result;
+                IShellItem_Release(p.item);
                 break;
             }
         }
@@ -2200,9 +2273,13 @@ static HRESULT WINAPI file_operation_ApplyPropertiesToItems(IFileOperation *ifac
 static HRESULT WINAPI file_operation_RenameItem(IFileOperation *iface, IShellItem *item, LPCWSTR name,
         IFileOperationProgressSink *sink)
 {
-    FIXME("(%p, %p, %s, %p): stub.\n", iface, item, debugstr_w(name), sink);
+    TRACE("(%p, %p, %s, %p).\n", iface, item, debugstr_w(name), sink);
 
-    return E_NOTIMPL;
+    if (!item)
+        return E_INVALIDARG;
+    
+    return add_operation(impl_from_IFileOperation(iface), COPY_ENGINE_RENAME, item, NULL, name, sink,
+            TSF_COPY_LOCALIZED_NAME | TSF_COPY_WRITE_TIME | TSF_COPY_CREATION_TIME | TSF_OVERWRITE_EXIST, NULL);
 }
 
 static HRESULT WINAPI file_operation_RenameItems(IFileOperation *iface, IUnknown *items, LPCWSTR name)
@@ -2249,9 +2326,10 @@ static HRESULT WINAPI file_operation_CopyItems(IFileOperation *iface, IUnknown *
 static HRESULT WINAPI file_operation_DeleteItem(IFileOperation *iface, IShellItem *item,
         IFileOperationProgressSink *sink)
 {
-    FIXME("(%p, %p, %p): stub.\n", iface, item, sink);
+    TRACE("(%p, %p, %p): stub.\n", iface, item, sink);
 
-    return E_NOTIMPL;
+    return add_operation(impl_from_IFileOperation(iface), COPY_ENGINE_DELETE, item, NULL, NULL, sink,
+            TSF_COPY_LOCALIZED_NAME | TSF_COPY_WRITE_TIME | TSF_COPY_CREATION_TIME | TSF_OVERWRITE_EXIST, NULL);
 }
 
 static HRESULT WINAPI file_operation_DeleteItems(IFileOperation *iface, IUnknown *items)
