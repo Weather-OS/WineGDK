@@ -1,7 +1,12 @@
 MODULE  = windows.storage.dll
-IMPORTS = shell32 combase
+IMPORTS = shell32 shlwapi kernelbase rpcrt4 combase $(CXXABI_PE_LIBS) $(CXX_PE_LIBS) vcruntime140
 
 SOURCES = \
 	classes.idl \
+	provider.idl \
 	main.c \
-	streams.c
+	streams.cpp \
+	\
+	WineCoreUAP/Foundation/IWineAsync.cpp \
+	\
+	WineCoreUAP/Storage/StorageFolder.cpp

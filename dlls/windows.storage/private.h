@@ -29,6 +29,19 @@
 
 #include "activation.h"
 
+#ifdef __cplusplus
+// Bug: WinRT in C++ within Wine lacks proper C++ type handling
+// Redefine boolean as bool, and DOUBLE as double to prevent compile issues.
+// Casting is purely handled by libstdc++, so it's not an issue here.
+#undef boolean
+#define boolean bool
+#undef DOUBLE
+#define DOUBLE double
+
+// Bug: __WINESRC__ is not defined in C++ contexts.
+#define __WINESRC__ 1
+#endif
+
 #include "wine/debug.h"
 
 #define WIDL_using_Windows_Foundation
@@ -38,9 +51,24 @@
 #define WIDL_using_Windows_Storage_Streams
 #include "windows.storage.h"
 #include "windows.storage.streams.h"
+#define WIDL_using_Windows_Storage_FileProperties
+#include "windows.storage.fileproperties.h"
+
+#define WINDOWS_TICK 10000000
+#define SEC_TO_UNIX_EPOCH 11644473600LL
 
 extern IActivationFactory *random_access_stream_reference_factory;
+extern IActivationFactory *storage_folder_factory;
 
+struct async_operation_iids
+{
+    const GUID *operation;
+};
+
+typedef HRESULT (WINAPI *async_operation_callback)( IUnknown *invoker, PVOID param, PROPVARIANT *result );
+
+// DEFINE_IINSPECTABLE Should NOT be used in C++ contexts. Use classes instead.
+#ifndef __cplusplus
 #define DEFINE_IINSPECTABLE_( pfx, iface_type, impl_type, impl_from, iface_mem, expr )             \
     static inline impl_type *impl_from( iface_type *iface )                                        \
     {                                                                                              \
@@ -78,5 +106,6 @@ extern IActivationFactory *random_access_stream_reference_factory;
     }
 #define DEFINE_IINSPECTABLE( pfx, iface_type, impl_type, base_iface )                              \
     DEFINE_IINSPECTABLE_( pfx, iface_type, impl_type, impl_from_##iface_type, iface_type##_iface, &impl->base_iface )
+#endif
 
 #endif

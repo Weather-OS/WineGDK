@@ -15,26 +15,14 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
-#define COBJMACROS
+
 #include "initguid.h"
-#include <stdarg.h>
+#include "test.h"
 
-#include "windef.h"
-#include "winbase.h"
-#include "winstring.h"
+DEFINE_ASYNC_COMPLETED_HANDLER( async_storage_folder_handler, IAsyncOperationCompletedHandler_StorageFolder, IAsyncOperation_StorageFolder )
+DEFINE_ASYNC_COMPLETED_HANDLER( async_action_handler, IAsyncActionCompletedHandler, IAsyncAction )
 
-#include "roapi.h"
-
-#define WIDL_using_Windows_Foundation
-#define WIDL_using_Windows_Foundation_Collections
-#include "windows.foundation.h"
-#define WIDL_using_Windows_Storage_Streams
-#include "windows.storage.streams.h"
-
-#include "wine/test.h"
-
-#define check_interface( obj, iid, is_broken ) check_interface_( __LINE__, obj, iid, is_broken )
-static void check_interface_( unsigned int line, void *obj, const IID *iid, BOOL is_broken )
+void check_interface_( unsigned int line, void *obj, const IID *iid, BOOL is_broken )
 {
     IUnknown *iface = obj;
     IUnknown *unk;
@@ -84,6 +72,56 @@ static void test_RandomAccessStreamReference(void)
     ok( ref == 0, "got ref %ld.\n", ref );
 }
 
+/**
+ * ABI::Windows::Storage::StorageFolder
+ */
+void test_StorageFolder( const wchar_t* path )
+{
+    static const WCHAR *storage_folder_statics_name = L"Windows.Storage.StorageFolder";
+
+    IStorageItem *folderItem = NULL;
+    IStorageFolder *folder = NULL;
+    IStorageFolderStatics *storage_folder_statics = NULL;
+
+    IAsyncOperation_StorageFolder *storage_folder_operation = NULL;
+    IAsyncAction *storage_item_action = NULL;
+
+    HSTRING pathString;
+    HSTRING tmpStr;
+
+    HRESULT hr;
+    DWORD asyncRes;
+
+    ACTIVATE_INSTANCE( storage_folder_statics_name, storage_folder_statics, IID_IStorageFolderStatics );
+
+    /**
+     * ABI::Windows::Storage::IStorageFolderStatics::GetFolderFromPathAsync
+     */
+    WindowsCreateString( path, wcslen( path ), &pathString );
+    hr = IStorageFolderStatics_GetFolderFromPathAsync( storage_folder_statics, pathString, &storage_folder_operation );
+    CHECK_HR( hr );
+
+    asyncRes = await_IAsyncOperation_StorageFolder( storage_folder_operation, INFINITE );
+    ok( !asyncRes, "got asyncRes %#lx\n", asyncRes );
+
+    hr = IAsyncOperation_StorageFolder_GetResults( storage_folder_operation, &folder );
+    CHECK_HR( hr );
+
+    hr = IStorageFolder_QueryInterface( folder, &IID_IStorageItem, (void **)&folderItem );
+    CHECK_HR( hr );
+
+    hr = IStorageItem_get_Path( folderItem, &tmpStr );
+    ok( !lstrcmpW( path, WindowsGetStringRawBuffer( tmpStr, NULL ) ), "path %s and tmpStr %s do not match!\n", wine_dbgstr_w( path ), wine_dbgstr_hstring( tmpStr ) );
+
+    hr = IStorageItem_DeleteAsync( folderItem, StorageDeleteOption_PermanentDelete, &storage_item_action );
+    CHECK_HR( hr );
+
+    asyncRes = await_IAsyncAction( storage_item_action, INFINITE );
+    ok( !asyncRes, "got asyncRes %#lx\n", asyncRes );
+
+    IStorageFolderStatics_Release( storage_folder_statics );
+}
+
 START_TEST(storage)
 {
     HRESULT hr;
@@ -92,6 +130,7 @@ START_TEST(storage)
     ok( hr == S_OK, "RoInitialize failed, hr %#lx\n", hr );
 
     test_RandomAccessStreamReference();
+    test_StorageFolder( L"C:\\users\\office\\AppData\\Local\\Temp\\a" );
 
     RoUninitialize();
 }
