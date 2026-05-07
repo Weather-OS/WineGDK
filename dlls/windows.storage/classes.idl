@@ -29,13 +29,12 @@ import "windowscontracts.idl";
 import "windows.system.idl";
 import "windows.storage.idl";
 
-namespace Windows.Storage
-{
-    runtimeclass StorageFolder;
-}
-
 namespace Windows.Storage.Streams 
 {
     runtimeclass RandomAccessStreamReference;
+}
+
+namespace Windows.Storage
+{
     runtimeclass StorageFolder;
 }
