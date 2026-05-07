@@ -225,7 +225,7 @@ static void write_fields(FILE *h, var_list_t *fields, enum name_type name_type)
     }
 }
 
-static void write_enums(FILE *h, var_list_t *enums, const char *enum_name)
+static void write_enums(FILE *h, var_list_t *enums, const char *enum_name, enum name_type name_type )
 {
   var_t *v;
   if (!enums) return;
@@ -235,7 +235,7 @@ static void write_enums(FILE *h, var_list_t *enums, const char *enum_name)
     if (contract) write_apicontract_guard_start(h, contract);
     if (v->name) {
       indent(h, 0);
-      if(!enum_name)
+      if(!enum_name || name_type == NAME_DEFAULT)
           fprintf(h, "%s", get_name(v));
       else
           fprintf(h, "%s_%s", enum_name, get_name(v));
@@ -271,7 +271,7 @@ static void write_record_type_definition( FILE *header, type_t *type, const char
     switch (type_get_type_detect_alias( type ))
     {
     case TYPE_ENUM:
-        write_enums( header, type_enum_get_values( type ), is_global_namespace( type->namespace ) ? NULL : type->name );
+        write_enums( header, type_enum_get_values( type ), is_global_namespace( type->namespace ) ? NULL : type->name, name_type );
         break;
     case TYPE_STRUCT:
         write_fields( header, type_struct_get_fields( type ), name_type );
@@ -296,6 +296,8 @@ static void write_type_definition_left( FILE *h, const decl_spec_t *decl_spec, e
 {
     bool is_const = !!(decl_spec->qualifier & TYPE_QUALIFIER_CONST);
     type_t *type = decl_spec->type;
+    int in_namespace = type->namespace && !is_global_namespace(type->namespace);
+    if ( name_type == NAME_C ) in_namespace = FALSE;
     const char *name;
     struct strbuf str = {0};
 
@@ -312,7 +314,7 @@ static void write_type_definition_left( FILE *h, const decl_spec_t *decl_spec, e
     case TYPE_ENCAPSULATED_UNION:
     case TYPE_UNION:
     {
-        const char *specifier = type_get_record_specifier( type );
+        const char *specifier = type_get_record_specifier( type, in_namespace );
         if (!type->written) write_record_type_definition( h, type, specifier, name_type );
         else if ((name = type_get_name( type, name_type, true )) && winrt_mode && name_type == NAME_DEFAULT) fprintf( h, "%s", name );
         else fprintf( h, "%s %s", specifier, name ? name : "" );
@@ -416,6 +418,26 @@ static void write_type( FILE *f, type_t *t, bool define )
     fprintf(f, ";\n");
     if(in_namespace) {
         t->written = false;
+        if (winrt_mode && type_get_type( t ) == TYPE_ENUM)
+        {
+          // bitwise operators are not assumed to be defined by default in C++ enum types.
+          const char *name = type_get_name( t, NAME_DEFAULT, true );
+          indent(f, 0);
+          fprintf( f, "constexpr %s operator|(%s lhs, %s rhs){return static_cast<%s>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs));}\n", 
+                      name, name, name, name );
+          indent(f, 0);
+          fprintf( f, "constexpr %s operator&(%s lhs, %s rhs){return static_cast<%s>(static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs));}\n", 
+                      name, name, name, name );
+          indent(f, 0);
+          fprintf( f, "constexpr %s operator|=(%s lhs, %s rhs){lhs = lhs | rhs;return lhs;}\n", 
+                      name, name, name );
+          indent(f, 0);
+          fprintf( f, "constexpr %s operator&=(%s lhs, %s rhs){lhs = lhs & rhs;return lhs;}\n", 
+                      name, name, name );
+          indent(f, 0);
+          fprintf( f, "constexpr %s operator~(%s val){return static_cast<%s>(~static_cast<uint32_t>(val));}\n", 
+                      name, name, name );
+        }
         write_namespace_end(f, t->namespace);
         fprintf(f, "extern \"C\" {\n");
         fprintf(f, "#else\n");

@@ -97,11 +97,18 @@ const char *type_get_decl_name(const type_t *type, enum name_type name_type)
     return NULL;
 }
 
-const char *type_get_record_specifier( type_t *type )
+const char *type_get_record_specifier( type_t *type, int in_namespace )
 {
     switch (type_get_type_detect_alias( type ))
     {
-    case TYPE_ENUM:               return "enum";
+    case TYPE_ENUM:
+    {
+        if ( in_namespace )
+            return "enum class";
+        else 
+            return "enum";
+    }
+                   
     case TYPE_STRUCT:             return "struct";
     case TYPE_ENCAPSULATED_UNION: return "struct";
     case TYPE_UNION:              return "union";
@@ -227,6 +234,8 @@ void append_type_left( struct strbuf *str, const decl_spec_t *decl_spec, enum na
 {
     bool is_const = !!(decl_spec->qualifier & TYPE_QUALIFIER_CONST);
     type_t *type = decl_spec->type;
+    int in_namespace = type->namespace && !is_global_namespace(type->namespace);
+    if ( name_type == NAME_C ) in_namespace = FALSE;
     const char *name;
 
     if (decl_spec->func_specifier & FUNCTION_SPECIFIER_INLINE) strappend( str, "inline " );
@@ -241,7 +250,7 @@ void append_type_left( struct strbuf *str, const decl_spec_t *decl_spec, enum na
     case TYPE_ENCAPSULATED_UNION:
     case TYPE_UNION:
     {
-        const char *specifier = type_get_record_specifier( type ), *decl_name;
+        const char *specifier = type_get_record_specifier( type, in_namespace ), *decl_name;
         if (!(decl_name = type_get_decl_name( type, name_type ))) decl_name = "";
         return strappend( str, "%s %s", specifier, decl_name );
     }
