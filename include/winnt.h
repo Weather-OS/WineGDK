@@ -52,6 +52,7 @@ extern "C" {
 #define FASTCALL __fastcall
 
 #ifndef DECLSPEC_IMPORT
+#ifdef __cplusplus
 # if defined(__MINGW32__) || defined(__CYGWIN__)
 #  define DECLSPEC_IMPORT __attribute__((dllimport))
 # elif defined(__GNUC__)
@@ -61,6 +62,9 @@ extern "C" {
 # else
 #  define DECLSPEC_IMPORT
 # endif
+#else
+#define DECLSPEC_IMPORT
+#endif
 #endif
 
 #ifndef DECLSPEC_NORETURN
