@@ -642,10 +642,10 @@ struct winetest_thread_data *winetest_get_thread_data(void)
     DWORD last_error;
 
     last_error = GetLastError();
-    data = TlsGetValue( tls_index );
+    data = (struct winetest_thread_data *)TlsGetValue( tls_index );
     if (!data)
     {
-        data = HeapAlloc( GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*data) );
+        data = (struct winetest_thread_data *)HeapAlloc( GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*data) );
         data->str_pos = data->strings;
         TlsSetValue( tls_index, data );
     }
