@@ -122,32 +122,17 @@ BOOL WINAPI DllMain( HINSTANCE hinst, DWORD reason, void *reserved )
 
 typedef HRESULT (WINAPI *InitializeApiImplEx2_ext)( ULONG gdkVer, ULONG gsVer, CHAR mode, INITIALIZE_OPTIONS *options );
 
-void OnRemoteConnectShow(
-    _In_opt_ void* context,
-    _In_ uint32_t userIdentifier,
-    _In_ XUserPlatformOperation operation,
-    _In_z_ char const* url,
-    _In_z_ char const* code,
-    _In_ size_t qrCodeSize,
-    _In_reads_bytes_(qrCodeSize) void const* qrCode
-    ) {
-        (void)context;
-        printf("OnRemoteConnectShow %u %p %s %s\n", userIdentifier, operation, url, code);
-        fflush(stdout);
-    }
+void OnRemoteConnectShow(void* context, uint32_t userIdentifier, XUserPlatformOperation operation, char const* url, char const* code, size_t qrCodeSize, void const* qrCode) {
+    (void)context;
+    printf("OnRemoteConnectShow %u %p %s %s\n", userIdentifier, operation, url, code);
+    fflush(stdout);
+}
 
-void OnRemoteConnectClose(
-    _In_opt_ void* context,
-    _In_ uint32_t userIdentifier,
-    _In_ XUserPlatformOperation operation
-    ) {
-        (void)context;
-        printf("OnRemoteConnectClose %u %p\n", userIdentifier, operation);
-        fflush(stdout);
-    }
-
-
-typedef HRESULT (WINAPI *QueryApiImpl_ext)( const GUID *runtimeClassId, REFIID interfaceId, void **out );
+void OnRemoteConnectClose( void* context, uint32_t userIdentifier, XUserPlatformOperation operation ) {
+    (void)context;
+    printf("OnRemoteConnectClose %u %p\n", userIdentifier, operation);
+    fflush(stdout);
+}
 
 BOOL CALLBACK SetUpXgameruntimeCrossPlatformMode(PINIT_ONCE, PVOID, PVOID *) {
     xgameruntime_threading = LoadLibraryA("xgameruntime.dll.threading");
@@ -192,6 +177,8 @@ HRESULT WINAPI InitializeApiImpl( ULONG gdkVer, ULONG gsVer )
     TRACE("gdkVer %ld, gsVer %ld\n", gdkVer, gsVer);
     return InitializeApiImplEx2( gdkVer, gsVer, 0, NULL );
 }
+
+typedef HRESULT (WINAPI *QueryApiImpl_ext)( const GUID *runtimeClassId, REFIID interfaceId, void **out );
 
 HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, void **out )
 {
