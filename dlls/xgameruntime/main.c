@@ -223,22 +223,41 @@ HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, voi
 
     TRACE("runtimeClassId %s, interfaceId %s, out %p\n", debugstr_guid(runtimeClassId), debugstr_guid(interfaceId), out);
 
-    if ( IsEqualGUID( runtimeClassId, &CLSID_XGameRuntimeFeatureImpl ) )
+    if ( !func && IsEqualGUID( runtimeClassId, &CLSID_XSystemImpl ) )
+    {
+        return IXSystemImpl_QueryInterface( x_system_impl, interfaceId, out );
+    }
+    else if ( IsEqualGUID( runtimeClassId, &CLSID_XGameRuntimeFeatureImpl ) )
     {
         return IXGameRuntimeFeatureImpl_QueryInterface( x_game_runtime_feature_impl, interfaceId, out );
+    }
+    else if ( !func && IsEqualGUID( runtimeClassId, &CLSID_XSystemAnalyticsImpl ) )
+    {
+        return IXSystemAnalyticsImpl_QueryInterface( x_system_analytics_impl, interfaceId, out );
+    }
+    else if ( IsEqualGUID( runtimeClassId, &CLSID_XThreadingImpl ) )
+    {
+        /**
+         * For IXThreading, It's much better to use the native library instead.
+         */
+        if ( !func )
+        {
+            LoadOtherRuntime( &asked );
+            if ( !asked )
+            {
+                MessageBoxA( NULL, "The game has requested XThreading\nIt's recommended that you use Microsoft's native binary for this instead.\nTo do so, copy xgameruntime.dll from a Windows machine and place it under the name \"xgameruntime.dll.threading\" within either the game's binaries or within your prefix's system32 folder.\nYou won't be asked this again.", "Attention Required!", MB_ICONEXCLAMATION );
+            }
+            return IXThreadingImpl_QueryInterface( x_threading_impl, interfaceId, out );
+        }
+        return func( runtimeClassId, interfaceId, out );
     }
     else if ( IsEqualGUID( runtimeClassId, &CLSID_XNetworkingImpl ) )
     {
         return IXNetworkingImpl_QueryInterface( x_networking_impl, interfaceId, out );
     }
-    else if(func && func(runtimeClassId, interfaceId, out) == S_OK)
+    else if( func && func( runtimeClassId, interfaceId, out ) == S_OK )
     {
         return S_OK;
-    }
-    else if(!func)
-    {
-        MessageBoxA( NULL, "The game requires the original xgameruntime.dll for Sign in!\nIt's recommended that you use Microsoft's native binary for this instead.\nTo do so, copy xgameruntime.dll from a Windows machine and place it under the name \"xgameruntime.dll.threading\" within either the game's binaries or within your prefix's system32 folder.\n", "Attention Required!", MB_ICONEXCLAMATION );
-        abort();
     }
     
     FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( runtimeClassId ) );
