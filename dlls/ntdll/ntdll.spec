@@ -427,9 +427,9 @@
 @ stdcall -syscall NtSignalAndWaitForSingleObject(long long long ptr)
 # @ stub NtStartProfile
 # @ stub NtStopProfile
+@ stdcall -syscall NtSubscribeWnfStateChange(ptr long long ptr ptr)
 @ stdcall -syscall NtSuspendProcess(long)
 @ stdcall -syscall NtSuspendThread(long ptr)
-@ stdcall -syscall NtSubscribeWnfStateChange(ptr long long ptr ptr)
 @ stdcall -syscall NtSystemDebugControl(long ptr long ptr long ptr)
 @ stdcall -syscall NtTerminateJobObject(long long)
 @ stdcall -syscall=0x002c NtTerminateProcess(long long)
@@ -1502,9 +1502,9 @@
 @ stdcall -private ZwSignalAndWaitForSingleObject(long long long ptr) NtSignalAndWaitForSingleObject
 # @ stub ZwStartProfile
 # @ stub ZwStopProfile
+@ stdcall -private ZwSubscribeWnfStateChange(ptr long long ptr ptr) NtSubscribeWnfStateChange
 @ stdcall -private ZwSuspendProcess(long) NtSuspendProcess
 @ stdcall -private ZwSuspendThread(long ptr) NtSuspendThread
-@ stdcall -private ZwSubscribeWnfStateChange(ptr long long ptr ptr) NtSubscribeWnfStateChange
 @ stdcall -private ZwSystemDebugControl(long ptr long ptr long ptr) NtSystemDebugControl
 @ stdcall -private ZwTerminateJobObject(long long) NtTerminateJobObject
 @ stdcall -private ZwTerminateProcess(long long) NtTerminateProcess

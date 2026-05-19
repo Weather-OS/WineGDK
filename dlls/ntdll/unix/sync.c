@@ -3737,8 +3737,9 @@ NTSTATUS WINAPI NtQueryWnfStateData( const void *state_name, const void *type_id
 NTSTATUS WINAPI NtSubscribeWnfStateChange( const void *state_name, ULONG change_stamp,
                                            ULONG flags, ULONG *subscription_id, void *unknown )
 {
+    static LONG next_id = 1;
     FIXME( "%p 0x%x 0x%x %p %p: stub\n", state_name, change_stamp, flags, subscription_id, unknown );
-    if (subscription_id) *subscription_id = 1;
+    if (subscription_id) *subscription_id = InterlockedIncrement( &next_id );
     return STATUS_SUCCESS;
 }
 
