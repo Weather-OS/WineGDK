@@ -1,0 +1,4 @@
+MODULE = gameconfighelper.dll
+
+SOURCES = \
+	gameconfighelper.c

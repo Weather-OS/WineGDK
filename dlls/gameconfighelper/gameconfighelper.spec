@@ -1,0 +1,1 @@
+@ stdcall OpenGameConfigForPackage(ptr ptr)
