@@ -870,7 +870,7 @@ NTSTATUS WINAPI NtQueryLicenseValue( const UNICODE_STRING *name, ULONG *type,
     }
 
     if (status == STATUS_OBJECT_NAME_NOT_FOUND)
-        FIXME( "License key %s not found\n", debugstr_w(name->Buffer) );
+        TRACE( "License key %s not found\n", debugstr_w(name->Buffer) );
 
     free( info );
     return status;

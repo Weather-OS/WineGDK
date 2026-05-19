@@ -1647,11 +1647,17 @@ char WINAPI RtlQueryProcessPlaceholderCompatibilityMode(void)
  */
 void WINAPI RtlGetDeviceFamilyInfoEnum(ULONGLONG *version, DWORD *family, DWORD *form)
 {
-    FIXME("%p %p %p: stub\n", version, family, form);
+    TRACE("%p %p %p\n", version, family, form);
 
-    if (version) *version = 0;
+    if (version)
+    {
+        PEB *peb = NtCurrentTeb()->Peb;
+        *version = ((ULONGLONG)peb->OSMajorVersion << 48) |
+                   ((ULONGLONG)peb->OSMinorVersion << 32) |
+                   ((ULONGLONG)peb->OSBuildNumber << 16);
+    }
     if (family) *family = DEVICEFAMILYINFOENUM_DESKTOP;
-    if (form) *form = DEVICEFAMILYDEVICEFORM_UNKNOWN;
+    if (form) *form = DEVICEFAMILYDEVICEFORM_DESKTOP;
 }
 
 /*********************************************************************
