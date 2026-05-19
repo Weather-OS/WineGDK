@@ -129,7 +129,10 @@ LONG WINAPI AppPolicyGetProcessTerminationMethod(HANDLE token, AppPolicyProcessT
 LONG WINAPI AppPolicyGetShowDeveloperDiagnostic(HANDLE token, AppPolicyShowDeveloperDiagnostic *policy);
 LONG WINAPI AppPolicyGetThreadInitializationType(HANDLE token, AppPolicyThreadInitializationType *policy);
 LONG WINAPI AppPolicyGetWindowingModel(HANDLE processToken, AppPolicyWindowingModel *policy);
+LONG WINAPI GetCurrentPackagePath2(UINT32 packagePathType, UINT32 *pathLength, WCHAR *path);
+LONG WINAPI PackageFamilyNameFromFullName(const WCHAR *fullName, UINT32 *familyNameLength, WCHAR *familyName);
 LONG WINAPI PackageIdFromFullName(const WCHAR *full_name, UINT32 flags, UINT32 *buffer_length, BYTE *buffer);
+LONG WINAPI PackageNameAndPublisherIdFromFamilyName(const WCHAR *familyName, UINT32 *nameLength, WCHAR *name, UINT32 *publisherIdLength, WCHAR *publisherId);
 
 #if defined(__cplusplus)
 }

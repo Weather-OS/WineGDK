@@ -1602,6 +1602,15 @@ LONG WINAPI /* DECLSPEC_HOTPATCH */ GetCurrentPackagePath( UINT32 *length, WCHAR
     return APPMODEL_ERROR_NO_PACKAGE;
 }
 
+/***********************************************************************
+ *         GetCurrentPackagePath2   (kernelbase.@)
+ */
+LONG WINAPI GetCurrentPackagePath2( UINT32 packagePathType, UINT32 *pathLength, WCHAR *path )
+{
+    FIXME( "(%u %p %p): stub\n", packagePathType, pathLength, path );
+    return APPMODEL_ERROR_NO_PACKAGE;
+}
+
 
 /***********************************************************************
  *         GetPackageFullName   (kernelbase.@)
@@ -1674,6 +1683,36 @@ static UINT32 processor_arch_from_string(const WCHAR *str, unsigned int len)
         if (lstrlenW(arch_names[i].name) == len && !wcsnicmp(str, arch_names[i].name, len))
             return arch_names[i].code;
     return ~0u;
+}
+
+/***********************************************************************
+ *         PackageFamilyNameFromFullName   (kernelbase.@)
+ */
+LONG WINAPI PackageFamilyNameFromFullName(const WCHAR *fullName, UINT32 *familyNameLength, WCHAR *familyName)
+{
+    FIXME( "(%s %p %p): stub\n", debugstr_w(fullName), familyNameLength, familyName );
+
+    if (!fullName || !familyNameLength)
+        return ERROR_INVALID_PARAMETER;
+
+    *familyNameLength = 0;
+    return ERROR_INSUFFICIENT_BUFFER;
+}
+
+/***********************************************************************
+ *         PackageNameAndPublisherIdFromFamilyName   (kernelbase.@)
+ */
+LONG WINAPI PackageNameAndPublisherIdFromFamilyName(const WCHAR *familyName, UINT32 *nameLength,
+                                                     WCHAR *name, UINT32 *publisherIdLength, WCHAR *publisherId)
+{
+    FIXME( "(%s %p %p %p %p): stub\n", debugstr_w(familyName), nameLength, name, publisherIdLength, publisherId );
+
+    if (!familyName || !nameLength || !publisherIdLength)
+        return ERROR_INVALID_PARAMETER;
+
+    *nameLength = 0;
+    *publisherIdLength = 0;
+    return ERROR_INSUFFICIENT_BUFFER;
 }
 
 /***********************************************************************
