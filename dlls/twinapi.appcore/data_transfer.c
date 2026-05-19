@@ -20,6 +20,143 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(twinapi);
 
+/*
+ * IDataTransferManager stub instance.
+ */
+
+struct data_transfer_manager
+{
+    IDataTransferManager IDataTransferManager_iface;
+    LONG ref;
+};
+
+static inline struct data_transfer_manager *impl_from_IDataTransferManager( IDataTransferManager *iface )
+{
+    return CONTAINING_RECORD( iface, struct data_transfer_manager, IDataTransferManager_iface );
+}
+
+static HRESULT WINAPI data_transfer_manager_QueryInterface( IDataTransferManager *iface, REFIID iid, void **out )
+{
+    struct data_transfer_manager *impl = impl_from_IDataTransferManager( iface );
+
+    TRACE( "iface %p, iid %s, out %p.\n", iface, debugstr_guid( iid ), out );
+
+    if (IsEqualGUID( iid, &IID_IUnknown ) ||
+        IsEqualGUID( iid, &IID_IInspectable ) ||
+        IsEqualGUID( iid, &IID_IDataTransferManager ))
+    {
+        *out = &impl->IDataTransferManager_iface;
+        IInspectable_AddRef( *out );
+        return S_OK;
+    }
+
+    FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( iid ) );
+    *out = NULL;
+    return E_NOINTERFACE;
+}
+
+static ULONG WINAPI data_transfer_manager_AddRef( IDataTransferManager *iface )
+{
+    struct data_transfer_manager *impl = impl_from_IDataTransferManager( iface );
+    ULONG ref = InterlockedIncrement( &impl->ref );
+    TRACE( "iface %p increasing refcount to %lu.\n", iface, ref );
+    return ref;
+}
+
+static ULONG WINAPI data_transfer_manager_Release( IDataTransferManager *iface )
+{
+    struct data_transfer_manager *impl = impl_from_IDataTransferManager( iface );
+    ULONG ref = InterlockedDecrement( &impl->ref );
+    TRACE( "iface %p decreasing refcount to %lu.\n", iface, ref );
+    if (!ref) free( impl );
+    return ref;
+}
+
+static HRESULT WINAPI data_transfer_manager_GetIids( IDataTransferManager *iface, ULONG *iid_count, IID **iids )
+{
+    FIXME( "iface %p, iid_count %p, iids %p stub!\n", iface, iid_count, iids );
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI data_transfer_manager_GetRuntimeClassName( IDataTransferManager *iface, HSTRING *class_name )
+{
+    FIXME( "iface %p, class_name %p stub!\n", iface, class_name );
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI data_transfer_manager_GetTrustLevel( IDataTransferManager *iface, TrustLevel *trust_level )
+{
+    FIXME( "iface %p, trust_level %p stub!\n", iface, trust_level );
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI data_transfer_manager_add_DataRequested( IDataTransferManager *iface,
+        ITypedEventHandler_DataTransferManager_DataRequestedEventArgs *handler, EventRegistrationToken *token )
+{
+    static INT64 next_token = 1;
+    FIXME( "iface %p, handler %p, token %p stub!\n", iface, handler, token );
+    if (token) token->value = next_token++;
+    return S_OK;
+}
+
+static HRESULT WINAPI data_transfer_manager_remove_DataRequested( IDataTransferManager *iface, EventRegistrationToken token )
+{
+    FIXME( "iface %p, token %#I64x stub!\n", iface, token.value );
+    return S_OK;
+}
+
+static HRESULT WINAPI data_transfer_manager_add_TargetApplicationChosen( IDataTransferManager *iface,
+        ITypedEventHandler_DataTransferManager_TargetApplicationChosenEventArgs *handler, EventRegistrationToken *token )
+{
+    static INT64 next_token = 100;
+    FIXME( "iface %p, handler %p, token %p stub!\n", iface, handler, token );
+    if (token) token->value = next_token++;
+    return S_OK;
+}
+
+static HRESULT WINAPI data_transfer_manager_remove_TargetApplicationChosen( IDataTransferManager *iface, EventRegistrationToken token )
+{
+    FIXME( "iface %p, token %#I64x stub!\n", iface, token.value );
+    return S_OK;
+}
+
+static const struct IDataTransferManagerVtbl data_transfer_manager_vtbl =
+{
+    data_transfer_manager_QueryInterface,
+    data_transfer_manager_AddRef,
+    data_transfer_manager_Release,
+    /* IInspectable methods */
+    data_transfer_manager_GetIids,
+    data_transfer_manager_GetRuntimeClassName,
+    data_transfer_manager_GetTrustLevel,
+    /* IDataTransferManager methods */
+    data_transfer_manager_add_DataRequested,
+    data_transfer_manager_remove_DataRequested,
+    data_transfer_manager_add_TargetApplicationChosen,
+    data_transfer_manager_remove_TargetApplicationChosen,
+};
+
+static HRESULT data_transfer_manager_create( IDataTransferManager **out )
+{
+    struct data_transfer_manager *impl;
+
+    if (!(impl = calloc( 1, sizeof(*impl) )))
+    {
+        *out = NULL;
+        return E_OUTOFMEMORY;
+    }
+
+    impl->IDataTransferManager_iface.lpVtbl = &data_transfer_manager_vtbl;
+    impl->ref = 1;
+
+    *out = &impl->IDataTransferManager_iface;
+    return S_OK;
+}
+
+/*
+ * IDataTransferManagerStatics / IDataTransferManagerInterop factory.
+ */
+
 struct data_transfer_manager_statics
 {
     IActivationFactory IActivationFactory_iface;
@@ -31,16 +168,6 @@ struct data_transfer_manager_statics
 static inline struct data_transfer_manager_statics *impl_from_IActivationFactory( IActivationFactory *iface )
 {
     return CONTAINING_RECORD( iface, struct data_transfer_manager_statics, IActivationFactory_iface );
-}
-
-static inline struct data_transfer_manager_statics *impl_from_IDataTransferManagerStatics( IDataTransferManagerStatics *iface )
-{
-    return CONTAINING_RECORD( iface, struct data_transfer_manager_statics, IDataTransferManagerStatics_iface );
-}
-
-static inline struct data_transfer_manager_statics *impl_from_IDataTransferManagerInterop( IDataTransferManagerInterop *iface )
-{
-    return CONTAINING_RECORD( iface, struct data_transfer_manager_statics, IDataTransferManagerInterop_iface );
 }
 
 static HRESULT WINAPI factory_QueryInterface( IActivationFactory *iface, REFIID iid, void **out )
@@ -93,25 +220,25 @@ static ULONG WINAPI factory_Release( IActivationFactory *iface )
 
 static HRESULT WINAPI factory_GetIids( IActivationFactory *iface, ULONG *iid_count, IID **iids )
 {
-    FIXME( "iface %p, iid_count %p, iids %p\n", iface, iid_count, iids );
+    FIXME( "iface %p, iid_count %p, iids %p stub!\n", iface, iid_count, iids );
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI factory_GetRuntimeClassName( IActivationFactory *iface, HSTRING *class_name )
 {
-    FIXME( "iface %p, class_name %p\n", iface, class_name );
+    FIXME( "iface %p, class_name %p stub!\n", iface, class_name );
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI factory_GetTrustLevel( IActivationFactory *iface, TrustLevel *trust_level )
 {
-    FIXME( "iface %p, trust_level %p\n", iface, trust_level );
+    FIXME( "iface %p, trust_level %p stub!\n", iface, trust_level );
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI factory_ActivateInstance( IActivationFactory *iface, IInspectable **instance )
 {
-    FIXME( "iface %p, instance %p\n", iface, instance );
+    FIXME( "iface %p, instance %p stub!\n", iface, instance );
     return E_NOTIMPL;
 }
 
@@ -128,73 +255,21 @@ static const struct IActivationFactoryVtbl factory_vtbl =
     factory_ActivateInstance,
 };
 
-static HRESULT WINAPI data_transfer_manager_statics_QueryInterface( IDataTransferManagerStatics *iface,
-                                                                REFIID iid, void **out )
-{
-    struct data_transfer_manager_statics *impl = impl_from_IDataTransferManagerStatics( iface );
-
-    TRACE( "iface %p, iid %s, out %p.\n", iface, debugstr_guid( iid ), out );
-
-    if (IsEqualGUID( iid, &IID_IUnknown ) ||
-        IsEqualGUID( iid, &IID_IInspectable ) ||
-        IsEqualGUID( iid, &IID_IDataTransferManagerStatics ))
-    {
-        IDataTransferManagerStatics_AddRef( (*out = &impl->IDataTransferManagerStatics_iface) );
-        return S_OK;
-    }
-
-    FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( iid ) );
-    *out = NULL;
-    return E_NOINTERFACE;
-}
-
-static ULONG WINAPI data_transfer_manager_statics_AddRef( IDataTransferManagerStatics *iface )
-{
-    struct data_transfer_manager_statics *impl = impl_from_IDataTransferManagerStatics( iface );
-    ULONG ref = InterlockedIncrement( &impl->ref );
-    TRACE( "iface %p increasing refcount to %lu.\n", iface, ref );
-    return ref;
-}
-
-static ULONG WINAPI data_transfer_manager_statics_Release( IDataTransferManagerStatics *iface )
-{
-    struct data_transfer_manager_statics *impl = impl_from_IDataTransferManagerStatics( iface );
-    ULONG ref = InterlockedDecrement( &impl->ref );
-    TRACE( "iface %p decreasing refcount to %lu.\n", iface, ref );
-    return ref;
-}
-
-static HRESULT WINAPI data_transfer_manager_statics_GetIids( IDataTransferManagerStatics *iface, ULONG *iid_count, IID **iids )
-{
-    FIXME( "iface %p, iid_count %p, iids %p\n", iface, iid_count, iids );
-    return E_NOTIMPL;
-}
-
-static HRESULT WINAPI data_transfer_manager_statics_GetRuntimeClassName( IDataTransferManagerStatics *iface, HSTRING *class_name )
-{
-    FIXME( "iface %p, class_name %p\n", iface, class_name );
-    return E_NOTIMPL;
-}
-
-static HRESULT WINAPI data_transfer_manager_statics_GetTrustLevel( IDataTransferManagerStatics *iface, TrustLevel *trust_level )
-{
-    FIXME( "iface %p, trust_level %p\n", iface, trust_level );
-    return E_NOTIMPL;
-}
+DEFINE_IINSPECTABLE( data_transfer_manager_statics, IDataTransferManagerStatics, struct data_transfer_manager_statics, IActivationFactory_iface )
 
 static HRESULT WINAPI data_transfer_manager_statics_ShowShareUI( IDataTransferManagerStatics *iface )
 {
-    FIXME( "iface %p\n", iface );
-    return E_NOTIMPL;
+    FIXME( "iface %p stub!\n", iface );
+    return S_OK;
 }
 
 static HRESULT WINAPI data_transfer_manager_statics_GetForCurrentView( IDataTransferManagerStatics *iface, IDataTransferManager **result )
 {
-    FIXME( "iface %p, result %p\n", iface, result );
-    return E_NOTIMPL;
+    FIXME( "iface %p, result %p stub!\n", iface, result );
+    return data_transfer_manager_create( result );
 }
 
-static IDataTransferManagerStaticsVtbl data_transfer_manager_statics_vtbl =
+static const IDataTransferManagerStaticsVtbl data_transfer_manager_statics_vtbl =
 {
     data_transfer_manager_statics_QueryInterface,
     data_transfer_manager_statics_AddRef,
@@ -205,65 +280,63 @@ static IDataTransferManagerStaticsVtbl data_transfer_manager_statics_vtbl =
     data_transfer_manager_statics_GetTrustLevel,
     /* IDataTransferManagerStatics methods */
     data_transfer_manager_statics_ShowShareUI,
-    data_transfer_manager_statics_GetForCurrentView
+    data_transfer_manager_statics_GetForCurrentView,
 };
 
+static inline struct data_transfer_manager_statics *impl_from_IDataTransferManagerInterop( IDataTransferManagerInterop *iface )
+{
+    return CONTAINING_RECORD( iface, struct data_transfer_manager_statics, IDataTransferManagerInterop_iface );
+}
+
 static HRESULT WINAPI data_transfer_manager_interop_QueryInterface( IDataTransferManagerInterop *iface,
-                                                                REFIID iid, void **out )
+                                                                    REFIID iid, void **out )
 {
     struct data_transfer_manager_statics *impl = impl_from_IDataTransferManagerInterop( iface );
-
-    TRACE( "iface %p, iid %s, out %p.\n", iface, debugstr_guid( iid ), out );
-
-    if (IsEqualGUID( iid, &IID_IUnknown ) ||
-        IsEqualGUID( iid, &IID_IInspectable ) ||
-        IsEqualGUID( iid, &IID_IDataTransferManagerInterop ))
-    {
-        IDataTransferManagerInterop_AddRef( (*out = &impl->IDataTransferManagerInterop_iface) );
-        return S_OK;
-    }
-
-    FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( iid ) );
-    *out = NULL;
-    return E_NOINTERFACE;
+    return IActivationFactory_QueryInterface( &impl->IActivationFactory_iface, iid, out );
 }
 
 static ULONG WINAPI data_transfer_manager_interop_AddRef( IDataTransferManagerInterop *iface )
 {
     struct data_transfer_manager_statics *impl = impl_from_IDataTransferManagerInterop( iface );
-    ULONG ref = InterlockedIncrement( &impl->ref );
-    TRACE( "iface %p increasing refcount to %lu.\n", iface, ref );
-    return ref;
+    return IActivationFactory_AddRef( &impl->IActivationFactory_iface );
 }
 
 static ULONG WINAPI data_transfer_manager_interop_Release( IDataTransferManagerInterop *iface )
 {
     struct data_transfer_manager_statics *impl = impl_from_IDataTransferManagerInterop( iface );
-    ULONG ref = InterlockedDecrement( &impl->ref );
-    TRACE( "iface %p decreasing refcount to %lu.\n", iface, ref );
-    return ref;
+    return IActivationFactory_Release( &impl->IActivationFactory_iface );
 }
 
 static HRESULT WINAPI data_transfer_manager_interop_GetForWindow( IDataTransferManagerInterop *iface, HWND appWindow, REFIID iid, void **result )
 {
-    FIXME( "iface %p, appWindow %p, iid %s, result %p\n", iface, appWindow, debugstr_guid( iid ), result );
-    return E_NOTIMPL;
+    IDataTransferManager *manager;
+    HRESULT hr;
+
+    FIXME( "iface %p, appWindow %p, iid %s, result %p stub!\n", iface, appWindow, debugstr_guid( iid ), result );
+
+    if (SUCCEEDED(hr = data_transfer_manager_create( &manager )))
+    {
+        hr = IDataTransferManager_QueryInterface( manager, iid, result );
+        IDataTransferManager_Release( manager );
+    }
+
+    return hr;
 }
 
 static HRESULT WINAPI data_transfer_manager_interop_ShowShareUIForWindow( IDataTransferManagerInterop *iface, HWND appWindow )
 {
-    FIXME( "iface %p, appWindow %p\n", iface, appWindow );
-    return E_NOTIMPL;
+    FIXME( "iface %p, appWindow %p stub!\n", iface, appWindow );
+    return S_OK;
 }
 
-static IDataTransferManagerInteropVtbl data_transfer_manager_interop_vtbl =
+static const IDataTransferManagerInteropVtbl data_transfer_manager_interop_vtbl =
 {
     data_transfer_manager_interop_QueryInterface,
     data_transfer_manager_interop_AddRef,
     data_transfer_manager_interop_Release,
     /* IDataTransferManagerInterop methods */
     data_transfer_manager_interop_GetForWindow,
-    data_transfer_manager_interop_ShowShareUIForWindow
+    data_transfer_manager_interop_ShowShareUIForWindow,
 };
 
 static struct data_transfer_manager_statics data_transfer_manager_statics =
@@ -271,7 +344,7 @@ static struct data_transfer_manager_statics data_transfer_manager_statics =
     {&factory_vtbl},
     {&data_transfer_manager_statics_vtbl},
     {&data_transfer_manager_interop_vtbl},
-    0,
+    1,
 };
 
 IActivationFactory *data_transfer_manager_statics_factory = &data_transfer_manager_statics.IActivationFactory_iface;
