@@ -348,6 +348,7 @@
 @ stdcall -syscall=0x0017 NtQueryValueKey(long ptr long ptr long ptr)
 @ stdcall -syscall=0x0023 NtQueryVirtualMemory(long ptr long ptr long ptr)
 @ stdcall -syscall=0x0049 NtQueryVolumeInformationFile(long ptr ptr long long)
+@ stdcall -syscall NtQueryWnfStateData(ptr ptr ptr ptr ptr ptr)
 @ stdcall -syscall=0x0045 NtQueueApcThread(long ptr long long long)
 @ stdcall -syscall NtQueueApcThreadEx(long long ptr long long long)
 @ stdcall -syscall NtQueueApcThreadEx2(long long long ptr long long long)
@@ -428,6 +429,7 @@
 # @ stub NtStopProfile
 @ stdcall -syscall NtSuspendProcess(long)
 @ stdcall -syscall NtSuspendThread(long ptr)
+@ stdcall -syscall NtSubscribeWnfStateChange(ptr long long ptr ptr)
 @ stdcall -syscall NtSystemDebugControl(long ptr long ptr long ptr)
 @ stdcall -syscall NtTerminateJobObject(long long)
 @ stdcall -syscall=0x002c NtTerminateProcess(long long)
@@ -443,6 +445,7 @@
 @ stdcall -syscall NtUnlockVirtualMemory(long ptr ptr long)
 @ stdcall -syscall=0x002a NtUnmapViewOfSection(long ptr)
 @ stdcall -syscall NtUnmapViewOfSectionEx(long ptr long)
+@ stdcall -syscall NtUpdateWnfStateData(ptr ptr long ptr ptr long long)
 # @ stub NtVdmControl
 @ stdcall -syscall NtWaitForAlertByThreadId(ptr ptr)
 @ stdcall -syscall NtWaitForDebugEvent(long long ptr ptr)
@@ -1420,6 +1423,7 @@
 @ stdcall -private ZwQueryValueKey(long ptr long ptr long ptr) NtQueryValueKey
 @ stdcall -private ZwQueryVirtualMemory(long ptr long ptr long ptr) NtQueryVirtualMemory
 @ stdcall -private ZwQueryVolumeInformationFile(long ptr ptr long long) NtQueryVolumeInformationFile
+@ stdcall -private ZwQueryWnfStateData(ptr ptr ptr ptr ptr ptr) NtQueryWnfStateData
 @ stdcall -private ZwQueueApcThread(long ptr long long long) NtQueueApcThread
 @ stdcall -private ZwQueueApcThreadEx(long long ptr long long long) NtQueueApcThreadEx
 @ stdcall -private ZwQueueApcThreadEx2(long long long ptr long long long) NtQueueApcThreadEx2
@@ -1500,6 +1504,7 @@
 # @ stub ZwStopProfile
 @ stdcall -private ZwSuspendProcess(long) NtSuspendProcess
 @ stdcall -private ZwSuspendThread(long ptr) NtSuspendThread
+@ stdcall -private ZwSubscribeWnfStateChange(ptr long long ptr ptr) NtSubscribeWnfStateChange
 @ stdcall -private ZwSystemDebugControl(long ptr long ptr long ptr) NtSystemDebugControl
 @ stdcall -private ZwTerminateJobObject(long long) NtTerminateJobObject
 @ stdcall -private ZwTerminateProcess(long long) NtTerminateProcess
@@ -1515,6 +1520,7 @@
 @ stdcall -private ZwUnlockVirtualMemory(long ptr ptr long) NtUnlockVirtualMemory
 @ stdcall -private ZwUnmapViewOfSection(long ptr) NtUnmapViewOfSection
 @ stdcall -private ZwUnmapViewOfSectionEx(long ptr long) NtUnmapViewOfSectionEx
+@ stdcall -private ZwUpdateWnfStateData(ptr ptr long ptr ptr long long) NtUpdateWnfStateData
 # @ stub ZwVdmControl
 @ stdcall -private ZwWaitForAlertByThreadId(ptr ptr) NtWaitForAlertByThreadId
 @ stdcall -private ZwWaitForDebugEvent(long long ptr ptr) NtWaitForDebugEvent

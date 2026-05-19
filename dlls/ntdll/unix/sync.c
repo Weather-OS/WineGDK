@@ -3717,3 +3717,38 @@ NTSTATUS WINAPI NtConvertBetweenAuxiliaryCounterAndPerformanceCounter( ULONG fla
 
     return STATUS_NOT_SUPPORTED;
 }
+
+/***********************************************************************
+ *              NtQueryWnfStateData  (NTDLL.@)
+ */
+NTSTATUS WINAPI NtQueryWnfStateData( const void *state_name, const void *type_id,
+                                     const void *scope, ULONG *change_stamp,
+                                     void *buffer, ULONG *size )
+{
+    FIXME( "%p %p %p %p %p %p: stub\n", state_name, type_id, scope, change_stamp, buffer, size );
+    if (change_stamp) *change_stamp = 0;
+    if (size) *size = 0;
+    return STATUS_SUCCESS;
+}
+
+/***********************************************************************
+ *              NtSubscribeWnfStateChange  (NTDLL.@)
+ */
+NTSTATUS WINAPI NtSubscribeWnfStateChange( const void *state_name, ULONG change_stamp,
+                                           ULONG flags, ULONG *subscription_id, void *unknown )
+{
+    FIXME( "%p 0x%x 0x%x %p %p: stub\n", state_name, change_stamp, flags, subscription_id, unknown );
+    if (subscription_id) *subscription_id = 1;
+    return STATUS_SUCCESS;
+}
+
+/***********************************************************************
+ *              NtUpdateWnfStateData  (NTDLL.@)
+ */
+NTSTATUS WINAPI NtUpdateWnfStateData( const void *state_name, const void *buffer,
+                                      ULONG length, const void *type_id,
+                                      const void *scope, ULONG match_stamp, ULONG check_stamp )
+{
+    FIXME( "%p %p %u %p %p %u %u: stub\n", state_name, buffer, length, type_id, scope, match_stamp, check_stamp );
+    return STATUS_SUCCESS;
+}
