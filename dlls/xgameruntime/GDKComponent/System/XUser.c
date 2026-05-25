@@ -21,13 +21,20 @@
 
 #include "private.h"
 #include "util.h"
+#include <ntdef.h>
 #include <time.h>
+#include <wincrypt.h>
 
 WINE_DEFAULT_DEBUG_CHANNEL(gdkc);
 
 static const WCHAR *ACCEPT_JSON[] = { L"application/json", NULL };
 static const WCHAR CT_JSON[] = L"Content-Type: application/json";
 static const WCHAR CT_FORM_URLENCODED[] = L"Content-Type: application/x-www-form-urlencoded";
+
+static const char PROOF_KEY_TEMPLATE[] = "{\"alg\":\"ES256\",\"kty\":\"EC\",\"use\":\"sig\",\"crv\":\"P-256\",\"x\":\"";
+static const char PROOF_KEY_TEMPLATE2[] = "\",\"y\":\"";
+/* x & y are 43 chars */
+#define PROOF_KEY_SIZE ARRAY_SIZE( PROOF_KEY_TEMPLATE ) + ARRAY_SIZE( PROOF_KEY_TEMPLATE2 ) + 86
 
 static HRESULT parse_json( const char *json, SIZE_T jsonLen, IJsonObject **object )
 {
@@ -77,6 +84,9 @@ struct XUser
     HSTRING accessToken;
     HSTRING refreshToken;
     HSTRING userToken;
+
+    BCRYPT_KEY_HANDLE key;
+    char proofKey[PROOF_KEY_SIZE];
 };
 
 static struct XUser *impl_from_IUser( IUser *iface )
@@ -103,6 +113,7 @@ static ULONG WINAPI user_Release( IUser *iface )
         if (impl->accessToken) WindowsDeleteString( impl->accessToken );
         if (impl->refreshToken) WindowsDeleteString( impl->refreshToken );
         if (impl->userToken) WindowsDeleteString( impl->userToken );
+        if (impl->key) BCryptDestroyKey( impl->key );
         free( impl );
     }
     return ref;
@@ -312,14 +323,73 @@ static HRESULT WINAPI user_RequestXstsToken( IUser *iface )
 
 static HRESULT WINAPI user_GenerateKeyPair( IUser *iface )
 {
-    FIXME( "iface %p stub!\n", iface );
-    return E_NOTIMPL;
+    char proofKey[PROOF_KEY_SIZE + 1] = {}, *x, *y;
+    struct XUser *impl = impl_from_IUser( iface );
+    UCHAR blob[sizeof(BCRYPT_ECCKEY_BLOB) + 64];
+    BCRYPT_ALG_HANDLE ecdsa = NULL;
+    BCRYPT_KEY_HANDLE key = NULL;
+    NTSTATUS status;
+    ULONG dummy;
+    HRESULT hr;
+
+    TRACE( "iface %p.\n", iface );
+
+    if (!NT_SUCCESS(status = BCryptOpenAlgorithmProvider( &ecdsa, BCRYPT_ECDSA_P256_ALGORITHM, NULL, 0 ))) goto error;
+    if (!NT_SUCCESS(status = BCryptGenerateKeyPair( ecdsa, &key, 256, 0 ))) goto error;
+    if (!NT_SUCCESS(status = BCryptFinalizeKeyPair( key, 0 ))) goto error;
+    if (!NT_SUCCESS(status = BCryptExportKey( key, NULL, BCRYPT_ECCPUBLIC_BLOB, blob, sizeof(blob), &dummy, 0 ))) goto error;
+
+    /* convert proof key to jwk format */
+    memcpy( proofKey, PROOF_KEY_TEMPLATE, ARRAY_SIZE( PROOF_KEY_TEMPLATE ) );
+    x = proofKey + ARRAY_SIZE( PROOF_KEY_TEMPLATE ) - 1;
+    y = x + 43 + ARRAY_SIZE( PROOF_KEY_TEMPLATE2 ) - 1;
+    if (FAILED(hr = encode_base64_url( 32, blob + sizeof(BCRYPT_ECCKEY_BLOB), 43, x, FALSE ))) goto cleanup;
+    strcat( proofKey, PROOF_KEY_TEMPLATE2 );
+    if (FAILED(hr = encode_base64_url( 32, blob + sizeof(BCRYPT_ECCKEY_BLOB) + 32, 43, y, FALSE ))) goto cleanup;
+    strcat( proofKey, "\"}" );
+    goto cleanup;
+
+error:
+    hr = HRESULT_FROM_NT( status );
+cleanup:
+    if (ecdsa) BCryptCloseAlgorithmProvider( ecdsa, 0 );
+    if (FAILED(hr)) BCryptDestroyKey( key );
+    else
+    {
+        memcpy( impl->proofKey, proofKey, PROOF_KEY_SIZE ); /* ignore null terminator */
+        if (impl->key) BCryptDestroyKey( impl->key );
+        impl->key = key;
+    }
+    return hr;
 }
 
 static HRESULT WINAPI user_SignData( IUser *iface, ULONG dataSize, UCHAR *data, ULONG signatureSize, UCHAR *signature )
 {
-    FIXME( "iface %p, dataSize %lu, data %p, signatureSize %lu, signature %p stub!\n", iface, dataSize, data, signatureSize, signature );
-    return E_NOTIMPL;
+    struct XUser *impl = impl_from_IUser( iface );
+    BCRYPT_ALG_HANDLE algorithm = NULL;
+    BCRYPT_HASH_HANDLE object = NULL;
+    HRESULT hr = S_OK;
+    NTSTATUS status;
+    UCHAR hash[32];
+    ULONG dummy;
+
+    TRACE( "iface %p, dataSize %lu, data %p, signatureSize %lu, signature %p.\n", iface, dataSize, data, signatureSize, signature );
+
+    /* ES256 signs sha-256 hash of data */
+    if (signatureSize < 64) return HRESULT_FROM_WIN32( ERROR_INSUFFICIENT_BUFFER );
+    if (!NT_SUCCESS(status = BCryptOpenAlgorithmProvider( &algorithm, BCRYPT_SHA256_ALGORITHM, NULL, 0 ))) goto error;
+    if (!NT_SUCCESS(status = BCryptCreateHash( algorithm, &object, NULL, 0, NULL, 0, 0 ))) goto error;
+    if (!NT_SUCCESS(status = BCryptHashData( object, data, dataSize, 0 ))) goto error;
+    if (!NT_SUCCESS(status = BCryptFinishHash( object, hash, 32, 0 ))) goto error;
+    if (!NT_SUCCESS(status = BCryptSignHash( impl->key, NULL, hash, 32, signature, signatureSize, &dummy, 0 ))) goto error;
+    goto cleanup;
+
+error:
+    hr = HRESULT_FROM_NT( status );
+cleanup:
+    if (object) BCryptDestroyHash( object );
+    if (algorithm) BCryptCloseAlgorithmProvider( algorithm, 0 );
+    return hr;
 }
 
 static HRESULT WINAPI user_CacheEndpoints( IUser *iface )
