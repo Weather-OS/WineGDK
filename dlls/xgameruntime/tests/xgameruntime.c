@@ -18,6 +18,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #define COBJMACROS
@@ -28,11 +29,9 @@
 #include <roapi.h>
 #include <activation.h>
 #include <unknwn.h>
-#include <xgameerr.h>
+#include <xgameruntime.h>
 
-#include "provider.h"
 #include "wine/test.h"
-#include "xthread.h"
 
 #define WIDL_using_Windows_Foundation
 #define WIDL_using_Windows_Foundation_Collections
@@ -41,10 +40,6 @@
 #include "windows.globalization.h"
 #define WIDL_using_Windows_System_Profile
 #include "windows.system.profile.h"
-
-// April 2025 Release of GDK
-#define GDKC_VERSION 10001L
-#define GAMING_SERVICES_VERSION 3181L
 
 static HMODULE xgameruntime = NULL;
 
@@ -84,12 +79,12 @@ static inline HRESULT CALLBACK XAsyncProvider_testCallback( XAsyncOp op, const X
 
     switch ( op )
     {
-        case Begin:
+        case XAsyncOp_Begin:
             trace( "Begin invoked\n" );
             IXThreadingImpl_XAsyncComplete( xthreading, data->async, S_OK, 0 );
             return S_OK;
 
-        case DoWork:
+        case XAsyncOp_DoWork:
             trace( "DoWork invoked\n" );
             IXThreadingImpl_XAsyncComplete( xthreading, data->async, E_PENDING, 0 );
             testData = (LPSTR)malloc( testDataSize * sizeof( CHAR ) );
@@ -97,17 +92,17 @@ static inline HRESULT CALLBACK XAsyncProvider_testCallback( XAsyncOp op, const X
             IXThreadingImpl_XAsyncComplete( xthreading, data->async, S_OK, testDataSize );
             return S_OK;
 
-        case GetResult:
+        case XAsyncOp_GetResult:
             trace( "GetResult invoked\n" );
             memcpy( data->buffer, (void *)testData, testDataSize);
             return S_OK;
 
-        case Cancel:
+        case XAsyncOp_Cancel:
             trace( "Cancel invoked\n" );
             IXThreadingImpl_XAsyncComplete( xthreading, data->async, E_ABORT, 0 );
             return S_OK;
 
-        case Cleanup:
+        case XAsyncOp_Cleanup:
             trace( "Cleanup invoked\n" );
             free( testData );
             return S_OK;
@@ -146,19 +141,27 @@ static void test_GDKComponentInit(void)
 
 static void test_XSystem(void)
 {
-    IXSystemImpl *xsystem;
+    IXSystemImpl4 *xsystem4 = NULL;
+    IXSystemImpl3 *xsystem3 = NULL;
+    IXSystemImpl *xsystem = NULL;
     BOOLEAN validHandle;
     HRESULT hr;
     SIZE_T consoleIdUsed;
     SIZE_T sandboxIdUsed;
+    SIZE_T deviceIdUsed;
     LPSTR consoleId;
     LPSTR sandboxId;
+    LPSTR deviceId;
 
     hr = QueryApiImpl_fun( &CLSID_XSystemImpl, &IID_IXSystemImpl, (void **)&xsystem );
     ok( hr == S_OK, "got hr %#lx.\n", hr );
 
     check_interface( xsystem, &IID_IUnknown, TRUE );
     check_interface( xsystem, &IID_IXSystemImpl, TRUE );
+    check_interface( xsystem, &IID_IXSystemImpl2, TRUE );
+    check_interface( xsystem, &IID_IXSystemImpl3, TRUE );
+    check_interface( xsystem, &IID_IXSystemImpl4, TRUE );
+    check_interface( xsystem, &IID_IXSystemImpl5, TRUE );
 
     /**
      * xgameruntime.lib::XSystemGetConsoleId
@@ -168,7 +171,8 @@ static void test_XSystem(void)
     hr = IXSystemImpl_XSystemGetConsoleId( xsystem, XSystemConsoleIdBytes, consoleId, &consoleIdUsed );
     ok( hr == S_OK, "got hr %#lx.\n", hr );
     ok( strcmp( consoleId, "00000000.00000000.00000000.00000000.00" ) == 0, "unexpected consoleId. got %s.\n", debugstr_a( consoleId ) );
-    ok( consoleIdUsed == XSystemConsoleIdBytes, "unexpected consoleIdUsed. got %lld.\n", consoleIdUsed );
+    ok( consoleIdUsed == XSystemConsoleIdBytes, "unexpected consoleIdUsed. got %Iu.\n", consoleIdUsed );
+    free( consoleId );
 
     /**
      * xgameruntime.lib::XSystemGetXboxLiveSandboxId
@@ -178,35 +182,47 @@ static void test_XSystem(void)
     hr = IXSystemImpl_XSystemGetXboxLiveSandboxId( xsystem, XSystemXboxLiveSandboxIdMaxBytes, sandboxId, &sandboxIdUsed );
     ok( hr == S_OK, "got hr %#lx.\n", hr );
     ok( strcmp( sandboxId, "RETAIL" ) == 0, "unexpected sandboxId. got %s.\n", debugstr_a( sandboxId ) );
-    ok( sandboxIdUsed == XSystemXboxLiveSandboxIdBytes, "unexpected sandboxIdUsed. got %lld.\n", sandboxIdUsed );
+    ok( sandboxIdUsed == XSystemXboxLiveSandboxIdBytes, "unexpected sandboxIdUsed. got %Iu.\n", sandboxIdUsed );
+    free( sandboxId );
 
     /**
      * xgameruntime.lib::XSystemGetAppSpecificDeviceId
      */
-    hr = IXSystemImpl_XSystemGetAppSpecificDeviceId( xsystem, XSystemAppSpecificDeviceIdBytes, NULL, NULL );
+    deviceId = (LPSTR)malloc( XSystemAppSpecificDeviceIdBytes * sizeof(char) );
+
+    hr = IXSystemImpl_XSystemGetAppSpecificDeviceId( xsystem, XSystemAppSpecificDeviceIdBytes, deviceId, &deviceIdUsed );
     todo_wine ok( hr == S_OK, "got error %#lx.\n", hr );
+    ok( deviceIdUsed == XSystemAppSpecificDeviceIdBytes, "unexpected deviceIdUsed. got %Iu.\n", deviceIdUsed );
+    free( deviceId );
+
+    hr = IXSystemImpl_QueryInterface( xsystem, &IID_IXSystemImpl3, (void **)&xsystem3 );
+    ok( hr == S_OK, "got hr %#lx.\n", hr );
+    IXSystemImpl_Release( xsystem );
+    if (!xsystem3) return;
 
     /**
      * xgameruntime.lib::XSystemHandleTrack
      */
-    hr = IXSystemImpl_XSystemHandleTrack( xsystem );
+    hr = IXSystemImpl3_XSystemHandleTrack( xsystem3, NULL, NULL );
     todo_wine ok( hr == S_OK, "got error %#lx.\n", hr );
 
     /**
      * xgameruntime.lib::XSystemIsHandleValid
      */
-    validHandle = IXSystemImpl_XSystemIsHandleValid( xsystem );
+    validHandle = IXSystemImpl3_XSystemIsHandleValid( xsystem3, NULL );
     ok( validHandle, "got validHandle %d\n", validHandle );
+
+    hr = IXSystemImpl3_QueryInterface( xsystem3, &IID_IXSystemImpl4, (void **)&xsystem4 );
+    ok( hr == S_OK, "got hr %#lx.\n", hr );
+    IXSystemImpl3_Release( xsystem3 );
+    if (!xsystem4) return;
 
     /**
      * xgameruntime.lib::XSystemAllowFullDownloadBandwidth
      */
-    hr = IXSystemImpl_XSystemAllowFullDownloadBandwidth( xsystem, TRUE );
-    todo_wine ok( hr == S_OK, "got error %#lx.\n", hr );
+    IXSystemImpl4_XSystemAllowFullDownloadBandwidth( xsystem4, TRUE );
 
     IXSystemImpl_Release( xsystem );
-    free( consoleId );
-    free( sandboxId );
 }
 
 static void test_XSystemAnalytics(void)
@@ -276,7 +292,7 @@ static void test_XGameRuntimeFeature(void)
     /**
      * xgameruntime.lib::XGameRuntimeIsFeatureAvailable
      */
-    isAvailable = IXGameRuntimeFeatureImpl_XGameRuntimeIsFeatureAvailable( xgame_runtime_feature, XGame );
+    isAvailable = IXGameRuntimeFeatureImpl_XGameRuntimeIsFeatureAvailable( xgame_runtime_feature, XGameRuntimeFeature_XGame );
     ok( isAvailable, "got unexpected isAvailable %d.\n", isAvailable );
 
     IXGameRuntimeFeatureImpl_Release( xgame_runtime_feature );
@@ -309,7 +325,7 @@ static void test_XThreading(void)
         currentBlock.callback = NULL;
         currentBlock.queue = NULL;
 
-        hr = IXThreadingImpl_XTaskQueueCreate( xthreading, Manual, Manual, &taskHandle );
+        hr = IXThreadingImpl_XTaskQueueCreate( xthreading, XTaskQueueDispatchMode_Manual, XTaskQueueDispatchMode_Manual, &taskHandle );
         ok( hr == S_OK, "got hr %#lx.\n", hr );
 
         IXThreadingImpl_XTaskQueueSetCurrentProcessTaskQueue( xthreading, taskHandle );
@@ -345,7 +361,7 @@ static void test_XThreading(void)
          */
         hr = IXThreadingImpl_XAsyncGetResultSize( xthreading, &currentBlock, &receivedBufferSize );
         ok( hr == S_OK, "got hr %#lx.\n", hr );
-        ok( receivedBufferSize == 7, "unexpected receivedBufferSize %lld.\b", receivedBufferSize );
+        ok( receivedBufferSize == 7, "unexpected receivedBufferSize %Iu\n.\b", receivedBufferSize );
 
         receivedBuffer = (LPSTR)malloc( receivedBufferSize );
 
@@ -354,9 +370,429 @@ static void test_XThreading(void)
          */
         hr = IXThreadingImpl_XAsyncGetResult( xthreading, &currentBlock, NULL, receivedBufferSize, (PVOID)receivedBuffer, &bufferUsed );
         ok( hr == S_OK, "got hr %#lx.\n", hr );
-        ok( bufferUsed == 7, "unexpected bufferUsed %lld.\b", bufferUsed );
+        ok( bufferUsed == 7, "unexpected bufferUsed %Iu.\b", bufferUsed );
         ok( strcmp( receivedBuffer, "foobar" ) == 0, "unexpected receivedBuffer %s.\n", debugstr_a( receivedBuffer ) );
     }
+}
+
+static void test_XNetworking(void)
+{
+    IXNetworkingImpl *xnetworking;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XNetworkingImpl, &IID_IXNetworkingImpl, (void **)&xnetworking );
+    ok( hr == S_OK, "got hr %#lx.\n", hr );
+
+    check_interface( xnetworking, &IID_IUnknown, TRUE );
+    check_interface( xnetworking, &IID_IXNetworkingImpl, TRUE );
+    flaky check_interface( xnetworking, &IID_IXNetworkingImpl2, TRUE );
+
+    IXNetworkingImpl_Release( xnetworking );
+}
+
+static void test_XAccessibility(void)
+{
+    IXAccessibilityImpl *xaccessibility = NULL;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XAccessibilityImpl, &IID_IXAccessibilityImpl, (void **)&xaccessibility );
+    ok( hr == S_OK || broken( hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) ), "got hr %#lx.\n", hr );
+    if (hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) )
+    {
+        win_skip( "clsid %s not supported, skipping tests.\n", debugstr_guid( &CLSID_XAccessibilityImpl ) );
+        return;
+    }
+    if (!xaccessibility) return;
+
+    check_interface( xaccessibility, &IID_IUnknown, TRUE );
+    check_interface( xaccessibility, &IID_IXAccessibilityImpl, TRUE );
+    flaky check_interface( xaccessibility, &IID_IXAccessibilityImpl2, TRUE );
+
+    IXAccessibilityImpl_Release( xaccessibility );
+}
+
+static void test_XUser(void)
+{
+    IXUserImpl *xuser = NULL;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XUserImpl, &IID_IXUserImpl, (void **)&xuser );
+    ok( hr == S_OK || broken( hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) ), "got hr %#lx.\n", hr );
+    if (hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) )
+    {
+        win_skip( "clsid %s not supported, skipping tests.\n", debugstr_guid( &CLSID_XUserImpl ) );
+        return;
+    }
+    if (!xuser) return;
+
+    check_interface( xuser, &IID_IUnknown, TRUE );
+    check_interface( xuser, &IID_IXUserImpl, TRUE );
+    flaky check_interface( xuser, &IID_IXUserImpl2, TRUE );
+    flaky check_interface( xuser, &IID_IXUserImpl3, TRUE );
+    flaky check_interface( xuser, &IID_IXUserImpl4, TRUE );
+    flaky check_interface( xuser, &IID_IXUserImpl5, TRUE );
+    flaky check_interface( xuser, &IID_IXUserImpl6, TRUE );
+    flaky check_interface( xuser, &IID_IXUserGamertagImpl, TRUE );
+
+    IXUserImpl_Release( xuser );
+}
+
+static void test_XUserDevice(void)
+{
+    IXUserDeviceImpl *xuserdevice = NULL;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XUserDeviceImpl, &IID_IXUserDeviceImpl, (void **)&xuserdevice );
+    ok( hr == S_OK || broken( hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) ), "got hr %#lx.\n", hr );
+    if (hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) )
+    {
+        win_skip( "clsid %s not supported, skipping tests.\n", debugstr_guid( &CLSID_XUserDeviceImpl ) );
+        return;
+    }
+    if (!xuserdevice) return;
+
+    check_interface( xuserdevice, &IID_IUnknown, TRUE );
+    check_interface( xuserdevice, &IID_IXUserDeviceImpl, TRUE );
+    flaky check_interface( xuserdevice, &IID_IXUserDeviceImpl2, TRUE );
+
+    IXUserDeviceImpl_Release( xuserdevice );
+}
+
+static void test_XAppCapture( void )
+{
+    IXAppCaptureImpl2 *xappcapture2 = NULL;
+    IXAppCaptureImpl *xappcapture = NULL;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XAppCaptureImpl, &IID_IXAppCaptureImpl, (void **)&xappcapture );
+    ok( hr == S_OK || broken( hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) ), "got hr %#lx.\n", hr );
+    if (hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) )
+    {
+        win_skip( "clsid %s not supported, skipping tests.\n", debugstr_guid( &CLSID_XAppCaptureImpl ) );
+        return;
+    }
+    if (!xappcapture) return;
+
+    check_interface( xappcapture, &IID_IUnknown, TRUE );
+    check_interface( xappcapture, &IID_IXAppCaptureImpl, TRUE );
+
+    IXAppCaptureImpl_Release( xappcapture );
+
+    hr = QueryApiImpl_fun( &CLSID_XAppCaptureImpl2, &IID_IXAppCaptureImpl2, (void **)&xappcapture2 );
+    ok( hr == S_OK || broken( hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) ), "got hr %#lx.\n", hr );
+    if (hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) )
+    {
+        win_skip( "clsid %s not supported, skipping tests.\n", debugstr_guid( &CLSID_XAppCaptureImpl2 ) );
+        return;
+    }
+    if (!xappcapture2) return;
+
+    check_interface( xappcapture2, &IID_IUnknown, TRUE );
+    check_interface( xappcapture2, &IID_IXAppCaptureImpl2, TRUE );
+    flaky check_interface( xappcapture2, &IID_IXAppCaptureImpl3, TRUE );
+    flaky check_interface( xappcapture2, &IID_IXAppCaptureImpl4, TRUE );
+    flaky check_interface( xappcapture2, &IID_IXAppCaptureImpl5, TRUE );
+
+    IXAppCaptureImpl2_Release( xappcapture2 );
+}
+
+static void test_XDisplay( void )
+{
+    IXDisplayImpl *xdisplay = NULL;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XDisplayImpl, &IID_IXDisplayImpl, (void **)&xdisplay );
+    ok( hr == S_OK || broken( hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) ), "got hr %#lx.\n", hr );
+    if (hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) )
+    {
+        win_skip( "clsid %s not supported, skipping tests.\n", debugstr_guid( &CLSID_XDisplayImpl ) );
+        return;
+    }
+    if (!xdisplay) return;
+
+    check_interface( xdisplay, &IID_IUnknown, TRUE );
+    check_interface( xdisplay, &IID_IXDisplayImpl, TRUE );
+
+    IXDisplayImpl_Release( xdisplay );
+}
+
+static void test_XLauncher( void )
+{
+    IXLauncherImpl *xlauncher = NULL;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XLauncherImpl, &IID_IXLauncherImpl, (void **)&xlauncher );
+    ok( hr == S_OK || broken( hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) ), "got hr %#lx.\n", hr );
+    if (hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) )
+    {
+        win_skip( "clsid %s not supported, skipping tests.\n", debugstr_guid( &CLSID_XLauncherImpl ) );
+        return;
+    }
+    if (!xlauncher) return;
+
+    check_interface( xlauncher, &IID_IUnknown, TRUE );
+    check_interface( xlauncher, &IID_IXLauncherImpl, TRUE );
+
+    IXLauncherImpl_Release( xlauncher );
+}
+
+static void test_XError( void )
+{
+    IXErrorImpl *xerror = NULL;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XErrorImpl, &IID_IXErrorImpl, (void **)&xerror );
+    ok( hr == S_OK || broken( hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) ), "got hr %#lx.\n", hr );
+    if (hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) )
+    {
+        win_skip( "clsid %s not supported, skipping tests.\n", debugstr_guid( &CLSID_XErrorImpl ) );
+        return;
+    }
+    if (!xerror) return;
+
+    check_interface( xerror, &IID_IUnknown, TRUE );
+    check_interface( xerror, &IID_IXErrorImpl, TRUE );
+
+    IXErrorImpl_Release( xerror );
+}
+
+static void test_XGame(void)
+{
+    IXGameImpl *xgame = NULL;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XGameImpl, &IID_IXGameImpl, (void **)&xgame );
+    ok( hr == S_OK || broken( hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) ), "got hr %#lx.\n", hr );
+    if (hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) )
+    {
+        win_skip( "clsid %s not supported, skipping tests.\n", debugstr_guid( &CLSID_XGameImpl ) );
+        return;
+    }
+    if (!xgame) return;
+
+    check_interface( xgame, &IID_IUnknown, TRUE );
+    check_interface( xgame, &IID_IXGameImpl, TRUE );
+    flaky check_interface( xgame, &IID_IXGameImpl2, TRUE );
+    flaky check_interface( xgame, &IID_IXGameImpl3, TRUE );
+
+    IXGameImpl_Release( xgame );
+}
+
+static void test_XGameActivation(void)
+{
+    IXGameActivationImpl *xgameactivation = NULL;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XGameActivationImpl, &IID_IXGameActivationImpl, (void **)&xgameactivation );
+    ok( hr == S_OK || broken( hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) ), "got hr %#lx.\n", hr );
+    if (hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) )
+    {
+        win_skip( "clsid %s not supported, skipping tests.\n", debugstr_guid( &CLSID_XGameActivationImpl ) );
+        return;
+    }
+    if (!xgameactivation) return;
+
+    check_interface( xgameactivation, &IID_IUnknown, TRUE );
+    check_interface( xgameactivation, &IID_IXGameActivationImpl, TRUE );
+
+    IXGameActivationImpl_Release( xgameactivation );
+}
+
+static void test_XGameEvent(void)
+{
+    IXGameEventImpl *xgameevent = NULL;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XGameEventImpl, &IID_IXGameEventImpl, (void **)&xgameevent );
+    ok( hr == S_OK || broken( hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) ), "got hr %#lx.\n", hr );
+    if (hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) )
+    {
+        win_skip( "clsid %s not supported, skipping tests.\n", debugstr_guid( &CLSID_XGameEventImpl ) );
+        return;
+    }
+    if (!xgameevent) return;
+
+    check_interface( xgameevent, &IID_IUnknown, TRUE );
+    check_interface( xgameevent, &IID_IXGameEventImpl, TRUE );
+
+    IXGameEventImpl_Release( xgameevent );
+}
+
+static void test_XGameInvite(void)
+{
+    IXGameInviteImpl *xgameinvite = NULL;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XGameInviteImpl, &IID_IXGameInviteImpl, (void **)&xgameinvite );
+    ok( hr == S_OK || broken( hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) ), "got hr %#lx.\n", hr );
+    if (hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) )
+    {
+        win_skip( "clsid %s not supported, skipping tests.\n", debugstr_guid( &CLSID_XGameInviteImpl ) );
+        return;
+    }
+    if (!xgameinvite) return;
+
+    check_interface( xgameinvite, &IID_IUnknown, TRUE );
+    check_interface( xgameinvite, &IID_IXGameInviteImpl, TRUE );
+    flaky check_interface( xgameinvite, &IID_IXGameInviteImpl2, TRUE );
+
+    IXGameInviteImpl_Release( xgameinvite );
+}
+
+static void test_XGameProtocol(void)
+{
+    IXGameProtocolImpl *xgameprotocol = NULL;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XGameProtocolImpl, &IID_IXGameProtocolImpl, (void **)&xgameprotocol );
+    ok( hr == S_OK || broken( hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) ), "got hr %#lx.\n", hr );
+    if (hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) )
+    {
+        win_skip( "clsid %s not supported, skipping tests.\n", debugstr_guid( &CLSID_XGameProtocolImpl ) );
+        return;
+    }
+    if (!xgameprotocol) return;
+
+    check_interface( xgameprotocol, &IID_IUnknown, TRUE );
+    check_interface( xgameprotocol, &IID_IXGameProtocolImpl, TRUE );
+
+    IXGameProtocolImpl_Release( xgameprotocol );
+}
+
+static void test_XGameSave(void)
+{
+    IXGameSaveImpl *xgamesave = NULL;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XGameSaveImpl, &IID_IXGameSaveImpl, (void **)&xgamesave );
+    ok( hr == S_OK || broken( hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) ), "got hr %#lx.\n", hr );
+    if (hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) )
+    {
+        win_skip( "clsid %s not supported, skipping tests.\n", debugstr_guid( &CLSID_XGameSaveImpl ) );
+        return;
+    }
+    if (!xgamesave) return;
+
+    check_interface( xgamesave, &IID_IUnknown, TRUE );
+    check_interface( xgamesave, &IID_IXGameSaveImpl, TRUE );
+    flaky check_interface( xgamesave, &IID_IXGameSaveImpl2, TRUE );
+    flaky check_interface( xgamesave, &IID_IXGameSaveImpl3, TRUE );
+
+    IXGameSaveImpl_Release( xgamesave );
+}
+
+static void test_XGameStreaming(void)
+{
+    IXGameStreamingImpl *xgamestreaming = NULL;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XGameStreamingImpl, &IID_IXGameStreamingImpl, (void **)&xgamestreaming );
+    ok( hr == S_OK || broken( hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) ), "got hr %#lx.\n", hr );
+    if (hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) )
+    {
+        win_skip( "clsid %s not supported, skipping tests.\n", debugstr_guid( &CLSID_XGameStreamingImpl ) );
+        return;
+    }
+    if (!xgamestreaming) return;
+
+    check_interface( xgamestreaming, &IID_IUnknown, TRUE );
+    check_interface( xgamestreaming, &IID_IXGameStreamingImpl, TRUE );
+    flaky check_interface( xgamestreaming, &IID_IXGameStreamingImpl2, TRUE );
+    flaky check_interface( xgamestreaming, &IID_IXGameStreamingImpl3, TRUE );
+
+    IXGameStreamingImpl_Release( xgamestreaming );
+}
+
+static void test_XGameUi(void)
+{
+    IXGameUiImpl *xgameui = NULL;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XGameUiImpl, &IID_IXGameUiImpl, (void **)&xgameui );
+    ok( hr == S_OK || broken( hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) ), "got hr %#lx.\n", hr );
+    if (hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) )
+    {
+        win_skip( "clsid %s not supported, skipping tests.\n", debugstr_guid( &CLSID_XGameUiImpl ) );
+        return;
+    }
+    if (!xgameui) return;
+
+    check_interface( xgameui, &IID_IUnknown, TRUE );
+    check_interface( xgameui, &IID_IXGameUiImpl, TRUE );
+    flaky check_interface( xgameui, &IID_IXGameUiImpl2, TRUE );
+    flaky check_interface( xgameui, &IID_IXGameUiImpl3, TRUE );
+    flaky check_interface( xgameui, &IID_IXGameUiImpl4, TRUE );
+
+    IXGameUiImpl_Release( xgameui );
+}
+
+static void test_XPackage(void)
+{
+    IXPackageImpl *xpackage = NULL;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XPackageImpl, &IID_IXPackageImpl, (void **)&xpackage );
+    ok( hr == S_OK || broken( hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) ), "got hr %#lx.\n", hr );
+    if (hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) )
+    {
+        win_skip( "clsid %s not supported, skipping tests.\n", debugstr_guid( &CLSID_XPackageImpl ) );
+        return;
+    }
+    if (!xpackage) return;
+
+    check_interface( xpackage, &IID_IUnknown, TRUE );
+    check_interface( xpackage, &IID_IXPackageImpl, TRUE );
+    flaky check_interface( xpackage, &IID_IXPackageImpl2, TRUE );
+    flaky check_interface( xpackage, &IID_IXPackageImpl3, TRUE );
+
+    IXPackageImpl_Release( xpackage );
+}
+
+static void test_XPersistentLocalStorage(void)
+{
+    IXPersistentLocalStorageImpl *xpersistentlocalstorage = NULL;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XPersistentLocalStorageImpl, &IID_IXPersistentLocalStorageImpl, (void **)&xpersistentlocalstorage );
+    ok( hr == S_OK || broken( hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) ), "got hr %#lx.\n", hr );
+    if (hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) )
+    {
+        win_skip( "clsid %s not supported, skipping tests.\n", debugstr_guid( &CLSID_XPersistentLocalStorageImpl ) );
+        return;
+    }
+    if (!xpersistentlocalstorage) return;
+
+    check_interface( xpersistentlocalstorage, &IID_IUnknown, TRUE );
+    check_interface( xpersistentlocalstorage, &IID_IXPersistentLocalStorageImpl, TRUE );
+    flaky check_interface( xpersistentlocalstorage, &IID_IXPersistentLocalStorageImpl2, TRUE );
+    flaky check_interface( xpersistentlocalstorage, &IID_IXPersistentLocalStorageImpl3, TRUE );
+
+    IXPersistentLocalStorageImpl_Release( xpersistentlocalstorage );
+}
+
+static void test_XStore(void)
+{
+    IXStoreImpl *xstore = NULL;
+    HRESULT hr;
+
+    hr = QueryApiImpl_fun( &CLSID_XStoreImpl, &IID_IXStoreImpl, (void **)&xstore );
+    ok( hr == S_OK || broken( hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) ), "got hr %#lx.\n", hr );
+    if (hr == HRESULT_FROM_WIN32( ERROR_NOT_SUPPORTED ) )
+    {
+        win_skip( "clsid %s not supported, skipping tests.\n", debugstr_guid( &CLSID_XStoreImpl ) );
+        return;
+    }
+    if (!xstore) return;
+
+    check_interface( xstore, &IID_IUnknown, TRUE );
+    check_interface( xstore, &IID_IXStoreImpl, TRUE );
+    flaky check_interface( xstore, &IID_IXStoreImpl2, TRUE );
+    flaky check_interface( xstore, &IID_IXStoreImpl3, TRUE );
+    flaky check_interface( xstore, &IID_IXStoreImpl4, TRUE );
+    flaky check_interface( xstore, &IID_IXStoreImpl5, TRUE );
+    flaky check_interface( xstore, &IID_IXStoreImpl6, TRUE );
+
+    IXStoreImpl_Release( xstore );
 }
 
 START_TEST(xgameruntime)
@@ -371,6 +807,25 @@ START_TEST(xgameruntime)
     test_XSystemAnalytics();
     test_XGameRuntimeFeature();
     test_XThreading();
+    test_XNetworking();
+    test_XAccessibility();
+    test_XUser();
+    test_XUserDevice();
+    test_XAppCapture();
+    test_XDisplay();
+    test_XLauncher();
+    test_XError();
+    test_XGame();
+    test_XGameActivation();
+    test_XGameEvent();
+    test_XGameInvite();
+    test_XGameProtocol();
+    test_XGameSave();
+    test_XGameStreaming();
+    test_XGameUi();
+    test_XPackage();
+    test_XPersistentLocalStorage();
+    test_XStore();
 
     RoUninitialize();
 }

@@ -121,15 +121,12 @@ BOOL WINAPI DllMain( HINSTANCE hinst, DWORD reason, void *reserved )
     return TRUE;
 }
 
-typedef HRESULT (WINAPI *InitializeApiImplEx2_ext)( ULONG gdkVer, ULONG gsVer, CHAR mode, INITIALIZE_OPTIONS *options );
+typedef HRESULT (WINAPI *InitializeApiImplEx2_ext)( ULONG gdkVer, ULONG gsVer, CHAR mode, const XGameRuntimeOptions *options );
 
-HRESULT WINAPI InitializeApiImplEx2( ULONG gdkVer, ULONG gsVer, CHAR mode, INITIALIZE_OPTIONS *options )
+HRESULT WINAPI InitializeApiImplEx2( ULONG gdkVer, ULONG gsVer, CHAR mode, const XGameRuntimeOptions *options )
 {
     //  Initialization can be done however we want on our side.
     // You can choose to return `S_OK` once the full SDK is implemented.
-    //
-    //  There's no documented information about what `INITIALIZE_OPTIONS` is,
-    // and xgameruntime.lib never utilizes this argument anyway.
     TRACE("gdkVer %ld, gsVer %ld, mode %d, options %p stub!\n", gdkVer, gsVer, mode, options);
     return GDKC_InitAPI( gdkVer, gsVer, mode, options );
 }
@@ -146,7 +143,7 @@ HRESULT WINAPI InitializeApiImpl( ULONG gdkVer, ULONG gsVer )
     return InitializeApiImplEx2( gdkVer, gsVer, 0, NULL );
 }
 
-typedef HRESULT (WINAPI *QueryApiImpl_ext)( GUID *runtimeClassId, REFIID interfaceId, void **out );
+typedef HRESULT (WINAPI *QueryApiImpl_ext)( const GUID *runtimeClassId, REFIID interfaceId, void **out );
 
 HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, void **out )
 {
@@ -178,19 +175,13 @@ HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, voi
 
     TRACE("runtimeClassId %s, interfaceId %s, out %p\n", debugstr_guid(runtimeClassId), debugstr_guid(interfaceId), out);
 
-    if ( IsEqualGUID( runtimeClassId, &CLSID_XSystemImpl ) )
-    {
-        return IXSystemImpl_QueryInterface( x_system_impl, interfaceId, out );
-    }
-    else if ( IsEqualGUID( runtimeClassId, &CLSID_XGameRuntimeFeatureImpl ) )
-    {
+    if (IsEqualGUID( runtimeClassId, &CLSID_XSystemImpl ))
+        return IXSystemImpl5_QueryInterface( x_system_impl, interfaceId, out );
+    if (IsEqualGUID( runtimeClassId, &CLSID_XGameRuntimeFeatureImpl ))
         return IXGameRuntimeFeatureImpl_QueryInterface( x_game_runtime_feature_impl, interfaceId, out );
-    }
-    else if ( IsEqualGUID( runtimeClassId, &CLSID_XSystemAnalyticsImpl ) )
-    {
+    if (IsEqualGUID( runtimeClassId, &CLSID_XSystemAnalyticsImpl ))
         return IXSystemAnalyticsImpl_QueryInterface( x_system_analytics_impl, interfaceId, out );
-    }
-    else if ( IsEqualGUID( runtimeClassId, &CLSID_XThreadingImpl ) )
+    if (IsEqualGUID( runtimeClassId, &CLSID_XThreadingImpl ))
     {
         /**
          * For IXThreading, It's much better to use the native library instead.
@@ -206,11 +197,47 @@ HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, voi
         }
         return func( runtimeClassId, interfaceId, out );
     }
-    else if ( IsEqualGUID( runtimeClassId, &CLSID_XNetworkingImpl ) )
-    {
-        return IXNetworkingImpl_QueryInterface( x_networking_impl, interfaceId, out );
-    }
-    
+    if (IsEqualGUID( runtimeClassId, &CLSID_XNetworkingImpl ))
+        return IXNetworkingImpl2_QueryInterface( x_networking_impl, interfaceId, out );
+    if (IsEqualGUID( runtimeClassId, &CLSID_XAccessibilityImpl ))
+        return IXAccessibilityImpl2_QueryInterface( x_accessibility_impl, interfaceId, out );
+    if (IsEqualGUID( runtimeClassId, &CLSID_XUserImpl ))
+        return IXUserImpl6_QueryInterface( x_user_impl, interfaceId, out );
+    if (IsEqualGUID( runtimeClassId, &CLSID_XUserDeviceImpl ))
+        return IXUserDeviceImpl2_QueryInterface( x_user_device_impl, interfaceId, out );
+    if (IsEqualGUID( runtimeClassId, &CLSID_XAppCaptureImpl ))
+        return IXAppCaptureImpl_QueryInterface( x_app_capture_impl, interfaceId, out );
+    if (IsEqualGUID( runtimeClassId, &CLSID_XAppCaptureImpl2 ))
+        return IXAppCaptureImpl5_QueryInterface( x_app_capture2_impl, interfaceId, out );
+    if (IsEqualGUID( runtimeClassId, &CLSID_XDisplayImpl ))
+        return IXDisplayImpl_QueryInterface( x_display_impl, interfaceId, out );
+    if (IsEqualGUID( runtimeClassId, &CLSID_XLauncherImpl ))
+        return IXLauncherImpl_QueryInterface( x_launcher_impl, interfaceId, out );
+    if (IsEqualGUID( runtimeClassId, &CLSID_XErrorImpl ))
+        return IXErrorImpl_QueryInterface( x_error_impl, interfaceId, out );
+    if (IsEqualGUID( runtimeClassId, &CLSID_XGameImpl ))
+        return IXGameImpl3_QueryInterface( x_game_impl, interfaceId, out );
+    if (IsEqualGUID( runtimeClassId, &CLSID_XGameActivationImpl ))
+        return IXGameActivationImpl_QueryInterface( x_game_activation_impl, interfaceId, out );
+    if (IsEqualGUID( runtimeClassId, &CLSID_XGameEventImpl ))
+        return IXGameEventImpl_QueryInterface( x_game_event_impl, interfaceId, out );
+    if (IsEqualGUID( runtimeClassId, &CLSID_XGameInviteImpl ))
+        return IXGameInviteImpl2_QueryInterface( x_game_invite_impl, interfaceId, out );
+    if (IsEqualGUID( runtimeClassId, &CLSID_XGameProtocolImpl ))
+        return IXGameProtocolImpl_QueryInterface( x_game_protocol_impl, interfaceId, out );
+    if (IsEqualGUID( runtimeClassId, &CLSID_XGameSaveImpl ))
+        return IXGameSaveImpl3_QueryInterface( x_game_save_impl, interfaceId, out );
+    if (IsEqualGUID( runtimeClassId, &CLSID_XGameStreamingImpl ))
+        return IXGameStreamingImpl3_QueryInterface( x_game_streaming_impl, interfaceId, out );
+    if (IsEqualGUID( runtimeClassId, &CLSID_XGameUiImpl ))
+        return IXGameUiImpl4_QueryInterface( x_game_ui_impl, interfaceId, out );
+    if (IsEqualGUID( runtimeClassId, &CLSID_XPackageImpl ))
+        return IXPackageImpl3_QueryInterface( x_package_impl, interfaceId, out );
+    if (IsEqualGUID( runtimeClassId, &CLSID_XPersistentLocalStorageImpl ))
+        return IXPersistentLocalStorageImpl3_QueryInterface( x_persistent_local_storage_impl, interfaceId, out );
+    if (IsEqualGUID( runtimeClassId, &CLSID_XStoreImpl ))
+        return IXStoreImpl6_QueryInterface( x_store_impl, interfaceId, out );
+
     FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( runtimeClassId ) );
     return E_NOTIMPL;
 }

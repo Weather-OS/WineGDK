@@ -16,30 +16,27 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef __WINE_XASYNC_H
-#define __WINE_XASYNC_H
+import "unknwn.idl";
+import "xuser.idl";
 
-#include <xtaskqueue.h>
+cpp_quote("#ifdef __WINESRC__")
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-typedef struct XAsyncBlock XAsyncBlock;
-
-typedef void    __stdcall XAsyncCompletionRoutine( XAsyncBlock *asyncBlock );
-typedef HRESULT __stdcall XAsyncWork( XAsyncBlock *asyncBlock );
-
-struct XAsyncBlock
+[
+    local,
+    object,
+    uuid(bbfbdcc7-bfe7-409b-a5ca-edf054960b4d)
+]
+interface IXGameEventImpl : IUnknown
 {
-    XTaskQueueHandle queue;
-    void *context;
-    XAsyncCompletionRoutine *callback;
-    void *internal[4];
-};
-
-#ifdef __cplusplus
+    HRESULT XGameEventWrite( [in] XUserHandle user, [in, string] const char *serviceConfigId, [in, string] const char *playSessionId, [in, string] const char *eventName, [in, optional, string] const char *dimensionsJson, [in, optional, string] const char *measurementsJson );
 }
-#endif
 
-#endif
+[
+    uuid(bbfbdcc7-bfe7-409b-a5ca-edf054960b4d)
+]
+coclass XGameEventImpl
+{
+    [default] interface IXGameEventImpl;
+}
+
+cpp_quote("#endif")

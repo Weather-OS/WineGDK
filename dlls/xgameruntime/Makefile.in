@@ -1,21 +1,34 @@
-IMPORTS   = user32 advapi32 crypt32 combase winhttp
+IMPORTS   = user32 advapi32 crypt32 combase shell32 winhttp
 MODULE    = xgameruntime.dll
 
 SOURCES = \
-	main.c \
-	provider.idl \
-	\
 	GDKComponent/InitInternalGDKC.c \
-	\
-	GDKComponent/System/XSystem.c \
-	GDKComponent/System/XThreading.c \
-	GDKComponent/System/Threading/XTaskQueue.c \
-	GDKComponent/System/Threading/XAsync.c \
-	GDKComponent/System/Threading/AtomicVector.c \
-	GDKComponent/System/Threading/XOSThreading.c \
-	GDKComponent/System/Threading/ThreadPool.c \
-	GDKComponent/System/XSystemAnalytics.c \
-	GDKComponent/System/XGameRuntimeFeature.c \
 	GDKComponent/System/Networking/HTTPClient.c \
-	GDKComponent/System/Networking/XNetworking.c
+	GDKComponent/System/Networking/XNetworking.c \
+	GDKComponent/System/Threading/AtomicVector.c \
+	GDKComponent/System/Threading/ThreadPool.c \
+	GDKComponent/System/Threading/XAsync.c \
+	GDKComponent/System/Threading/XOSThreading.c \
+	GDKComponent/System/Threading/XTaskQueue.c \
+	GDKComponent/System/XAccessibility.c \
+	GDKComponent/System/XAppCapture.c \
+	GDKComponent/System/XError.c \
+	GDKComponent/System/XGame.c \
+	GDKComponent/System/XGameActivation.c \
+	GDKComponent/System/XGameEvent.c \
+	GDKComponent/System/XGameInvite.c \
+	GDKComponent/System/XGameProtocol.c \
+	GDKComponent/System/XGameRuntimeFeature.c \
+	GDKComponent/System/XGameSave.c \
+	GDKComponent/System/XGameStreaming.c \
+	GDKComponent/System/XGameUi.c \
+	GDKComponent/System/XLauncher.c \
+	GDKComponent/System/XPackage.c \
+	GDKComponent/System/XPersistentLocalStorage.c \
+	GDKComponent/System/XStore.c \
+	GDKComponent/System/XSystem.c \
+	GDKComponent/System/XSystemAnalytics.c \
+	GDKComponent/System/XThreading.c \
+	GDKComponent/System/XUser.c \
+	main.c
 

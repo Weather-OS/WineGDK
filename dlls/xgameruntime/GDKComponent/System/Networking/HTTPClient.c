@@ -198,22 +198,22 @@ static HRESULT httpclient_ObtainThumbprints( HINTERNET inetRequest, SIZE_T *thum
         if ( numElements >= 1 ) 
         {
             // leaf = element[0]
-            TRY_ADD_THUMBPRINT_FROM_CERT( simple->rgpElement[0]->pCertContext, ThumbprintType_Leaf );
+            TRY_ADD_THUMBPRINT_FROM_CERT( simple->rgpElement[0]->pCertContext, XNetworkingThumbprintType_Leaf );
         }
         if ( numElements >= 2 ) 
         {
             // issuer = element[1] (immediate issuer of leaf)
-            TRY_ADD_THUMBPRINT_FROM_CERT( simple->rgpElement[1]->pCertContext, ThumbprintType_Issuer );
+            TRY_ADD_THUMBPRINT_FROM_CERT( simple->rgpElement[1]->pCertContext, XNetworkingThumbprintType_Issuer );
         }
         if ( numElements >= 1 ) 
         {
             // root = last element
-            TRY_ADD_THUMBPRINT_FROM_CERT( simple->rgpElement[numElements - 1]->pCertContext, ThumbprintType_Root );
+            TRY_ADD_THUMBPRINT_FROM_CERT( simple->rgpElement[numElements - 1]->pCertContext, XNetworkingThumbprintType_Root );
         }
     } else 
     {
         // chain not available: at least try server cert (leaf)
-        TRY_ADD_THUMBPRINT_FROM_CERT( certContext, ThumbprintType_Leaf );
+        TRY_ADD_THUMBPRINT_FROM_CERT( certContext, XNetworkingThumbprintType_Leaf );
     }
 
     if (idx > 0) 

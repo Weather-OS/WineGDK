@@ -24,6 +24,6 @@
 
 #include "../private.h"
 
-HRESULT WINAPI GDKC_InitAPI( ULONG gdkVer, ULONG gsVer, CHAR mode, INITIALIZE_OPTIONS *options );
+HRESULT WINAPI GDKC_InitAPI( ULONG gdkVer, ULONG gsVer, CHAR mode, const XGameRuntimeOptions *options );
 
 #endif

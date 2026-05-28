@@ -23,22 +23,26 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(gdkc);
 
-static inline struct x_system *impl_from_IXSystemImpl( IXSystemImpl *iface )
+static inline struct x_system *impl_from_IXSystemImpl5( IXSystemImpl5 *iface )
 {
-    return CONTAINING_RECORD( iface, struct x_system, IXSystemImpl_iface );
+    return CONTAINING_RECORD( iface, struct x_system, IXSystemImpl5_iface );
 }
 
-static HRESULT WINAPI x_system_QueryInterface( IXSystemImpl *iface, REFIID iid, void **out )
+static HRESULT WINAPI x_system_QueryInterface( IXSystemImpl5 *iface, REFIID iid, void **out )
 {
-    struct x_system *impl = impl_from_IXSystemImpl( iface );
+    struct x_system *impl = impl_from_IXSystemImpl5( iface );
 
     TRACE( "iface %p, iid %s, out %p.\n", iface, debugstr_guid( iid ), out );
 
     if (IsEqualGUID( iid, &IID_IUnknown ) ||
-        IsEqualGUID( iid, &IID_IXSystemImpl ))
+        IsEqualGUID( iid, &IID_IXSystemImpl ) ||
+        IsEqualGUID( iid, &IID_IXSystemImpl2 ) ||
+        IsEqualGUID( iid, &IID_IXSystemImpl3 ) ||
+        IsEqualGUID( iid, &IID_IXSystemImpl4 ) ||
+        IsEqualGUID( iid, &IID_IXSystemImpl5 ))
     {
-        *out = &impl->IXSystemImpl_iface;
-        impl->IXSystemImpl_iface.lpVtbl->AddRef( *out );
+        *out = &impl->IXSystemImpl5_iface;
+        impl->IXSystemImpl5_iface.lpVtbl->AddRef( *out );
         return S_OK;
     }
 
@@ -47,23 +51,23 @@ static HRESULT WINAPI x_system_QueryInterface( IXSystemImpl *iface, REFIID iid, 
     return E_NOINTERFACE;
 }
 
-static ULONG WINAPI x_system_AddRef( IXSystemImpl *iface )
+static ULONG WINAPI x_system_AddRef( IXSystemImpl5 *iface )
 {
-    struct x_system *impl = impl_from_IXSystemImpl( iface );
+    struct x_system *impl = impl_from_IXSystemImpl5( iface );
     ULONG ref = InterlockedIncrement( &impl->ref );
     TRACE( "iface %p increasing refcount to %lu.\n", iface, ref );
     return ref;
 }
 
-static ULONG WINAPI x_system_Release( IXSystemImpl *iface )
+static ULONG WINAPI x_system_Release( IXSystemImpl5 *iface )
 {
-    struct x_system *impl = impl_from_IXSystemImpl( iface );
+    struct x_system *impl = impl_from_IXSystemImpl5( iface );
     ULONG ref = InterlockedDecrement( &impl->ref );
     TRACE( "iface %p decreasing refcount to %lu.\n", iface, ref );
     return ref;
 }
 
-static HRESULT WINAPI x_system_XSystemGetConsoleId( IXSystemImpl *iface, INT32 consoleIdSize, LPSTR consoleId, SIZE_T *consoleIdUsed )
+static HRESULT WINAPI x_system_XSystemGetConsoleId( IXSystemImpl5 *iface, INT32 consoleIdSize, LPSTR consoleId, SIZE_T *consoleIdUsed )
 {    
     // For Windows, Console ID is always `00000000.00000000.00000000.00000000.00
     LPCSTR Id = "00000000.00000000.00000000.00000000.00";
@@ -81,7 +85,7 @@ static HRESULT WINAPI x_system_XSystemGetConsoleId( IXSystemImpl *iface, INT32 c
     return S_OK;
 }
 
-static HRESULT WINAPI x_system_XSystemGetXboxLiveSandboxId( IXSystemImpl *iface, INT32 sandboxIdSize, LPSTR sandboxId, SIZE_T *sandboxIdUsed )
+static HRESULT WINAPI x_system_XSystemGetXboxLiveSandboxId( IXSystemImpl5 *iface, INT32 sandboxIdSize, LPSTR sandboxId, SIZE_T *sandboxIdUsed )
 {    
     // Always assume RETAIL environment for Wine
     LPCSTR Id = "RETAIL";
@@ -99,42 +103,43 @@ static HRESULT WINAPI x_system_XSystemGetXboxLiveSandboxId( IXSystemImpl *iface,
     return S_OK;
 }
 
-static HRESULT WINAPI x_system_XSystemGetAppSpecificDeviceId( IXSystemImpl *iface, INT32 appSpecificDeviceIdSize, LPSTR appSpecificDeviceId, SIZE_T *appSpecificDeviceIdUsed )
+static HRESULT WINAPI x_system_XSystemGetAppSpecificDeviceId( IXSystemImpl5 *iface, INT32 appSpecificDeviceIdSize, LPSTR appSpecificDeviceId, SIZE_T *appSpecificDeviceIdUsed )
 {    
     FIXME( "iface %p, appSpecificDeviceIdSize %d, appSpecificDeviceId %p, appSpecificDeviceIdUsed %p stub!\n", iface, appSpecificDeviceIdSize, appSpecificDeviceId, appSpecificDeviceIdUsed );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_system_XSystemHandleTrack( IXSystemImpl *iface )
+static HRESULT WINAPI x_system_XSystemHandleTrack( IXSystemImpl5 *iface, XSystemHandleCallback *callback, void *context )
 {
-    FIXME( "iface %p stub!\n", iface );
+    FIXME( "iface %p, callback %p, context %p stub!\n", iface, callback, context );
     return E_NOTIMPL;
 }
 
-static BOOLEAN WINAPI x_system_XSystemIsHandleValid( IXSystemImpl *iface )
+static BOOLEAN WINAPI x_system_XSystemIsHandleValid( IXSystemImpl5 *iface, XSystemHandle handle )
 {
     // always assume it's valid.
-    FIXME( "iface %p stub!\n", iface );
+    FIXME( "iface %p, handle %p stub!\n", iface, handle );
     return TRUE;
 }
 
-static HRESULT WINAPI x_system_XSystemAllowFullDownloadBandwidth( IXSystemImpl *iface, boolean enable )
+static void WINAPI x_system_XSystemAllowFullDownloadBandwidth( IXSystemImpl5 *iface, boolean enable )
 {
     FIXME( "iface %p, enable %d stub!\n", iface, enable );
-    return E_NOTIMPL;
 }
 
-static const struct IXSystemImplVtbl x_system_vtbl =
+static const struct IXSystemImpl5Vtbl x_system_vtbl =
 {
     x_system_QueryInterface,
     x_system_AddRef,
     x_system_Release,
-    /* IXSystemImpl methods */
+    /* IXSystemImpl/IXSystemImpl2 methods */
     x_system_XSystemGetConsoleId,
     x_system_XSystemGetXboxLiveSandboxId,
     x_system_XSystemGetAppSpecificDeviceId,
+    /* IXSystemImpl3 methods */
     x_system_XSystemHandleTrack,
     x_system_XSystemIsHandleValid,
+    /* IXSystemImpl4/IXSystemImpl5 methods */
     x_system_XSystemAllowFullDownloadBandwidth
 };
 
@@ -144,4 +149,4 @@ static struct x_system x_system =
     0,
 };
 
-IXSystemImpl *x_system_impl = &x_system.IXSystemImpl_iface;
+IXSystemImpl5 *x_system_impl = &x_system.IXSystemImpl5_iface;

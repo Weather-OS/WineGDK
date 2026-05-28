@@ -16,26 +16,44 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef __WINE_XASYNC_H
-#define __WINE_XASYNC_H
-
-#include <xtaskqueue.h>
+#ifndef __WINE_XGAMERUNTIMETYPES_H
+#define __WINE_XGAMERUNTIMETYPES_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct XAsyncBlock XAsyncBlock;
+typedef struct XColor XColor;
+typedef struct XVersion XVersion;
 
-typedef void    __stdcall XAsyncCompletionRoutine( XAsyncBlock *asyncBlock );
-typedef HRESULT __stdcall XAsyncWork( XAsyncBlock *asyncBlock );
-
-struct XAsyncBlock
+struct XColor
 {
-    XTaskQueueHandle queue;
-    void *context;
-    XAsyncCompletionRoutine *callback;
-    void *internal[4];
+    union
+    {
+        struct
+        {
+            UINT8 A;
+            UINT8 R;
+            UINT8 G;
+            UINT8 B;
+        };
+        UINT32 Value;
+    };
+};
+
+struct XVersion
+{
+    union
+    {
+        struct
+        {
+            UINT16 major;
+            UINT16 minor;
+            UINT16 build;
+            UINT16 revision;
+        };
+        UINT64 Value;
+    };
 };
 
 #ifdef __cplusplus

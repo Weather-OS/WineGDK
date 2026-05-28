@@ -16,30 +16,30 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef __WINE_XASYNC_H
-#define __WINE_XASYNC_H
+import "unknwn.idl";
+import "xdisplay.idl";
+import "xuser.idl";
 
-#include <xtaskqueue.h>
+cpp_quote("#ifdef __WINESRC__")
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-typedef struct XAsyncBlock XAsyncBlock;
-
-typedef void    __stdcall XAsyncCompletionRoutine( XAsyncBlock *asyncBlock );
-typedef HRESULT __stdcall XAsyncWork( XAsyncBlock *asyncBlock );
-
-struct XAsyncBlock
+[
+    local,
+    object,
+    uuid(1b339674-328d-4283-a200-3171f18d3639)
+]
+interface IXLauncherImpl : IUnknown
 {
-    XTaskQueueHandle queue;
-    void *context;
-    XAsyncCompletionRoutine *callback;
-    void *internal[4];
-};
-
-#ifdef __cplusplus
+    HRESULT XLaunchUri( [in, optional] XUserHandle user, [in, string] const char *uri );
+    HRESULT XDisplayAcquireTimeoutDeferral( [out] XDisplayTimeoutDeferralHandle *handle );
+    void    XDisplayCloseTimeoutDeferralHandle( [in] XDisplayTimeoutDeferralHandle handle );
 }
-#endif
 
-#endif
+[
+    uuid(1b339674-328d-4283-a200-3171f18d3639)
+]
+coclass XLauncherImpl
+{
+    [default] interface IXLauncherImpl;
+}
+
+cpp_quote("#endif")

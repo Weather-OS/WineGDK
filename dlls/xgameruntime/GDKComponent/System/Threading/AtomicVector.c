@@ -144,7 +144,7 @@ static VOID STDMETHODCALLTYPE atomic_vector_Visit( IAtomicVector* iface, AtomicV
     PVOID element;
     struct atomic_vector *impl = impl_from_IAtomicVector( iface );
 
-    TRACE( "iface %p, visitor %p, impl->size is %lld.\n", iface, visitor, impl->size );
+    TRACE( "iface %p, visitor %p, impl->size is %Iu.\n", iface, visitor, impl->size );
 
     AcquireSRWLockShared( &impl->lock );
 

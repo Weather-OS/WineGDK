@@ -92,7 +92,7 @@ static HRESULT WINAPI x_threading_XAsyncRun( IXThreadingImpl *iface, XAsyncBlock
 
 /* --- XAsyncProvider --- */
 
-static HRESULT WINAPI x_threading_XAsyncBegin(IXThreadingImpl* iface, XAsyncBlock* asyncBlock, PVOID context, const PVOID identity, LPCSTR identityName, XAsyncProviderCallback* provider)
+static HRESULT WINAPI x_threading_XAsyncBegin(IXThreadingImpl* iface, XAsyncBlock* asyncBlock, PVOID context, const void *identity, LPCSTR identityName, XAsyncProvider* provider)
 {
     TRACE( "iface %p, asyncBlock %p, context %p, identity %p, identityName %s, provider %p.\n", iface, asyncBlock, context, identity, identityName, provider );
     return XAsyncBegin( asyncBlock, context, identity, identityName, provider );
@@ -112,12 +112,12 @@ static HRESULT WINAPI x_threading_XAsyncSchedule( IXThreadingImpl* iface, XAsync
 
 static VOID WINAPI x_threading_XAsyncComplete( IXThreadingImpl* iface, XAsyncBlock* asyncBlock, HRESULT result, SIZE_T requiredBufferSize )
 {
-    TRACE( "iface %p, asyncBlock %p, result %#lx, requiredBufferSize %lld.\n", iface, asyncBlock, result, requiredBufferSize );
+    TRACE( "iface %p, asyncBlock %p, result %#lx, requiredBufferSize %Iu.\n", iface, asyncBlock, result, requiredBufferSize );
     XAsyncComplete( asyncBlock, result, requiredBufferSize );
     return;
 }
 
-static HRESULT WINAPI x_threading_XAsyncGetResult( IXThreadingImpl* iface, XAsyncBlock* asyncBlock, const PVOID identity, SIZE_T bufferSize, PVOID buffer, SIZE_T* bufferUsed )
+static HRESULT WINAPI x_threading_XAsyncGetResult( IXThreadingImpl* iface, XAsyncBlock* asyncBlock, const void *identity, SIZE_T bufferSize, PVOID buffer, SIZE_T* bufferUsed )
 {
     FIXME( "iface %p stub!\n", iface );
     return E_NOTIMPL;

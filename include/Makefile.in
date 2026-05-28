@@ -1102,7 +1102,6 @@ SOURCES = \
 	windows.ui.xaml.hosting.desktopwindowxamlsource.idl \
 	windows.ui.xaml.idl \
 	windows.ui.xaml.interop.idl \
-	windows.ui.text.core.idl \
 	windowscontracts.idl \
 	windowsx.h \
 	wine/afd.h \
@@ -1228,6 +1227,7 @@ SOURCES = \
 	wtypesbase.idl \
 	wuapi.idl \
 	x3daudio.h \
+	xaccessibility.idl \
 	xact.h \
 	xact2wb.h \
 	xact3.h \
@@ -1235,18 +1235,45 @@ SOURCES = \
 	xamlom.idl \
 	xapo.idl \
 	xapofx.h \
+	xappcapture.idl \
+	xasync.h \
+	xasyncprovider.idl \
 	xaudio2.idl \
 	xaudio2fx.idl \
 	xcmc.h \
+	xdisplay.idl \
+	xerror.idl \
+	xgame.idl \
+	xgameactivation.idl \
+	xgameerr.h \
+	xgameevent.idl \
+	xgameinvite.idl \
+	xgameprotocol.idl \
+	xgameruntime.h \
+	xgameruntimefeature.idl \
+	xgameruntimeinit.h \
+	xgameruntimetypes.h \
+	xgamesave.idl \
+	xgamestreaming.idl \
+	xgameui.idl \
 	xinput.h \
+	xlauncher.idl \
 	xmldom.h \
 	xmldom.idl \
 	xmldomdid.h \
 	xmldso.idl \
 	xmldsodid.h \
 	xmllite.idl \
+	xnetworking.idl \
+	xpackage.idl \
+	xpersistentlocalstorage.idl \
 	xpsobjectmodel.idl \
 	xpsobjectmodel_1.idl \
+	xspeechsynthesizer.h \
+	xstore.idl \
+	xsystem.idl \
+	xtaskqueue.h \
+	xuser.idl \
 	zmouse.h
 
 INSTALL_LIB = \

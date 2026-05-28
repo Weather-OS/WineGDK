@@ -38,12 +38,12 @@ static HRESULT CALLBACK HTTPClientProvider( XAsyncOp operation, const XAsyncProv
 
     switch ( operation )
     {
-        case Begin:
+        case XAsyncOp_Begin:
         {
             return IXThreadingImpl_XAsyncSchedule( threadingImpl, data->async, 100 );
         }
 
-        case DoWork:
+        case XAsyncOp_DoWork:
         {
             status = httpclient_ObtainSecurityInformationForUrl( context->url, &context->securityInformationBuffer, &context->securityInformationBufferCount, &context->securityInformation );
 
@@ -52,7 +52,7 @@ static HRESULT CALLBACK HTTPClientProvider( XAsyncOp operation, const XAsyncProv
             return status;
         }
 
-        case GetResult:
+        case XAsyncOp_GetResult:
         {
             if ( data->buffer && data->bufferSize >= context->securityInformationBufferCount )
             {
@@ -62,13 +62,13 @@ static HRESULT CALLBACK HTTPClientProvider( XAsyncOp operation, const XAsyncProv
             return E_BOUNDS;
         }
 
-        case Cancel:
+        case XAsyncOp_Cancel:
         {
             IXThreadingImpl_XAsyncComplete( threadingImpl, data->async, E_ABORT, 0 );
             return S_OK;
         }
 
-        case Cleanup:
+        case XAsyncOp_Cleanup:
         {
             free( context );
             return S_OK;
@@ -78,26 +78,23 @@ static HRESULT CALLBACK HTTPClientProvider( XAsyncOp operation, const XAsyncProv
     return E_NOTIMPL;
 }
 
-static inline struct x_networking *impl_from_IXNetworkingImpl( IXNetworkingImpl *iface )
+static inline struct x_networking *impl_from_IXNetworkingImpl2( IXNetworkingImpl2 *iface )
 {
-    return CONTAINING_RECORD( iface, struct x_networking, IXNetworkingImpl_iface );
+    return CONTAINING_RECORD( iface, struct x_networking, IXNetworkingImpl2_iface );
 }
 
-static HRESULT WINAPI x_networking_QueryInterface( IXNetworkingImpl *iface, REFIID iid, void **out )
+static HRESULT WINAPI x_networking_QueryInterface( IXNetworkingImpl2 *iface, REFIID iid, void **out )
 {
-    struct x_networking *impl = impl_from_IXNetworkingImpl( iface );
+    struct x_networking *impl = impl_from_IXNetworkingImpl2( iface );
 
     TRACE( "iface %p, iid %s, out %p.\n", iface, debugstr_guid( iid ), out );
 
     if (IsEqualGUID( iid, &IID_IUnknown ) ||
         IsEqualGUID( iid, &IID_IXNetworkingImpl ) ||
-        //  For some strange, unexplainable reason, the xgameruntime.lib library shipped with
-        // PlayFabMultiplayerGDK has the GUID of IXNetworkingImpl of the class Id of XNetworking.
-        // This is for compatibility reasons only.
-        IsEqualGUID( iid, &CLSID_XNetworkingImpl ))
+        IsEqualGUID( iid, &IID_IXNetworkingImpl2 ))
     {
-        *out = &impl->IXNetworkingImpl_iface;
-        impl->IXNetworkingImpl_iface.lpVtbl->AddRef( *out );
+        *out = &impl->IXNetworkingImpl2_iface;
+        impl->IXNetworkingImpl2_iface.lpVtbl->AddRef( *out );
         return S_OK;
     }
 
@@ -106,74 +103,75 @@ static HRESULT WINAPI x_networking_QueryInterface( IXNetworkingImpl *iface, REFI
     return E_NOINTERFACE;
 }
 
-static ULONG WINAPI x_networking_AddRef( IXNetworkingImpl *iface )
+static ULONG WINAPI x_networking_AddRef( IXNetworkingImpl2 *iface )
 {
-    struct x_networking *impl = impl_from_IXNetworkingImpl( iface );
+    struct x_networking *impl = impl_from_IXNetworkingImpl2( iface );
     ULONG ref = InterlockedIncrement( &impl->ref );
     TRACE( "iface %p increasing refcount to %lu.\n", iface, ref );
     return ref;
 }
 
-static ULONG WINAPI x_networking_Release( IXNetworkingImpl *iface )
+static ULONG WINAPI x_networking_Release( IXNetworkingImpl2 *iface )
 {
-    struct x_networking *impl = impl_from_IXNetworkingImpl( iface );
+    struct x_networking *impl = impl_from_IXNetworkingImpl2( iface );
     ULONG ref = InterlockedDecrement( &impl->ref );
     TRACE( "iface %p decreasing refcount to %lu.\n", iface, ref );
     return ref;
 }
 
-static HRESULT WINAPI x_networking_XNetworkingQueryPreferredLocalUdpMultiplayerPort( IXNetworkingImpl *iface, UINT16 *preferredLocalUdpMultiplayerPort )
+static HRESULT WINAPI x_networking_XNetworkingQueryPreferredLocalUdpMultiplayerPort( IXNetworkingImpl2 *iface, UINT16 *preferredLocalUdpMultiplayerPort )
 {
     FIXME( "iface %p, preferredLocalUdpMultiplayerPort %p stub!\n", iface, preferredLocalUdpMultiplayerPort );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_networking_XNetworkingQueryPreferredLocalUdpMultiplayerPortAsync( IXNetworkingImpl *iface, XAsyncBlock *asyncBlock )
+static HRESULT WINAPI x_networking_XNetworkingQueryPreferredLocalUdpMultiplayerPortAsync( IXNetworkingImpl2 *iface, XAsyncBlock *asyncBlock )
 {
     FIXME( "iface %p, asyncBlock %p stub!\n", iface, asyncBlock );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_networking_XNetworkingQueryPreferredLocalUdpMultiplayerPortAsyncResult( IXNetworkingImpl *iface, XAsyncBlock *asyncBlock, UINT16 *preferredLocalUdpMultiplayerPort )
+static HRESULT WINAPI x_networking_XNetworkingQueryPreferredLocalUdpMultiplayerPortAsyncResult( IXNetworkingImpl2 *iface, XAsyncBlock *asyncBlock, UINT16 *preferredLocalUdpMultiplayerPort )
 {
     FIXME( "iface %p, asyncBlock %p, preferredLocalUdpMultiplayerPort %p stub!\n", iface, asyncBlock, preferredLocalUdpMultiplayerPort );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_networking_XNetworkingRegisterPreferredLocalUdpMultiplayerPortChanged( IXNetworkingImpl *iface, XTaskQueueHandle queue, PVOID context, XNetworkingPreferredLocalUdpMultiplayerPortChangedCallback *callback, XTaskQueueRegistrationToken *token )
+static HRESULT WINAPI x_networking_XNetworkingRegisterPreferredLocalUdpMultiplayerPortChanged( IXNetworkingImpl2 *iface, XTaskQueueHandle queue, PVOID context, XNetworkingPreferredLocalUdpMultiplayerPortChangedCallback *callback, XTaskQueueRegistrationToken *token )
 {
     FIXME( "iface %p, queue %p, context %p, callback %p, token %p stub!\n", iface, queue, context, callback, token );
     return E_NOTIMPL;
 }
 
-static BOOLEAN WINAPI x_networking_XNetworkingUnregisterPreferredLocalUdpMultiplayerPortChanged( IXNetworkingImpl *iface, XTaskQueueRegistrationToken token, BOOLEAN wait )
+static BOOLEAN WINAPI x_networking_XNetworkingUnregisterPreferredLocalUdpMultiplayerPortChanged( IXNetworkingImpl2 *iface, XTaskQueueRegistrationToken token, BOOLEAN wait )
 {
     FIXME( "iface %p, token %p, wait %d stub!\n", iface, &token, wait );
     return FALSE;
 }
 
-static HRESULT WINAPI x_networking_XNetworkingQuerySecurityInformationForUrlAsync( IXNetworkingImpl *iface, LPCSTR url, XAsyncBlock *asyncBlock )
+static HRESULT WINAPI x_networking_XNetworkingQuerySecurityInformationForUrlAsync( IXNetworkingImpl2 *iface, LPCSTR url, XAsyncBlock *asyncBlock )
 {
     FIXME( "iface %p, url %p, asyncBlock %p stub!\n", iface, url, asyncBlock );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_networking_XNetworkingQuerySecurityInformationForUrlAsyncResultSize( IXNetworkingImpl *iface, XAsyncBlock *asyncBlock, SIZE_T *securityInformationBufferByteCount )
+static HRESULT WINAPI x_networking_XNetworkingQuerySecurityInformationForUrlAsyncResultSize( IXNetworkingImpl2 *iface, XAsyncBlock *asyncBlock, SIZE_T *securityInformationBufferByteCount )
 {
     FIXME( "iface %p, asyncBlock %p, securityInformationBufferByteCount %p stub!\n", iface, asyncBlock, securityInformationBufferByteCount );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_networking_XNetworkingQuerySecurityInformationForUrlAsyncResult( IXNetworkingImpl *iface, XAsyncBlock *asyncBlock, SIZE_T securityInformationBufferByteCount, SIZE_T *securityInformationBufferByteCountUsed, UINT8 *securityInformationBuffer, XNetworkingSecurityInformation **securityInformation )
+static HRESULT WINAPI x_networking_XNetworkingQuerySecurityInformationForUrlAsyncResult( IXNetworkingImpl2 *iface, XAsyncBlock *asyncBlock, SIZE_T securityInformationBufferByteCount, SIZE_T *securityInformationBufferByteCountUsed, UINT8 *securityInformationBuffer, XNetworkingSecurityInformation **securityInformation )
 {
-    FIXME( "iface %p, asyncBlock %p, securityInformationBufferByteCount %lld, securityInformationBufferByteCountUsed %p, securityInformationBuffer %p, securityInformation %p stub!\n", iface, asyncBlock, securityInformationBufferByteCount, securityInformationBufferByteCountUsed, securityInformationBuffer, securityInformation );
+    FIXME( "iface %p, asyncBlock %p, securityInformationBufferByteCount %Iu, securityInformationBufferByteCountUsed %p, securityInformationBuffer %p, securityInformation %p stub!\n", iface, asyncBlock, securityInformationBufferByteCount, securityInformationBufferByteCountUsed, securityInformationBuffer, securityInformation );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_networking_XNetworkingQuerySecurityInformationForUrlUtf16Async( IXNetworkingImpl *iface, LPCWSTR url, XAsyncBlock *asyncBlock )
+static HRESULT WINAPI x_networking_XNetworkingQuerySecurityInformationForUrlUtf16Async( IXNetworkingImpl2 *iface, LPCWSTR url, XAsyncBlock *asyncBlock )
 {
     HRESULT status;
     IXThreadingImpl *threadingImpl;
+    struct UrlSecurityInfoContext *context;
 
     TRACE( "iface %p, url %p, asyncBlock %p.\n", iface, url, asyncBlock );
 
@@ -181,7 +179,7 @@ static HRESULT WINAPI x_networking_XNetworkingQuerySecurityInformationForUrlUtf1
     status = QueryApiImpl( &CLSID_XThreadingImpl, &IID_IXThreadingImpl, (void **)&threadingImpl );
     if ( FAILED( status ) ) return status;
 
-    struct UrlSecurityInfoContext *context = (struct UrlSecurityInfoContext *)malloc( sizeof( struct UrlSecurityInfoContext ) );
+    context = (struct UrlSecurityInfoContext *)malloc( sizeof( struct UrlSecurityInfoContext ) );
     if ( !context ) return E_OUTOFMEMORY;
 
     context->url = url;
@@ -196,7 +194,7 @@ static HRESULT WINAPI x_networking_XNetworkingQuerySecurityInformationForUrlUtf1
     return status;
 }
 
-static HRESULT WINAPI x_networking_XNetworkingQuerySecurityInformationForUrlUtf16AsyncResultSize( IXNetworkingImpl *iface, XAsyncBlock *asyncBlock, SIZE_T *securityInformationBufferByteCount )
+static HRESULT WINAPI x_networking_XNetworkingQuerySecurityInformationForUrlUtf16AsyncResultSize( IXNetworkingImpl2 *iface, XAsyncBlock *asyncBlock, SIZE_T *securityInformationBufferByteCount )
 {
     HRESULT status;
     IXThreadingImpl *threadingImpl;
@@ -212,12 +210,12 @@ static HRESULT WINAPI x_networking_XNetworkingQuerySecurityInformationForUrlUtf1
     return status;
 }
 
-static HRESULT WINAPI x_networking_XNetworkingQuerySecurityInformationForUrlUtf16AsyncResult( IXNetworkingImpl *iface, XAsyncBlock *asyncBlock, SIZE_T securityInformationBufferByteCount, SIZE_T *securityInformationBufferByteCountUsed, UINT8 *securityInformationBuffer, XNetworkingSecurityInformation **securityInformation )
+static HRESULT WINAPI x_networking_XNetworkingQuerySecurityInformationForUrlUtf16AsyncResult( IXNetworkingImpl2 *iface, XAsyncBlock *asyncBlock, SIZE_T securityInformationBufferByteCount, SIZE_T *securityInformationBufferByteCountUsed, UINT8 *securityInformationBuffer, XNetworkingSecurityInformation **securityInformation )
 {
     HRESULT status;
     IXThreadingImpl *threadingImpl;
 
-    TRACE( "iface %p, asyncBlock %p, securityInformationBufferByteCount %lld, securityInformationBufferByteCountUsed %p, securityInformationBuffer %p, securityInformation %p.\n", iface, asyncBlock, securityInformationBufferByteCount, securityInformationBufferByteCountUsed, securityInformationBuffer, securityInformation );
+    TRACE( "iface %p, asyncBlock %p, securityInformationBufferByteCount %Iu, securityInformationBufferByteCountUsed %p, securityInformationBuffer %p, securityInformation %p.\n", iface, asyncBlock, securityInformationBufferByteCount, securityInformationBufferByteCountUsed, securityInformationBuffer, securityInformation );
     
     // Threading module may be obtained from another binary.
     status = QueryApiImpl( &CLSID_XThreadingImpl, &IID_IXThreadingImpl, (void **)&threadingImpl );
@@ -232,13 +230,13 @@ static HRESULT WINAPI x_networking_XNetworkingQuerySecurityInformationForUrlUtf1
     return S_OK;
 }
 
-static HRESULT WINAPI x_networking_XNetworkingVerifyServerCertificate( IXNetworkingImpl *iface, PVOID requestHandle, const XNetworkingSecurityInformation *securityInformation )
+static HRESULT WINAPI x_networking_XNetworkingVerifyServerCertificate( IXNetworkingImpl2 *iface, PVOID requestHandle, const XNetworkingSecurityInformation *securityInformation )
 {
     FIXME( "iface %p, requestHandle %p, securityInformation %p stub!\n", iface, requestHandle, securityInformation );
     return S_OK;
 }
 
-static HRESULT WINAPI x_networking_XNetworkingGetConnectivityHint( IXNetworkingImpl *iface, XNetworkingConnectivityHint *connectivityHint )
+static HRESULT WINAPI x_networking_XNetworkingGetConnectivityHint( IXNetworkingImpl2 *iface, XNetworkingConnectivityHint *connectivityHint )
 {
     XNetworkingConnectivityHint hint;
 
@@ -249,15 +247,15 @@ static HRESULT WINAPI x_networking_XNetworkingGetConnectivityHint( IXNetworkingI
     hint.overDataLimit = FALSE;
     hint.networkInitialized = TRUE;
     hint.approachingDataLimit = FALSE;
-    hint.connectivityLevel = ConnectivityLevelHintInternetAccess;
-    hint.connectivityCost = ConnectivityCostHintUnrestricted;
+    hint.connectivityLevel = XNetworkingConnectivityLevelHint_InternetAccess;
+    hint.connectivityCost = XNetworkingConnectivityCostHint_Unrestricted;
 
     *connectivityHint = hint;
 
     return S_OK;
 }
 
-static HRESULT WINAPI x_networking_XNetworkingRegisterConnectivityHintChanged( IXNetworkingImpl *iface, XTaskQueueHandle queue, PVOID context, XNetworkingConnectivityHintChangedCallback *callback, XTaskQueueRegistrationToken *token )
+static HRESULT WINAPI x_networking_XNetworkingRegisterConnectivityHintChanged( IXNetworkingImpl2 *iface, XTaskQueueHandle queue, PVOID context, XNetworkingConnectivityHintChangedCallback *callback, XTaskQueueRegistrationToken *token )
 {
     XNetworkingConnectivityHint hint;
     FIXME( "iface %p, queue %p, context %p, callback %p, token %p stub!\n", iface, queue, context, callback, token );
@@ -266,31 +264,31 @@ static HRESULT WINAPI x_networking_XNetworkingRegisterConnectivityHintChanged( I
     return S_OK;
 }
 
-static BOOLEAN WINAPI x_networking_XNetworkingUnregisterConnectivityHintChanged( IXNetworkingImpl *iface, XTaskQueueRegistrationToken token, BOOLEAN wait )
+static BOOLEAN WINAPI x_networking_XNetworkingUnregisterConnectivityHintChanged( IXNetworkingImpl2 *iface, XTaskQueueRegistrationToken token, BOOLEAN wait )
 {
     FIXME( "iface %p, token %p, wait %d stub!\n", iface, &token, wait );
     return FALSE;
 }
 
-static HRESULT WINAPI x_networking_XNetworkingQueryConfigurationSetting( IXNetworkingImpl *iface, XNetworkingConfigurationSetting configurationSetting, UINT64 *value )
+static HRESULT WINAPI x_networking_XNetworkingQueryConfigurationSetting( IXNetworkingImpl2 *iface, XNetworkingConfigurationSetting configurationSetting, UINT64 *value )
 {
     FIXME( "iface %p, configurationSetting %d, value %p stub!\n", iface, configurationSetting, value );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_networking_XNetworkingSetConfigurationSetting( IXNetworkingImpl *iface, XNetworkingConfigurationSetting configurationParameter, UINT64 value )
+static HRESULT WINAPI x_networking_XNetworkingSetConfigurationSetting( IXNetworkingImpl2 *iface, XNetworkingConfigurationSetting configurationParameter, UINT64 value )
 {
     FIXME( "iface %p, configurationParameter %d, value %llu stub!\n", iface, configurationParameter, value );
     return E_NOTIMPL;
 }
 
-static HRESULT WINAPI x_networking_XNetworkingQueryStatistics( IXNetworkingImpl *iface, XNetworkingStatisticsBuffer *statisticsBuffer )
+static HRESULT WINAPI x_networking_XNetworkingQueryStatistics( IXNetworkingImpl2 *iface, XNetworkingStatisticsType statisticsType, XNetworkingStatisticsBuffer *statisticsBuffer )
 {
-    FIXME( "iface %p, statisticsBuffer %p stub!\n", iface, statisticsBuffer );
+    FIXME( "iface %p, statisticsType %d, statisticsBuffer %p stub!\n", iface, statisticsType, statisticsBuffer );
     return E_NOTIMPL;
 }
 
-static const struct IXNetworkingImplVtbl x_networking_vtbl =
+static const struct IXNetworkingImpl2Vtbl x_networking_vtbl =
 {
     x_networking_QueryInterface,
     x_networking_AddRef,
@@ -311,6 +309,7 @@ static const struct IXNetworkingImplVtbl x_networking_vtbl =
     x_networking_XNetworkingGetConnectivityHint,
     x_networking_XNetworkingRegisterConnectivityHintChanged,
     x_networking_XNetworkingUnregisterConnectivityHintChanged,
+    /* IXNetworkingImpl2 methods */
     x_networking_XNetworkingQueryConfigurationSetting,
     x_networking_XNetworkingSetConfigurationSetting,
     x_networking_XNetworkingQueryStatistics,
@@ -322,4 +321,4 @@ static struct x_networking x_networking =
     0,
 };
 
-IXNetworkingImpl *x_networking_impl = &x_networking.IXNetworkingImpl_iface;
+IXNetworkingImpl2 *x_networking_impl = &x_networking.IXNetworkingImpl2_iface;

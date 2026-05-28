@@ -19,43 +19,57 @@
 #ifndef __WINE_XTASKQUEUE_H
 #define __WINE_XTASKQUEUE_H
 
-#include <stdint.h>
-#include <winerror.h>
-#include <windef.h>
+#ifdef __cplusplus
+extern "C" {
 
-typedef struct XTaskQueueObject* XTaskQueueHandle;
-
-typedef struct XTaskQueuePortObject* XTaskQueuePortHandle;
-
-typedef enum XTaskQueueDispatchMode
+enum class XTaskQueueDispatchMode : UINT32
 {
     Manual,
     ThreadPool,
     SerializedThreadPool,
-    Immediate
+    Immediate,
+};
+
+enum class XTaskQueuePort : UINT32
+{
+    Work,
+    Completion,
+};
+
+#elif defined(__WINESRC__)
+
+typedef enum XTaskQueueDispatchMode
+{
+    XTaskQueueDispatchMode_Manual,
+    XTaskQueueDispatchMode_ThreadPool,
+    XTaskQueueDispatchMode_SerializedThreadPool,
+    XTaskQueueDispatchMode_Immediate,
 } XTaskQueueDispatchMode;
 
 typedef enum XTaskQueuePort
 {
-    Work,
-    Completion
+    XTaskQueuePort_Work,
+    XTaskQueuePort_Completion,
 } XTaskQueuePort;
 
-typedef enum XTaskQueuePortStatus
-{
-    PortStatus_Active,
-    PortStatus_Canceled,
-    PortStatus_Terminating,
-    PortStatus_Terminated
-} XTaskQueuePortStatus;
+#endif
 
-typedef struct XTaskQueueRegistrationToken
-{
-    uint64_t token;
-} XTaskQueueRegistrationToken;
+typedef struct XTaskQueueObject *XTaskQueueHandle;
+typedef struct XTaskQueuePortObject *XTaskQueuePortHandle;
 
-typedef void CALLBACK XTaskQueueCallback(_In_opt_ void* context, _In_ BOOL canceled);
-typedef void CALLBACK XTaskQueueMonitorCallback(_In_opt_ void* context, _In_ XTaskQueueHandle queue, _In_ XTaskQueuePort port);
-typedef void CALLBACK XTaskQueueTerminatedCallback(_In_opt_ void* context);
+typedef struct XTaskQueueRegistrationToken XTaskQueueRegistrationToken;
+
+typedef void __stdcall XTaskQueueCallback( void *context, BOOLEAN canceled );
+typedef void __stdcall XTaskQueueMonitorCallback( void *context, XTaskQueueHandle queue, XTaskQueuePort port );
+typedef void __stdcall XTaskQueueTerminatedCallback( void *context );
+
+struct XTaskQueueRegistrationToken
+{
+    UINT64 token;
+};
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

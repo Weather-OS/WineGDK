@@ -16,30 +16,30 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef __WINE_XASYNC_H
-#define __WINE_XASYNC_H
+import "unknwn.idl";
+import "xtaskqueue.h";
 
-#include <xtaskqueue.h>
+typedef void __stdcall XGameProtocolActivationCallback( void *context, const char *protocolUri );
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+cpp_quote("#ifdef __WINESRC__")
 
-typedef struct XAsyncBlock XAsyncBlock;
-
-typedef void    __stdcall XAsyncCompletionRoutine( XAsyncBlock *asyncBlock );
-typedef HRESULT __stdcall XAsyncWork( XAsyncBlock *asyncBlock );
-
-struct XAsyncBlock
+[
+    local,
+    object,
+    uuid(026b010c-06c3-4cdd-bbcb-43f229db1cff)
+]
+interface IXGameProtocolImpl : IUnknown
 {
-    XTaskQueueHandle queue;
-    void *context;
-    XAsyncCompletionRoutine *callback;
-    void *internal[4];
-};
-
-#ifdef __cplusplus
+    HRESULT XGameProtocolRegisterForActivation( [in, optional] XTaskQueueHandle queue, [in, optional] void *context, [in] XGameProtocolActivationCallback *callback, [out] XTaskQueueRegistrationToken *token );
+    BOOLEAN XGameProtocolUnregisterForActivation( [in] XTaskQueueRegistrationToken token, [in] BOOLEAN wait );
 }
-#endif
 
-#endif
+[
+    uuid(95fd18d2-74dd-4d7c-aa1b-0b51827665d6)
+]
+coclass XGameProtocolImpl
+{
+    [default] interface IXGameProtocolImpl;
+}
+
+cpp_quote("#endif")

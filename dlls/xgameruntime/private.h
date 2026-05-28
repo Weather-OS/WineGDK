@@ -22,19 +22,17 @@
 #define __WINE_XGAMERUNTIME_PRIVATE_H
 
 #define COBJMACROS
+#include <stdint.h>
 #include <stdlib.h>
 #include <windows.h>
 #include <winstring.h>
 #include <roapi.h>
 #include <activation.h>
 
-#include <xgameerr.h>
+#include <xgameruntime.h>
 
 #include <unknwn.h>
-#include "provider.h"
 #include "wine/debug.h"
-#include "xthread.h"
-#include "xnetwork.h"
 
 #define WIDL_using_Windows_Foundation
 #define WIDL_using_Windows_Foundation_Collections
@@ -44,20 +42,30 @@
 #define WIDL_using_Windows_System_Profile
 #include "windows.system.profile.h"
 
-// October 2025 Release of GDK
-#define GDKC_VERSION 10002L
-#define GAMING_SERVICES_VERSION 4429L
-
-extern IXSystemImpl *x_system_impl;
+extern IXSystemImpl5 *x_system_impl;
 extern IXSystemAnalyticsImpl *x_system_analytics_impl;
 extern IXThreadingImpl *x_threading_impl;
 extern IXGameRuntimeFeatureImpl *x_game_runtime_feature_impl;
-extern IXNetworkingImpl *x_networking_impl;
-
-typedef struct _INITIALIZE_OPTIONS
-{
-    int unused;
-} INITIALIZE_OPTIONS;
+extern IXNetworkingImpl2 *x_networking_impl;
+extern IXAccessibilityImpl2 *x_accessibility_impl;
+extern IXUserImpl6 *x_user_impl;
+extern IXUserDeviceImpl2 *x_user_device_impl;
+extern IXAppCaptureImpl *x_app_capture_impl;
+extern IXAppCaptureImpl5 *x_app_capture2_impl;
+extern IXDisplayImpl *x_display_impl;
+extern IXLauncherImpl *x_launcher_impl;
+extern IXErrorImpl *x_error_impl;
+extern IXGameImpl3 *x_game_impl;
+extern IXGameActivationImpl *x_game_activation_impl;
+extern IXGameEventImpl *x_game_event_impl;
+extern IXGameInviteImpl2 *x_game_invite_impl;
+extern IXGameProtocolImpl *x_game_protocol_impl;
+extern IXGameSaveImpl3 *x_game_save_impl;
+extern IXGameStreamingImpl3 *x_game_streaming_impl;
+extern IXGameUiImpl4 *x_game_ui_impl;
+extern IXPackageImpl3 *x_package_impl;
+extern IXPersistentLocalStorageImpl3 *x_persistent_local_storage_impl;
+extern IXStoreImpl6 *x_store_impl;
 
 // Deference is for other modules to communicate with eachother through the same binary.
 HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, void **out );

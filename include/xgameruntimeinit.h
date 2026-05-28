@@ -16,31 +16,40 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef __WINE_XASYNCPROVIDER_H
-#define __WINE_XASYNCPROVIDER_H
+#ifndef __WINE_XGAMERUNTIMEINIT_H
+#define __WINE_XGAMERUNTIMEINIT_H
 
-#include <stdint.h>
-#include "xasync.h"
+#ifdef __cplusplus
+extern "C" {
 
-typedef enum XAsyncOp 
+enum class XGameRuntimeGameConfigSource : UINT32
 {
-    Begin,
-    DoWork,
-    GetResult,
-    Cancel,
-    Cleanup
-} XAsyncOp;
+    Default,
+    Inline,
+    File,
+};
 
-typedef struct XAsyncProviderData
+#elif defined(__WINESRC__)
+
+typedef enum XGameRuntimeGameConfigSource
 {
-    XAsyncBlock* async;
-    size_t bufferSize;
-    void* buffer;
-    void* context;
-} XAsyncProviderData;
+    XGameRuntimeGameConfigSource_Default,
+    XGameRuntimeGameConfigSource_Inline,
+    XGameRuntimeGameConfigSource_File,
+} XGameRuntimeGameConfigSource;
 
-typedef HRESULT CALLBACK XAsyncProviderCallback(_In_ XAsyncOp op, _Inout_ const XAsyncProviderData* data);
+#endif
 
-#define XASYNC_IDENTITY(method) #method
+typedef struct XGameRuntimeOptions XGameRuntimeOptions;
+
+struct XGameRuntimeOptions
+{
+    XGameRuntimeGameConfigSource gameConfigSource;
+    const char *gameConfig;
+};
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

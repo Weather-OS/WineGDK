@@ -48,7 +48,7 @@ HRESULT WINAPI GDKC_InitAPI(
     ULONG gdkVer, 
     ULONG gsVer, 
     CHAR mode,
-    INITIALIZE_OPTIONS *options
+    const XGameRuntimeOptions *options
 ) {
     HRESULT status = S_OK;
 
