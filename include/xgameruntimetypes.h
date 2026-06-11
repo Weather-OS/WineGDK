@@ -1,8 +1,5 @@
 /*
- * Xbox Game runtime Library
- *  GDK Component: System API -> XNetworking
- * 
- * Written by Weather
+ * Copyright (C) the Wine project
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,27 +16,48 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef XNETWORKING_H
-#define XNETWORKING_H
+#ifndef __WINE_XGAMERUNTIMETYPES_H
+#define __WINE_XGAMERUNTIMETYPES_H
 
-#include "../../../private.h"
-#include "HTTPClient.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#include <string.h>
+typedef struct XColor XColor;
+typedef struct XVersion XVersion;
 
-struct x_networking
+struct XColor
 {
-    IXNetworkingImpl IXNetworkingImpl_iface;
-    LONG ref;
+    union
+    {
+        struct
+        {
+            UINT8 A;
+            UINT8 R;
+            UINT8 G;
+            UINT8 B;
+        };
+        UINT32 Value;
+    };
 };
 
-struct UrlSecurityInfoContext
+struct XVersion
 {
-    BYTE *securityInformationBuffer;
-    SIZE_T securityInformationBufferCount;
-    LPCWSTR url;
-    XNetworkingSecurityInformation *securityInformation;
+    union
+    {
+        struct
+        {
+            UINT16 major;
+            UINT16 minor;
+            UINT16 build;
+            UINT16 revision;
+        };
+        UINT64 Value;
+    };
 };
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif
