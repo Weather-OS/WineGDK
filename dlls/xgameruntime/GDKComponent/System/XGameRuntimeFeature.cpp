@@ -74,7 +74,7 @@ public:
         return curr;
     }
 
-    BOOLEAN WINAPI XGameRuntimeIsFeatureAvailable( XGameRuntimeFeature feature )
+    BOOLEAN WINAPI XGameRuntimeIsFeatureAvailable( XGameRuntimeFeature feature ) override
     {
         // Always assume the feature is available, regardless of what game it is, for compatibility reasons.
         TRACE( "feature %d.\n", (int)feature );
