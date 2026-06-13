@@ -81,7 +81,7 @@ public:
         return curr;
     }
 
-    XSystemAnalyticsInfo WINAPI XSystemGetAnalyticsInfo() override
+    XSystemAnalyticsInfo* WINAPI XSystemGetAnalyticsInfo( XSystemAnalyticsInfo* __ret ) override
     {
         // For Windows, XSystemAnalyticsInfo->form is always "Desktop"
         XSystemAnalyticsInfo info{};    
@@ -103,21 +103,21 @@ public:
         TRACE( "iface %p.\n", this );
 
         status = WindowsCreateString( analytics_info_str, lstrlenW( analytics_info_str ), &analytics_info_class );
-        if ( FAILED( status ) ) return info;
+        if ( FAILED( status ) ) return nullptr;
 
         status = RoGetActivationFactory( analytics_info_class, __uuidof( IAnalyticsInfoStatics ), (void **)&analytics_info_statics );
         WindowsDeleteString( analytics_info_class );
-        if ( FAILED( status ) ) return info;
+        if ( FAILED( status ) ) return nullptr;
 
         status = analytics_info_statics->get_VersionInfo( &analytics_version_info );
         analytics_info_statics->Release();
-        if ( FAILED( status ) ) return info;
+        if ( FAILED( status ) ) return nullptr;
 
         status = analytics_version_info->get_DeviceFamilyVersion( &deviceFamilyVersion );
         if ( FAILED( status ) )
         {
             analytics_version_info->Release();
-            return info;
+            return nullptr;
         }
 
         status = analytics_version_info->get_DeviceFamily( &deviceFamily );
@@ -125,7 +125,7 @@ public:
         if ( FAILED( status ) )
         {
             WindowsDeleteString( deviceFamilyVersion );
-            return info;
+            return nullptr;
         }
 
         deviceFamilyStr = WindowsGetStringRawBuffer( deviceFamily, nullptr );
@@ -136,7 +136,7 @@ public:
         {
             WindowsDeleteString( deviceFamilyVersion );
             WindowsDeleteString( deviceFamily );
-            return info;
+            return nullptr;
         }
 
         if ( !WideCharToMultiByte( CP_UTF8, 0, deviceFamilyStr, -1, str, strSize, nullptr, nullptr ) )
@@ -144,7 +144,7 @@ public:
             WindowsDeleteString( deviceFamilyVersion );
             WindowsDeleteString( deviceFamily );
             free( str );
-            return info;
+            return nullptr;
         }
 
         splitter = strchr( str, '.' );
@@ -166,14 +166,14 @@ public:
         if ( !str )
         {
             WindowsDeleteString( deviceFamilyVersion );
-            return info;
+            return nullptr;
         }
 
         if ( !WideCharToMultiByte( CP_UTF8, 0, deviceFamilyVersionStr, -1, str, strSize, nullptr, nullptr ) )
         {
             WindowsDeleteString( deviceFamilyVersion );
             free( str );
-            return info;
+            return nullptr;
         }
 
         version = strtoull( str, nullptr, 10 );
@@ -187,7 +187,9 @@ public:
 
         info.hostingOsVersion = info.osVersion;
 
-        return info;
+        *__ret = info;
+
+        return __ret;
     }
 
 private:

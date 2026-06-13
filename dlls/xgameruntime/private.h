@@ -45,6 +45,8 @@
 #include <cstdint>
 #endif
 
+#define WIDL_EXPLICIT_AGGREGATE_RETURNS
+
 #include <xgameerr.h>
 #include <xsystem.h>
 #include <xgameruntimefeature.h>
