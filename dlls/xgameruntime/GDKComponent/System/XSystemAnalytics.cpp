@@ -105,7 +105,7 @@ public:
         status = WindowsCreateString( analytics_info_str, lstrlenW( analytics_info_str ), &analytics_info_class );
         if ( FAILED( status ) ) return info;
 
-        status = RoGetActivationFactory( analytics_info_class, __uuidof( IAnalyticsVersionInfo ), (void **)&analytics_info_statics );
+        status = RoGetActivationFactory( analytics_info_class, __uuidof( IAnalyticsInfoStatics ), (void **)&analytics_info_statics );
         WindowsDeleteString( analytics_info_class );
         if ( FAILED( status ) ) return info;
 
