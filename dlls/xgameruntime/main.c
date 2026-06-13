@@ -188,6 +188,10 @@ HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, voi
     {
         return IXSystemAnalyticsImpl_QueryInterface( x_system_analytics, interfaceId, out );
     }
+    else if ( IsEqualGUID( runtimeClassId, &CLSID_XNetworkingImpl ) )
+    {
+        return IXNetworkingImpl_QueryInterface( x_networking, interfaceId, out );
+    }
     else if ( IsEqualGUID( runtimeClassId, &CLSID_XThreadingImpl ) )
     {
         /**

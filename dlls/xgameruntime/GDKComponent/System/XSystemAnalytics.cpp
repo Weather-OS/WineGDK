@@ -26,10 +26,6 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(gdkc);
 
-const INT32 XSystemConsoleIdBytes = 39;
-const INT32 XSystemXboxLiveSandboxIdMaxBytes = 16;
-const INT32 XSystemAppSpecificDeviceIdBytes = 45;
-
 using namespace ABI::Windows::System::Profile;
 
 class XSystemAnalyticsImpl : 
