@@ -84,6 +84,7 @@
 extern IXThreadingImpl *x_threading_impl;
 extern IXGameRuntimeFeatureImpl *x_game_runtime_feature;
 extern IXSystemImpl *x_system;
+extern IXSystemAnalyticsImpl *x_system_analytics;
 
 typedef struct _INITIALIZE_OPTIONS
 {
