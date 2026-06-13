@@ -248,7 +248,7 @@ HRESULT TaskQueuePortImpl::Initialize(
     return S_OK;
 }
 
-HRESULT WINAPI TaskQueuePortImpl::QueueItem(
+HRESULT TaskQueuePortImpl::QueueItem(
     ITaskQueuePortContext* portContext,
     uint32_t waitMs,
     void* callbackContext,
@@ -303,7 +303,7 @@ HRESULT WINAPI TaskQueuePortImpl::QueueItem(
     return S_OK;
 }
 
-HRESULT WINAPI TaskQueuePortImpl::RegisterWaitHandle(
+HRESULT TaskQueuePortImpl::RegisterWaitHandle(
     ITaskQueuePortContext* portContext,
     HANDLE waitHandle,
     void* callbackContext,
@@ -350,7 +350,7 @@ HRESULT WINAPI TaskQueuePortImpl::RegisterWaitHandle(
     return S_OK;
 }
 
-void WINAPI TaskQueuePortImpl::UnregisterWaitHandle(
+void TaskQueuePortImpl::UnregisterWaitHandle(
     XTaskQueueRegistrationToken token
 ) {
     WaitRegistration* toDelete = nullptr;
@@ -392,7 +392,7 @@ void WINAPI TaskQueuePortImpl::UnregisterWaitHandle(
     SignalQueue();
 }
 
-HRESULT WINAPI TaskQueuePortImpl::PrepareTerminate(
+HRESULT TaskQueuePortImpl::PrepareTerminate(
     ITaskQueuePortContext* portContext,
     void* callbackContext,
     XTaskQueueTerminatedCallback* callback,
@@ -419,7 +419,7 @@ HRESULT WINAPI TaskQueuePortImpl::PrepareTerminate(
     return S_OK;
 }
 
-void WINAPI TaskQueuePortImpl::CancelTermination(
+void TaskQueuePortImpl::CancelTermination(
     void* token
 ) {
     TerminationEntry* term = static_cast<TerminationEntry*>(token);
@@ -434,7 +434,7 @@ void WINAPI TaskQueuePortImpl::CancelTermination(
     delete term;
 }
 
-void WINAPI TaskQueuePortImpl::Terminate(
+void TaskQueuePortImpl::Terminate(
     void* token
 ) {
     TerminationEntry* term = static_cast<TerminationEntry*>(token);
@@ -458,13 +458,13 @@ void WINAPI TaskQueuePortImpl::Terminate(
     ResumeTermination(cxt.get());
 }
 
-HRESULT WINAPI TaskQueuePortImpl::Attach(
+HRESULT TaskQueuePortImpl::Attach(
     ITaskQueuePortContext* portContext
 ) {
     return m_attachedContexts.Add(portContext);
 }
 
-void WINAPI TaskQueuePortImpl::Detach(
+void TaskQueuePortImpl::Detach(
     ITaskQueuePortContext* portContext
 ) {
     CancelPendingEntries(portContext, false);
@@ -474,7 +474,7 @@ void WINAPI TaskQueuePortImpl::Detach(
     });
 }
 
-bool WINAPI TaskQueuePortImpl::Dispatch(
+bool TaskQueuePortImpl::Dispatch(
     ITaskQueuePortContext* portContext,
     uint32_t timeoutInMs
 ) {
@@ -614,7 +614,7 @@ bool TaskQueuePortImpl::Wait(
     return true;
 }
 
-bool WINAPI TaskQueuePortImpl::IsEmpty()
+bool TaskQueuePortImpl::IsEmpty()
 {
     bool empty =
         (m_queueList->empty()) &&
@@ -624,7 +624,7 @@ bool WINAPI TaskQueuePortImpl::IsEmpty()
     return empty;
 }
 
-void WINAPI TaskQueuePortImpl::WaitForUnwind()
+void TaskQueuePortImpl::WaitForUnwind()
 {
     std::mutex mutex;
     std::unique_lock<std::mutex> lock(mutex);
@@ -637,7 +637,7 @@ void WINAPI TaskQueuePortImpl::WaitForUnwind()
     }
 }
 
-HRESULT WINAPI TaskQueuePortImpl::SuspendTermination(
+HRESULT TaskQueuePortImpl::SuspendTermination(
     ITaskQueuePortContext* portContext
 ) {
     portContext->AddSuspend();
@@ -652,7 +652,7 @@ HRESULT WINAPI TaskQueuePortImpl::SuspendTermination(
     return S_OK;
 }
 
-void WINAPI TaskQueuePortImpl::ResumeTermination(
+void TaskQueuePortImpl::ResumeTermination(
     ITaskQueuePortContext* portContext
 ) {
     if (portContext->RemoveSuspend())
@@ -683,12 +683,12 @@ void WINAPI TaskQueuePortImpl::ResumeTermination(
     }
 }
 
-void WINAPI TaskQueuePortImpl::SuspendPort()
+void TaskQueuePortImpl::SuspendPort()
 {
     m_suspended = true;
 }
 
-void WINAPI TaskQueuePortImpl::ResumePort()
+void TaskQueuePortImpl::ResumePort()
 {
     uint32_t notifyCount = 0;
     uint64_t address;
@@ -1316,7 +1316,7 @@ HRESULT TaskQueueImpl::Initialize(
     return S_OK;
 }
 
-HRESULT WINAPI TaskQueueImpl::GetPortContext(
+HRESULT TaskQueueImpl::GetPortContext(
     _In_ XTaskQueuePort port,
     _Out_ ITaskQueuePortContext** portContext)
 {
@@ -1341,7 +1341,7 @@ HRESULT WINAPI TaskQueueImpl::GetPortContext(
     return S_OK;
 }
 
-HRESULT WINAPI TaskQueueImpl::RegisterWaitHandle(
+HRESULT TaskQueueImpl::RegisterWaitHandle(
     _In_ XTaskQueuePort port,
     _In_ HANDLE waitHandle,
     _In_opt_ void* callbackContext,
@@ -1371,7 +1371,7 @@ HRESULT WINAPI TaskQueueImpl::RegisterWaitHandle(
     return S_OK;
 }
 
-void WINAPI TaskQueueImpl::UnregisterWaitHandle(
+void TaskQueueImpl::UnregisterWaitHandle(
     _In_ XTaskQueueRegistrationToken token)
 {
     std::pair<XTaskQueuePort, XTaskQueueRegistrationToken> pair = m_waitRegistry.Unregister(token);
@@ -1385,7 +1385,7 @@ void WINAPI TaskQueueImpl::UnregisterWaitHandle(
     }
 }
 
-HRESULT WINAPI TaskQueueImpl::RegisterSubmitCallback(
+HRESULT TaskQueueImpl::RegisterSubmitCallback(
     _In_opt_ void* context,
     _In_ XTaskQueueMonitorCallback* callback,
     _Out_ XTaskQueueRegistrationToken* token)
@@ -1393,13 +1393,13 @@ HRESULT WINAPI TaskQueueImpl::RegisterSubmitCallback(
     return m_callbackSubmitted.Register(context, callback, token);
 }
 
-void WINAPI TaskQueueImpl::UnregisterSubmitCallback(
+void TaskQueueImpl::UnregisterSubmitCallback(
     _In_ XTaskQueueRegistrationToken token)
 {
     m_callbackSubmitted.Unregister(token);
 }
 
-HRESULT WINAPI TaskQueueImpl::Terminate(
+HRESULT TaskQueueImpl::Terminate(
     _In_ bool wait, 
     _In_opt_ void* callbackContext, 
     _In_opt_ XTaskQueueTerminatedCallback* callback)
@@ -1571,50 +1571,50 @@ TaskQueuePortContextImpl::Release()
 }
 
 
-XTaskQueuePort WINAPI TaskQueuePortContextImpl::GetType()
+XTaskQueuePort TaskQueuePortContextImpl::GetType()
 {
     return m_type;
 }
 
-TaskQueuePortStatus WINAPI TaskQueuePortContextImpl::GetStatus()
+TaskQueuePortStatus TaskQueuePortContextImpl::GetStatus()
 {
     return m_status;
 }
 
-ITaskQueue* WINAPI TaskQueuePortContextImpl::GetQueue()
+ITaskQueue* TaskQueuePortContextImpl::GetQueue()
 {
     return m_queue;
 }
 
-ITaskQueuePort* WINAPI TaskQueuePortContextImpl::GetPort()
+ITaskQueuePort* TaskQueuePortContextImpl::GetPort()
 {
     return Port.get();
 }
 
-bool WINAPI TaskQueuePortContextImpl::TrySetStatus(
+bool TaskQueuePortContextImpl::TrySetStatus(
     TaskQueuePortStatus expectedStatus,
     TaskQueuePortStatus status
 ) {
     return m_status.compare_exchange_strong(expectedStatus, status);
 }
     
-void WINAPI TaskQueuePortContextImpl::SetStatus(
+void TaskQueuePortContextImpl::SetStatus(
     TaskQueuePortStatus status
 ) {
     m_status = status;
 }
 
-void WINAPI TaskQueuePortContextImpl::ItemQueued()
+void TaskQueuePortContextImpl::ItemQueued()
 {
     m_submitCallback->Invoke(m_type);
 }
 
-bool WINAPI TaskQueuePortContextImpl::AddSuspend()
+bool TaskQueuePortContextImpl::AddSuspend()
 {
     return (m_suspendCount.fetch_add(1) == 0);
 }
 
-bool WINAPI TaskQueuePortContextImpl::RemoveSuspend()
+bool TaskQueuePortContextImpl::RemoveSuspend()
 {
     for(;;)
     {
@@ -1773,7 +1773,7 @@ static HRESULT CreateTaskQueueHandle(
  * xgameruntime XTaskQueue methods
  */
 
-HRESULT WINAPI XTaskQueueCreate(
+HRESULT XTaskQueueCreate(
     XTaskQueueDispatchMode workDispatchMode,
     XTaskQueueDispatchMode completionDispatchMode,
     XTaskQueueHandle* queue
@@ -1794,7 +1794,7 @@ HRESULT WINAPI XTaskQueueCreate(
     return S_OK;
 }
 
-HRESULT WINAPI XTaskQueueGetPort(
+HRESULT XTaskQueueGetPort(
     XTaskQueueHandle queue,
     XTaskQueuePort port,
     XTaskQueuePortHandle* portHandle
@@ -1810,7 +1810,7 @@ HRESULT WINAPI XTaskQueueGetPort(
     return S_OK;
 }
 
-HRESULT WINAPI XTaskQueueCreateComposite(
+HRESULT XTaskQueueCreateComposite(
     XTaskQueuePortHandle workPort,
     XTaskQueuePortHandle completionPort,
     XTaskQueueHandle* queue
@@ -1828,7 +1828,7 @@ HRESULT WINAPI XTaskQueueCreateComposite(
     return S_OK;
 }
 
-BOOLEAN WINAPI XTaskQueueDispatch(
+BOOLEAN XTaskQueueDispatch(
     XTaskQueueHandle queue,
     XTaskQueuePort port,
     UINT32 timeoutInMs
@@ -1848,7 +1848,7 @@ BOOLEAN WINAPI XTaskQueueDispatch(
     return portContext->GetPort()->Dispatch(portContext.get(), timeoutInMs);
 }
 
-void WINAPI XTaskQueueCloseHandle(
+void XTaskQueueCloseHandle(
     XTaskQueueHandle queue
 ) {
     ITaskQueue* aq = GetQueue(queue);
@@ -1866,7 +1866,7 @@ void WINAPI XTaskQueueCloseHandle(
     }
 }
 
-HRESULT WINAPI XTaskQueueTerminate(
+HRESULT XTaskQueueTerminate(
     XTaskQueueHandle queue, 
     BOOLEAN wait, 
     void* callbackContext, 
@@ -1876,7 +1876,7 @@ HRESULT WINAPI XTaskQueueTerminate(
     return aq->Terminate(wait, callbackContext, callback);
 }
 
-HRESULT WINAPI XTaskQueueSubmitCallback(
+HRESULT XTaskQueueSubmitCallback(
     XTaskQueueHandle queue,
     XTaskQueuePort port,
     void* callbackContext,
@@ -1885,7 +1885,7 @@ HRESULT WINAPI XTaskQueueSubmitCallback(
     return XTaskQueueSubmitDelayedCallback(queue, port, 0, callbackContext, callback);
 }
 
-HRESULT WINAPI XTaskQueueSubmitDelayedCallback(
+HRESULT XTaskQueueSubmitDelayedCallback(
     XTaskQueueHandle queue,
     XTaskQueuePort port,
     uint32_t delayMs,
@@ -1902,7 +1902,7 @@ HRESULT WINAPI XTaskQueueSubmitDelayedCallback(
     return S_OK;
 }
 
-HRESULT WINAPI XTaskQueueRegisterWaiter(
+HRESULT XTaskQueueRegisterWaiter(
     XTaskQueueHandle queue,
     XTaskQueuePort port,
     HANDLE waitHandle,
@@ -1917,7 +1917,7 @@ HRESULT WINAPI XTaskQueueRegisterWaiter(
 }
 
 
-void WINAPI XTaskQueueUnregisterWaiter(
+void XTaskQueueUnregisterWaiter(
     XTaskQueueHandle queue,
     XTaskQueueRegistrationToken token
 ) {
@@ -1928,7 +1928,7 @@ void WINAPI XTaskQueueUnregisterWaiter(
     }
 }
 
-HRESULT WINAPI XTaskQueueDuplicateHandleWithOptions(
+HRESULT XTaskQueueDuplicateHandleWithOptions(
     XTaskQueueHandle queueHandle,
     XTaskQueueDuplicateOptions options,
     XTaskQueueHandle* duplicatedHandle
@@ -1955,7 +1955,7 @@ HRESULT WINAPI XTaskQueueDuplicateHandleWithOptions(
     return S_OK;
 }
 
-HRESULT WINAPI XTaskQueueDuplicateHandle(
+HRESULT XTaskQueueDuplicateHandle(
     XTaskQueueHandle queueHandle,
     XTaskQueueHandle* duplicatedHandle
 ) {
@@ -1965,7 +1965,7 @@ HRESULT WINAPI XTaskQueueDuplicateHandle(
         duplicatedHandle);
 }
 
-HRESULT WINAPI XTaskQueueRegisterMonitor(
+HRESULT XTaskQueueRegisterMonitor(
     XTaskQueueHandle queue,
     void* callbackContext,
     XTaskQueueMonitorCallback* callback,
@@ -1977,7 +1977,7 @@ HRESULT WINAPI XTaskQueueRegisterMonitor(
     return S_OK;
 }
 
-void WINAPI XTaskQueueUnregisterMonitor(
+void XTaskQueueUnregisterMonitor(
     XTaskQueueHandle queue,
     XTaskQueueRegistrationToken token
 ) {
@@ -1989,7 +1989,7 @@ void WINAPI XTaskQueueUnregisterMonitor(
 }
 
 
-bool WINAPI XTaskQueueGetCurrentProcessTaskQueueWithOptions(
+bool XTaskQueueGetCurrentProcessTaskQueueWithOptions(
     XTaskQueueDuplicateOptions options,
     XTaskQueueHandle* queue
 ) {
@@ -2036,13 +2036,13 @@ bool WINAPI XTaskQueueGetCurrentProcessTaskQueueWithOptions(
     return (*queue) != nullptr;
 }
 
-BOOLEAN WINAPI XTaskQueueGetCurrentProcessTaskQueue(
+BOOLEAN XTaskQueueGetCurrentProcessTaskQueue(
     XTaskQueueHandle* queue
 ) {
     return XTaskQueueGetCurrentProcessTaskQueueWithOptions(XTaskQueueDuplicateOptions::None, queue);
 }
 
-void WINAPI XTaskQueueSetCurrentProcessTaskQueue(
+void XTaskQueueSetCurrentProcessTaskQueue(
     XTaskQueueHandle queue
 ) {
     XTaskQueueHandle newQueue = nullptr;
@@ -2059,7 +2059,7 @@ void WINAPI XTaskQueueSetCurrentProcessTaskQueue(
     }
 }
 
-HRESULT WINAPI XTaskQueueSuspendTermination( 
+HRESULT XTaskQueueSuspendTermination( 
     XTaskQueueHandle queue
 ) {
     referenced_ptr<ITaskQueue> aq(GetQueue(queue));

@@ -616,7 +616,7 @@ HRESULT WINAPI XAsyncGetStatus(
 
 HRESULT WINAPI XAsyncGetResultSize(
     XAsyncBlock* asyncBlock,
-    size_t* bufferSize
+    SIZE_T* bufferSize
 ) {
     HRESULT result = E_PENDING;
     AsyncStateRef state;
@@ -650,6 +650,33 @@ void WINAPI XAsyncCancel(
     }
 }
 
+static HRESULT __stdcall XAsyncRunProvider(
+    XAsyncOp op,
+    const XAsyncProviderData* data
+)
+{
+    switch (op)
+    {
+        case XAsyncOp::Begin:
+            return XAsyncSchedule(data->async, 0);
+
+        case XAsyncOp::DoWork:
+        {
+            auto* work = reinterpret_cast<XAsyncWork*>(data->context);
+            HRESULT hr = work(data->async);
+            XAsyncComplete(data->async, hr, 0);
+            return hr;
+        }
+
+        case XAsyncOp::Cancel:
+        case XAsyncOp::Cleanup:
+        case XAsyncOp::GetResult:
+            break;
+    }
+
+    return S_OK;
+}
+
 HRESULT WINAPI XAsyncRun(
     XAsyncBlock* asyncBlock,
     XAsyncWork* work
@@ -659,30 +686,7 @@ HRESULT WINAPI XAsyncRun(
         reinterpret_cast<void*>(work),
         reinterpret_cast<void*>(XAsyncRun),
         __FUNCTION__,
-        [](XAsyncOp op, const XAsyncProviderData* data)
-    {
-        switch (op)
-        {
-            case XAsyncOp::Begin:
-                return XAsyncSchedule(data->async, 0);
-                
-            case XAsyncOp::DoWork:
-                {
-                    XAsyncWork* work = reinterpret_cast<XAsyncWork*>(data->context);
-                    HRESULT hr = work(data->async);
-                    XAsyncComplete(data->async, hr, 0);
-                }
-                break;
-
-            case XAsyncOp::Cancel:
-            case XAsyncOp::Cleanup:
-            case XAsyncOp::GetResult:
-                break;
-
-        }
-
-        return S_OK;
-    }));
+        XAsyncRunProvider));
 
     return S_OK;
 }
@@ -770,7 +774,7 @@ HRESULT WINAPI XAsyncBeginAlloc(
 
 HRESULT WINAPI XAsyncSchedule(
     XAsyncBlock* asyncBlock,
-    uint32_t delayInMs
+    UINT32 delayInMs
 ) {
     HRESULT existingStatus;
     AsyncStateRef state;
@@ -811,7 +815,7 @@ HRESULT WINAPI XAsyncSchedule(
 void WINAPI XAsyncComplete(
     XAsyncBlock* asyncBlock,
     HRESULT result,
-    size_t requiredBufferSize
+    SIZE_T requiredBufferSize
 ) {
     if (result == E_PENDING)
     {
@@ -858,9 +862,9 @@ void WINAPI XAsyncComplete(
 HRESULT WINAPI XAsyncGetResult(
     XAsyncBlock* asyncBlock,
     const void* identity,
-    size_t bufferSize,
+    SIZE_T bufferSize,
     void* buffer,
-    size_t* bufferUsed
+    SIZE_T* bufferUsed
 ) {
     HRESULT result = E_PENDING;
     AsyncStateRef state;

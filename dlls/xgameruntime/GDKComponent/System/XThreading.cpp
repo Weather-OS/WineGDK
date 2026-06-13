@@ -74,31 +74,31 @@ public:
         return curr;
     }
 
-    HRESULT XAsyncGetStatus( XAsyncBlock *asyncBlock, BOOLEAN wait ) override
+    HRESULT WINAPI XAsyncGetStatus( XAsyncBlock *asyncBlock, BOOLEAN wait ) override
     {
         TRACE("asyncBlock %p, wait %d\n", asyncBlock, wait);
         return ::XAsyncGetStatus( asyncBlock, wait );
     }
 
-    HRESULT XAsyncGetResultSize( XAsyncBlock *asyncBlock, SIZE_T *bufferSize ) override
+    HRESULT WINAPI XAsyncGetResultSize( XAsyncBlock *asyncBlock, SIZE_T *bufferSize ) override
     {
         TRACE("asyncBlock %p, bufferSize %p\n", asyncBlock, bufferSize);
         return ::XAsyncGetResultSize( asyncBlock, bufferSize );
     }
 
-    void XAsyncCancel( XAsyncBlock *asyncBlock ) override
+    void WINAPI XAsyncCancel( XAsyncBlock *asyncBlock ) override
     {
         TRACE("asyncBlock %p\n", asyncBlock);
         ::XAsyncCancel( asyncBlock );
     }
 
-    HRESULT XAsyncRun( XAsyncBlock *asyncBlock, XAsyncWork *work ) override
+    HRESULT WINAPI XAsyncRun( XAsyncBlock *asyncBlock, XAsyncWork *work ) override
     {
         TRACE("asyncBlock %p, work %p\n", asyncBlock, work);
         return ::XAsyncRun( asyncBlock, work );
     }
 
-    HRESULT XAsyncBegin( XAsyncBlock *asyncBlock, void *context, const void *identity, const char *identityName, XAsyncProvider *provider ) override
+    HRESULT WINAPI XAsyncBegin( XAsyncBlock *asyncBlock, void *context, const void *identity, const char *identityName, XAsyncProvider *provider ) override
     {
         TRACE("asyncBlock %p, context %p, identity %p, identityName %s, provider %p\n", asyncBlock, context, identity, identityName, provider);
         return ::XAsyncBegin( asyncBlock, context, identity, identityName, provider );
@@ -106,121 +106,121 @@ public:
 
     //  NOTE: Padding function here is most likely XAsyncBeginAlloc from libHttpClient. More testing needs to be conducted.
     // Since this is a private/undocumented function, implementation is not necessary.
-    HRESULT __PADDING__() override
+    HRESULT WINAPI __PADDING__() override
     {
         WARN("padding function called!\n");
         return E_NOTIMPL;
     }
 
-    HRESULT XAsyncSchedule( XAsyncBlock *asyncBlock, UINT32 delayInMs ) override
+    HRESULT WINAPI XAsyncSchedule( XAsyncBlock *asyncBlock, UINT32 delayInMs ) override
     {
         TRACE("asyncBlock %p, UINT32 delayInMs %d\n", asyncBlock, delayInMs);
         return ::XAsyncSchedule( asyncBlock, delayInMs );
     }
 
-    void XAsyncComplete( XAsyncBlock *asyncBlock, HRESULT result, SIZE_T requiredBufferSize ) override
+    void WINAPI XAsyncComplete( XAsyncBlock *asyncBlock, HRESULT result, SIZE_T requiredBufferSize ) override
     {
         TRACE("asyncBlock %p, result %#lx, requiredBufferSize %lld\n", asyncBlock, result, requiredBufferSize);
         ::XAsyncComplete( asyncBlock, result, requiredBufferSize );
     }
 
-    HRESULT XAsyncGetResult( XAsyncBlock *asyncBlock, const void *identity, SIZE_T bufferSize, void *buffer, SIZE_T *bufferUsed ) override
+    HRESULT WINAPI XAsyncGetResult( XAsyncBlock *asyncBlock, const void *identity, SIZE_T bufferSize, void *buffer, SIZE_T *bufferUsed ) override
     {
         TRACE("asyncBlock %p, identity %p, bufferSize %lld, buffer %p, bufferUsed %p\n", asyncBlock, identity, bufferSize, buffer, bufferUsed);
         return ::XAsyncGetResult( asyncBlock, identity, bufferSize, buffer, bufferUsed );
     }
 
-    HRESULT XTaskQueueCreate( XTaskQueueDispatchMode workDispatchMode, XTaskQueueDispatchMode completionDispatchMode, XTaskQueueHandle *queue ) override
+    HRESULT WINAPI XTaskQueueCreate( XTaskQueueDispatchMode workDispatchMode, XTaskQueueDispatchMode completionDispatchMode, XTaskQueueHandle *queue ) override
     {
         TRACE("workDispatchMode %d, completionDispatchMode %d, queue %p\n", (int)workDispatchMode, (int)completionDispatchMode, queue);
         return ::XTaskQueueCreate( workDispatchMode, completionDispatchMode, queue );
     }
 
-    HRESULT XTaskQueueCreateComposite( XTaskQueuePortHandle workPort, XTaskQueuePortHandle completionPort, XTaskQueueHandle *queue ) override
+    HRESULT WINAPI XTaskQueueCreateComposite( XTaskQueuePortHandle workPort, XTaskQueuePortHandle completionPort, XTaskQueueHandle *queue ) override
     {
         TRACE("workPort %p, completionPort %p, queue %p\n", workPort, completionPort, queue);
         return ::XTaskQueueCreateComposite( workPort, completionPort, queue );
     }
     
-    HRESULT XTaskQueueGetPort( XTaskQueueHandle queue, XTaskQueuePort port, XTaskQueuePortHandle *portHandle ) override
+    HRESULT WINAPI XTaskQueueGetPort( XTaskQueueHandle queue, XTaskQueuePort port, XTaskQueuePortHandle *portHandle ) override
     {
         TRACE("queue %p, port %d, portHandle %p\n", queue, (int)port, portHandle);
         return ::XTaskQueueGetPort( queue, port, portHandle );
     }
 
-    HRESULT XTaskQueueDuplicateHandle( XTaskQueueHandle queueHandle, XTaskQueueHandle *duplicatedHandle ) override
+    HRESULT WINAPI XTaskQueueDuplicateHandle( XTaskQueueHandle queueHandle, XTaskQueueHandle *duplicatedHandle ) override
     {
         TRACE("queueHandle %p, duplicatedHandle %p\n", queueHandle, duplicatedHandle);
         return ::XTaskQueueDuplicateHandle( queueHandle, duplicatedHandle );
     }
 
-    BOOLEAN XTaskQueueDispatch( XTaskQueueHandle queue, XTaskQueuePort port, UINT32 timeoutInMs ) override
+    BOOLEAN WINAPI XTaskQueueDispatch( XTaskQueueHandle queue, XTaskQueuePort port, UINT32 timeoutInMs ) override
     {
         TRACE("queue %p, port %d, timeoutInMs %d\n", queue, (int)port, timeoutInMs);
         return ::XTaskQueueDispatch( queue, port, timeoutInMs );
     }
 
-    void XTaskQueueCloseHandle( XTaskQueueHandle queue ) override
+    void WINAPI XTaskQueueCloseHandle( XTaskQueueHandle queue ) override
     {
         TRACE("queue %p\n", queue);
         ::XTaskQueueCloseHandle( queue );
     }
 
-    HRESULT XTaskQueueSubmitCallback( XTaskQueueHandle queue, XTaskQueuePort port, void *callbackContext, XTaskQueueCallback *callback ) override
+    HRESULT WINAPI XTaskQueueSubmitCallback( XTaskQueueHandle queue, XTaskQueuePort port, void *callbackContext, XTaskQueueCallback *callback ) override
     {
         TRACE("queue %p, port %d, callbackContext %p, callback %p\n", queue, (int)port, callbackContext, callback);
         return ::XTaskQueueSubmitCallback( queue, port, callbackContext, callback );
     }
 
-    HRESULT XTaskQueueSubmitDelayedCallback( XTaskQueueHandle queue, XTaskQueuePort port, UINT32 delayMs, void *callbackContext, XTaskQueueCallback *callback ) override
+    HRESULT WINAPI XTaskQueueSubmitDelayedCallback( XTaskQueueHandle queue, XTaskQueuePort port, UINT32 delayMs, void *callbackContext, XTaskQueueCallback *callback ) override
     {
         TRACE("queue %p, port %d, delayMs %d, callbackContext %p, callback %p\n", queue, (int)port, delayMs, callbackContext, callback);
         return ::XTaskQueueSubmitDelayedCallback( queue, port, delayMs, callbackContext, callback );
     }
 
-    HRESULT XTaskQueueRegisterWaiter( XTaskQueueHandle queue, XTaskQueuePort port, HANDLE waitHandle, void *callbackContext, XTaskQueueCallback *callback, XTaskQueueRegistrationToken *token ) override
+    HRESULT WINAPI XTaskQueueRegisterWaiter( XTaskQueueHandle queue, XTaskQueuePort port, HANDLE waitHandle, void *callbackContext, XTaskQueueCallback *callback, XTaskQueueRegistrationToken *token ) override
     {
         TRACE("queue %p, port %d, waitHandle %p, callbackContext %p, callback %p, token %p\n", queue, (int)port, waitHandle, callbackContext, callback, token);
         return ::XTaskQueueRegisterWaiter( queue, port, waitHandle, callbackContext, callback, token );
     }
     
-    void XTaskQueueUnregisterWaiter( XTaskQueueHandle queue, XTaskQueueRegistrationToken token ) override
+    void WINAPI XTaskQueueUnregisterWaiter( XTaskQueueHandle queue, XTaskQueueRegistrationToken token ) override
     {
         TRACE("queue %p, token %lld\n", queue, token.token);
         ::XTaskQueueUnregisterWaiter( queue, token );
     }
 
-    HRESULT XTaskQueueTerminate( XTaskQueueHandle queue, BOOLEAN wait, void *callbackContext, XTaskQueueTerminatedCallback *callback ) override
+    HRESULT WINAPI XTaskQueueTerminate( XTaskQueueHandle queue, BOOLEAN wait, void *callbackContext, XTaskQueueTerminatedCallback *callback ) override
     {
         TRACE("queue %p, wait %d, callbackContext %p, callback %p\n", queue, wait, callbackContext, callback);
         return ::XTaskQueueTerminate( queue, wait, callbackContext, callback );
     }
 
-    HRESULT XTaskQueueRegisterMonitor( XTaskQueueHandle queue, void *callbackContext, XTaskQueueMonitorCallback *callback, XTaskQueueRegistrationToken *token ) override
+    HRESULT WINAPI XTaskQueueRegisterMonitor( XTaskQueueHandle queue, void *callbackContext, XTaskQueueMonitorCallback *callback, XTaskQueueRegistrationToken *token ) override
     {
         TRACE("queue %p, callbackContext %p, callback %p, token %p\n", queue, callbackContext, callback, token);
         return ::XTaskQueueRegisterMonitor( queue, callbackContext, callback, token );
     }
 
-    void XTaskQueueUnregisterMonitor( XTaskQueueHandle queue, XTaskQueueRegistrationToken token ) override
+    void WINAPI XTaskQueueUnregisterMonitor( XTaskQueueHandle queue, XTaskQueueRegistrationToken token ) override
     {
         TRACE("queue %p, token %lld\n", queue, token.token);
         ::XTaskQueueUnregisterMonitor( queue, token );
     }
 
-    BOOLEAN XTaskQueueGetCurrentProcessTaskQueue( XTaskQueueHandle *queue ) override
+    BOOLEAN WINAPI XTaskQueueGetCurrentProcessTaskQueue( XTaskQueueHandle *queue ) override
     {
         TRACE("queue %p\n", queue);
         return ::XTaskQueueGetCurrentProcessTaskQueue( queue );
     }
 
-    void XTaskQueueSetCurrentProcessTaskQueue( XTaskQueueHandle queue ) override
+    void WINAPI XTaskQueueSetCurrentProcessTaskQueue( XTaskQueueHandle queue ) override
     {
         TRACE("queue %p\n", queue);
         ::XTaskQueueSetCurrentProcessTaskQueue( queue );
     }
 
-    HRESULT XThreadSetTimeSensitive( BOOLEAN isTimeSensitiveThread ) override
+    HRESULT WINAPI XThreadSetTimeSensitive( BOOLEAN isTimeSensitiveThread ) override
     {
         this->isTimeSensitiveThread = isTimeSensitiveThread;
         return S_OK;
@@ -228,19 +228,19 @@ public:
 
     //  NOTE: Padding function here is most likely XTaskQueueUninitialize from libHttpClient. More testing needs to be conducted.
     // Since this is a private/undocumented function, implementation is not necessary.
-    HRESULT __PADDING_2__() override
+    HRESULT WINAPI __PADDING_2__() override
     {
         WARN("padding function called!\n");
         return E_NOTIMPL;
     }
 
-    void XThreadAssertNotTimeSensitive() override
+    void WINAPI XThreadAssertNotTimeSensitive() override
     {
         if ( isTimeSensitiveThread )
             assert( false );
     }
 
-    BOOLEAN XThreadIsTimeSensitive() override
+    BOOLEAN WINAPI XThreadIsTimeSensitive() override
     {
         return isTimeSensitiveThread;
     }
