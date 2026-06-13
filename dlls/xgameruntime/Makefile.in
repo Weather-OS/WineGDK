@@ -2,4 +2,12 @@ IMPORTS   = user32 advapi32 crypt32 combase winhttp combase $(CXXABI_PE_LIBS) $(
 MODULE    = xgameruntime.dll
 
 SOURCES = \
-	main.c
+	main.c \
+	\
+	GDKComponent/System/Threading/XAsync.cpp \
+	GDKComponent/System/Threading/XTaskQueue.cpp \
+	GDKComponent/System/Threading/WaitTimer.cpp \
+	GDKComponent/System/Threading/ThreadPool.cpp \
+	\
+	GDKComponent/System/XThreading.cpp \
+	GDKComponent/System/XGameRuntimeFeature.cpp 

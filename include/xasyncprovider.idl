@@ -102,4 +102,10 @@ coclass XThreadingImpl
     [default] interface IXThreadingImpl;
 }
 
+// XAsyncProvider.h functions
+HRESULT XAsyncBegin( [in, out] XAsyncBlock *asyncBlock, [in, optional] void *context, [in, optional] const void *identity, [in, optional] const char *identityName, [in] XAsyncProvider *provider );
+HRESULT XAsyncSchedule( [in, out] XAsyncBlock *asyncBlock, [in] UINT32 delayInMs );
+void XAsyncComplete( [in, out] XAsyncBlock *asyncBlock, [in] HRESULT result, [in] SIZE_T requiredBufferSize );
+HRESULT XAsyncGetResult( [in, out] XAsyncBlock* asyncBlock, [in, optional] const void* identity, [in] SIZE_T bufferSize, [out, size_is(bufferSize)] void* buffer, [out, optional] SIZE_T* bufferUsed );
+
 cpp_quote("#endif")

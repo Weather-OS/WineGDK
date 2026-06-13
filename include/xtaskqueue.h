@@ -68,6 +68,26 @@ struct XTaskQueueRegistrationToken
     UINT64 token;
 };
 
+void XTaskQueueCloseHandle( XTaskQueueHandle queue );
+HRESULT XTaskQueueCreate( XTaskQueueDispatchMode workDispatchMode, XTaskQueueDispatchMode completionDispatchMode, XTaskQueueHandle *queue );
+HRESULT XTaskQueueCreateComposite( XTaskQueuePortHandle workPort, XTaskQueuePortHandle completionPort, XTaskQueueHandle *queue );
+HRESULT XTaskQueueGetPort( XTaskQueueHandle queue, XTaskQueuePort port, XTaskQueuePortHandle *portHandle );
+HRESULT XTaskQueueDuplicateHandle( XTaskQueueHandle queueHandle, XTaskQueueHandle *duplicatedHandle );
+BOOLEAN XTaskQueueDispatch( XTaskQueueHandle queue, XTaskQueuePort port, UINT32 timeoutInMs );
+void XTaskQueueCloseHandle( XTaskQueueHandle queue );
+HRESULT XTaskQueueTerminate( XTaskQueueHandle queue, BOOLEAN wait, void *callbackContext, XTaskQueueTerminatedCallback *callback );
+HRESULT XTaskQueueSubmitCallback( XTaskQueueHandle queue, XTaskQueuePort port, void *callbackContext, XTaskQueueCallback *callback );
+HRESULT XTaskQueueSubmitDelayedCallback( XTaskQueueHandle queue, XTaskQueuePort port, UINT32 delayMs, void *callbackContext, XTaskQueueCallback *callback );
+HRESULT XTaskQueueRegisterWaiter( XTaskQueueHandle queue, XTaskQueuePort port, HANDLE waitHandle, void *callbackContext, XTaskQueueCallback *callback, XTaskQueueRegistrationToken *token );
+void XTaskQueueUnregisterWaiter( XTaskQueueHandle queue, XTaskQueueRegistrationToken token );
+HRESULT XTaskQueueRegisterMonitor( XTaskQueueHandle queue, void *callbackContext, XTaskQueueMonitorCallback *callback, XTaskQueueRegistrationToken *token );
+void XTaskQueueUnregisterMonitor( XTaskQueueHandle queue, XTaskQueueRegistrationToken token );
+BOOLEAN XTaskQueueGetCurrentProcessTaskQueue( XTaskQueueHandle *queue );
+void XTaskQueueSetCurrentProcessTaskQueue( XTaskQueueHandle queue );
+HRESULT XThreadSetTimeSensitive( BOOLEAN isTimeSensitiveThread );
+void XThreadAssertNotTimeSensitive();
+BOOLEAN XThreadIsTimeSensitive();
+
 #ifdef __cplusplus
 }
 #endif

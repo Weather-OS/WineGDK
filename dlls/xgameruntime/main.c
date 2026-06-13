@@ -57,7 +57,7 @@ HRESULT WINAPI InitializeApiImplEx2( ULONG gdkVer, ULONG gsVer, CHAR mode, INITI
     //  There's no documented information about what `INITIALIZE_OPTIONS` is,
     // and xgameruntime.lib never utilizes this argument anyway.
     TRACE("gdkVer %ld, gsVer %ld, mode %d, options %p stub!\n", gdkVer, gsVer, mode, options);
-    return E_NOTIMPL;
+    return S_OK;
 }
 
 HRESULT WINAPI InitializeApiImplEx( ULONG gdkVer, ULONG gsVer, CHAR mode )
@@ -98,7 +98,13 @@ HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, voi
     //  IXSystemImpl_XSystemIsHandleValid               (offset 56)
     //  IXSystemImpl_XSystemAllowFullDownloadBandwidth  (offset 64)
     //
-    FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( runtimeClassId ) );
+
+    if ( IsEqualGUID( runtimeClassId, &CLSID_XThreadingImpl ) )
+    {
+        return IXThreadingImpl_QueryInterface( x_threading_impl, interfaceId, out );
+    }
+
+    FIXME("%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( runtimeClassId ));
     return E_NOTIMPL;
 }
 

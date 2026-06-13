@@ -38,6 +38,11 @@ struct XAsyncBlock
     void *internal[4];
 };
 
+HRESULT XAsyncGetStatus( XAsyncBlock *asyncBlock, BOOLEAN wait );
+HRESULT XAsyncGetResultSize( XAsyncBlock *asyncBlock, SIZE_T *bufferSize );
+void XAsyncCancel( XAsyncBlock *asyncBlock );
+HRESULT XAsyncRun( XAsyncBlock *asyncBlock, XAsyncWork *work );
+
 #ifdef __cplusplus
 }
 #endif

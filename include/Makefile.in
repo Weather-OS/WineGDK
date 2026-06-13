@@ -1239,6 +1239,7 @@ SOURCES = \
 	xasyncprovider.idl \
 	xaudio2.idl \
 	xaudio2fx.idl \
+	xgameruntimefeature.idl \
 	xcmc.h \
 	xinput.h \
 	xmldom.h \
