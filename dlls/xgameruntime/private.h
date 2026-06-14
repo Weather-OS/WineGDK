@@ -51,6 +51,7 @@
 #include <xsystem.h>
 #include <xgameruntimefeature.h>
 #include <xnetworking.h>
+#include <xuser.h>
 #include <xasync.h>
 #include <xasyncprovider.h>
 
@@ -89,6 +90,7 @@ extern IXGameRuntimeFeatureImpl *x_game_runtime_feature;
 extern IXSystemImpl *x_system;
 extern IXSystemAnalyticsImpl *x_system_analytics;
 extern IXNetworkingImpl *x_networking;
+extern IXUserImpl *x_user;
 
 typedef struct _INITIALIZE_OPTIONS
 {

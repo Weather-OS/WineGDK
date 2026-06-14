@@ -13,4 +13,5 @@ SOURCES = \
 	GDKComponent/System/XGameRuntimeFeature.cpp \
 	GDKComponent/System/XSystem.cpp \
 	GDKComponent/System/XSystemAnalytics.cpp \
-	GDKComponent/System/XNetworking.cpp
+	GDKComponent/System/XNetworking.cpp \
+	GDKComponent/System/XUser.cpp
