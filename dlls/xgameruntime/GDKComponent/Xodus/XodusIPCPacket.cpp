@@ -33,16 +33,19 @@ class XodusIPCPacket :
 {
 public:
     XodusIPCPacket() = default;
-    XodusIPCPacket( XodusIPCPacket &r ) = default;
+
+    XodusIPCPacket( const XodusIPCPacket& ) = delete;
+    XodusIPCPacket& operator=( const XodusIPCPacket& ) = delete;
 
     XodusIPCPacket( 
         MagicHeaderType type, 
         UINT16 messageType, 
         Windows::Storage::Streams::IBuffer *message )
     : m_type(type),
-      m_messageType(messageType),
-      m_message(message)
+      m_messageType(messageType)
     {
+        m_message = message;
+        message->AddRef();
     }
 
     /* IUnknown Methods */
@@ -82,11 +85,11 @@ public:
         ULONG curr = static_cast<ULONG>(--ref);
         TRACE( "iface %p decreasing refcount to %lu.\n", this, curr );
 
-        // Polymorphic classes should not be deleted.
-        /*
         if ( !curr )
+        {
+            m_message->Release();
             delete this;
-        */
+        }
 
         return curr;
     }
