@@ -94,7 +94,11 @@ extern IXSystemAnalyticsImpl *x_system_analytics;
 extern IXNetworkingImpl *x_networking;
 extern IXUserImpl *x_user;
 
+#ifdef __cplusplus
 extern ABI::Xodus::IIPCLayer *xodus_ipclayer;
+#else
+extern IIPCLayer *xodus_ipclayer;
+#endif
 
 typedef struct _INITIALIZE_OPTIONS
 {
