@@ -55,6 +55,7 @@
 #include <xasync.h>
 #include <xasyncprovider.h>
 
+#include "provider.h"
 #include "wine/debug.h"
 
 #define WIDL_using_Windows_Foundation

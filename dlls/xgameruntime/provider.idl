@@ -1,0 +1,96 @@
+/*
+ * xgameruntime.dll implementation
+ *
+ * Written by Weather
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
+ */
+
+#pragma makedep header
+
+#ifdef __WIDL__
+#pragma winrt ns_prefix
+#endif
+
+import "propidl.idl";
+import "inspectable.idl";
+import "asyncinfo.idl";
+import "eventtoken.idl";
+import "windowscontracts.idl";
+import "windows.foundation.idl";
+import "windows.system.idl";
+
+// --- xgameruntime --- //
+
+namespace Xodus
+{
+    typedef enum MagicHeaderType MagicHeaderType;
+
+    interface IIPCLayer;
+    interface IXodusIPCPacket;
+
+    runtimeclass IPCLayer;
+    runtimeclass XodusIPCPacket;
+
+    declare 
+    {
+        interface Windows.Foundation.AsyncOperationCompletedHandler<Xodus.XodusIPCPacket *>;
+        interface Windows.Foundation.IAsyncOperation<Xodus.XodusIPCPacket *>;
+    }
+
+    [
+        contract(Windows.Foundation.UniversalApiContract, 1.0)
+    ]
+    enum MagicHeaderType
+    {
+        XML = 0,
+        Proto = 1,
+    };
+
+    [
+        uuid(fb150d06-cbf2-4a66-9401-57bcbef19068)
+    ]
+    interface IXodusIPCPacket : IInspectable
+    {
+        [propget] HRESULT Magic( [out, retval] MagicHeaderType *out );
+        [propget] HRESULT MessageSize( [out, retval] UINT16 *out );
+        [propget] HRESULT MessageType( [out, retval] UINT16 *out );
+        [propget] HRESULT Message( [out, retval] BYTE **out );
+    }
+
+    [
+        uuid(f7904b4d-4738-4485-a517-b37405aa5b91)
+    ]
+    interface IIPCLayer : IInspectable
+    {
+        HRESULT SendRequestAsync( [in] Xodus.XodusIPCPacket *packet, [out, retval] Windows.Foundation.IAsyncOperation<Xodus.XodusIPCPacket *> **operation );
+    }
+
+    [
+        contract(Windows.Foundation.UniversalApiContract, 1.0)
+    ]
+    runtimeclass XodusIPCPacket
+    {
+        [default] interface Xodus.IXodusIPCPacket;
+    }
+
+    [
+        contract(Windows.Foundation.UniversalApiContract, 1.0)
+    ]
+    runtimeclass IPCLayer
+    {
+        [default] interface Xodus.IIPCLayer;
+    }
+}

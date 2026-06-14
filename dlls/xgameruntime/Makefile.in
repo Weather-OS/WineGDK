@@ -3,6 +3,7 @@ MODULE    = xgameruntime.dll
 
 SOURCES = \
 	main.c \
+	provider.idl \
 	\
 	GDKComponent/System/Threading/XAsync.cpp \
 	GDKComponent/System/Threading/XTaskQueue.cpp \
