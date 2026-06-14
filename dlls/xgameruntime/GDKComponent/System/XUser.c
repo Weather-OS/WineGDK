@@ -74,6 +74,23 @@ cleanup:
     return hr;
 }
 
+// struct endpoint
+// {
+//     char *protocol;
+//     char *host;
+//     char *relyingParty;
+//     char *subRelyingParty;
+//     char *tokenType;
+//     char *path;
+//     UINT32 signaturePolicyIndex;
+// };
+
+struct policy
+{
+    UINT32 version;
+    UINT32 maxBodyBytes;
+};
+
 struct XUser
 {
     IUser IUser_iface;
@@ -92,6 +109,13 @@ struct XUser
 
     BCRYPT_KEY_HANDLE key;
     char proofKey[PROOF_KEY_SIZE];
+
+    // UINT32 endpointsLen;
+    // struct endpoint *endpoints;
+    // UINT32 wildcardEndpointsLen;
+    // struct endpoint *wildcardEndpoints;
+    UINT32 policiesLen;
+    struct policy *policies;
 };
 
 static struct XUser *impl_from_IUser( IUser *iface )
@@ -121,6 +145,8 @@ static ULONG WINAPI user_Release( IUser *iface )
         if (impl->userToken) WindowsDeleteString( impl->userToken );
         if (impl->xstsToken) WindowsDeleteString( impl->xstsToken );
         if (impl->key) BCryptDestroyKey( impl->key );
+        // if (impl->endpointsLen) free( impl->endpoints );
+        if (impl->policiesLen) free( impl->policies );
         free( impl );
     }
     return ref;
@@ -454,8 +480,88 @@ cleanup:
 
 static HRESULT WINAPI user_CacheEndpoints( IUser *iface )
 {
+    HSTRING host = NULL, relyingParty = NULL, type = NULL;
+    struct XUser *impl = impl_from_IUser( iface );
+    IJsonObject *child = NULL, *object = NULL;
+    IVector_IJsonValue *vector = NULL;
+    // struct endpoint *endpoints = NULL;
+    UINT32 /*endpointsLen,*/ policiesLen;
+    struct policy *policies = NULL;
+    IJsonArray *array = NULL;
+    UCHAR *buffer;
+    SIZE_T size;
+    HRESULT hr;
+
     TRACE( "iface %p.\n", iface );
-    return E_NOTIMPL;
+
+    // if (impl->endpointsLen) free( impl->endpoints );
+    // impl->endpointsLen = 0;
+    if (impl->policiesLen) free( impl->policies );
+    impl->policiesLen = 0;
+
+    if (FAILED(hr = http_request( L"GET", L"title.mgmt.xboxlive.com", L"/titles/default/endpoints?type=1", NULL, NULL, ACCEPT_JSON, &buffer, &size )))
+        return hr;
+
+    if (FAILED(hr = parse_json( (char *)buffer, size, &object ))) goto cleanup;
+
+    /* signature policies */
+    if (FAILED(hr = get_json_array( object, L"SignaturePolicies", &array ))) goto cleanup;
+    if (FAILED(hr = IJsonArray_QueryInterface( array, &IID_IVector_IJsonValue, (void **)&vector ))) goto cleanup;
+    if (FAILED(hr = IVector_IJsonValue_get_Size( vector, &policiesLen ))) goto cleanup;
+    if (!(policies = calloc( policiesLen, sizeof(*policies) )))
+    {
+        hr = E_OUTOFMEMORY;
+        goto cleanup;
+    }
+
+    for (UINT32 i = 0; i < policiesLen; i++)
+    {
+        DOUBLE maxBodyBytes, version;
+        if (FAILED(hr = IJsonArray_GetObjectAt( array, i, &child ))) goto cleanup;
+        if (FAILED(hr = get_json_number( child, L"MaxBodyBytes", &maxBodyBytes ))) goto cleanup;
+        if (FAILED(hr = get_json_number( child, L"Version", &version ))) goto cleanup;
+        policies[i].maxBodyBytes = maxBodyBytes;
+        policies[i].version = version;
+        IJsonObject_Release( child );
+        child = NULL;
+    }
+
+    // /* signed endpoints */
+    // IJsonArray_Release( array );
+    // array = NULL;
+    // if (FAILED(hr = get_json_array( object, L"EndPoints", &array ))) goto cleanup;
+    // IVector_IJsonValue_Release( vector );
+    // vector = NULL;
+    // if (FAILED(hr = IJsonArray_QueryInterface( array, &IID_IVector_IJsonValue, (void **)&vector ))) goto cleanup;
+    // if (FAILED(hr = IVector_IJsonValue_get_Size( vector, &endpointsLen ))) goto cleanup;
+    // for (UINT32 i = 0; i < endpointsLen; i++)
+    // {
+    //     if (FAILED(hr = IJsonArray_GetObjectAt( array, i, &child ))) goto cleanup;
+    //     if (FAILED(hr = get_json_string( child, L"Host", &host ))) goto cleanup;
+    //     if (FAILED(hr = get_json_string( child, L"RelyingParty", &relyingParty ))) goto cleanup;
+
+    // }
+
+cleanup:
+    free( buffer );
+    if (array) IJsonArray_Release( array );
+    if (child) IJsonObject_Release( child );
+    if (object) IJsonObject_Release( object );
+    if (vector) IVector_IJsonValue_Release( vector );
+    if (host) WindowsDeleteString( host );
+    if (type) WindowsDeleteString( type );
+    if (relyingParty) WindowsDeleteString( relyingParty );
+    if (SUCCEEDED(hr))
+    {
+        impl->policies = policies;
+        // impl->endpoints = endpoints;
+        impl->policiesLen = policiesLen;
+        // impl->endpointsLen = endpointsLen;
+        return hr;
+    }
+    if (policies) free( policies);
+    // if (endpoints) free( endpoints );
+    return hr;
 }
 
 static const struct IUserVtbl user_vtbl =
