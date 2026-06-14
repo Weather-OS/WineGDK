@@ -55,7 +55,6 @@
 #include <xasync.h>
 #include <xasyncprovider.h>
 
-#include "provider.h"
 #include "wine/debug.h"
 
 #define WIDL_using_Windows_Foundation
@@ -65,6 +64,8 @@
 #include "windows.globalization.h"
 #define WIDL_using_Windows_System_Profile
 #include "windows.system.profile.h"
+#define WIDL_using_Xodus
+#include "xodusprovider.h"
 
 #define RETURN_HR(hr)                                           TRACE("Returning HR %#lx\n", hr); return(hr)
 #define RETURN_LAST_ERROR()                                     return HRESULT_FROM_WIN32(GetLastError())

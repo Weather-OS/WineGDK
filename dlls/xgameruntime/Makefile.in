@@ -3,7 +3,7 @@ MODULE    = xgameruntime.dll
 
 SOURCES = \
 	main.c \
-	provider.idl \
+	xodusprovider.idl \
 	\
 	GDKComponent/System/Threading/XAsync.cpp \
 	GDKComponent/System/Threading/XTaskQueue.cpp \
@@ -15,4 +15,6 @@ SOURCES = \
 	GDKComponent/System/XSystem.cpp \
 	GDKComponent/System/XSystemAnalytics.cpp \
 	GDKComponent/System/XNetworking.cpp \
-	GDKComponent/System/XUser.cpp
+	GDKComponent/System/XUser.cpp \
+	\
+	GDKComponent/Xodus/XodusIPCPacket.cpp
