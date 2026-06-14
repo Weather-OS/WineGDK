@@ -1,6 +1,6 @@
 /*
  * Xbox Game runtime Library
- *  Xodus Interopability Layer -> XodusIPCPacket
+ *  Xodus Interopability Layer -> IPCLayer
  * 
  * Written by Weather
  *
@@ -27,28 +27,12 @@ WINE_DEFAULT_DEBUG_CHANNEL(xodus);
 
 using namespace ABI;
 using namespace ABI::Xodus;
+using namespace ABI::Windows::Foundation;
 
-class XodusIPCPacket :
-    public IXodusIPCPacket
+class IPCLayer :
+    public IIPCLayer
 {
 public:
-    XodusIPCPacket() = default;
-    virtual ~XodusIPCPacket() = default;
-
-    XodusIPCPacket( const XodusIPCPacket& ) = delete;
-    XodusIPCPacket& operator=( const XodusIPCPacket& ) = delete;
-
-    XodusIPCPacket( 
-        MagicHeaderType type, 
-        UINT16 messageType, 
-        Windows::Storage::Streams::IBuffer *message )
-    : m_type(type),
-      m_messageType(messageType)
-    {
-        m_message = message;
-        message->AddRef();
-    }
-
     /* IUnknown Methods */
     HRESULT WINAPI QueryInterface( REFIID iid, void **out )
     {
@@ -60,10 +44,10 @@ public:
         if ( iid == __uuidof( IUnknown ) ||
              iid == __uuidof( IInspectable ) ||
              iid == __uuidof( IAgileObject ) ||
-             iid == __uuidof( IXodusIPCPacket ) )
+             iid == __uuidof( IIPCLayer ) )
         {
             AddRef();
-            *out = static_cast<IXodusIPCPacket *>(this);
+            *out = static_cast<IIPCLayer *>(this);
             return S_OK;
         }
 
@@ -86,11 +70,11 @@ public:
         ULONG curr = static_cast<ULONG>(--ref);
         TRACE( "iface %p decreasing refcount to %lu.\n", this, curr );
 
+        // Polymorphic classes should not be deleted.
+        /*
         if ( !curr )
-        {
-            m_message->Release();
             delete this;
-        }
+        */
 
         return curr;
     }
@@ -117,31 +101,14 @@ public:
         return E_NOTIMPL;
     }
 
-    /* IXodusIPCPacket Methods */
+    /* IIPCLayer Methods */
     HRESULT WINAPI
-    get_Magic( MagicHeaderType *type ) override
+    SendRequestAsync( IXodusIPCPacket *packet, IAsyncOperation<XodusIPCPacket *> **operation ) override
     {
-        FIXME("iface %p, type %p stub!\n", this, type);
-        return E_NOTIMPL;
-    }
-
-    HRESULT WINAPI
-    get_MessageType( UINT16 *messageType ) override
-    {
-        FIXME("iface %p, messageType %p stub!\n", this, messageType);
-        return E_NOTIMPL;
-    }
-
-    HRESULT WINAPI
-    get_Message( Windows::Storage::Streams::IBuffer **message ) override
-    {
-        FIXME("iface %p, message %p stub!\n", this, message);
+        FIXME("packet %p, operation %p stub!\n", packet, operation);
         return E_NOTIMPL;
     }
 
 private:
-    MagicHeaderType m_type;
-    UINT16 m_messageType;
-    Windows::Storage::Streams::IBuffer *m_message;
     std::atomic_long ref{ 1 };
 };
