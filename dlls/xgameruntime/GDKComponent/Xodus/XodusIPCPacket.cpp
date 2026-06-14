@@ -28,7 +28,7 @@ WINE_DEFAULT_DEBUG_CHANNEL(xodus);
 using namespace ABI;
 using namespace ABI::Xodus;
 
-class XodusIPCPacket :
+class ABI::Xodus::XodusIPCPacket :
     public IXodusIPCPacket
 {
 public:

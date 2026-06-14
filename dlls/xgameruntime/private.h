@@ -94,6 +94,8 @@ extern IXSystemAnalyticsImpl *x_system_analytics;
 extern IXNetworkingImpl *x_networking;
 extern IXUserImpl *x_user;
 
+extern ABI::Xodus::IIPCLayer *xodus_ipclayer;
+
 typedef struct _INITIALIZE_OPTIONS
 {
     int unused;

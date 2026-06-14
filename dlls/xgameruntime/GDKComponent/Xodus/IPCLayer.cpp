@@ -29,7 +29,7 @@ using namespace ABI;
 using namespace ABI::Xodus;
 using namespace ABI::Windows::Foundation;
 
-class IPCLayer :
+class ABI::Xodus::IPCLayer :
     public IIPCLayer
 {
 public:
@@ -112,3 +112,6 @@ public:
 private:
     std::atomic_long ref{ 1 };
 };
+
+static IPCLayer g_xodus_ipclayer;
+IIPCLayer *xodus_ipclayer = static_cast<IIPCLayer*>(&g_xodus_ipclayer);
