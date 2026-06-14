@@ -6,6 +6,7 @@ UNIXLIB   = xgameruntime.so
 SOURCES = \
 	main.c \
 	userprovider.idl \
+	util.c \
 	xodusprovider.idl \
 	provider.idl \
 	\

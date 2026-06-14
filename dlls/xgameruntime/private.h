@@ -68,6 +68,8 @@
 #include "windows.globalization.h"
 #define WIDL_using_Windows_System_Profile
 #include "windows.system.profile.h"
+#define WIDL_using_Windows_Data_Json
+#include "windows.data.json.h"
 #define WIDL_using_Xodus
 #include "xodusprovider.h"
 
@@ -122,6 +124,8 @@ extern IIPCLayer *xodus_ipclayer;
 extern IXodusService *xodus_service;
 extern IXodusXMLBuilder *xodus_xml_builder;
 #endif
+
+HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, void **out );
 
 typedef struct _INITIALIZE_OPTIONS
 {
