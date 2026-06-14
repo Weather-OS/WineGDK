@@ -30,6 +30,7 @@ import "asyncinfo.idl";
 import "eventtoken.idl";
 import "windowscontracts.idl";
 import "windows.foundation.idl";
+import "windows.storage.streams.idl";
 import "windows.system.idl";
 
 // --- xgameruntime --- //
@@ -65,9 +66,8 @@ namespace Xodus
     interface IXodusIPCPacket : IInspectable
     {
         [propget] HRESULT Magic( [out, retval] MagicHeaderType *out );
-        [propget] HRESULT MessageSize( [out, retval] UINT16 *out );
         [propget] HRESULT MessageType( [out, retval] UINT16 *out );
-        [propget] HRESULT Message( [out, retval] BYTE **out );
+        [propget] HRESULT Message( [out, retval] Windows.Storage.Streams.IBuffer **out );
     }
 
     [
