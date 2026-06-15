@@ -37,7 +37,7 @@ import "windows.system.idl";
 // --- xgameruntime --- //
 
 namespace Xodus
-{
+{    
     typedef struct TitleMgtSignaturePolicy TitleMgtSignaturePolicy;
 
     typedef enum MagicHeaderType MagicHeaderType;
@@ -49,6 +49,8 @@ namespace Xodus
 
     runtimeclass IPCLayer;
     runtimeclass XodusService;
+
+    delegate HRESULT IPCResponseHandler( IXodusIPCPacket *reponse );
 
     struct TitleMgtSignaturePolicy
     {
@@ -91,6 +93,8 @@ namespace Xodus
     interface IIPCLayer : IInspectable
     {
         HRESULT SendRequestAsync( [in] Xodus.IXodusIPCPacket *packet, [out, retval] Windows.Foundation.IAsyncOperation<Xodus.IXodusIPCPacket *> **operation );
+        [eventadd] HRESULT ResponseReceived( [in] Xodus.IPCResponseHandler *handler, [out, retval] EventRegistrationToken *token );
+        [eventremove] HRESULT ResponseReceived( [in] EventRegistrationToken token );
     }
 
     [

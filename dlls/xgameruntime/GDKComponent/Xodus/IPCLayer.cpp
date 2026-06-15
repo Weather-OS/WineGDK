@@ -111,6 +111,20 @@ public:
         return E_NOTIMPL;
     }
 
+    HRESULT WINAPI
+    add_ResponseReceived( IIPCResponseHandler *handler, EventRegistrationToken *token ) override
+    {
+        FIXME("handler %p, token %p stub!\n", handler, token);
+        return E_NOTIMPL;
+    }
+
+    HRESULT WINAPI
+    remove_ResponseReceived( EventRegistrationToken token ) override
+    {
+        FIXME("token %lld stub!\n", token.value);
+        return E_NOTIMPL;
+    }
+
 private:
     std::atomic_long ref{ 1 };
 };
