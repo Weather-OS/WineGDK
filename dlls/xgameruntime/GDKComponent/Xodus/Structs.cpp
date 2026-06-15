@@ -106,6 +106,70 @@ XodusIPCPacket::get_Message( Windows::Storage::Streams::IBuffer **out )
 }
 
 /**
+ * IPCResponseHandler: Handler interface for IPC Response events.
+ */
+
+IPCResponseHandler::IPCResponseHandler(
+    IPCResponseHandlerCallback callback,
+    PVOID context )
+:   m_callback(callback),
+    m_context(context)
+{
+}
+
+HRESULT WINAPI
+IPCResponseHandler::QueryInterface( REFIID iid, void **out ) noexcept
+{
+    TRACE( "iface %p, iid %s, out %p.\n", this, debugstr_guid( &iid ), out );
+
+    if (!out) return E_POINTER;
+    *out = nullptr;
+
+    if ( iid == __uuidof( IUnknown ) ||
+         iid == __uuidof( IInspectable ) ||
+         iid == __uuidof( IAgileObject ) ||
+         iid == __uuidof( IIPCResponseHandler ) )
+    {
+        AddRef();
+        *out = static_cast<IIPCResponseHandler *>(this);
+        return S_OK;
+    }
+
+    FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( &iid ) );
+    *out = nullptr;
+    return E_NOINTERFACE;
+}
+
+ULONG WINAPI 
+IPCResponseHandler::AddRef() noexcept
+{
+    ULONG curr = static_cast<ULONG>(++ref);
+    TRACE( "iface %p increasing refcount to %lu.\n", this, curr );
+    return curr;
+}
+
+ULONG WINAPI 
+IPCResponseHandler::Release() noexcept
+{
+    ULONG curr = static_cast<ULONG>(--ref);
+    TRACE( "iface %p decreasing refcount to %lu.\n", this, curr );
+
+    if ( !curr )
+    {
+        delete this;
+    }
+
+    return curr;
+}
+
+HRESULT WINAPI
+IPCResponseHandler::Invoke( IXodusIPCPacket *response )
+{
+    TRACE("iface %p, response %p\n", this, response);
+    return m_callback( m_context, response );
+}
+
+/**
  * XstsTokenResponse: Wraps XstsTokenResponse from Xodus. 
  */
 

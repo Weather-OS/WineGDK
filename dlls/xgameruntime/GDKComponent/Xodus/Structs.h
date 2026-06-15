@@ -26,6 +26,8 @@
 using namespace ABI;
 using namespace ABI::Xodus;
 
+typedef HRESULT (CALLBACK *IPCResponseHandlerCallback)( PVOID context, IXodusIPCPacket *response );
+
 struct XodusIPCPacket :
     public IXodusIPCPacket
 {
@@ -55,6 +57,33 @@ private:
     MagicHeaderType Magic;
     UINT16 MessageType;
     Windows::Storage::Streams::IBuffer *Message;
+    std::atomic_long ref{ 1 };
+};
+
+struct IPCResponseHandler :
+    public IIPCResponseHandler
+{
+    IPCResponseHandler() = default;
+    virtual ~IPCResponseHandler() = default;
+
+    IPCResponseHandler( const IPCResponseHandler& ) = delete;
+    IPCResponseHandler& operator=( const IPCResponseHandler& ) = delete;
+
+    IPCResponseHandler( 
+        IPCResponseHandlerCallback callback,
+        PVOID context );
+
+    /* IUnknown Methods */
+    HRESULT WINAPI QueryInterface( REFIID iid, void **out ) noexcept override;
+    ULONG WINAPI AddRef() noexcept override;
+    ULONG WINAPI Release() noexcept override;
+
+    /* IXstsTokenResponse Methods */
+    HRESULT WINAPI Invoke( IXodusIPCPacket *response ) override;
+
+private:
+    IPCResponseHandlerCallback m_callback;
+    PVOID m_context;
     std::atomic_long ref{ 1 };
 };
 

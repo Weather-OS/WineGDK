@@ -50,8 +50,6 @@ namespace Xodus
     runtimeclass IPCLayer;
     runtimeclass XodusService;
 
-    delegate HRESULT IPCResponseHandler( IXodusIPCPacket *reponse );
-
     struct TitleMgtSignaturePolicy
     {
         UINT16 Version;
@@ -76,6 +74,11 @@ namespace Xodus
         XML = 0x58445358,
         Proto = 0x58445350,
     };
+
+    [
+        uuid(e5670e5d-a32e-47e0-91c6-12163115072b)
+    ]    
+    delegate HRESULT IPCResponseHandler( IXodusIPCPacket *reponse );
 
     [
         uuid(fb150d06-cbf2-4a66-9401-57bcbef19068)
