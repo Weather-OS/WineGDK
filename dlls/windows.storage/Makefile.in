@@ -8,6 +8,7 @@ SOURCES = \
 	async_private.idl \
 	classes.idl \
 	fileopenpicker.c \
+	filesavepicker.c \
 	main.c \
 	provider.idl \
 	streams.cpp \

@@ -44,6 +44,7 @@
 
 #include "wine/debug.h"
 
+#include "roapi.h"
 #include "shobjidl.h"
 
 #define WIDL_using_Windows_Foundation
@@ -68,6 +69,7 @@ HRESULT create_vector( IVector_HSTRING **vector );
 #define SEC_TO_UNIX_EPOCH 11644473600LL
 
 extern IActivationFactory *file_open_picker_factory;
+extern IActivationFactory *file_save_picker_factory;
 extern IActivationFactory *random_access_stream_reference_factory;
 extern IActivationFactory *storage_folder_factory;
 

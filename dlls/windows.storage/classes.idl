@@ -33,6 +33,7 @@ import "windows.storage.pickers.idl";
 namespace Windows.Storage.Pickers
 {
     runtimeclass FileOpenPicker;
+    runtimeclass FileSavePicker;
 }
 
 namespace Windows.Storage.Streams 
