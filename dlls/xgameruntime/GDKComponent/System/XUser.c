@@ -23,6 +23,125 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(gdkc);
 
+struct XUser
+{
+    IUser IUser_iface;
+    LONG ref;
+};
+
+static struct XUser *impl_from_IUser( IUser *iface )
+{
+    return CONTAINING_RECORD( iface, struct XUser, IUser_iface );
+}
+
+static ULONG WINAPI user_AddRef( IUser *iface )
+{
+    struct XUser *impl = impl_from_IUser( iface );
+    ULONG ref = InterlockedIncrement( &impl->ref );
+    TRACE( "iface %p increasing refcount to %lu.\n", iface, ref );
+    return ref;
+}
+
+static ULONG WINAPI user_Release( IUser *iface )
+{
+    struct XUser *impl = impl_from_IUser( iface );
+    ULONG ref = InterlockedDecrement( &impl->ref );
+    TRACE( "iface %p decreasing refcount to %lu.\n", iface, ref );
+    return ref;
+}
+
+static HRESULT WINAPI user_RequestOAuthCode( IUser *iface, HSTRING *user, HSTRING *uri )
+{
+    FIXME( "iface %p, user %p, uri %p stub!\n", iface, user, uri );
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI user_RequestOAuthToken( IUser *iface )
+{
+    FIXME( "iface %p stub!\n", iface );
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI user_RefreshOAuthToken( IUser *iface )
+{
+    FIXME( "iface %p stub!\n", iface );
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI user_RequestUserToken( IUser *iface )
+{
+    FIXME( "iface %p stub!\n", iface );
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI user_RequestXstsToken( IUser *iface )
+{
+    FIXME( "iface %p stub!\n", iface );
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI user_GenerateKeyPair( IUser *iface )
+{
+    FIXME( "iface %p stub!\n", iface );
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI user_SignData( IUser *iface, ULONG dataSize, UCHAR *data, ULONG signatureSize, UCHAR *signature )
+{
+    FIXME( "iface %p, dataSize %lu, data %p, signatureSize %lu, signature %p stub!\n", iface, dataSize, data, signatureSize, signature );
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI user_CacheEndpoints( IUser *iface )
+{
+    TRACE( "iface %p.\n", iface );
+    return E_NOTIMPL;
+}
+
+static const struct IUserVtbl user_vtbl =
+{
+    NULL,
+    user_AddRef,
+    user_Release,
+    /* IUser methods */
+    user_RequestOAuthCode,
+    user_RequestOAuthToken,
+    user_RefreshOAuthToken,
+    user_RequestUserToken,
+    user_RequestXstsToken,
+    user_GenerateKeyPair,
+    user_SignData,
+    user_CacheEndpoints,
+};
+
+static HRESULT LoadMsaUser( XUserHandle *user )
+{
+    XUserHandle impl;
+
+    TRACE( "user %p.\n", user );
+
+    if (!(impl = calloc( 1, sizeof(*impl) ))) return E_OUTOFMEMORY;
+    impl->IUser_iface.lpVtbl = &user_vtbl;
+    impl->ref = 1;
+
+    *user = impl;
+    return S_OK;
+}
+
+static HRESULT LoadDefaultUser( XUserHandle *user )
+{
+    XUserHandle impl;
+
+    TRACE( "user %p.\n", user );
+
+    if (!(impl = calloc( 1, sizeof(*impl) ))) return E_OUTOFMEMORY;
+    impl->IUser_iface.lpVtbl = &user_vtbl;
+    impl->ref = 1;
+
+    *user = impl;
+    return S_OK;
+}
+
 struct x_user
 {
     IXUserImpl6 IXUserImpl_iface;
@@ -82,13 +201,17 @@ static ULONG WINAPI x_user_Release( IXUserImpl6 *iface )
 
 static HRESULT WINAPI x_user_XUserDuplicateHandle( IXUserImpl6 *iface, XUserHandle handle, XUserHandle *duplicatedHandle )
 {
-    FIXME( "iface %p, handle %p, duplicatedHandle %p stub!\n", iface, handle, duplicatedHandle );
-    return E_NOTIMPL;
+    TRACE( "iface %p, handle %p, duplicatedHandle %p.\n", iface, handle, duplicatedHandle );
+    IUser_AddRef( &handle->IUser_iface );
+    *duplicatedHandle = handle;
+    return S_OK;
 }
 
 static void WINAPI x_user_XUserCloseHandle( IXUserImpl6 *iface, XUserHandle user )
 {
-    FIXME( "iface %p, user %p stub!\n", iface, user );
+    TRACE( "iface %p, user %p.\n", iface, user );
+    if (!user) return;
+    IUser_Release( &user->IUser_iface );
 }
 
 static INT32 WINAPI x_user_XUserCompare( IXUserImpl6 *iface, XUserHandle user1, XUserHandle user2 )
