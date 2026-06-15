@@ -100,7 +100,8 @@ extern IXGameRuntimeFeatureImpl *x_game_runtime_feature;
 extern IXSystemImpl *x_system;
 extern IXSystemAnalyticsImpl *x_system_analytics;
 extern IXNetworkingImpl *x_networking;
-extern IXUserImpl *x_user;
+extern IXUserImpl6 *x_user;
+extern IXUserDeviceImpl *x_user_device;
 
 #ifdef __cplusplus
 extern ABI::Xodus::IIPCLayer *xodus_ipclayer;
