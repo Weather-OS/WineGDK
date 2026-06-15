@@ -102,6 +102,13 @@ extern IIPCLayer *xodus_ipclayer;
 extern IXodusService *xodus_service;
 #endif
 
+struct async_operation_iids
+{
+    const GUID *operation;
+};
+
+typedef HRESULT (WINAPI *async_operation_callback)( IUnknown *invoker, PVOID param, PROPVARIANT *result );
+
 typedef struct _INITIALIZE_OPTIONS
 {
     int unused;

@@ -4,6 +4,9 @@ MODULE    = xgameruntime.dll
 SOURCES = \
 	main.c \
 	xodusprovider.idl \
+	provider.idl \
+	\
+	WineCoreUAP/Foundation/IWineAsync.cpp \
 	\
 	GDKComponent/System/Threading/XAsync.cpp \
 	GDKComponent/System/Threading/XTaskQueue.cpp \
