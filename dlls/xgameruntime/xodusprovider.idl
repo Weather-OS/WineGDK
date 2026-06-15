@@ -30,6 +30,7 @@ import "asyncinfo.idl";
 import "eventtoken.idl";
 import "windowscontracts.idl";
 import "windows.foundation.idl";
+import "windows.foundation.collections.idl";
 import "windows.storage.streams.idl";
 import "windows.system.idl";
 
@@ -37,18 +38,32 @@ import "windows.system.idl";
 
 namespace Xodus
 {
+    typedef struct TitleMgtSignaturePolicy TitleMgtSignaturePolicy;
+
     typedef enum MagicHeaderType MagicHeaderType;
 
     interface IIPCLayer;
+    interface IXodusService;
     interface IXodusIPCPacket;
+    interface IXstsTokenResponse;
 
     runtimeclass IPCLayer;
-    runtimeclass XodusIPCPacket;
+    runtimeclass XodusService;
+
+    struct TitleMgtSignaturePolicy
+    {
+        UINT16 Version;
+        Windows.Foundation.Collections.IVectorView<HSTRING> *SupportedAlgorithms;
+        UINT64 MaxBodyBytes;
+        Windows.Foundation.Collections.IVectorView<HSTRING> *SupportedSignatureTypes;
+    };
 
     declare 
     {
-        interface Windows.Foundation.AsyncOperationCompletedHandler<Xodus.XodusIPCPacket *>;
-        interface Windows.Foundation.IAsyncOperation<Xodus.XodusIPCPacket *>;
+        interface Windows.Foundation.AsyncOperationCompletedHandler<Xodus.IXodusIPCPacket *>;
+        interface Windows.Foundation.IAsyncOperation<Xodus.IXodusIPCPacket *>;
+        interface Windows.Foundation.AsyncOperationCompletedHandler<Xodus.IXstsTokenResponse *>;
+        interface Windows.Foundation.IAsyncOperation<Xodus.IXstsTokenResponse *>;
     }
 
     [
@@ -56,14 +71,14 @@ namespace Xodus
     ]
     enum MagicHeaderType
     {
-        XML = 0,
-        Proto = 1,
+        XML = 0x58445358,
+        Proto = 0x58445350,
     };
 
     [
         uuid(fb150d06-cbf2-4a66-9401-57bcbef19068)
     ]
-    interface IXodusIPCPacket : IInspectable
+    interface IXodusIPCPacket : IUnknown
     {
         [propget] HRESULT Magic( [out, retval] MagicHeaderType *out );
         [propget] HRESULT MessageType( [out, retval] UINT16 *out );
@@ -75,15 +90,35 @@ namespace Xodus
     ]
     interface IIPCLayer : IInspectable
     {
-        HRESULT SendRequestAsync( [in] Xodus.XodusIPCPacket *packet, [out, retval] Windows.Foundation.IAsyncOperation<Xodus.XodusIPCPacket *> **operation );
+        HRESULT SendRequestAsync( [in] Xodus.IXodusIPCPacket *packet, [out, retval] Windows.Foundation.IAsyncOperation<Xodus.IXodusIPCPacket *> **operation );
+    }
+
+    [
+        uuid(852d70bb-c6de-447a-8082-61646691295e)
+    ]
+    interface IXodusService : IInspectable
+    {
+        HRESULT Ping( [out, retval] Windows.Foundation.IAsyncOperation<UINT32> **operation );
+        HRESULT XstsTokenRequest( [in] HSTRING url, [out, retval] Windows.Foundation.IAsyncOperation<Xodus.IXstsTokenResponse *> **operation );
+    }
+
+    [
+        uuid(8b604b41-434b-40a0-b62e-155c3ec3194c)
+    ]
+    interface IXstsTokenResponse : IUnknown
+    {
+        [propget] HRESULT UserToken( [out, retval] HSTRING *out );
+        [propget] HRESULT Expiry( [out, retval] Windows.Foundation.DateTime *out );
+        [propget] HRESULT RelyingParty( [out, retval] HSTRING *out );
+        [propget] HRESULT SignaturePolicy( [out, retval] TitleMgtSignaturePolicy *out );
     }
 
     [
         contract(Windows.Foundation.UniversalApiContract, 1.0)
     ]
-    runtimeclass XodusIPCPacket
+    runtimeclass XodusService
     {
-        [default] interface Xodus.IXodusIPCPacket;
+        [default] interface Xodus.IXodusService;
     }
 
     [

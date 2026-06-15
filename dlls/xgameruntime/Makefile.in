@@ -17,5 +17,5 @@ SOURCES = \
 	GDKComponent/System/XNetworking.cpp \
 	GDKComponent/System/XUser.cpp \
 	\
-	GDKComponent/Xodus/XodusIPCPacket.cpp \
+	GDKComponent/Xodus/Structs.cpp \
 	GDKComponent/Xodus/IPCLayer.cpp

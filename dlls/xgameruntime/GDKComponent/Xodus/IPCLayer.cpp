@@ -20,6 +20,7 @@
  */
 
 #include "../../private.h"
+#include "Structs.h"
 
 #include <atomic>
 
@@ -103,7 +104,7 @@ public:
 
     /* IIPCLayer Methods */
     HRESULT WINAPI
-    SendRequestAsync( IXodusIPCPacket *packet, IAsyncOperation<XodusIPCPacket *> **operation ) override
+    SendRequestAsync( IXodusIPCPacket *packet, IAsyncOperation<IXodusIPCPacket *> **operation ) override
     {
         FIXME("packet %p, operation %p stub!\n", packet, operation);
         return E_NOTIMPL;
