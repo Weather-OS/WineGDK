@@ -46,6 +46,16 @@ interface IDataTransferManagerInterop : IUnknown
 }
 
 [
+    object,
+    pointer_default(unique),
+    uuid(3e68d4bd-7135-4d10-8018-9fb6d9f33fa1)
+]
+interface IInitializeWithWindow : IUnknown
+{
+    HRESULT Initialize( [in] HWND hwnd );
+}
+
+[
     uuid(56f9f44f-f74c-4e38-99bc-9f3ebd3d696a)
 ]
 library ShellCoreObjects
