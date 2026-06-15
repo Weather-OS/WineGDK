@@ -54,6 +54,12 @@
 #define WIDL_using_Windows_Storage_FileProperties
 #include "windows.storage.fileproperties.h"
 
+#ifdef __cplusplus
+HRESULT create_vector( ABI::Windows::Foundation::Collections::IVector<HSTRING> **vector );
+#else
+HRESULT create_vector( IVector_HSTRING **vector );
+#endif
+
 #define WINDOWS_TICK 10000000
 #define SEC_TO_UNIX_EPOCH 11644473600LL
 
