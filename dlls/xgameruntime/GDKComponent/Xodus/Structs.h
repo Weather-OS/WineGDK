@@ -1,6 +1,6 @@
 /*
  * Xbox Game runtime Library
- *  Xodus Interopability Layer -> XodusIPCPacket
+ *  Xodus Interopability Layer -> Struct types
  * 
  * Written by Weather
  *

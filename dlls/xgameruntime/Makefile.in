@@ -18,4 +18,5 @@ SOURCES = \
 	GDKComponent/System/XUser.cpp \
 	\
 	GDKComponent/Xodus/Structs.cpp \
-	GDKComponent/Xodus/IPCLayer.cpp
+	GDKComponent/Xodus/IPCLayer.cpp \
+	GDKComponent/Xodus/XodusService.cpp

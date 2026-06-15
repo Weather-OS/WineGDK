@@ -96,8 +96,10 @@ extern IXUserImpl *x_user;
 
 #ifdef __cplusplus
 extern ABI::Xodus::IIPCLayer *xodus_ipclayer;
+extern ABI::Xodus::IXodusService *xodus_service;
 #else
 extern IIPCLayer *xodus_ipclayer;
+extern IXodusService *xodus_service;
 #endif
 
 typedef struct _INITIALIZE_OPTIONS

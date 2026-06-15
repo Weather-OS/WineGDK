@@ -1,6 +1,6 @@
 /*
  * Xbox Game runtime Library
- *  Xodus Interopability Layer -> IPCLayer
+ *  Xodus Interopability Layer -> XodusService
  * 
  * Written by Weather
  *
@@ -30,8 +30,8 @@ using namespace ABI;
 using namespace ABI::Xodus;
 using namespace ABI::Windows::Foundation;
 
-class ABI::Xodus::IPCLayer :
-    public IIPCLayer
+class ABI::Xodus::XodusService :
+    public IXodusService
 {
 public:
     /* IUnknown Methods */
@@ -46,10 +46,10 @@ public:
         if ( iid == __uuidof( IUnknown ) ||
              iid == __uuidof( IInspectable ) ||
              iid == __uuidof( IAgileObject ) ||
-             iid == __uuidof( IIPCLayer ) )
+             iid == __uuidof( IXodusService ) )
         {
             AddRef();
-            *out = static_cast<IIPCLayer *>(this);
+            *out = static_cast<IXodusService *>(this);
             return S_OK;
         }
 
@@ -103,11 +103,18 @@ public:
         return E_NOTIMPL;
     }
 
-    /* IIPCLayer Methods */
+    /* IXodusService Methods */
     HRESULT WINAPI
-    SendRequestAsync( IXodusIPCPacket *packet, IAsyncOperation<IXodusIPCPacket *> **operation ) override
+    Ping( IAsyncOperation<UINT32> **operation ) override
     {
-        FIXME("packet %p, operation %p stub!\n", packet, operation);
+        FIXME("operation %p stub!\n", operation);
+        return E_NOTIMPL;
+    }
+    
+    HRESULT WINAPI
+    XstsTokenRequest( HSTRING url, IAsyncOperation<IXstsTokenResponse *> **operation ) override
+    {
+        FIXME("url %s, operation %p stub!\n", debugstr_hstring(url), operation);
         return E_NOTIMPL;
     }
 
@@ -115,5 +122,5 @@ private:
     std::atomic_long ref{ 1 };
 };
 
-static IPCLayer g_xodus_ipclayer;
-IIPCLayer *xodus_ipclayer = static_cast<IIPCLayer*>(&g_xodus_ipclayer);
+static XodusService g_xodus_service;
+IXodusService *xodus_service = static_cast<IXodusService*>(&g_xodus_service);
