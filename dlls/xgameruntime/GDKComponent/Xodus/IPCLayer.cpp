@@ -110,10 +110,11 @@ public:
 
     /* IIPCLayer Methods */
     HRESULT WINAPI
-    InitializeSocket( LPCSTR socketPath )
+    InitializeSocket()
     {
-        TRACE("socketPath %s stub!\n", debugstr_a(socketPath));
-        return E_NOTIMPL;
+        IAsyncAction *operation;
+        TRACE("\n");
+        return AsyncAction::Create( static_cast<IUnknown *>(this), nullptr, InitializeSocketThread, &operation );
     }
 
     HRESULT WINAPI
@@ -149,7 +150,6 @@ private:
     InitializeSocketThread( IUnknown *invoker, PVOID param, PROPVARIANT *result )
     {
         auto iface = static_cast<IPCLayer *>( invoker );
-        auto socketPath = static_cast<LPCSTR>( param );
 
         BYTE* messageBuffer = nullptr;
         SIZE_T offset = 0;
@@ -161,6 +161,8 @@ private:
         IBuffer *message = nullptr;
         IBufferByteAccess *messageBufferAccess = nullptr;
         IBufferFactory *bufferStatics = nullptr;
+
+        TRACE("invoker %p, param %p, result %p\n", invoker, param, result);
 
         status = WindowsCreateString( bufferStr, lstrlenW( bufferStr ), &bufferClass );
         if ( FAILED( status ) ) return status;
@@ -196,7 +198,7 @@ private:
                 }
                 else if ( header->Magic != MagicHeaderType::XML )
                 {
-                    FIXME("Invalid magic header %#x received!\n", header->Magic);
+                    FIXME("Invalid magic header %#x received!\n", (int)header->Magic);
                     break;
                 }
 

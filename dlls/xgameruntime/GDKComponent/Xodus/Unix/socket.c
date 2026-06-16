@@ -119,8 +119,6 @@ static NTSTATUS conn_sock( void *args )
     struct sockaddr_un addr;
     LPCSTR socket_suffix = (LPCSTR)args;
 
-    TRACE( "args %p\n", args );
-
 #ifdef __linux__
     const char *runtime = getenv( "XDG_RUNTIME_DIR" );
     if ( !runtime )
@@ -131,6 +129,8 @@ static NTSTATUS conn_sock( void *args )
 
     size_t len = strlen( runtime ) + strlen( socket_suffix ) + 1;
     char *socket_path = malloc( len );
+
+    TRACE( "args %p\n", args );
 
     if ( !socket_path )
         return STATUS_NO_MEMORY;
@@ -160,22 +160,26 @@ static NTSTATUS poll_sock( void *args )
 {
     POLL_SOCKET_ARGS *socket_args = (POLL_SOCKET_ARGS *)args;
     struct pollfd fds[1];
+    int ret;
+    ssize_t n;
 
     fds[0].fd = sockfd;
     fds[0].events = POLLIN;
 
-    int ret = poll( fds, 1, -1 );
+    ret = poll( fds, 1, -1 );
     if ( ret < 0 )
         return STATUS_CONNECTION_DISCONNECTED;
 
     if ( fds[0].revents & POLLIN ) 
     {
-        ssize_t n = read( sockfd, socket_args->curr_buffer + socket_args->curr_buffer_size, POLL_BUFFER_SIZE - socket_args->curr_buffer_size );
+        n = read( sockfd, socket_args->curr_buffer + socket_args->curr_buffer_size, POLL_BUFFER_SIZE - socket_args->curr_buffer_size );
         if ( n <= 0 ) 
             return STATUS_CONNECTION_DISCONNECTED;
 
         socket_args->curr_buffer_size += n;
     }
+
+    return STATUS_SUCCESS;
 }
 
 const unixlib_entry_t __wine_unix_call_funcs[] =

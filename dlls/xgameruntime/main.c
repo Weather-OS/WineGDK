@@ -138,6 +138,8 @@ BOOL WINAPI DllMain( HINSTANCE hinst, DWORD reason, void *reserved )
                 WARN("Failed to do unix call %s\n", "conn_socket");
                 return FALSE;
             }
+
+            IIPCLayer_InitializeSocket( xodus_ipclayer );
 #endif
             DisableThreadLibraryCalls(hinst);
             xgameruntime_threading = LoadLibraryA("xgameruntime.dll.threading");
