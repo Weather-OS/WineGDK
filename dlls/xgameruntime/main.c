@@ -21,10 +21,15 @@
 #include "initguid.h"
 #include "private.h"
 
+#include "ntstatus.h"
+
 WINE_DEFAULT_DEBUG_CHANNEL(xgameruntime);
 
 static HMODULE xgameruntime;
 static HMODULE xgameruntime_threading;
+
+unixlib_module_t unixlib;
+unixlib_handle_t unixhandle;
 
 static VOID LoadOtherRuntime( DWORD *asked )
 {
@@ -107,13 +112,41 @@ BOOL WINAPI DllMain( HINSTANCE hinst, DWORD reason, void *reserved )
     switch (reason)
     {
         case DLL_PROCESS_ATTACH:
+        {
+#if XODUS_INTEROP
+            NTSTATUS nts;
+            UNICODE_STRING modname;
+            LPCSTR xodus_prefix = XODUS_SOCKET_SUFFIX;
+            // load the unix lib as well.
+            // The library is called xgameruntime.so on both macOS and Linux
+            RtlInitUnicodeString( &modname, L"xgameruntime.so" );
+            nts = __wine_load_unix_lib( &modname, &unixlib, &unixhandle );
+            RtlFreeUnicodeString( &modname );
+            if ( FAILED( nts ) )
+            {
+                WARN("Failed to load unix lib %s\n", "xgameruntime.so");
+                return FALSE;
+            }
+            nts = __wine_unix_call( unixhandle, conn_socket, (void *)xodus_prefix );
+            if ( nts == STATUS_CONNECTION_REFUSED )
+            {
+                MessageBoxA( NULL, "Could not load Xodus's service socket.\nXbox account functionality will be missing.\n", "Attention Required!", MB_ICONEXCLAMATION );
+            }
+            else if ( FAILED( nts ) )
+            {
+                WARN("Failed to do unix call %s\n", "conn_socket");
+                return FALSE;
+            }
+#endif
             DisableThreadLibraryCalls(hinst);
             xgameruntime_threading = LoadLibraryA("xgameruntime.dll.threading");
             break;
+        }
         case DLL_PROCESS_DETACH:
             if (reserved) break;
             if (xgameruntime) FreeLibrary(xgameruntime);
             if (xgameruntime_threading) FreeLibrary(xgameruntime_threading);
+            if (unixlib) __wine_unload_unix_lib( unixlib );
         break;
     }
     return TRUE;

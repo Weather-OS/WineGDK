@@ -1,5 +1,6 @@
 IMPORTS   = user32 advapi32 crypt32 combase winhttp combase $(CXXABI_PE_LIBS) $(CXX_PE_LIBS) vcruntime140
 MODULE    = xgameruntime.dll
+UNIXLIB   = xgameruntime.so
 
 SOURCES = \
 	main.c \
@@ -22,4 +23,6 @@ SOURCES = \
 	\
 	GDKComponent/Xodus/Structs.cpp \
 	GDKComponent/Xodus/IPCLayer.cpp \
-	GDKComponent/Xodus/XodusService.cpp
+	GDKComponent/Xodus/XodusService.cpp \
+	\
+	GDKComponent/Xodus/Unix/socket.c

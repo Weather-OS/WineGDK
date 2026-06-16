@@ -55,6 +55,7 @@
 #include <xasync.h>
 #include <xasyncprovider.h>
 
+#include "wine/unixlib.h"
 #include "wine/debug.h"
 
 #define WIDL_using_Windows_Foundation
@@ -87,6 +88,9 @@
 
 #define FAIL_FAST_IF_FAILED(hr)                                 do { HRESULT __hrRet = hr; if (FAILED(__hrRet)) { FAIL_FAST_MSG("%s 0x%#lx", #hr, __hrRet); }} while (0)
 
+#define XODUS_SOCKET_SUFFIX "xodus.socket"
+#define XODUS_INTEROP 0
+
 extern IXThreadingImpl *x_threading_impl;
 extern IXGameRuntimeFeatureImpl *x_game_runtime_feature;
 extern IXSystemImpl *x_system;
@@ -107,11 +111,20 @@ struct async_operation_iids
     const GUID *operation;
 };
 
-typedef HRESULT (WINAPI *async_operation_callback)( IUnknown *invoker, PVOID param, PROPVARIANT *result );
-
 typedef struct _INITIALIZE_OPTIONS
 {
     int unused;
 } INITIALIZE_OPTIONS;
+
+enum unix_funcs
+{
+    conn_socket,
+    poll_socket
+};
+
+extern unixlib_module_t unixlib;
+extern unixlib_handle_t unixhandle;
+
+typedef HRESULT (WINAPI *async_operation_callback)( IUnknown *invoker, PVOID param, PROPVARIANT *result );
 
 #endif
