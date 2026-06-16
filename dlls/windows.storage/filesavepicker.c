@@ -26,6 +26,8 @@ struct file_save_picker
     IInitializeWithWindow IInitializeWithWindow_iface;
     LONG ref;
 
+    HWND hwnd;
+    IFileSaveDialog *dialog;
     HSTRING suggestedFileName;
     IMap_HSTRING_IInspectable *fileTypeChoices;
 };
@@ -77,6 +79,7 @@ static ULONG WINAPI file_save_picker_Release( IFileSavePicker *iface )
     {
         if (impl->suggestedFileName) WindowsDeleteString( impl->suggestedFileName );
         IMap_HSTRING_IInspectable_Release( impl->fileTypeChoices );
+        IFileSaveDialog_Release( impl->dialog );
         free( impl );
     }
     return ref;
@@ -191,10 +194,30 @@ static HRESULT WINAPI file_save_picker_put_SuggestedFileName( IFileSavePicker *i
     return WindowsDuplicateString( value, &impl->suggestedFileName );
 }
 
+static HRESULT pick_save_file_async( IUnknown *invoker, IUnknown *param, PROPVARIANT *result, BOOL called_async )
+{
+    struct file_save_picker *impl = impl_from_IFileSavePicker( (IFileSavePicker *)invoker );
+    IModalWindow *modal;
+    IFileDialog *dialog;
+    HRESULT hr;
+
+    if (!called_async) return STATUS_PENDING;
+
+    if (FAILED(hr = IFileSaveDialog_QueryInterface( impl->dialog, &IID_IFileDialog, (void **)&dialog ))) return hr;
+    if (FAILED(hr = IFileDialog_SetFileName( dialog, WindowsGetStringRawBuffer( impl->suggestedFileName, NULL ) ))) goto cleanup;
+    if (FAILED(hr = IFileSaveDialog_QueryInterface( impl->dialog, &IID_IModalWindow, (void **)&modal ))) goto cleanup;
+    if (FAILED(hr = IModalWindow_Show( modal, impl->hwnd ))) goto cleanup;
+
+cleanup:
+    if (modal) IModalWindow_Release( modal );
+    IFileDialog_Release( dialog );
+    return hr;
+}
+
 static HRESULT WINAPI file_save_picker_PickSaveFileAsync( IFileSavePicker *iface, IAsyncOperation_StorageFile **value )
 {
-    FIXME( "iface %p, value %p stub!\n", iface, value );
-    return E_NOTIMPL;
+    TRACE( "iface %p, value %p.\n", iface, value );
+    return async_operation_file_create( (IUnknown *)iface, NULL, pick_save_file_async, value );
 }
 
 static const struct IFileSavePickerVtbl file_save_picker_vtbl =
@@ -248,8 +271,10 @@ static ULONG WINAPI initialize_with_window_Release( IInitializeWithWindow *iface
 
 static HRESULT WINAPI initialize_with_window_Initialize( IInitializeWithWindow *iface, HWND hwnd )
 {
-    FIXME( "iface %p, hwnd %p stub!\n", iface, hwnd );
-    return E_NOTIMPL;
+    struct file_save_picker *impl = impl_from_IInitializeWithWindow( iface );
+    TRACE( "iface %p, hwnd %p.\n", iface, hwnd );
+    impl->hwnd = hwnd;
+    return S_OK;
 }
 
 static const struct IInitializeWithWindowVtbl initialize_with_window_vtbl =
@@ -347,6 +372,13 @@ static HRESULT WINAPI factory_ActivateInstance( IActivationFactory *iface, IInsp
     hr = IPropertySet_QueryInterface( propertyset, &IID_IMap_HSTRING_IInspectable, (void **)&impl->fileTypeChoices );
     IPropertySet_Release( propertyset );
     if (FAILED(hr)) goto error;
+
+    if (FAILED(hr = CoCreateInstance( &CLSID_FileSaveDialog, NULL, CLSCTX_INPROC_SERVER, &IID_IFileSaveDialog, (void **)&impl->dialog )))
+    {
+        IMap_HSTRING_IInspectable_Release( impl->fileTypeChoices );
+        goto error;
+    }
+
 
     *instance = (IInspectable *)&impl->IFileSavePicker_iface;
     return S_OK;
