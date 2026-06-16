@@ -26,6 +26,8 @@ struct file_open_picker
     IInitializeWithWindow IInitializeWithWindow_iface;
     LONG ref;
 
+    HWND hwnd;
+    IFileOpenDialog *dialog;
     IVector_HSTRING *filter;
 };
 
@@ -74,6 +76,7 @@ static ULONG WINAPI file_open_picker_Release( IFileOpenPicker *iface )
     TRACE( "iface %p decreasing refcount to %lu.\n", iface, ref );
     if (!ref)
     {
+        if (impl->dialog) IFileOpenDialog_Release( impl->dialog );
         IVector_HSTRING_Release( impl->filter );
         free( impl );
     }
@@ -154,10 +157,63 @@ static HRESULT WINAPI file_open_picker_get_FileTypeFilter( IFileOpenPicker *ifac
     return S_OK;
 }
 
+static HRESULT pick_single_file_async( IUnknown *invoker, IUnknown *param, PROPVARIANT *result, BOOL called_async )
+{
+    struct file_open_picker *impl = impl_from_IFileOpenPicker( (IFileOpenPicker *)invoker );
+    COMDLG_FILTERSPEC *filterSpec;
+    IShellItemArray *array = NULL;
+    IVectorView_HSTRING *filter;
+    IModalWindow *modal = NULL;
+    IFileDialog *dialog = NULL;
+    IShellItem *item = NULL;
+    UINT filterCount;
+    HSTRING entry;
+    HRESULT hr;
+
+    if (!called_async) return STATUS_PENDING;
+
+    if (FAILED(hr = IVector_HSTRING_GetView( impl->filter, &filter ))) return hr;
+    if (FAILED(hr = IVectorView_HSTRING_get_Size( filter, &filterCount )))
+    {
+        IVectorView_HSTRING_Release( filter );
+        return hr;
+    }
+
+    if (!(filterSpec = calloc( sizeof(*filterSpec), filterCount )))
+    {
+        IVectorView_HSTRING_Release( filter );
+        return E_OUTOFMEMORY;
+    }
+
+    for (UINT i = 0; i < filterCount; i++)
+    {
+        if (FAILED(hr = IVectorView_HSTRING_GetAt( filter, i, &entry ))) goto cleanup;
+        WindowsDeleteString( entry ); /* decrement, ref held in vector view */
+        filterSpec[i].pszSpec = WindowsGetStringRawBuffer( entry, NULL );
+        filterSpec[i].pszName = L"";
+    }
+
+    if (FAILED(hr = IFileOpenDialog_QueryInterface( impl->dialog, &IID_IFileDialog, (void **)&dialog ))) goto cleanup;
+    if (FAILED(hr = IFileDialog_SetFileTypes( dialog, filterCount, filterSpec ))) goto cleanup;
+    if (FAILED(hr = IFileOpenDialog_QueryInterface( impl->dialog, &IID_IModalWindow, (void **)&modal ))) goto cleanup;
+    if (FAILED(hr = IModalWindow_Show( modal, impl->hwnd ))) goto cleanup;
+    if (FAILED(hr = IFileOpenDialog_GetResults( impl->dialog, &array ))) goto cleanup;
+    hr = IShellItemArray_GetItemAt( array, 0, &item );
+
+cleanup:
+    if (array) IShellItemArray_Release( array );
+    if (dialog) IFileDialog_Release( dialog );
+    if (modal) IModalWindow_Release( modal );
+    IVectorView_HSTRING_Release( filter );
+    if (item) IShellItem_Release( item );
+    free( filterSpec );
+    return hr;
+}
+
 static HRESULT WINAPI file_open_picker_PickSingleFileAsync( IFileOpenPicker *iface, IAsyncOperation_StorageFile **value )
 {
-    FIXME( "iface %p, value %p stub!\n", iface, value );
-    return E_NOTIMPL;
+    TRACE( "iface %p, value %p.\n", iface, value );
+    return async_operation_file_create( (IUnknown *)iface, NULL, pick_single_file_async, value );
 }
 
 static HRESULT WINAPI file_open_picker_PickMultipleFilesAsync( IFileOpenPicker *iface, IAsyncOperation_IVectorView_StorageFile **value )
@@ -214,8 +270,10 @@ static ULONG WINAPI initialize_with_window_Release( IInitializeWithWindow *iface
 
 static HRESULT WINAPI initialize_with_window_Initialize( IInitializeWithWindow *iface, HWND hwnd )
 {
-    FIXME( "iface %p, hwnd %p stub!\n", iface, hwnd );
-    return E_NOTIMPL;
+    struct file_open_picker *impl = impl_from_IInitializeWithWindow( iface );
+    TRACE( "iface %p, hwnd %p.\n", iface, hwnd );
+    impl->hwnd = hwnd;
+    return S_OK;
 }
 
 static const struct IInitializeWithWindowVtbl initialize_with_window_vtbl =
@@ -305,6 +363,13 @@ static HRESULT WINAPI factory_ActivateInstance( IActivationFactory *iface, IInsp
 
     if (FAILED(hr = create_vector( &impl->filter )))
     {
+        free( impl );
+        return hr;
+    }
+
+    if (FAILED(hr = CoCreateInstance( &CLSID_FileOpenDialog, NULL, CLSCTX_INPROC_SERVER, &IID_IFileOpenDialog, (void **)&impl->dialog )))
+    {
+        IVector_HSTRING_Release( impl->filter );
         free( impl );
         return hr;
     }
