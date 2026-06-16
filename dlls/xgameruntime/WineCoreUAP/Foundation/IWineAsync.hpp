@@ -28,7 +28,6 @@
 #define IWINEASYNC_HPP
 
 using namespace ABI::Windows::Foundation;
-using namespace ABI::Windows::Storage;
 using namespace ABI::Xodus;
 
 class AsyncInfo final
@@ -154,7 +153,7 @@ public:
         /* Internal methods */
         static HRESULT WINAPI
         Create( IUnknown *invoker, PVOID param, async_operation_callback callback,
-                                            IAsyncOperation<IInspectable *> **out );
+                    struct async_operation_iids iids, IAsyncOperation<IInspectable *> **out );
 
     private:
         std::atomic_long ref{ 1 };

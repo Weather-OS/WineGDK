@@ -484,10 +484,12 @@ AsyncOperation::Inspectable::GetResults( IInspectable **results ) noexcept
 
 HRESULT WINAPI
 AsyncOperation::Inspectable::Create( IUnknown *invoker, PVOID param, async_operation_callback callback,
-                                        IAsyncOperation<IInspectable *> **out )
+                            struct async_operation_iids iids, IAsyncOperation<IInspectable *> **out )
 {
     AsyncOperation::Inspectable *impl = new AsyncOperation::Inspectable();
     HRESULT hr;
+
+    impl->iids = iids;
 
     if ( FAILED( hr = AsyncInfo::Create( invoker, param, callback, static_cast<IInspectable *>(impl), &impl->info ) ) ||
          FAILED( hr = impl->info->Start() ) )

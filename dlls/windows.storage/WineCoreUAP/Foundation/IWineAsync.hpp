@@ -151,7 +151,7 @@ public:
         /* Internal methods */
         static HRESULT WINAPI
         Create( IUnknown *invoker, PVOID param, async_operation_callback callback,
-                                            IAsyncOperation<IInspectable *> **out );
+                    struct async_operation_iids iids, IAsyncOperation<IInspectable *> **out );
 
     private:
         std::atomic_long ref{ 1 };

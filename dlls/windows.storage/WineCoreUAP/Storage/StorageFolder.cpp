@@ -685,9 +685,10 @@ public:
 
         options = new StorageFolderImpl_GetFolderFromPathOptions();
         options->path = path;
+        
 
         hr = AsyncOperation::Inspectable::Create( reinterpret_cast<IUnknown *>(this), 
-            static_cast<PVOID>(options), GetFolderFromPath, (IAsyncOperation<IInspectable *> **)result );
+            static_cast<PVOID>(options), GetFolderFromPath, { .operation = &__uuidof( IAsyncOperation<StorageFolder *> ) }, (IAsyncOperation<IInspectable *> **)result );
         TRACE( "created IAsyncOperation_StorageFolder %p.\n", *result );
 
         return hr;
