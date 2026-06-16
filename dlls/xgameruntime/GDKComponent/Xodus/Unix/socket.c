@@ -111,6 +111,8 @@ static NTSTATUS conn_sock( void *args )
     struct sockaddr_un addr;
     LPCSTR socket_suffix = (LPCSTR)args;
 
+    TRACE( "args %p\n", args );
+
 #ifdef __linux__
     const char *runtime = getenv( "XDG_RUNTIME_DIR" );
     if ( !runtime )
@@ -125,7 +127,7 @@ static NTSTATUS conn_sock( void *args )
     if ( !socket_path )
         return STATUS_NO_MEMORY;
 
-    snprintf( socket_path, len, "%s/%s", runtime, socket_suffix );
+    snprintf( socket_path, len + 1, "%s/%s", runtime, socket_suffix );
 
     sockfd = socket( AF_UNIX, SOCK_STREAM, 0 );
     if ( sockfd < 0 ) 
@@ -135,9 +137,12 @@ static NTSTATUS conn_sock( void *args )
     addr.sun_family = AF_UNIX;
     lstrcpynA( addr.sun_path, socket_path, sizeof(addr.sun_path) - 1 );
 
-
     if ( connect( sockfd, (struct sockaddr*)&addr, sizeof(addr) ) < 0 ) 
+    {
+        TRACE( "failed to load socket %s\n", socket_path );
+        TRACE( "socket connection failed with %d\n", errno );
         return STATUS_CONNECTION_REFUSED;
+    }
 
     return STATUS_SUCCESS;
 }
