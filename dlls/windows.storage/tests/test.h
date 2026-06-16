@@ -38,6 +38,7 @@
 #include "roerrorapi.h"
 
 #include "roapi.h"
+#include "shobjidl.h"
 
 #ifdef __cplusplus
 // Bug: WinRT in C++ within Wine lacks proper C++ type handling
@@ -56,8 +57,10 @@
 #define WIDL_using_Windows_Foundation_Collections
 #include "windows.foundation.h"
 #define WIDL_using_Windows_Storage
+#define WIDL_using_Windows_Storage_Pickers
 #define WIDL_using_Windows_Storage_Streams
 #include "windows.storage.h"
+#include "windows.storage.pickers.h"
 #include "windows.storage.streams.h"
 
 #include "wine/test.h"

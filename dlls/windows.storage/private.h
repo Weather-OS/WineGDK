@@ -44,12 +44,16 @@
 
 #include "wine/debug.h"
 
+#include "shobjidl.h"
+
 #define WIDL_using_Windows_Foundation
 #define WIDL_using_Windows_Foundation_Collections
 #include "windows.foundation.h"
 #define WIDL_using_Windows_Storage
+#define WIDL_using_Windows_Storage_Pickers
 #define WIDL_using_Windows_Storage_Streams
 #include "windows.storage.h"
+#include "windows.storage.pickers.h"
 #include "windows.storage.streams.h"
 #define WIDL_using_Windows_Storage_FileProperties
 #include "windows.storage.fileproperties.h"
@@ -63,6 +67,7 @@ HRESULT create_vector( IVector_HSTRING **vector );
 #define WINDOWS_TICK 10000000
 #define SEC_TO_UNIX_EPOCH 11644473600LL
 
+extern IActivationFactory *file_open_picker_factory;
 extern IActivationFactory *random_access_stream_reference_factory;
 extern IActivationFactory *storage_folder_factory;
 

@@ -34,6 +34,44 @@ void check_interface_( unsigned int line, void *obj, const IID *iid, BOOL is_bro
         IUnknown_Release( unk );
 }
 
+static void test_FileOpenPicker(void)
+{
+    static const WCHAR *file_open_picker_name = L"Windows.Storage.Pickers.FileOpenPicker";
+    IFileOpenPicker *file_open_picker = (void *)0xdeadbeef;
+    IActivationFactory  *factory = (void *)0xdeadbeef;
+    HSTRING str;
+    HRESULT hr;
+    LONG ref;
+
+    hr = WindowsCreateString( file_open_picker_name, wcslen( file_open_picker_name ), &str );
+    ok( hr == S_OK, "got hr %#lx.\n", hr );
+    hr = RoGetActivationFactory( str, &IID_IActivationFactory, (void **)&factory );
+    WindowsDeleteString( str );
+    ok( hr == S_OK || broken( hr == REGDB_E_CLASSNOTREG ), "got hr %#lx.\n", hr );
+    if (hr == REGDB_E_CLASSNOTREG)
+    {
+        win_skip( "%s runtimeclass not registered, skipping tests.\n", wine_dbgstr_w( file_open_picker_name ) );
+        return;
+    }
+
+    check_interface( factory, &IID_IUnknown, FALSE );
+    check_interface( factory, &IID_IInspectable, FALSE );
+    check_interface( factory, &IID_IActivationFactory, FALSE );
+
+    hr = IActivationFactory_ActivateInstance( factory, (IInspectable **)&file_open_picker );
+    ok( hr == S_OK, "got hr %#lx.\n", hr );
+
+    check_interface( file_open_picker, &IID_IUnknown, FALSE );
+    check_interface( file_open_picker, &IID_IInspectable, FALSE );
+    check_interface( file_open_picker, &IID_IFileOpenPicker, FALSE );
+    check_interface( file_open_picker, &IID_IInitializeWithWindow, FALSE );
+
+    ref = IFileOpenPicker_Release( file_open_picker );
+    ok( ref == 0, "got ref %ld.\n", ref );
+    ref = IActivationFactory_Release( factory );
+    ok( ref == 0, "got ref %ld.\n", ref );
+}
+
 static void test_RandomAccessStreamReference(void)
 {
     static const WCHAR *random_access_stream_reference_statics_name = L"Windows.Storage.Streams.RandomAccessStreamReference";
@@ -129,6 +167,7 @@ START_TEST(storage)
     hr = RoInitialize( RO_INIT_MULTITHREADED );
     ok( hr == S_OK, "RoInitialize failed, hr %#lx\n", hr );
 
+    test_FileOpenPicker();
     test_RandomAccessStreamReference();
     test_StorageFolder( L"C:\\users\\office\\AppData\\Local\\Temp\\a" );
 
