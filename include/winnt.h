@@ -52,16 +52,16 @@ extern "C" {
 #define FASTCALL __fastcall
 
 #ifndef DECLSPEC_IMPORT
-#ifdef __cplusplus
+#ifndef __cplusplus
 # if defined(__MINGW32__) || defined(__CYGWIN__)
 #  define DECLSPEC_IMPORT __attribute__((dllimport))
 # elif defined(__GNUC__)
 #  define DECLSPEC_IMPORT __attribute__((visibility ("hidden")))
 # elif __has_declspec_attribute(dllimport)
 #  define DECLSPEC_IMPORT __declspec(dllimport)
-# else
+#else
 #  define DECLSPEC_IMPORT
-# endif
+#endif
 #else
 #define DECLSPEC_IMPORT
 #endif
