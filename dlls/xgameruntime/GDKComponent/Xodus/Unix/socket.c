@@ -101,10 +101,18 @@
 # define HAS_IRDA
 #endif
 
+#define POLL_BUFFER_SIZE 2048
+
 WINE_DEFAULT_DEBUG_CHANNEL(xodus);
 
 // Persist connection
 static int sockfd = 0;
+
+typedef struct _POLL_SOCKET_ARGS
+{
+    BYTE curr_buffer[POLL_BUFFER_SIZE];
+    SIZE_T curr_buffer_size;
+} POLL_SOCKET_ARGS;
 
 static NTSTATUS conn_sock( void *args )
 {
@@ -147,7 +155,31 @@ static NTSTATUS conn_sock( void *args )
     return STATUS_SUCCESS;
 }
 
+// MUST BE CALLED IN AN ASYNCHRONOUS CONTEXT!
+static NTSTATUS poll_sock( void *args )
+{
+    POLL_SOCKET_ARGS *socket_args = (POLL_SOCKET_ARGS *)args;
+    struct pollfd fds[1];
+
+    fds[0].fd = sockfd;
+    fds[0].events = POLLIN;
+
+    int ret = poll( fds, 1, -1 );
+    if ( ret < 0 )
+        return STATUS_CONNECTION_DISCONNECTED;
+
+    if ( fds[0].revents & POLLIN ) 
+    {
+        ssize_t n = read( sockfd, socket_args->curr_buffer + socket_args->curr_buffer_size, POLL_BUFFER_SIZE - socket_args->curr_buffer_size );
+        if ( n <= 0 ) 
+            return STATUS_CONNECTION_DISCONNECTED;
+
+        socket_args->curr_buffer_size += n;
+    }
+}
+
 const unixlib_entry_t __wine_unix_call_funcs[] =
 {
-    conn_sock
+    conn_sock,
+    poll_sock
 };

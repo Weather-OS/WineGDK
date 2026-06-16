@@ -106,6 +106,8 @@ extern IIPCLayer *xodus_ipclayer;
 extern IXodusService *xodus_service;
 #endif
 
+#define POLL_BUFFER_SIZE 2048
+
 struct async_operation_iids
 {
     const GUID *operation;
@@ -115,6 +117,12 @@ typedef struct _INITIALIZE_OPTIONS
 {
     int unused;
 } INITIALIZE_OPTIONS;
+
+typedef struct _POLL_SOCKET_ARGS
+{
+    BYTE curr_buffer[POLL_BUFFER_SIZE];
+    SIZE_T curr_buffer_size;
+} POLL_SOCKET_ARGS;
 
 enum unix_funcs
 {

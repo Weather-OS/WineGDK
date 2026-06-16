@@ -130,6 +130,7 @@ BOOL WINAPI DllMain( HINSTANCE hinst, DWORD reason, void *reserved )
             nts = __wine_unix_call( unixhandle, conn_socket, (void *)xodus_prefix );
             if ( nts == STATUS_CONNECTION_REFUSED )
             {
+                WARN("Failed to do unix call %s\n", "conn_socket");
                 MessageBoxA( NULL, "Could not load Xodus's service socket.\nXbox account functionality will be missing.\n", "Attention Required!", MB_ICONEXCLAMATION );
             }
             else if ( FAILED( nts ) )
