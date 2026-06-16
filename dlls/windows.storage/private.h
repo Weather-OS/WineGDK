@@ -71,7 +71,13 @@ struct async_operation_iids
     const GUID *operation;
 };
 
+#ifdef __cplusplus
 typedef HRESULT (WINAPI *async_operation_callback)( IUnknown *invoker, PVOID param, PROPVARIANT *result );
+#else
+#define WIDL_using_Wine_Internal
+#include "async_private.h"
+HRESULT async_operation_file_create( IUnknown *invoker, IUnknown *param, async_operation_callback callback, IAsyncOperation_StorageFile **out );
+#endif
 
 // DEFINE_IINSPECTABLE Should NOT be used in C++ contexts. Use classes instead.
 #ifndef __cplusplus
@@ -112,6 +118,8 @@ typedef HRESULT (WINAPI *async_operation_callback)( IUnknown *invoker, PVOID par
     }
 #define DEFINE_IINSPECTABLE( pfx, iface_type, impl_type, base_iface )                              \
     DEFINE_IINSPECTABLE_( pfx, iface_type, impl_type, impl_from_##iface_type, iface_type##_iface, &impl->base_iface )
+#define DEFINE_IINSPECTABLE_OUTER( pfx, iface_type, impl_type, outer_iface )                       \
+    DEFINE_IINSPECTABLE_( pfx, iface_type, impl_type, impl_from_##iface_type, iface_type##_iface, impl->outer_iface )
 #endif
 
 #endif

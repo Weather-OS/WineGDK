@@ -4,6 +4,8 @@ IMPORTS = shell32 shlwapi kernelbase rpcrt4 combase $(CXXABI_PE_LIBS) $(CXX_PE_L
 SOURCES = \
 	WineCoreUAP/Foundation/IWineAsync.cpp \
 	WineCoreUAP/Storage/StorageFolder.cpp \
+	async.c \
+	async_private.idl \
 	classes.idl \
 	main.c \
 	provider.idl \
