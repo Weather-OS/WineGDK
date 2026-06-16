@@ -95,6 +95,7 @@ namespace Xodus
     ]
     interface IIPCLayer : IInspectable
     {
+        HRESULT InitializeSocket( [in] LPCSTR socketPath );
         HRESULT SendRequestAsync( [in] Xodus.IXodusIPCPacket *packet, [out, retval] Windows.Foundation.IAsyncOperation<Xodus.IXodusIPCPacket *> **operation );
         [eventadd] HRESULT ResponseReceived( [in] Xodus.IPCResponseHandler *handler, [out, retval] EventRegistrationToken *token );
         [eventremove] HRESULT ResponseReceived( [in] EventRegistrationToken token );

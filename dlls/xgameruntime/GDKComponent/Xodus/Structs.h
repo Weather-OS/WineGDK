@@ -23,6 +23,9 @@
 
 #include <atomic>
 
+#ifndef __XODUS_STRUCTS__
+#define __XODUS_STRUCTS__
+
 using namespace ABI;
 using namespace ABI::Xodus;
 
@@ -120,3 +123,5 @@ private:
     TitleMgtSignaturePolicy SignaturePolicy;
     std::atomic_long ref{ 1 };
 };
+
+#endif

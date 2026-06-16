@@ -20,6 +20,7 @@
  */
 
 #include "../../private.h"
+#include "../../WineCoreUAP/Foundation/IWineAsync.hpp"
 #include "Structs.h"
 
 #include <atomic>
@@ -105,6 +106,13 @@ public:
 
     /* IIPCLayer Methods */
     HRESULT WINAPI
+    InitializeSocket( LPCSTR socketPath )
+    {
+        TRACE("socketPath %s stub!\n", debugstr_a(socketPath));
+        return E_NOTIMPL;
+    }
+
+    HRESULT WINAPI
     SendRequestAsync( IXodusIPCPacket *packet, IAsyncOperation<IXodusIPCPacket *> **operation ) override
     {
         FIXME("packet %p, operation %p stub!\n", packet, operation);
@@ -126,6 +134,20 @@ public:
     }
 
 private:
+
+    static HRESULT WINAPI 
+    InitializeSocketThread( IUnknown *invoker, PVOID param, PROPVARIANT *result )
+    {
+        auto iface = static_cast<IPCLayer *>( invoker );
+        auto socketPath = static_cast<LPCSTR>( param );
+
+        // Automatically broken when the DLL is detatched. 
+        while( TRUE )
+        {
+            
+        }
+    }
+
     std::atomic_long ref{ 1 };
 };
 

@@ -22,6 +22,8 @@
 #include "../../private.h"
 #include "provider.h"
 
+#include <mutex>
+
 #ifndef IWINEASYNC_HPP
 #define IWINEASYNC_HPP
 
