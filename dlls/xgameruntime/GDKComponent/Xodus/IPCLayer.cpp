@@ -151,6 +151,7 @@ public:
         {
             if ( oldCallback->token == token.value )
             {
+                oldCallback->handler->Release();
                 list_remove( &oldCallback->entry );
                 return S_OK;
             }
@@ -178,10 +179,12 @@ private:
         LPCWSTR bufferStr = RuntimeClass_Windows_Storage_Streams_Buffer;
         NTSTATUS status = STATUS_SUCCESS;
         POLL_SOCKET_ARGS currentPoll{};
+        response_received_callback *currCallback;
 
         IBuffer *message = nullptr;
         IBufferByteAccess *messageBufferAccess = nullptr;
         IBufferFactory *bufferFactory = nullptr;
+        IXodusIPCPacket *xodusPacket = nullptr;
 
         TRACE("invoker %p, param %p, result %p\n", invoker, param, result);
 
@@ -242,12 +245,15 @@ private:
 
                 messageBuffer[header->MessageLength] = '\0';
 
-                /**
-                 * TODO: Logic code for ResponseReceived events.
-                 */
-                FIXME("Received message %s\n", messageBuffer);
+                xodusPacket = new XodusIPCPacket( header->Magic, header->MessageType, message );
+
+                LIST_FOR_EACH_ENTRY( currCallback, &iface->m_Callbacks, response_received_callback, entry )
+                {
+                    currCallback->handler->Invoke( xodusPacket );
+                }
                 // ---- //
 
+                xodusPacket->Release();
                 messageBufferAccess->Release();
                 message->Release();
             }
