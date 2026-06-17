@@ -47,6 +47,7 @@
 #include <sys/un.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <sys/uio.h>
 #ifdef HAVE_NETDB_H
 # include <netdb.h>
 #endif
@@ -114,6 +115,12 @@ typedef struct _POLL_SOCKET_ARGS
     SIZE_T curr_buffer_size;
 } POLL_SOCKET_ARGS;
 
+typedef struct _IPCFrame
+{
+    SIZE_T frameSize;
+    BYTE* frame;
+} IPCFrame;
+
 static NTSTATUS conn_sock( void *args )
 {
     struct sockaddr_un addr;
@@ -163,6 +170,9 @@ static NTSTATUS poll_sock( void *args )
     int ret;
     ssize_t n;
 
+    if ( !sockfd )
+        return STATUS_CONNECTION_INVALID;
+
     fds[0].fd = sockfd;
     fds[0].events = POLLIN;
 
@@ -173,10 +183,31 @@ static NTSTATUS poll_sock( void *args )
     if ( fds[0].revents & POLLIN ) 
     {
         n = read( sockfd, socket_args->curr_buffer + socket_args->curr_buffer_size, POLL_BUFFER_SIZE - socket_args->curr_buffer_size );
-        if ( n < 0 ) 
+        if ( n <= 0 ) 
             return STATUS_CONNECTION_DISCONNECTED;
 
         socket_args->curr_buffer_size += n;
+    }
+
+    return STATUS_SUCCESS;
+}
+static NTSTATUS send_frm( void *args )
+{
+    IPCFrame *frame = (IPCFrame *)args;
+    ssize_t sent = 0;
+
+    while ( sent < frame->frameSize )
+    {
+        ssize_t n = write( sockfd, (char *)frame->frame + sent, frame->frameSize - sent );
+
+        if ( n < 0 )
+        {
+            if ( errno == EINTR )
+                continue;
+            return STATUS_CONNECTION_RESET;
+        }
+
+        sent += n;
     }
 
     return STATUS_SUCCESS;
@@ -185,5 +216,6 @@ static NTSTATUS poll_sock( void *args )
 const unixlib_entry_t __wine_unix_call_funcs[] =
 {
     conn_sock,
-    poll_sock
+    poll_sock,
+    send_frm
 };
