@@ -173,7 +173,7 @@ static NTSTATUS poll_sock( void *args )
     if ( fds[0].revents & POLLIN ) 
     {
         n = read( sockfd, socket_args->curr_buffer + socket_args->curr_buffer_size, POLL_BUFFER_SIZE - socket_args->curr_buffer_size );
-        if ( n <= 0 ) 
+        if ( n < 0 ) 
             return STATUS_CONNECTION_DISCONNECTED;
 
         socket_args->curr_buffer_size += n;
