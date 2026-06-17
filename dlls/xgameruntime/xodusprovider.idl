@@ -45,9 +45,11 @@ namespace Xodus
     interface IIPCLayer;
     interface IXodusService;
     interface IXodusIPCPacket;
+    interface IXodusXMLBuilder;
     interface IXstsTokenResponse;
 
     runtimeclass IPCLayer;
+    runtimeclass XodusXMLBuilder;
     runtimeclass XodusService;
 
     struct TitleMgtSignaturePolicy
@@ -108,6 +110,15 @@ namespace Xodus
     {
         HRESULT Ping( [out, retval] Windows.Foundation.IAsyncAction **operation );
         HRESULT XstsTokenRequest( [in] HSTRING url, [out, retval] Windows.Foundation.IAsyncOperation<Xodus.IXstsTokenResponse *> **operation );
+    }
+
+    [
+        uuid(7f70954e-1d3b-4d44-ab18-e43add94657c)
+    ]
+    interface IXodusXMLBuilder : IInspectable
+    {
+        HRESULT BuildXstsTokenRequestXml( [in] HSTRING url, [out, retval] HSTRING *xml_string );
+        HRESULT FromXstsTokenResponseXml( [in] HSTRING xml_string, [out, retval] IXstsTokenResponse **response );
     }
 
     [
