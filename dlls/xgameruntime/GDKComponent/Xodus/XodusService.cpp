@@ -124,6 +124,8 @@ private:
     static HRESULT WINAPI
     PingAsync( IUnknown *invoker, PVOID param, PROPVARIANT *result )
     {
+        DWORD ret;
+        UINT16 messageType;
         HRESULT status;
         HSTRING bufferClass;
 
@@ -152,7 +154,20 @@ private:
         );
 
         xodus_ipclayer->SendRequestAsync( xodusPacket, &response );
+
+        ret = AsyncOperationCompletedHandler<IXodusIPCPacket *>::await_AsyncOperation( response, INFINITE );
+        if ( ret )
+            return E_FAIL;
+
         xodusPacket->Release();
+
+        // confirm that we actually PONGed
+        response->GetResults( &xodusPacket );
+        response->Release();
+        xodusPacket->get_MessageType( &messageType );
+        if ( messageType != 2 /* PONG */)
+            return E_INVALIDARG;
+        
         return S_OK;
     }
 
