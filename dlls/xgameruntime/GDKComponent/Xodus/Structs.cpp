@@ -32,7 +32,7 @@ XodusIPCPacket::XodusIPCPacket(
     UINT16 messageType, 
     Windows::Storage::Streams::IBuffer *message )
 : Magic(type),
-  MessageType(messageType)
+  Message_Type(messageType)
 {
     Message = message;
     message->AddRef();
@@ -87,22 +87,26 @@ XodusIPCPacket::Release() noexcept
 HRESULT WINAPI
 XodusIPCPacket::get_Magic( MagicHeaderType *out )
 {
-    FIXME("iface %p, out %p stub!\n", this, out);
-    return E_NOTIMPL;
+    TRACE("iface %p, out %p.\n", this, out);
+    *out = Magic;
+    return S_OK;
 }
 
 HRESULT WINAPI
 XodusIPCPacket::get_MessageType( UINT16 *out )
 {
-    FIXME("iface %p, out %p stub!\n", this, out);
-    return E_NOTIMPL;
+    TRACE("iface %p, out %p.\n", this, out);
+    *out = Message_Type;
+    return S_OK;
 }
 
 HRESULT WINAPI
 XodusIPCPacket::get_Message( Windows::Storage::Streams::IBuffer **out )
 {
-    FIXME("iface %p, out %p stub!\n", this, out);
-    return E_NOTIMPL;
+    TRACE("iface %p, out %p.\n", this, out);
+    *out = Message;
+    Message->AddRef();
+    return S_OK;
 }
 
 /**

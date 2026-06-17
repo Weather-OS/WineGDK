@@ -121,8 +121,49 @@ public:
     HRESULT WINAPI
     SendRequestAsync( IXodusIPCPacket *packet, IAsyncOperation<IXodusIPCPacket *> **operation ) override
     {
-        FIXME("packet %p, operation %p stub!\n", packet, operation);
-        return E_NOTIMPL;
+        BYTE* messageBuffer;
+        HRESULT hr;
+        NTSTATUS nts;
+        IPCFrame *frame = new IPCFrame();
+        IPCHeader_CTYPE header{};
+
+        IBuffer *message;
+        IBufferByteAccess *messageBufferByteAccess;
+
+        TRACE("packet %p, operation %p.\n", packet, operation);
+
+        hr = packet->get_Magic( &header.Magic );
+        if ( FAILED( hr ) ) return hr;
+        hr = packet->get_MessageType( &header.Message_Type );
+        if ( FAILED( hr ) ) return hr;
+        hr = packet->get_Message( &message );
+        if ( FAILED( hr ) ) return hr;
+
+        hr = message->get_Length( &frame->frameSize );
+        if ( FAILED( hr ) ) return hr;
+        hr = message->QueryInterface<IBufferByteAccess>( &messageBufferByteAccess );
+        message->Release();
+        if ( FAILED( hr ) ) return hr;
+        hr = messageBufferByteAccess->Buffer( &messageBuffer );
+        messageBufferByteAccess->Release();
+        if ( FAILED( hr ) ) return hr;
+
+        header.MessageLength = frame->frameSize;
+
+        frame->frameSize += sizeof(IPCHeader_CTYPE);
+
+        frame->frame = (PBYTE)CoTaskMemAlloc( sizeof(BYTE) * frame->frameSize );
+        if ( !frame->frame )
+            return E_OUTOFMEMORY;
+
+        RtlCopyMemory( frame->frame, &header.Magic, sizeof(MagicHeaderType) );
+        RtlCopyMemory( frame->frame + sizeof(MagicHeaderType), &header.Message_Type, sizeof(UINT16) );
+        RtlCopyMemory( frame->frame + sizeof(MagicHeaderType) + sizeof(UINT16), &header.MessageLength, sizeof(UINT16) );
+        RtlCopyMemory( frame->frame + sizeof(IPCHeader_CTYPE), messageBuffer, header.MessageLength );
+
+        // Register a ResponseReceived callback before we send a packet.
+        nts = __wine_unix_call( unixhandle, send_frame, (void *)frame );
+        return HRESULT_FROM_NT( nts );
     }
 
     HRESULT WINAPI
@@ -164,8 +205,14 @@ private:
     struct IPCHeader_CTYPE
     {
         MagicHeaderType Magic;
-        UINT16 MessageType;
+        UINT16 Message_Type;
         UINT16 MessageLength;
+    };
+
+    struct IPCFrame
+    {
+        UINT32 frameSize;
+        BYTE* frame;
     };
 
     static HRESULT WINAPI 
@@ -176,7 +223,6 @@ private:
         BYTE* messageBuffer = nullptr;
         SIZE_T offset = 0;
         HSTRING bufferClass;
-        LPCWSTR bufferStr = RuntimeClass_Windows_Storage_Streams_Buffer;
         NTSTATUS status = STATUS_SUCCESS;
         POLL_SOCKET_ARGS currentPoll{};
         response_received_callback *currCallback;
@@ -188,7 +234,7 @@ private:
 
         TRACE("invoker %p, param %p, result %p\n", invoker, param, result);
 
-        status = WindowsCreateString( bufferStr, lstrlenW( bufferStr ), &bufferClass );
+        status = WindowsCreateString( RuntimeClass_Windows_Storage_Streams_Buffer, lstrlenW( RuntimeClass_Windows_Storage_Streams_Buffer ), &bufferClass );
         if ( FAILED( status ) ) return status;
 
         status = RoGetActivationFactory( bufferClass, __uuidof( IBufferFactory ), (void **)&bufferFactory );
@@ -229,6 +275,13 @@ private:
                 if ( currentPoll.curr_buffer_size - offset < sizeof(IPCHeader_CTYPE) + header->MessageLength )
                     break; //We have not received the full message yet.
 
+                /**
+                 * TODO: Should we ignore messages sent by ourselves?
+                 * if ( header->Message_Type == MessageType::Ping ||
+                 *     header->Message_Type == MessageType::XstsTokenRequest )
+                 *    break;
+                 */
+
                 status = bufferFactory->Create( header->MessageLength + 1, &message );
                 if ( FAILED( status ) ) return status; //something went horribly wrong.
                 status = message->QueryInterface<IBufferByteAccess>( &messageBufferAccess );
@@ -245,7 +298,7 @@ private:
 
                 messageBuffer[header->MessageLength] = '\0';
 
-                xodusPacket = new XodusIPCPacket( header->Magic, header->MessageType, message );
+                xodusPacket = new XodusIPCPacket( header->Magic, header->Message_Type, message );
 
                 LIST_FOR_EACH_ENTRY( currCallback, &iface->m_Callbacks, response_received_callback, entry )
                 {

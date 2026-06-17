@@ -127,12 +127,105 @@ typedef struct _POLL_SOCKET_ARGS
 enum unix_funcs
 {
     conn_socket,
-    poll_socket
+    poll_socket,
+    send_frame
 };
 
 extern unixlib_module_t unixlib;
 extern unixlib_handle_t unixhandle;
 
 typedef HRESULT (WINAPI *async_operation_callback)( IUnknown *invoker, PVOID param, PROPVARIANT *result );
+
+#define DEFINE_ASYNC_COMPLETED_HANDLER( name, iface_type, async_type )                              \
+    struct name                                                                                     \
+    {                                                                                               \
+        iface_type iface_type##_iface;                                                              \
+        LONG refcount;                                                                              \
+        BOOL invoked;                                                                               \
+        HANDLE event;                                                                               \
+    };                                                                                              \
+                                                                                                    \
+    struct name *impl_from_##name( iface_type *iface )                                              \
+    {                                                                                               \
+        return CONTAINING_RECORD( iface, struct name, iface_type##_iface );                         \
+    }                                                                                               \
+                                                                                                    \
+    static HRESULT WINAPI name##_QueryInterface( iface_type *iface, REFIID iid, void **out )        \
+    {                                                                                               \
+        if (IsEqualGUID( iid, &IID_IUnknown ) || IsEqualGUID( iid, &IID_IAgileObject ) ||           \
+            IsEqualGUID( iid, &IID_##iface_type ))                                                  \
+        {                                                                                           \
+            IUnknown_AddRef( iface );                                                               \
+            *out = iface;                                                                           \
+            return S_OK;                                                                            \
+        }                                                                                           \
+                                                                                                    \
+        *out = NULL;                                                                                \
+        return E_NOINTERFACE;                                                                       \
+    }                                                                                               \
+                                                                                                    \
+    static ULONG WINAPI name##_AddRef( iface_type *iface )                                          \
+    {                                                                                               \
+        struct name *impl = CONTAINING_RECORD( iface, struct name, iface_type##_iface );            \
+        return InterlockedIncrement( &impl->refcount );                                             \
+    }                                                                                               \
+                                                                                                    \
+    static ULONG WINAPI name##_Release( iface_type *iface )                                         \
+    {                                                                                               \
+        struct name *impl = CONTAINING_RECORD( iface, struct name, iface_type##_iface );            \
+        ULONG ref = InterlockedDecrement( &impl->refcount );                                        \
+        if (!ref) free( impl );                                                                     \
+        return ref;                                                                                 \
+    }                                                                                               \
+                                                                                                    \
+    static HRESULT WINAPI name##_Invoke( iface_type *iface, async_type *async, AsyncStatus status ) \
+    {                                                                                               \
+        struct name *impl = CONTAINING_RECORD( iface, struct name, iface_type##_iface );            \
+                                                                                                    \
+        TRACE( "iface %p, async %p, status %u\n", iface, async, status );                           \
+                                                                                                    \
+        impl->invoked = TRUE;                                                                       \
+        if (impl->event) SetEvent( impl->event );                                                   \
+        return S_OK;                                                                                \
+    }                                                                                               \
+                                                                                                    \
+    static iface_type##Vtbl name##_vtbl =                                                           \
+    {                                                                                               \
+        name##_QueryInterface,                                                                      \
+        name##_AddRef,                                                                              \
+        name##_Release,                                                                             \
+        name##_Invoke,                                                                              \
+    };                                                                                              \
+                                                                                                    \
+    static iface_type *name##_create( HANDLE event )                                                \
+    {                                                                                               \
+        struct name *impl;                                                                          \
+                                                                                                    \
+        if (!(impl = calloc( 1, sizeof(*impl) ))) return NULL;                                      \
+        impl->iface_type##_iface.lpVtbl = &name##_vtbl;                                             \
+        impl->event = event;                                                                        \
+        impl->refcount = 1;                                                                         \
+                                                                                                    \
+        return &impl->iface_type##_iface;                                                           \
+    }                                                                                               \
+                                                                                                    \
+    static DWORD await_##async_type( async_type *async, DWORD timeout )                             \
+    {                                                                                               \
+        iface_type *handler;                                                                        \
+        HANDLE event;                                                                               \
+        HRESULT hr;                                                                                 \
+        DWORD ret;                                                                                  \
+                                                                                                    \
+        event = CreateEventW( NULL, FALSE, FALSE, NULL );                                           \
+        handler = name##_create( event );                                                           \
+        hr = async_type##_put_Completed( async, handler );                                          \
+        if ( FAILED( hr ) ) return hr;                                                              \
+        ret = WaitForSingleObject( event, timeout );                                                \
+        CloseHandle( event );                                                                       \
+        iface_type##_Release( handler );                                                            \
+                                                                                                    \
+        return ret;                                                                                 \
+    }
+
 
 #endif

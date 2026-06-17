@@ -58,7 +58,7 @@ public:
 
 private:
     MagicHeaderType Magic;
-    UINT16 MessageType;
+    UINT16 Message_Type;
     Windows::Storage::Streams::IBuffer *Message;
     std::atomic_long ref{ 1 };
 };

@@ -106,7 +106,7 @@ namespace Xodus
     ]
     interface IXodusService : IInspectable
     {
-        HRESULT Ping( [out, retval] Windows.Foundation.IAsyncOperation<UINT32> **operation );
+        HRESULT Ping( [out, retval] Windows.Foundation.IAsyncAction **operation );
         HRESULT XstsTokenRequest( [in] HSTRING url, [out, retval] Windows.Foundation.IAsyncOperation<Xodus.IXstsTokenResponse *> **operation );
     }
 

@@ -20,6 +20,7 @@
  */
 
 #include "../../private.h"
+#include "../../WineCoreUAP/Foundation/IWineAsync.hpp"
 #include "Structs.h"
 
 #include <atomic>
@@ -29,6 +30,7 @@ WINE_DEFAULT_DEBUG_CHANNEL(xodus);
 using namespace ABI;
 using namespace ABI::Xodus;
 using namespace ABI::Windows::Foundation;
+using namespace ABI::Windows::Storage::Streams;
 
 class ABI::Xodus::XodusService :
     public IXodusService
@@ -105,10 +107,10 @@ public:
 
     /* IXodusService Methods */
     HRESULT WINAPI
-    Ping( IAsyncOperation<UINT32> **operation ) override
+    Ping( IAsyncAction **operation ) override
     {
-        FIXME("operation %p stub!\n", operation);
-        return E_NOTIMPL;
+        TRACE("operation %p.\n", operation);
+        return AsyncAction::Create( static_cast<IUnknown *>(this), nullptr, PingAsync, operation );
     }
     
     HRESULT WINAPI
@@ -119,6 +121,39 @@ public:
     }
 
 private:
+    static HRESULT WINAPI
+    PingAsync( IUnknown *invoker, PVOID param, PROPVARIANT *result )
+    {
+        HRESULT status;
+        HSTRING bufferClass;
+
+        IXodusIPCPacket *xodusPacket = nullptr;
+        IBuffer *message = nullptr;
+        IBufferFactory *bufferFactory = nullptr;
+
+        TRACE("invoker %p, param %p, result %p\n", invoker, param, result);
+
+        status = WindowsCreateString( RuntimeClass_Windows_Storage_Streams_Buffer, lstrlenW( RuntimeClass_Windows_Storage_Streams_Buffer ), &bufferClass );
+        if ( FAILED( status ) ) return status;
+
+        status = RoGetActivationFactory( bufferClass, __uuidof( IBufferFactory ), (void **)&bufferFactory );
+        WindowsDeleteString( bufferClass );
+        if ( FAILED( status ) ) return status;
+
+        status = bufferFactory->Create( 1, &message );
+        if ( FAILED( status ) ) return status;
+
+        // Construct a new IPC Packet
+        xodusPacket = new XodusIPCPacket(
+            MagicHeaderType::XML,
+            1 /* PING */,
+            message
+        );
+
+        xodus_ipclayer->SendRequestAsync( xodusPacket, nullptr );
+        return S_OK;
+    }
+
     std::atomic_long ref{ 1 };
 };
 
