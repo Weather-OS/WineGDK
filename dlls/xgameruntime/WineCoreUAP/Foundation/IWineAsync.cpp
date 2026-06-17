@@ -191,14 +191,13 @@ AsyncInfo::get_Result( PROPVARIANT *result ) noexcept
         if ( status == Completed || status == Error )
         {
             PropVariantCopy( result, &this->result );
-            hr = this->hr;
         }
         // This is where we resubmit the IRestrictedErrorInfo that we received upon AsyncStatus::Error
         if ( this->status == Error && errorInfo )
             SetErrorInfo( 0, errorInfo );
     }
 
-    return S_OK;
+    return hr;
 }
 
 HRESULT WINAPI
