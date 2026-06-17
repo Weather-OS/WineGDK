@@ -130,6 +130,7 @@ private:
         IXodusIPCPacket *xodusPacket = nullptr;
         IBuffer *message = nullptr;
         IBufferFactory *bufferFactory = nullptr;
+        IAsyncOperation<IXodusIPCPacket *> *response;
 
         TRACE("invoker %p, param %p, result %p\n", invoker, param, result);
 
@@ -150,7 +151,8 @@ private:
             message
         );
 
-        xodus_ipclayer->SendRequestAsync( xodusPacket, nullptr );
+        xodus_ipclayer->SendRequestAsync( xodusPacket, &response );
+        xodusPacket->Release();
         return S_OK;
     }
 

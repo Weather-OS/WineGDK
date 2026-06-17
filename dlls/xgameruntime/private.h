@@ -89,6 +89,7 @@
 #define FAIL_FAST_IF_FAILED(hr)                                 do { HRESULT __hrRet = hr; if (FAILED(__hrRet)) { FAIL_FAST_MSG("%s 0x%#lx", #hr, __hrRet); }} while (0)
 
 #define XODUS_SOCKET_SUFFIX "xodus.sock"
+#define IPC_REQUEST_TIMEOUT_MS 5000
 #define XODUS_INTEROP 0
 
 extern IXThreadingImpl *x_threading_impl;

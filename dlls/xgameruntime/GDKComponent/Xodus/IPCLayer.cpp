@@ -121,49 +121,13 @@ public:
     HRESULT WINAPI
     SendRequestAsync( IXodusIPCPacket *packet, IAsyncOperation<IXodusIPCPacket *> **operation ) override
     {
-        BYTE* messageBuffer;
         HRESULT hr;
-        NTSTATUS nts;
-        IPCFrame *frame = new IPCFrame();
-        IPCHeader_CTYPE header{};
 
-        IBuffer *message;
-        IBufferByteAccess *messageBufferByteAccess;
+        packet->AddRef();        
+        hr = AsyncOperation::Inspectable::Create( static_cast<IUnknown *>(this), 
+                                packet, SendRequest, { .operation = &__uuidof( IAsyncOperation<IXodusIPCPacket *> ) }, (IAsyncOperation<IInspectable *> **)operation );
 
-        TRACE("packet %p, operation %p.\n", packet, operation);
-
-        hr = packet->get_Magic( &header.Magic );
-        if ( FAILED( hr ) ) return hr;
-        hr = packet->get_MessageType( &header.Message_Type );
-        if ( FAILED( hr ) ) return hr;
-        hr = packet->get_Message( &message );
-        if ( FAILED( hr ) ) return hr;
-
-        hr = message->get_Length( &frame->frameSize );
-        if ( FAILED( hr ) ) return hr;
-        hr = message->QueryInterface<IBufferByteAccess>( &messageBufferByteAccess );
-        message->Release();
-        if ( FAILED( hr ) ) return hr;
-        hr = messageBufferByteAccess->Buffer( &messageBuffer );
-        messageBufferByteAccess->Release();
-        if ( FAILED( hr ) ) return hr;
-
-        header.MessageLength = frame->frameSize;
-
-        frame->frameSize += sizeof(IPCHeader_CTYPE);
-
-        frame->frame = (PBYTE)CoTaskMemAlloc( sizeof(BYTE) * frame->frameSize );
-        if ( !frame->frame )
-            return E_OUTOFMEMORY;
-
-        RtlCopyMemory( frame->frame, &header.Magic, sizeof(MagicHeaderType) );
-        RtlCopyMemory( frame->frame + sizeof(MagicHeaderType), &header.Message_Type, sizeof(UINT16) );
-        RtlCopyMemory( frame->frame + sizeof(MagicHeaderType) + sizeof(UINT16), &header.MessageLength, sizeof(UINT16) );
-        RtlCopyMemory( frame->frame + sizeof(IPCHeader_CTYPE), messageBuffer, header.MessageLength );
-
-        // Register a ResponseReceived callback before we send a packet.
-        nts = __wine_unix_call( unixhandle, send_frame, (void *)frame );
-        return HRESULT_FROM_NT( nts );
+        return hr;
     }
 
     HRESULT WINAPI
@@ -214,6 +178,105 @@ private:
         UINT32 frameSize;
         BYTE* frame;
     };
+    
+    struct SendRequestContext
+    {
+        HANDLE event;
+        IXodusIPCPacket *response;
+    };
+
+    static HRESULT WINAPI 
+    SendRequest( IUnknown *invoker, PVOID param, PROPVARIANT *result )
+    {
+        auto iface = static_cast<IPCLayer *>( invoker );
+        auto packet = static_cast<IXodusIPCPacket *>( param );
+
+        BYTE* messageBuffer;
+        DWORD asyncres;
+        HRESULT status = S_OK;
+        NTSTATUS nts;
+        IPCFrame *frame = new IPCFrame();
+        IPCHeader_CTYPE header{};
+        EventRegistrationToken token{};
+        SendRequestContext context{ .event = CreateEventW(nullptr, TRUE, FALSE, nullptr) };
+        IPCResponseHandler *handler = new IPCResponseHandler( SendRequestResponseHandler, (PVOID)&context );
+
+        IBuffer *message;
+        IBufferByteAccess *messageBufferByteAccess;
+
+        TRACE("invoker %p, param %p, result %p\n", invoker, param, result);
+
+        packet->get_Magic( &header.Magic );
+        packet->get_MessageType( &header.Message_Type );
+        packet->get_Message( &message );
+        packet->Release();
+
+        status = message->get_Length( &frame->frameSize );
+        if ( FAILED( status ) ) return status;
+        status = message->QueryInterface<IBufferByteAccess>( &messageBufferByteAccess );
+        message->Release();
+        if ( FAILED( status ) ) return status;
+        status = messageBufferByteAccess->Buffer( &messageBuffer );
+        messageBufferByteAccess->Release();
+        if ( FAILED( status ) ) return status;
+
+        header.MessageLength = frame->frameSize;
+
+        frame->frameSize += sizeof(IPCHeader_CTYPE);
+
+        frame->frame = (PBYTE)CoTaskMemAlloc( sizeof(BYTE) * frame->frameSize );
+        if ( !frame->frame )
+            return E_OUTOFMEMORY;
+
+        RtlCopyMemory( frame->frame, &header.Magic, sizeof(MagicHeaderType) );
+        RtlCopyMemory( frame->frame + sizeof(MagicHeaderType), &header.Message_Type, sizeof(UINT16) );
+        RtlCopyMemory( frame->frame + sizeof(MagicHeaderType) + sizeof(UINT16), &header.MessageLength, sizeof(UINT16) );
+        RtlCopyMemory( frame->frame + sizeof(IPCHeader_CTYPE), messageBuffer, header.MessageLength );
+
+        status = iface->add_ResponseReceived( handler, &token );
+        if ( FAILED( status ) ) return status;
+
+        nts = __wine_unix_call( unixhandle, send_frame, (void *)frame );
+        if ( FAILED( nts ) ) return HRESULT_FROM_NT( nts );
+
+        asyncres = WaitForSingleObject( context.event, IPC_REQUEST_TIMEOUT_MS );
+        status = iface->remove_ResponseReceived( token );
+        if ( FAILED( status ) ) return status;
+        if ( asyncres )
+        {
+            WARN("Timeout while waiting for %p to respond.\n", handler);
+            return HRESULT_FROM_NT( STATUS_TIMEOUT );
+        }
+
+        result->vt = VT_UNKNOWN;
+        result->punkVal = context.response;
+
+        return S_OK;
+    }
+
+    static HRESULT WINAPI
+    SendRequestResponseHandler( PVOID context, IXodusIPCPacket *packet )
+    {
+        auto ctx = reinterpret_cast<SendRequestContext *>( context );
+
+        HRESULT status;
+        UINT16 messageType;
+
+        TRACE("context %p, packet %p\n", context, packet);
+
+        status = packet->get_MessageType( &messageType );
+        if ( FAILED( status ) ) return status;
+
+        if ( messageType == 1 /* PING */ )
+            return S_OK; //Skip the packet we sent.
+
+        if ( messageType == 2 /* PONG */ )
+            TRACE("Got PONGED!\n");
+
+        ctx->response = packet;
+        SetEvent( ctx->event );
+        return S_OK;
+    }
 
     static HRESULT WINAPI 
     InitializeSocketThread( IUnknown *invoker, PVOID param, PROPVARIANT *result )
@@ -274,6 +337,7 @@ private:
 
                 if ( currentPoll.curr_buffer_size - offset < sizeof(IPCHeader_CTYPE) + header->MessageLength )
                     break; //We have not received the full message yet.
+                TRACE("header->Message_Type is %d!\n", header->Message_Type);
 
                 /**
                  * TODO: Should we ignore messages sent by ourselves?

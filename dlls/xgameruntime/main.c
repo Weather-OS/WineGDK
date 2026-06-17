@@ -161,41 +161,42 @@ HRESULT WINAPI InitializeApiImplEx2( ULONG gdkVer, ULONG gsVer, CHAR mode, INITI
     {
         WARN("Failed to do unix call %s\n", "conn_socket");
         MessageBoxA( NULL, "Could not load Xodus's service socket.\nXbox account functionality will be missing.\n", "Attention Required!", MB_ICONEXCLAMATION );
+        goto _INIT;
     }
     else if ( FAILED( nts ) )
     {
         WARN("Failed to do unix call %s\n", "conn_socket");
-        return FALSE;
+        goto _INIT;
     }
 
     hr = IIPCLayer_InitializeSocket( xodus_ipclayer );
     if ( FAILED( hr ) ) 
     {
         WARN("Socket initialization failed with %#lx\n", hr);
-        return FALSE;
+        goto _INIT;
     }
     hr = IXodusService_Ping( xodus_service, &pingAction );
     if ( FAILED( hr ) ) 
     {
         WARN("Xodus Ping Dispatch failed with %#lx\n", hr);
-        return FALSE;
+        goto _INIT;
     }
     
-    async = await_IAsyncAction( pingAction, 5000 );
+    async = await_IAsyncAction( pingAction, IPC_REQUEST_TIMEOUT_MS );
     if ( async )
     {
         WARN("Async action await failed. Status was %ld\n", async);
-        return FALSE;
+        goto _INIT;
     }
         
     hr = IAsyncAction_GetResults( pingAction );
     if ( FAILED( hr ) )
     {
         WARN("Timeout while waiting for PONG from Xodus. HR was %#lx\n", hr);
-        return FALSE;
+        goto _INIT;
     }
 #endif
-
+_INIT:
     TRACE("gdkVer %ld, gsVer %ld, mode %d, options %p stub!\n", gdkVer, gsVer, mode, options);
     return S_OK;
 }
