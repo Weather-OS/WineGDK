@@ -49,6 +49,7 @@
 
 #include <xgameerr.h>
 #include <xsystem.h>
+#include <xgame.h>
 #include <xgameruntimefeature.h>
 #include <xnetworking.h>
 #include <xuser.h>
@@ -108,6 +109,7 @@ extern IXGameRuntimeFeatureImpl *x_game_runtime_feature;
 extern IXSystemImpl *x_system;
 extern IXSystemAnalyticsImpl *x_system_analytics;
 extern IXNetworkingImpl *x_networking;
+extern IXGameImpl *x_game;
 extern IXUserImpl6 *x_user;
 extern IXUserDeviceImpl *x_user_device;
 

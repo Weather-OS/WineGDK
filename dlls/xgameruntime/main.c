@@ -359,6 +359,10 @@ HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, voi
         }
         return func( runtimeClassId, interfaceId, out );
     }
+    else if ( IsEqualGUID( runtimeClassId, &CLSID_XGameImpl ) )
+    {
+        return IXGameImpl_QueryInterface( x_game, interfaceId, out );
+    }
     else if ( IsEqualGUID( runtimeClassId, &CLSID_XUserImpl ) )
     {
         return IXUserImpl6_QueryInterface( x_user, interfaceId, out );

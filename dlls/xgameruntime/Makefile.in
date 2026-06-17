@@ -18,6 +18,7 @@ SOURCES = \
 	GDKComponent/System/Threading/ThreadPool.cpp \
 	\
 	GDKComponent/System/XThreading.cpp \
+	GDKComponent/System/XGame.c \
 	GDKComponent/System/XGameRuntimeFeature.cpp \
 	GDKComponent/System/XSystem.cpp \
 	GDKComponent/System/XSystemAnalytics.cpp \
