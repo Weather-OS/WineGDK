@@ -23,6 +23,7 @@
 #include "../../WineCoreUAP/Foundation/IWineAsync.hpp"
 #include "Structs.h"
 
+#include <wine/list.h>
 #include "ntstatus.h"
 #include "robuffer.h"
 
@@ -127,15 +128,35 @@ public:
     HRESULT WINAPI
     add_ResponseReceived( IIPCResponseHandler *handler, EventRegistrationToken *token ) override
     {
-        FIXME("handler %p, token %p stub!\n", handler, token);
-        return E_NOTIMPL;
+        response_received_callback *newCallback = new response_received_callback();
+        newCallback->handler = handler;
+
+        TRACE("handler %p, token %p.\n", handler, token);
+
+        handler->AddRef();
+        token->value = m_NextEventToken++;
+        list_add_head( &m_Callbacks, &newCallback->entry );
+
+        return S_OK;
     }
 
     HRESULT WINAPI
     remove_ResponseReceived( EventRegistrationToken token ) override
     {
-        FIXME("token %lld stub!\n", token.value);
-        return E_NOTIMPL;
+        response_received_callback *oldCallback;
+
+        TRACE("token %lld.\n", token.value);
+
+        LIST_FOR_EACH_ENTRY( oldCallback, &m_Callbacks, response_received_callback, entry )
+        {
+            if ( oldCallback->token == token.value )
+            {
+                list_remove( &oldCallback->entry );
+                return S_OK;
+            }
+        }
+
+        return E_BOUNDS;
     }
 
 private:
@@ -160,14 +181,14 @@ private:
 
         IBuffer *message = nullptr;
         IBufferByteAccess *messageBufferAccess = nullptr;
-        IBufferFactory *bufferStatics = nullptr;
+        IBufferFactory *bufferFactory = nullptr;
 
         TRACE("invoker %p, param %p, result %p\n", invoker, param, result);
 
         status = WindowsCreateString( bufferStr, lstrlenW( bufferStr ), &bufferClass );
         if ( FAILED( status ) ) return status;
 
-        status = RoGetActivationFactory( bufferClass, __uuidof( IBufferFactory ), (void **)&bufferStatics );
+        status = RoGetActivationFactory( bufferClass, __uuidof( IBufferFactory ), (void **)&bufferFactory );
         WindowsDeleteString( bufferClass );
         if ( FAILED( status ) ) return status;
 
@@ -205,7 +226,7 @@ private:
                 if ( currentPoll.curr_buffer_size - offset < sizeof(IPCHeader_CTYPE) + header->MessageLength )
                     break; //We have not received the full message yet.
 
-                status = bufferStatics->Create( header->MessageLength + 1, &message );
+                status = bufferFactory->Create( header->MessageLength + 1, &message );
                 if ( FAILED( status ) ) return status; //something went horribly wrong.
                 status = message->QueryInterface<IBufferByteAccess>( &messageBufferAccess );
                 if ( FAILED( status ) ) return status; //something went horribly wrong.
@@ -219,14 +240,14 @@ private:
                 status = message->put_Length( static_cast<UINT32>(header->MessageLength) );
                 offset += sizeof(IPCHeader_CTYPE) + header->MessageLength;
 
+                messageBuffer[header->MessageLength] = '\0';
+
                 /**
                  * TODO: Logic code for ResponseReceived events.
                  */
                 FIXME("Received message %s\n", messageBuffer);
                 // ---- //
 
-                currentPoll = {};
-                free( messageBuffer );
                 messageBufferAccess->Release();
                 message->Release();
             }
@@ -237,8 +258,19 @@ private:
                 currentPoll.curr_buffer_size -= offset;
             }
         }
+
+        bufferFactory->Release();
     }
 
+    struct response_received_callback
+    {
+        struct list entry;
+        IIPCResponseHandler *handler;
+        INT64 token;
+    };
+
+    struct list m_Callbacks = LIST_INIT( m_Callbacks );
+    std::atomic<INT64> m_NextEventToken{ 0 };
     std::atomic_long ref{ 1 };
 };
 
