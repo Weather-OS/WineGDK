@@ -178,7 +178,10 @@ static NTSTATUS poll_sock( void *args )
     fds[0].fd = sockfd;
     fds[0].events = POLLIN;
 
-    ret = poll( fds, 1, -1 );
+    do {
+        ret = poll( fds, 1, -1 );
+    } while ( ret < 0 && errno == EINTR );
+
     if ( ret < 0 )
         return STATUS_CONNECTION_DISCONNECTED;
 
@@ -200,6 +203,16 @@ static NTSTATUS send_frm( void *args )
     ssize_t sent = 0;
 
     TRACE( "args %p\n", args );
+
+    UINT32 magic = *(UINT32 *)frame->frame;
+    UINT16 type  = *(UINT16 *)(frame->frame + sizeof(UINT32));
+    UINT16 len   = *(UINT16 *)(frame->frame + sizeof(UINT32) + sizeof(UINT16));
+    BYTE* body  = frame->frame + 8;
+
+    TRACE("magic is %#x\n", magic);
+    TRACE("type is %d\n", type);
+    TRACE("len is %d\n", len);
+    TRACE("body is %s\n", body);
 
     while ( sent < frame->frameSize )
     {
