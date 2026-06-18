@@ -197,14 +197,15 @@ private:
         response->Release();
         xodusPacket->get_MessageType( &messageType );
         xodusPacket->get_Message( &message );
+        xodusPacket->Release();
         status = message->QueryInterface<IBufferByteAccess>( &messageByteAccess );
+        message->Release();
         if ( FAILED( status ) ) return status;
 
         status = messageByteAccess->Buffer( &messageBuffer );
         messageByteAccess->Release();
         if ( FAILED( status ) ) return status;
         TRACE("Got message buffer: %s\n", debugstr_a((LPCSTR)messageBuffer));
-        xodusPacket->Release();
         if ( messageType != 4 /* XstsTokenResponse */)
             return E_INVALIDARG;
         
