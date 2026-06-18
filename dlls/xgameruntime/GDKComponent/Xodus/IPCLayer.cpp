@@ -140,6 +140,7 @@ public:
 
         handler->AddRef();
         token->value = m_NextEventToken++;
+        newCallback->token = token->value;
         list_add_head( &m_Callbacks, &newCallback->entry );
 
         return S_OK;
