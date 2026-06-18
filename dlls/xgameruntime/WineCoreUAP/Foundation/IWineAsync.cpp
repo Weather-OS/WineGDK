@@ -333,6 +333,8 @@ AsyncInfo::async_info_callback( TP_CALLBACK_INSTANCE *instance, void *iface, TP_
     AsyncInfo *impl = static_cast<AsyncInfo *>( iface );
     PROPVARIANT result;
     IInspectable *operation = impl->IInspectable_outer;
+    IWineAsyncOperationCompletedHandler *handler = nullptr;
+    AsyncStatus status;
 
     TRACE( "instace %p, iface %p, work %p\n", instance, iface, work );
 
@@ -341,26 +343,28 @@ AsyncInfo::async_info_callback( TP_CALLBACK_INSTANCE *instance, void *iface, TP_
     {
         const std::lock_guard<std::mutex> lock( impl->mutex );
 
-        if (impl->status != Closed) impl->status = FAILED(hr) ? Error : Completed;
+        if ( impl->status != Closed )
+            impl->status = FAILED(hr) ? Error : Completed;
+
         if ( impl->status == Error )
-            GetErrorInfo( 0, &impl->errorInfo );
+            GetErrorInfo(0, &impl->errorInfo);
 
         PropVariantCopy( &impl->result, &result );
         impl->hr = hr;
 
-        if ( impl->handler != NULL && impl->handler != HANDLER_NOT_SET )
+        if ( impl->handler != nullptr && impl->handler != HANDLER_NOT_SET )
         {
-            IWineAsyncOperationCompletedHandler *handler = impl->handler;
-            AsyncStatus status = impl->status;
-            impl->handler = NULL;
-
-            handler->Invoke( operation, status );
-            handler->Release();
+            handler = impl->handler;
+            handler->AddRef();
+            status = impl->status;
+            impl->handler = nullptr;
         }
+    }
 
-        operation->Release();
-
-        PropVariantClear( &result );
+    if ( handler )
+    {
+        handler->Invoke( operation, status );
+        handler->Release();
     }
 }
 
