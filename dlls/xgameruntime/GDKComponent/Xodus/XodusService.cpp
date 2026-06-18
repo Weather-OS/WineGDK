@@ -128,16 +128,12 @@ private:
     {
         auto url = static_cast<HSTRING>(param);
 
-        INT xmlStrSize;
         BYTE *messageBuffer;
         DWORD ret;
         LPSTR xmlStr;
-        UINT32 xmlStrLen;
         UINT16 messageType;
-        LPCWSTR xmlStrW;
         HRESULT status;
         HSTRING bufferClass;
-        HSTRING xml;
 
         IXodusIPCPacket *xodusPacket = nullptr;
         IBufferByteAccess *messageByteAccess = nullptr;
@@ -154,15 +150,10 @@ private:
         WindowsDeleteString( bufferClass );
         if ( FAILED( status ) ) return status;
 
-        status = xodus_xml_builder->BuildXstsTokenRequestXml( url, &xml );
+        status = xodus_xml_builder->BuildXstsTokenRequestXml( url, &xmlStr );
         if ( FAILED( status ) ) return status;
 
-        xmlStrW = WindowsGetStringRawBuffer( xml, &xmlStrLen );
-        xmlStrSize = WideCharToMultiByte( CP_UTF8, 0, xmlStrW, xmlStrLen, nullptr, 0, nullptr, nullptr );
-        xmlStr = (LPSTR)CoTaskMemAlloc( xmlStrSize );
-        WideCharToMultiByte( CP_UTF8, 0, xmlStrW, xmlStrLen, xmlStr, xmlStrSize, nullptr, nullptr );
-
-        status = bufferFactory->Create( xmlStrSize + 1, &message );
+        status = bufferFactory->Create( lstrlenA( xmlStr ) + 1, &message );
         if ( FAILED( status ) ) return status;
 
         status = message->QueryInterface<IBufferByteAccess>( &messageByteAccess );
@@ -172,8 +163,8 @@ private:
         messageByteAccess->Release();
         if ( FAILED( status ) ) return status;
 
-        RtlCopyMemory( messageBuffer, xmlStr, xmlStrSize );
-        status = message->put_Length( xmlStrSize );
+        RtlCopyMemory( messageBuffer, xmlStr, lstrlenA( xmlStr ) + 1 );
+        status = message->put_Length( lstrlenA( xmlStr ) + 1 );
         CoTaskMemFree( xmlStr );
 
         // Construct a new IPC Packet
@@ -203,9 +194,11 @@ private:
         if ( FAILED( status ) ) return status;
 
         status = messageByteAccess->Buffer( &messageBuffer );
-        messageByteAccess->Release();
         if ( FAILED( status ) ) return status;
-        TRACE("Got message buffer: %s\n", debugstr_a((LPCSTR)messageBuffer));
+
+        xodus_xml_builder->FromXstsTokenResponseXml( reinterpret_cast<LPCSTR>(messageBuffer), nullptr );
+        messageByteAccess->Release();
+
         if ( messageType != 4 /* XstsTokenResponse */)
             return E_INVALIDARG;
         

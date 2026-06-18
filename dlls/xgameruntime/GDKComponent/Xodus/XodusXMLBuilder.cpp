@@ -121,15 +121,12 @@ public:
 
     /* IXodusXMLBuilder Methods */
     HRESULT WINAPI
-    BuildXstsTokenRequestXml( HSTRING url, HSTRING *xml_string )
+    BuildXstsTokenRequestXml( HSTRING url, LPSTR *xml_string ) override
     {
-        HRESULT hr = S_OK;
         INT bufSize;
-        INT xmlStringLen;
         INT urlStrSize;
         LPSTR urlStr;
         UINT32 urlStrLen;
-        LPWSTR xmlStringW;
         LPCWSTR urlStrW = WindowsGetStringRawBuffer( url, &urlStrLen );
         xmlChar *xmlBuff = nullptr;
         xmlDocPtr doc = xmlNewDoc( BAD_CAST "1.0" );
@@ -148,22 +145,43 @@ public:
         xmlDocDumpFormatMemory(doc, &xmlBuff, &bufSize, 1);
         xmlFreeDoc(doc);
 
-        xmlStringLen = MultiByteToWideChar( CP_UTF8, 0, reinterpret_cast<LPCCH>(xmlBuff), -1, NULL, 0 );
-        xmlStringW = (LPWSTR)CoTaskMemAlloc( xmlStringLen * sizeof(WCHAR) );
-        MultiByteToWideChar( CP_UTF8, 0, reinterpret_cast<LPCCH>(xmlBuff), -1, xmlStringW, xmlStringLen );
-        xmlFree(xmlBuff);
-
-        hr = WindowsCreateString( xmlStringW, xmlStringLen - 1, xml_string );
-        CoTaskMemFree( xmlStringW );
-        if ( FAILED( hr ) ) return hr;
+        *xml_string = (LPSTR)CoTaskMemAlloc( bufSize );
+        lstrcpynA( *xml_string, reinterpret_cast<LPCSTR>(xmlBuff), bufSize );
 
         return S_OK;
     }
 
     HRESULT WINAPI
-    FromXstsTokenResponseXml( HSTRING xml_string, IXstsTokenResponse **response )
+    FromXstsTokenResponseXml( LPCSTR xml_string, IXstsTokenResponse **response ) override
     {
-        FIXME("xml_string %s, response %p stub!\n", debugstr_hstring(xml_string), response);
+        xmlDocPtr doc = nullptr;
+        xmlNodePtr root = nullptr;
+        xmlNodePtr curr_child = nullptr;
+
+        TRACE("xml_string %s, response %p.\n", debugstr_a(xml_string), response);
+        int len = (int)lstrlenA(xml_string);
+
+        doc = xmlReadMemory( xml_string, len, "noname.xml", nullptr, 0 );
+        if ( !doc )
+        {
+            return E_FAIL;
+        }
+
+        root = xmlDocGetRootElement( doc );
+        if ( !root )
+        {
+            ERR( "Failed to obtain root element for xmlDoc %p\n", doc );
+            return E_FAIL;
+        }
+
+        for ( curr_child = root->children; curr_child != NULL; curr_child = curr_child->next ) 
+        {
+            if ( curr_child->type == XML_ELEMENT_NODE ) 
+            {
+                TRACE("Child name is %s\n", curr_child->name );
+            }
+        }
+
         return E_NOTIMPL;
     }
 
