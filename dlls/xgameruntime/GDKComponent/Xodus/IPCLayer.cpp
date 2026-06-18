@@ -366,6 +366,8 @@ private:
 
                 xodusPacket = new XodusIPCPacket( header->Magic, header->Message_Type, message );
 
+                messageBufferAccess->Release();
+
                 LIST_FOR_EACH_ENTRY( currCallback, &iface->m_Callbacks, response_received_callback, entry )
                 {
                     currCallback->handler->Invoke( xodusPacket );
@@ -373,8 +375,6 @@ private:
                 // ---- //
 
                 xodusPacket->Release();
-                messageBufferAccess->Release();
-                message->Release();
             }
 
             if ( offset > 0 )
