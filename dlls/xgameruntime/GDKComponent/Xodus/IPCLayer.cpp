@@ -237,6 +237,7 @@ private:
         if ( FAILED( status ) ) return status;
 
         nts = __wine_unix_call( unixhandle, send_frame, (void *)frame );
+        CoTaskMemFree( frame->frame );
         if ( FAILED( nts ) ) return HRESULT_FROM_NT( nts );
 
         asyncres = WaitForSingleObject( context.event, IPC_REQUEST_TIMEOUT_MS );

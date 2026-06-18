@@ -165,6 +165,7 @@ private:
         response->GetResults( &xodusPacket );
         response->Release();
         xodusPacket->get_MessageType( &messageType );
+        xodusPacket->Release();
         if ( messageType != 2 /* PONG */)
             return E_INVALIDARG;
         

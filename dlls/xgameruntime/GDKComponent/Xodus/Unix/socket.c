@@ -170,6 +170,8 @@ static NTSTATUS poll_sock( void *args )
     int ret;
     ssize_t n;
 
+    TRACE( "args %p\n", args );
+
     if ( !sockfd )
         return STATUS_CONNECTION_INVALID;
 
@@ -191,10 +193,13 @@ static NTSTATUS poll_sock( void *args )
 
     return STATUS_SUCCESS;
 }
+
 static NTSTATUS send_frm( void *args )
 {
     IPCFrame *frame = (IPCFrame *)args;
     ssize_t sent = 0;
+
+    TRACE( "args %p\n", args );
 
     while ( sent < frame->frameSize )
     {
