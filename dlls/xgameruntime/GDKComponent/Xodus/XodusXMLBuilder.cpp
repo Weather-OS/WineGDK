@@ -23,7 +23,11 @@
 #include "../../WineCoreUAP/Foundation/IWineAsync.hpp"
 #include "Structs.h"
 
+#include <libxml/parser.h>
+#include <libxml/tree.h>
 #include <atomic>
+#include <windows.h>
+#include <winstring.h>
 
 WINE_DEFAULT_DEBUG_CHANNEL(xodus);
 
@@ -35,6 +39,17 @@ class ABI::Xodus::XodusXMLBuilder :
     public IXodusXMLBuilder
 {
 public:
+    XodusXMLBuilder() noexcept
+    {
+        xmlInitParser();
+        LIBXML_TEST_VERSION
+    }
+
+    ~XodusXMLBuilder()
+    {
+        xmlCleanupParser();
+    }
+
     /* IUnknown Methods */
     HRESULT WINAPI 
     QueryInterface( REFIID iid, void **out )
@@ -108,8 +123,41 @@ public:
     HRESULT WINAPI
     BuildXstsTokenRequestXml( HSTRING url, HSTRING *xml_string )
     {
-        FIXME("url %s, xml_string %p stub!\n", debugstr_hstring(url), xml_string);
-        return E_NOTIMPL;
+        HRESULT hr = S_OK;
+        INT bufSize;
+        INT xmlStringLen;
+        INT urlStrSize;
+        LPSTR urlStr;
+        UINT32 urlStrLen;
+        LPWSTR xmlStringW;
+        LPCWSTR urlStrW = WindowsGetStringRawBuffer( url, &urlStrLen );
+        xmlChar *xmlBuff = nullptr;
+        xmlDocPtr doc = xmlNewDoc( BAD_CAST "1.0" );
+        xmlNodePtr root;
+
+        TRACE("url %s, xml_string %p.\n", debugstr_hstring(url), xml_string);
+
+        urlStrSize = WideCharToMultiByte( CP_UTF8, 0, urlStrW, urlStrLen, nullptr, 0, nullptr, nullptr );
+        urlStr = (LPSTR)CoTaskMemAlloc( urlStrSize );
+        WideCharToMultiByte( CP_UTF8, 0, urlStrW, urlStrLen, urlStr, urlStrSize, nullptr, nullptr );
+
+        root = xmlNewNode( nullptr, BAD_CAST "XSTSTokenRequest" );
+        xmlDocSetRootElement(doc, root);
+        xmlNewChild( root, nullptr, BAD_CAST "Url", BAD_CAST urlStr );
+        CoTaskMemFree( urlStr );
+        xmlDocDumpFormatMemory(doc, &xmlBuff, &bufSize, 1);
+        xmlFreeDoc(doc);
+
+        xmlStringLen = MultiByteToWideChar( CP_UTF8, 0, reinterpret_cast<LPCCH>(xmlBuff), -1, NULL, 0 );
+        xmlStringW = (LPWSTR)CoTaskMemAlloc( xmlStringLen * sizeof(WCHAR) );
+        MultiByteToWideChar( CP_UTF8, 0, reinterpret_cast<LPCCH>(xmlBuff), -1, xmlStringW, xmlStringLen );
+        xmlFree(xmlBuff);
+
+        hr = WindowsCreateString( xmlStringW, xmlStringLen - 1, xml_string );
+        CoTaskMemFree( xmlStringW );
+        if ( FAILED( hr ) ) return hr;
+
+        return S_OK;
     }
 
     HRESULT WINAPI
