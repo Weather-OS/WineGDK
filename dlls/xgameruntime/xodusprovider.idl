@@ -117,8 +117,8 @@ namespace Xodus
     ]
     interface IXodusXMLBuilder : IInspectable
     {
-        HRESULT BuildXstsTokenRequestXml( [in] HSTRING url, [out, retval] HSTRING *xml_string );
-        HRESULT FromXstsTokenResponseXml( [in] HSTRING xml_string, [out, retval] IXstsTokenResponse **response );
+        HRESULT BuildXstsTokenRequestXml( [in] HSTRING url, [out, retval] LPSTR *xml_string );
+        HRESULT FromXstsTokenResponseXml( [in] LPCSTR xml_string, [out, retval] IXstsTokenResponse **response );
     }
 
     [
