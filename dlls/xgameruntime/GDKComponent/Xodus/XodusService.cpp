@@ -23,6 +23,7 @@
 #include "../../WineCoreUAP/Foundation/IWineAsync.hpp"
 #include "Structs.h"
 
+#include "robuffer.h"
 #include <atomic>
 
 WINE_DEFAULT_DEBUG_CHANNEL(xodus);
@@ -116,11 +117,92 @@ public:
     HRESULT WINAPI
     XstsTokenRequest( HSTRING url, IAsyncOperation<IXstsTokenResponse *> **operation ) override
     {
-        FIXME("url %s, operation %p stub!\n", debugstr_hstring(url), operation);
-        return E_NOTIMPL;
+        TRACE("url %s, operation %p.\n", debugstr_hstring(url), operation);
+        return AsyncOperation::Inspectable::Create( static_cast<IUnknown *>(this), 
+                    static_cast<PVOID>(url), XstsTokenRequestAsync, { .operation = &__uuidof( IAsyncOperation<IXstsTokenResponse *> )}, (IAsyncOperation<IInspectable *> **)operation );
     }
 
 private:
+    static HRESULT WINAPI
+    XstsTokenRequestAsync( IUnknown *invoker, PVOID param, PROPVARIANT *result )
+    {
+        auto url = static_cast<HSTRING>(param);
+
+        INT xmlStrSize;
+        BYTE *messageBuffer;
+        DWORD ret;
+        LPSTR xmlStr;
+        UINT32 xmlStrLen;
+        UINT16 messageType;
+        LPCWSTR xmlStrW;
+        HRESULT status;
+        HSTRING bufferClass;
+        HSTRING xml;
+
+        IXodusIPCPacket *xodusPacket = nullptr;
+        IBufferByteAccess *messageByteAccess = nullptr;
+        IBuffer *message = nullptr;
+        IBufferFactory *bufferFactory = nullptr;
+        IAsyncOperation<IXodusIPCPacket *> *response;
+
+        TRACE("invoker %p, param %p, result %p\n", invoker, param, result);
+
+        status = WindowsCreateString( RuntimeClass_Windows_Storage_Streams_Buffer, lstrlenW( RuntimeClass_Windows_Storage_Streams_Buffer ), &bufferClass );
+        if ( FAILED( status ) ) return status;
+
+        status = RoGetActivationFactory( bufferClass, __uuidof( IBufferFactory ), (void **)&bufferFactory );
+        WindowsDeleteString( bufferClass );
+        if ( FAILED( status ) ) return status;
+
+        status = xodus_xml_builder->BuildXstsTokenRequestXml( url, &xml );
+        if ( FAILED( status ) ) return status;
+
+        xmlStrW = WindowsGetStringRawBuffer( xml, &xmlStrLen );
+        xmlStrSize = WideCharToMultiByte( CP_UTF8, 0, xmlStrW, xmlStrLen, nullptr, 0, nullptr, nullptr );
+        xmlStr = (LPSTR)CoTaskMemAlloc( xmlStrSize );
+        WideCharToMultiByte( CP_UTF8, 0, xmlStrW, xmlStrLen, xmlStr, xmlStrSize, nullptr, nullptr );
+
+        status = bufferFactory->Create( xmlStrSize + 1, &message );
+        if ( FAILED( status ) ) return status;
+
+        status = message->QueryInterface<IBufferByteAccess>( &messageByteAccess );
+        if ( FAILED( status ) ) return status;
+
+        status = messageByteAccess->Buffer( &messageBuffer );
+        messageByteAccess->Release();
+        if ( FAILED( status ) ) return status;
+
+        RtlCopyMemory( messageBuffer, xmlStr, xmlStrSize );
+        status = message->put_Length( xmlStrSize );
+        CoTaskMemFree( xmlStr );
+
+        // Construct a new IPC Packet
+        xodusPacket = new XodusIPCPacket(
+            MagicHeaderType::XML,
+            3 /* XstsTokenRequest */,
+            message
+        );
+
+        xodus_ipclayer->SendRequestAsync( xodusPacket, &response );
+
+        ret = AsyncOperationCompletedHandler<IXodusIPCPacket *>::await_AsyncOperation( response, INFINITE );
+        if ( ret )
+            return E_FAIL;
+
+        xodusPacket->Release();
+        message->Release();
+
+        status = response->GetResults( &xodusPacket );
+        if ( FAILED( status ) ) return status;
+        response->Release();
+        xodusPacket->get_MessageType( &messageType );
+        xodusPacket->Release();
+        if ( messageType != 4 /* XstsTokenResponse */)
+            return E_INVALIDARG;
+        
+        return S_OK;
+    }
+
     static HRESULT WINAPI
     PingAsync( IUnknown *invoker, PVOID param, PROPVARIANT *result )
     {
@@ -160,10 +242,12 @@ private:
             return E_FAIL;
 
         xodusPacket->Release();
+        message->Release();
 
         // confirm that we actually PONGed
-        response->GetResults( &xodusPacket );
+        status = response->GetResults( &xodusPacket );
         response->Release();
+        if ( FAILED( status ) ) return status;
         xodusPacket->get_MessageType( &messageType );
         xodusPacket->Release();
         if ( messageType != 2 /* PONG */)

@@ -384,6 +384,7 @@ private:
         }
 
         bufferFactory->Release();
+        return S_OK;
     }
 
     struct response_received_callback
