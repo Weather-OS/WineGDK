@@ -25,5 +25,6 @@ SOURCES = \
 	GDKComponent/Xodus/Structs.cpp \
 	GDKComponent/Xodus/IPCLayer.cpp \
 	GDKComponent/Xodus/XodusService.cpp \
+	GDKComponent/Xodus/XodusXMLBuilder.cpp \
 	\
 	GDKComponent/Xodus/Unix/socket.c

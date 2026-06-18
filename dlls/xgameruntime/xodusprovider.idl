@@ -143,6 +143,14 @@ namespace Xodus
     [
         contract(Windows.Foundation.UniversalApiContract, 1.0)
     ]
+    runtimeclass XodusXMLBuilder
+    {
+        [default] interface Xodus.IXodusXMLBuilder;
+    }
+
+    [
+        contract(Windows.Foundation.UniversalApiContract, 1.0)
+    ]
     runtimeclass IPCLayer
     {
         [default] interface Xodus.IIPCLayer;

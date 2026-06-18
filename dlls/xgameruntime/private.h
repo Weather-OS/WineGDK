@@ -88,6 +88,7 @@
 
 #define FAIL_FAST_IF_FAILED(hr)                                 do { HRESULT __hrRet = hr; if (FAILED(__hrRet)) { FAIL_FAST_MSG("%s 0x%#lx", #hr, __hrRet); }} while (0)
 
+#define POLL_BUFFER_SIZE 2048
 #define XODUS_SOCKET_SUFFIX "xodus.sock"
 #define IPC_REQUEST_TIMEOUT_MS 5000
 #define XODUS_INTEROP 0
@@ -102,12 +103,12 @@ extern IXUserImpl *x_user;
 #ifdef __cplusplus
 extern ABI::Xodus::IIPCLayer *xodus_ipclayer;
 extern ABI::Xodus::IXodusService *xodus_service;
+extern ABI::Xodus::IXodusXMLBuilder *xodus_xml_builder;
 #else
 extern IIPCLayer *xodus_ipclayer;
 extern IXodusService *xodus_service;
+extern IXodusXMLBuilder *xodus_xml_builder;
 #endif
-
-#define POLL_BUFFER_SIZE 2048
 
 struct async_operation_iids
 {
