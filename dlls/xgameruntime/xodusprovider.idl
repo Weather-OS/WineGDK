@@ -54,7 +54,6 @@ namespace Xodus
 
     struct TitleMgtSignaturePolicy
     {
-        UINT16 Version;
         Windows.Foundation.Collections.IVectorView<HSTRING> *SupportedAlgorithms;
         UINT64 MaxBodyBytes;
         Windows.Foundation.Collections.IVectorView<HSTRING> *SupportedSignatureTypes;
