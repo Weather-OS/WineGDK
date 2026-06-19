@@ -118,8 +118,8 @@ public:
     XstsTokenRequest( HSTRING url, IAsyncOperation<IXstsTokenResponse *> **operation ) override
     {
         TRACE("url %s, operation %p.\n", debugstr_hstring(url), operation);
-        return AsyncOperation::Inspectable::Create( static_cast<IUnknown *>(this), 
-                    static_cast<PVOID>(url), XstsTokenRequestAsync, { .operation = &__uuidof( IAsyncOperation<IXstsTokenResponse *> )}, (IAsyncOperation<IInspectable *> **)operation );
+        return AsyncOperation<IXstsTokenResponse *>::Create( static_cast<IUnknown *>(this), 
+                    static_cast<PVOID>(url), XstsTokenRequestAsync, operation );
     }
 
 private:

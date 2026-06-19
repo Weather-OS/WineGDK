@@ -37,6 +37,7 @@ class AsyncInfo final
 {
 public:
     AsyncInfo() = default;
+    virtual ~AsyncInfo() = default;
 
     /* IUnknown Methods (Shared) */
     HRESULT WINAPI
@@ -112,55 +113,52 @@ private:
     PVOID param;
 };
 
+template<typename T>
 class AsyncOperation
+    : public IAsyncOperation<T>
 {
 public:
-    class Inspectable final
-    : public IAsyncOperation<IInspectable *>
-    {
-    public:
-        Inspectable() = default;
+    AsyncOperation() = default;
+    virtual ~AsyncOperation() = default;
 
         /* IUnknown Methods */
-        HRESULT WINAPI
-        QueryInterface( REFIID iid, void** out ) noexcept override;
+    HRESULT WINAPI
+    QueryInterface( REFIID iid, void** out ) noexcept override;
 
-        ULONG WINAPI
-        AddRef() noexcept override;
+    ULONG WINAPI
+    AddRef() noexcept override;
 
-        ULONG WINAPI
-        Release() noexcept override;
+    ULONG WINAPI
+    Release() noexcept override;
 
-        /* IInspectable Methods */
-        HRESULT WINAPI
-        GetIids( ULONG *iid_count, IID **iids ) noexcept override;
+    /* IInspectable Methods */
+    HRESULT WINAPI
+    GetIids( ULONG *iid_count, IID **iids ) noexcept override;
 
-        HRESULT WINAPI
-        GetRuntimeClassName( HSTRING *class_name ) noexcept override;
+    HRESULT WINAPI
+    GetRuntimeClassName( HSTRING *class_name ) noexcept override;
 
-        HRESULT WINAPI
-        GetTrustLevel( TrustLevel *trust_level ) noexcept override;
+    HRESULT WINAPI
+    GetTrustLevel( TrustLevel *trust_level ) noexcept override;
 
-        /* IAsyncOperation<TResult> methods */
-        HRESULT WINAPI
-        put_Completed( IAsyncOperationCompletedHandler<IInspectable *> *inspectable_handler ) noexcept override;
+    /* IAsyncOperation<TResult> methods */
+    HRESULT WINAPI
+    put_Completed( IAsyncOperationCompletedHandler<T> *inspectable_handler ) noexcept override;
 
-        HRESULT WINAPI
-        get_Completed( IAsyncOperationCompletedHandler<IInspectable *> **inspectable_handler ) noexcept override;
+    HRESULT WINAPI
+    get_Completed( IAsyncOperationCompletedHandler<T> **inspectable_handler ) noexcept override;
 
-        HRESULT WINAPI
-        GetResults( IInspectable **results ) noexcept override;
+    HRESULT WINAPI
+    GetResults( T *results ) noexcept override;
 
-        /* Internal methods */
-        static HRESULT WINAPI
-        Create( IUnknown *invoker, PVOID param, async_operation_callback callback,
-                    struct async_operation_iids iids, IAsyncOperation<IInspectable *> **out );
+    /* Internal methods */
+    static HRESULT WINAPI
+    Create( IUnknown *invoker, PVOID param, async_operation_callback callback,
+                IAsyncOperation<T> **out );
 
-    private:
-        std::atomic_long ref{ 1 };
-        struct async_operation_iids iids;
-        IWineAsyncInfoImpl *info;
-    };
+private:
+    std::atomic_long ref{ 1 };
+    IWineAsyncInfoImpl *info;
 };
 
 class AsyncAction final
@@ -168,6 +166,7 @@ class AsyncAction final
 {
 public:
     AsyncAction() = default;
+    virtual ~AsyncAction() = default;
 
     /* IUnknown Methods */
     HRESULT WINAPI
@@ -215,6 +214,8 @@ class AsyncOperationCompletedHandler final
     : public IAsyncOperationCompletedHandler<T>
 {
 public:
+    virtual ~AsyncOperationCompletedHandler() = default;
+    
     /* IUnknown Methods */
     HRESULT WINAPI
     QueryInterface( REFIID iid, void** out ) noexcept override

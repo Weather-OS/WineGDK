@@ -124,8 +124,8 @@ public:
         HRESULT hr;
 
         packet->AddRef();        
-        hr = AsyncOperation::Inspectable::Create( static_cast<IUnknown *>(this), 
-                                packet, SendRequest, { .operation = &__uuidof( IAsyncOperation<IXodusIPCPacket *> ) }, (IAsyncOperation<IInspectable *> **)operation );
+        hr = AsyncOperation<IXodusIPCPacket *>::Create( static_cast<IUnknown *>(this), 
+                                packet, SendRequest, operation );
 
         return hr;
     }

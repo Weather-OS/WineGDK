@@ -368,8 +368,9 @@ AsyncInfo::async_info_callback( TP_CALLBACK_INSTANCE *instance, void *iface, TP_
     }
 }
 
+template<typename T>
 HRESULT WINAPI
-AsyncOperation::Inspectable::QueryInterface( REFIID iid, void** out ) noexcept
+AsyncOperation<T>::QueryInterface( REFIID iid, void** out ) noexcept
 {
     TRACE( "iface %p, iid %s, out %p.\n", this, debugstr_guid( &iid ), out );
 
@@ -379,33 +380,28 @@ AsyncOperation::Inspectable::QueryInterface( REFIID iid, void** out ) noexcept
     if ( iid == __uuidof( IUnknown ) ||
          iid == __uuidof( IInspectable ) ||
          iid == __uuidof( IAgileObject ) ||
-         iid == __uuidof( IAsyncOperation<IInspectable *> ) )
+         iid == __uuidof( IAsyncOperation<T> ) )
     {
         AddRef();
-        *out = static_cast<IAsyncOperation<IInspectable *> *>(this);
-        return S_OK;
-    }
-
-    if ( IsEqualGUID( iid, iids.operation ) )
-    {
-        AddRef();
-        *out = static_cast<IAsyncOperation<IInspectable *> *>(this);
+        *out = static_cast<IAsyncOperation<T> *>(this);
         return S_OK;
     }
 
     return info->QueryInterface( iid, out );
 }
 
+template<typename T>
 ULONG WINAPI
-AsyncOperation::Inspectable::AddRef() noexcept
+AsyncOperation<T>::AddRef() noexcept
 {
     ULONG curr = static_cast<ULONG>(++ref);
     TRACE( "iface %p increasing refcount to %lu.\n", this, curr );
     return curr;
 }
 
+template<typename T>
 ULONG WINAPI
-AsyncOperation::Inspectable::Release() noexcept
+AsyncOperation<T>::Release() noexcept
 {
     ULONG curr = static_cast<ULONG>(--ref);
     TRACE( "iface %p decreasing refcount to %lu.\n", this, curr );
@@ -417,8 +413,9 @@ AsyncOperation::Inspectable::Release() noexcept
 }
 
 /* IInspectable Methods */
+template<typename T>
 HRESULT WINAPI
-AsyncOperation::Inspectable::GetIids( ULONG *iid_count, IID **iids ) noexcept
+AsyncOperation<T>::GetIids( ULONG *iid_count, IID **iids ) noexcept
 {
     TRACE( "iface %p, iid_count %p, iids %p\n", this, iid_count, iids );
 
@@ -431,46 +428,51 @@ AsyncOperation::Inspectable::GetIids( ULONG *iid_count, IID **iids ) noexcept
     if ( !allocated )
         return E_OUTOFMEMORY;
 
-    allocated[0] = __uuidof( IAsyncOperation<IInspectable *> );
+    allocated[0] = __uuidof( IAsyncOperation<T> );
     allocated[1] = __uuidof( IAsyncInfo );
 
     *iids = allocated;
     return S_OK;
 }
 
+template<typename T>
 HRESULT WINAPI
-AsyncOperation::Inspectable::GetRuntimeClassName( HSTRING *class_name ) noexcept
+AsyncOperation<T>::GetRuntimeClassName( HSTRING *class_name ) noexcept
 {
     TRACE( "iface %p, class_name %p\n", this, class_name );
     return WindowsCreateString( (LPCWSTR)L"Windows.Foundation.IAsyncAction`1<IInspectable>", 48, class_name );
 }
 
+template<typename T>
 HRESULT WINAPI
-AsyncOperation::Inspectable::GetTrustLevel( TrustLevel *trust_level ) noexcept
+AsyncOperation<T>::GetTrustLevel( TrustLevel *trust_level ) noexcept
 {
     FIXME( "iface %p, trust_level %p stub!\n", this, trust_level );
     return E_NOTIMPL;
 }
 
 /* IAsyncOperation<TResult> methods */
+template<typename T>
 HRESULT WINAPI
-AsyncOperation::Inspectable::put_Completed( IAsyncOperationCompletedHandler<IInspectable *> *inspectable_handler ) noexcept
+AsyncOperation<T>::put_Completed( IAsyncOperationCompletedHandler<T> *inspectable_handler ) noexcept
 {
     IWineAsyncOperationCompletedHandler *handler = reinterpret_cast<IWineAsyncOperationCompletedHandler *>(inspectable_handler);
     TRACE( "iface %p, handler %p.\n", this, handler );
     return info->put_Completed( handler );
 }
 
+template<typename T>
 HRESULT WINAPI
-AsyncOperation::Inspectable::get_Completed( IAsyncOperationCompletedHandler<IInspectable *> **inspectable_handler ) noexcept
+AsyncOperation<T>::get_Completed( IAsyncOperationCompletedHandler<T> **inspectable_handler ) noexcept
 {
     IWineAsyncOperationCompletedHandler **handler = reinterpret_cast<IWineAsyncOperationCompletedHandler **>(inspectable_handler);
     TRACE( "iface %p, handler %p.\n", this, handler );
     return info->get_Completed( handler );
 }
 
+template<typename T>
 HRESULT WINAPI
-AsyncOperation::Inspectable::GetResults( IInspectable **results ) noexcept
+AsyncOperation<T>::GetResults( T *results ) noexcept
 {
     TRACE( "iface %p.\n", this );
 
@@ -479,20 +481,21 @@ AsyncOperation::Inspectable::GetResults( IInspectable **results ) noexcept
 
     hr = info->get_Result( &result );
 
-    *results = static_cast<IInspectable *>(result.punkVal);
+    if ( result.vt == VT_UNKNOWN )
+        *results = static_cast<T>(result.punkVal);
+
     PropVariantClear( &result );
 
     return hr;
 }
 
+template<typename T>
 HRESULT WINAPI
-AsyncOperation::Inspectable::Create( IUnknown *invoker, PVOID param, async_operation_callback callback,
-                            struct async_operation_iids iids, IAsyncOperation<IInspectable *> **out )
+AsyncOperation<T>::Create( IUnknown *invoker, PVOID param, async_operation_callback callback,
+                            IAsyncOperation<T> **out )
 {
-    AsyncOperation::Inspectable *impl = new AsyncOperation::Inspectable();
+    AsyncOperation<T> *impl = new AsyncOperation<T>();
     HRESULT hr;
-
-    impl->iids = iids;
 
     if ( FAILED( hr = AsyncInfo::Create( invoker, param, callback, static_cast<IInspectable *>(impl), &impl->info ) ) ||
          FAILED( hr = impl->info->Start() ) )
@@ -506,6 +509,10 @@ AsyncOperation::Inspectable::Create( IUnknown *invoker, PVOID param, async_opera
     TRACE( "created AsyncAction %p\n", *out );
     return S_OK;
 }
+
+template class AsyncOperation<IInspectable*>;
+template class AsyncOperation<ABI::Xodus::IXodusIPCPacket*>;
+template class AsyncOperation<ABI::Xodus::IXstsTokenResponse*>;
 
 HRESULT WINAPI
 AsyncAction::QueryInterface( REFIID iid, void** out ) noexcept
