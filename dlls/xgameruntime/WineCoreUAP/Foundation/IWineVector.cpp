@@ -155,13 +155,14 @@ Iterator<T>::GetMany( UINT32 items_size, T *items, UINT *count )
 
 template<typename T>
 VectorView<T>::VectorView( T* elems, UINT32 size ) noexcept :
-    elements( elems ),
     size( size )
 {
     ULONG i;
     if constexpr ( std::is_base_of<IUnknown, T>() )
         for ( i = 0; i < size; ++i )
             elems[i]->AddRef();
+    elements = (T *)malloc( size * sizeof(T) );
+    memcpy( elements, elems, size * sizeof(T) );
 }
 
 template<typename T>
@@ -216,6 +217,8 @@ VectorView<T>::Release() noexcept
         if constexpr ( std::is_base_of<IUnknown, T>() )
             for ( i = 0; i < size; ++i ) 
                 IInspectable_Release( elements[i] );
+
+        free( elements );
         delete this;
     }
 
