@@ -129,8 +129,8 @@ public:
     First( IIterator<T> **value ) override;
 
 private:
+    T *elements;
     UINT32 size;
-    T elements[1];
     std::atomic_long ref{ 1 };
 };
 

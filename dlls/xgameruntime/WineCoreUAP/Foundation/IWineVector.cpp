@@ -44,10 +44,10 @@ Iterator<T>::QueryInterface( REFIID iid, void** out ) noexcept
     if ( iid == __uuidof( IUnknown ) ||
          iid == __uuidof( IInspectable ) ||
          iid == __uuidof( IAgileObject ) ||
-         iid == __uuidof( Iterator<T> ) )
+         iid == __uuidof( IIterator<T> ) )
     {
         AddRef();
-        *out = static_cast<Iterator<T> *>(this);
+        *out = static_cast<IIterator<T> *>(this);
         return S_OK;
     }
 
@@ -96,7 +96,7 @@ Iterator<T>::GetIids( ULONG *iid_count, IID **iids ) noexcept
     if ( !allocated )
         return E_OUTOFMEMORY;
 
-    allocated[0] = __uuidof( Iterator<T> );
+    allocated[0] = __uuidof( IIterator<T> );
 
     *iids = allocated;
     return S_OK;
@@ -176,10 +176,10 @@ VectorView<T>::QueryInterface( REFIID iid, void** out ) noexcept
     if ( iid == __uuidof( IUnknown ) ||
          iid == __uuidof( IInspectable ) ||
          iid == __uuidof( IAgileObject ) ||
-         iid == __uuidof( VectorView<T> ) )
+         iid == __uuidof( IVectorView<T> ) )
     {
         AddRef();
-        *out = static_cast<VectorView<T> *>(this);
+        *out = static_cast<IVectorView<T> *>(this);
         return S_OK;
     }
 
@@ -237,7 +237,7 @@ VectorView<T>::GetIids( ULONG *iid_count, IID **iids ) noexcept
     if ( !allocated )
         return E_OUTOFMEMORY;
 
-    allocated[0] = __uuidof( VectorView<T> );
+    allocated[0] = __uuidof( IVectorView<T> );
     allocated[1] = __uuidof( IIterable<T> );
 
     *iids = allocated;
@@ -348,10 +348,10 @@ Vector<T>::QueryInterface( REFIID iid, void** out ) noexcept
     if ( iid == __uuidof( IUnknown ) ||
          iid == __uuidof( IInspectable ) ||
          iid == __uuidof( IAgileObject ) ||
-         iid == __uuidof( Vector<T> ) )
+         iid == __uuidof( IVector<T> ) )
     {
         AddRef();
-        *out = static_cast<Vector<T> *>(this);
+        *out = static_cast<IVector<T> *>(this);
         return S_OK;
     }
 
@@ -380,7 +380,7 @@ template<typename T>
 ULONG WINAPI
 Vector<T>::Release() noexcept
 {
-    ULONG i, curr = static_cast<ULONG>(--ref);
+    ULONG curr = static_cast<ULONG>(--ref);
     TRACE( "iface %p decreasing refcount to %lu.\n", this, curr );
 
     if ( !curr )
@@ -407,7 +407,7 @@ Vector<T>::GetIids( ULONG *iid_count, IID **iids ) noexcept
     if ( !allocated )
         return E_OUTOFMEMORY;
 
-    allocated[0] = __uuidof( Vector<T> );
+    allocated[0] = __uuidof( IVector<T> );
     allocated[1] = __uuidof( IIterable<T> );
 
     *iids = allocated;
@@ -510,7 +510,7 @@ Vector<T>::InsertAt( UINT32 index, T value )
     if ( size == capacity )
     {
         capacity = max( 32, capacity * 3 / 2 );
-        if ( !( elements = realloc( elements, capacity * sizeof(*elements) ) ) )
+        if ( !( elements = (T *)realloc( elements, capacity * sizeof(*elements) ) ) )
         {
             elements = tmp;
             return E_OUTOFMEMORY;
@@ -633,7 +633,7 @@ Vector<T>::First( IIterator<T> **value )
     if ( FAILED( hr = GetView( &view ) ) ) return hr;
 
     hr = view->template QueryInterface<IIterable<T>>( &iterable );
-    view->Release( view );
+    view->Release();
     if ( FAILED( hr ) ) return hr;
 
     hr = iterable->First( value );
@@ -651,3 +651,7 @@ Vector<T>::Create( IVector<T> **out )
     TRACE( "created %p\n", *out );
     return S_OK;
 }
+
+template class Iterator<HSTRING>;
+template class VectorView<HSTRING>;
+template class Vector<HSTRING>;
