@@ -9,6 +9,7 @@ SOURCES = \
 	provider.idl \
 	\
 	WineCoreUAP/Foundation/IWineAsync.cpp \
+	WineCoreUAP/Foundation/IWineVector.cpp \
 	\
 	GDKComponent/System/Threading/XAsync.cpp \
 	GDKComponent/System/Threading/XTaskQueue.cpp \
