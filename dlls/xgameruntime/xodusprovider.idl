@@ -47,6 +47,7 @@ namespace Xodus
     interface IXodusIPCPacket;
     interface IXodusXMLBuilder;
     interface IXstsTokenResponse;
+    interface IMsaTokenResponse;
 
     runtimeclass IPCLayer;
     runtimeclass XodusXMLBuilder;
@@ -65,6 +66,8 @@ namespace Xodus
         interface Windows.Foundation.IAsyncOperation<Xodus.IXodusIPCPacket *>;
         interface Windows.Foundation.AsyncOperationCompletedHandler<Xodus.IXstsTokenResponse *>;
         interface Windows.Foundation.IAsyncOperation<Xodus.IXstsTokenResponse *>;
+        interface Windows.Foundation.AsyncOperationCompletedHandler<Xodus.IMsaTokenResponse *>;
+        interface Windows.Foundation.IAsyncOperation<Xodus.IMsaTokenResponse *>;
     }
 
     [
@@ -109,6 +112,7 @@ namespace Xodus
     {
         HRESULT Ping( [out, retval] Windows.Foundation.IAsyncAction **operation );
         HRESULT XstsTokenRequest( [in] HSTRING url, [out, retval] Windows.Foundation.IAsyncOperation<Xodus.IXstsTokenResponse *> **operation );
+        HRESULT MsaTokenRequest( [in] HSTRING clientId, [out, retval] Windows.Foundation.IAsyncOperation<Xodus.IMsaTokenResponse *> **operation );
     }
 
     [
@@ -118,6 +122,8 @@ namespace Xodus
     {
         HRESULT BuildXstsTokenRequestXml( [in] HSTRING url, [out, retval] LPSTR *xml_string );
         HRESULT FromXstsTokenResponseXml( [in] LPCSTR xml_string, [out, retval] IXstsTokenResponse **response );
+        HRESULT BuildMsaTokenRequestXml( [in] HSTRING clientId, [out, retval] LPSTR *xml_string );
+        HRESULT FromMsaTokenResponseXml( [in] LPCSTR xml_string, [out, retval] IMsaTokenResponse **response );
     }
 
     [
@@ -129,6 +135,15 @@ namespace Xodus
         [propget] HRESULT Expiry( [out, retval] Windows.Foundation.DateTime *out );
         [propget] HRESULT RelyingParty( [out, retval] HSTRING *out );
         [propget] HRESULT SignaturePolicy( [out, retval] TitleMgtSignaturePolicy *out );
+    }
+    
+    [
+        uuid(c25f9827-7718-48ea-aa4d-1567eba692d5)
+    ]
+    interface IMsaTokenResponse : IUnknown
+    {
+        [propget] HRESULT Token( [out, retval] HSTRING *out );
+        [propget] HRESULT Expiry( [out, retval] Windows.Foundation.DateTime *out );
     }
 
     [
