@@ -144,12 +144,15 @@ HRESULT WINAPI InitializeApiImplEx2( ULONG gdkVer, ULONG gsVer, CHAR mode, INITI
     NTSTATUS nts;
     UNICODE_STRING modname;
     HSTRING testUrl;
+    HSTRING algorithm;
     LPCWSTR testUrlStr = L"https://packagespc.xboxlive.com/GetBasePackage/7792d9ce-355a-493c-afbd-768f4a77c3b0";
     DWORD async;
     LPCSTR xodus_prefix = XODUS_SOCKET_SUFFIX;
+    TitleMgtSignaturePolicy signaturePolicy;
 
     IAsyncAction *pingAction = NULL;
     IAsyncOperation_IXstsTokenResponse *tokenResponse = NULL;
+    IXstsTokenResponse *token = NULL;
 
     WindowsCreateString( testUrlStr, wcslen( testUrlStr ), &testUrl );
 
@@ -221,6 +224,21 @@ HRESULT WINAPI InitializeApiImplEx2( ULONG gdkVer, ULONG gsVer, CHAR mode, INITI
             WARN("Async action await failed. Status was %ld\n", async);
         goto _INIT;
     }
+
+    hr = IAsyncOperation_IXstsTokenResponse_GetResults( tokenResponse, &token );
+    if ( FAILED( hr ) )
+    {
+        WARN("XstsTokenResponse response error. HR was %#lx\n", hr);
+        goto _INIT;
+    }
+
+    hr = IXstsTokenResponse_get_SignaturePolicy( token, &signaturePolicy );
+    if ( FAILED( hr ) ) return hr;
+
+    hr = IVectorView_HSTRING_GetAt( signaturePolicy.SupportedAlgorithms, 0, &algorithm );
+    if ( FAILED( hr ) ) return hr;
+
+    TRACE("got algorithm %s\n", debugstr_hstring(algorithm));
 #endif
 _INIT:
     TRACE("gdkVer %ld, gsVer %ld, mode %d, options %p stub!\n", gdkVer, gsVer, mode, options);

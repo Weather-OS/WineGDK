@@ -110,11 +110,6 @@ extern IXodusService *xodus_service;
 extern IXodusXMLBuilder *xodus_xml_builder;
 #endif
 
-struct async_operation_iids
-{
-    const GUID *operation;
-};
-
 typedef struct _INITIALIZE_OPTIONS
 {
     int unused;

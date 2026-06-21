@@ -135,6 +135,7 @@ private:
         HRESULT status;
         HSTRING bufferClass;
 
+        IXstsTokenResponse *tokenResponse = nullptr;
         IXodusIPCPacket *xodusPacket = nullptr;
         IBufferByteAccess *messageByteAccess = nullptr;
         IBuffer *message = nullptr;
@@ -196,8 +197,11 @@ private:
         status = messageByteAccess->Buffer( &messageBuffer );
         if ( FAILED( status ) ) return status;
 
-        xodus_xml_builder->FromXstsTokenResponseXml( reinterpret_cast<LPCSTR>(messageBuffer), nullptr );
+        xodus_xml_builder->FromXstsTokenResponseXml( reinterpret_cast<LPCSTR>(messageBuffer), &tokenResponse );
         messageByteAccess->Release();
+
+        result->vt = VT_UNKNOWN;
+        result->punkVal = tokenResponse;
 
         if ( messageType != 4 /* XstsTokenResponse */)
             return E_INVALIDARG;

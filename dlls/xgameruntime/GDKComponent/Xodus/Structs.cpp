@@ -182,11 +182,13 @@ XstsTokenResponse::XstsTokenResponse(
     Windows::Foundation::DateTime expiry,
     HSTRING relyingParty,
     TitleMgtSignaturePolicy signaturePolicy )
-: UserToken(userToken),
-  Expiry(expiry),
-  RelyingParty(relyingParty),
+: Expiry(expiry),
   SignaturePolicy(signaturePolicy)
 {
+    WindowsDuplicateString( userToken, &UserToken );
+    WindowsDuplicateString( relyingParty, &RelyingParty );
+    signaturePolicy.SupportedAlgorithms->AddRef();
+    signaturePolicy.SupportedSignatureTypes->AddRef();
 }
 
 HRESULT WINAPI
@@ -228,6 +230,10 @@ XstsTokenResponse::Release() noexcept
 
     if ( !curr )
     {
+        WindowsDeleteString( UserToken );
+        WindowsDeleteString( RelyingParty );
+        SignaturePolicy.SupportedAlgorithms->Release();
+        SignaturePolicy.SupportedSignatureTypes->Release();
         delete this;
     }
 
@@ -237,27 +243,33 @@ XstsTokenResponse::Release() noexcept
 HRESULT WINAPI
 XstsTokenResponse::get_UserToken( HSTRING *out )
 {
-    FIXME("iface %p, type %p stub!\n", this, out);
-    return E_NOTIMPL;
+    TRACE("iface %p, type %p.\n", this, out);
+    WindowsDuplicateString( UserToken, out );
+    return S_OK;
 }
 
 HRESULT WINAPI
 XstsTokenResponse::get_Expiry( Windows::Foundation::DateTime *out )
 {
-    FIXME("iface %p, type %p stub!\n", this, out);
+    TRACE("iface %p, type %p,\n", this, out);
+    *out = Expiry;
     return E_NOTIMPL;
 }
 
 HRESULT WINAPI
 XstsTokenResponse::get_RelyingParty( HSTRING *out )
 {
-    FIXME("iface %p, type %p stub!\n", this, out);
+    TRACE("iface %p, type %p.\n", this, out);
+    WindowsDuplicateString( RelyingParty, out );
     return E_NOTIMPL;
 }
 
 HRESULT WINAPI
 XstsTokenResponse::get_SignaturePolicy( TitleMgtSignaturePolicy *out )
 {
-    FIXME("iface %p, type %p stub!\n", this, out);
-    return E_NOTIMPL;
+    TRACE("iface %p, type %p stub!\n", this, out);
+    SignaturePolicy.SupportedAlgorithms->AddRef();
+    SignaturePolicy.SupportedSignatureTypes->AddRef();
+    *out = SignaturePolicy;
+    return S_OK;
 }
