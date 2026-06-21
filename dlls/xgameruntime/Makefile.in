@@ -1,4 +1,4 @@
-IMPORTS   = user32 advapi32 bcrypt crypt32 combase shlwapi winhttp $(CXXABI_PE_LIBS) $(CXX_PE_LIBS) $(XML2_PE_LIBS) vcruntime140
+IMPORTS   = user32 advapi32 bcrypt crypt32 combase shlwapi winhttp wininet $(CXXABI_PE_LIBS) $(CXX_PE_LIBS) $(XML2_PE_LIBS) vcruntime140
 EXTRAINCL = $(XML2_PE_CFLAGS)
 MODULE    = xgameruntime.dll
 UNIXLIB   = xgameruntime.so
