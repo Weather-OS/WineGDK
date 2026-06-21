@@ -122,6 +122,13 @@ public:
                     static_cast<PVOID>(url), XstsTokenRequestAsync, operation );
     }
 
+    HRESULT WINAPI
+    MsaTokenRequest( HSTRING clientId, IAsyncOperation<IMsaTokenResponse *> **operation ) override
+    {
+        TRACE("clientId %s, operation %p stub!\n", debugstr_hstring(clientId), operation);
+        return E_NOTIMPL;
+    }
+
 private:
     static HRESULT WINAPI
     XstsTokenRequestAsync( IUnknown *invoker, PVOID param, PROPVARIANT *result )

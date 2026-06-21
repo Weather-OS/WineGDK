@@ -361,6 +361,20 @@ public:
         return S_OK;
     }
 
+    HRESULT WINAPI
+    BuildMsaTokenRequestXml( HSTRING clientId, LPSTR *xml_string ) override
+    {
+        FIXME( "clientId %s, xml_string %p stub!\n", debugstr_hstring(clientId), xml_string );
+        return E_NOTIMPL;
+    }
+
+    HRESULT WINAPI
+    FromMsaTokenResponseXml( LPCSTR xml_string, IMsaTokenResponse **response ) override
+    {
+        FIXME( "xml_string %s, response %p stub!\n", debugstr_a(xml_string), response );
+        return E_NOTIMPL;
+    }
+
 private:
     std::atomic_long ref{ 1 };
 };
