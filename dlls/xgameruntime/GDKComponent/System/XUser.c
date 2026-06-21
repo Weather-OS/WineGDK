@@ -109,6 +109,7 @@ struct XUser
     HSTRING xstsToken;
 
     HSTRING publicGamerpic;
+    HSTRING classicGamertag;
 
     BCRYPT_KEY_HANDLE key;
     char proofKey[PROOF_KEY_SIZE];
@@ -148,6 +149,7 @@ static ULONG WINAPI user_Release( IUser *iface )
         if (impl->userToken) WindowsDeleteString( impl->userToken );
         if (impl->xstsToken) WindowsDeleteString( impl->xstsToken );
         if (impl->publicGamerpic) WindowsDeleteString( impl->publicGamerpic );
+        if (impl->classicGamertag) WindowsDeleteString( impl->classicGamertag );
         if (impl->key) BCryptDestroyKey( impl->key );
         // if (impl->endpointsLen) free( impl->endpoints );
         if (impl->policiesLen) free( impl->policies );
@@ -1281,8 +1283,32 @@ static ULONG WINAPI x_user_gamertag_Release( IXUserGamertagImpl *iface )
 
 static HRESULT WINAPI x_user_gamertag_XUserGetGamertag( IXUserGamertagImpl *iface, XUserHandle user, XUserGamertagComponent gamertagComponent, SIZE_T gamertagSize, char *gamertag, SIZE_T *gamertagUsed )
 {
-    FIXME( "iface %p, user %p, gamertagComponent %d, gamertagSize %Iu, gamertag %p, gamertagUsed %p stub!\n", iface, user, gamertagComponent, gamertagSize, gamertag, gamertagUsed );
-    return E_NOTIMPL;
+    UINT32 classicGamertagLen, wClassicGamertagLen;
+    const WCHAR *wClassicGamertag;
+
+    FIXME( "iface %p, user %p, gamertagComponent %d, gamertagSize %Iu, gamertag %p, gamertagUsed %p semi-stub!\n", iface, user, gamertagComponent, gamertagSize, gamertag, gamertagUsed );
+
+    switch (gamertagComponent)
+    {
+        case XUserGamertagComponent_Classic:
+            wClassicGamertag = WindowsGetStringRawBuffer( user->classicGamertag, &wClassicGamertagLen );
+            if (!(classicGamertagLen = WideCharToMultiByte( CP_UTF8, WC_ERR_INVALID_CHARS, wClassicGamertag, wClassicGamertagLen, NULL, 0, NULL, NULL )))
+                return HRESULT_FROM_WIN32( GetLastError() );
+
+            if (gamertagSize <= classicGamertagLen) return HRESULT_FROM_WIN32( ERROR_INSUFFICIENT_BUFFER );
+            if (!WideCharToMultiByte( CP_UTF8, WC_ERR_INVALID_CHARS, wClassicGamertag, wClassicGamertagLen, gamertag, classicGamertagLen, NULL, NULL ))
+                return HRESULT_FROM_WIN32( GetLastError() );
+
+            gamertag[classicGamertagLen] = 0;
+            if (gamertagUsed) *gamertagUsed = classicGamertagLen + 1;
+            return S_OK;
+
+        default:
+            /* TODO: handle modern, modern suffix & unique modern components */
+            break;
+    }
+
+    return E_INVALIDARG;
 }
 
 static const struct IXUserGamertagImplVtbl x_user_gamertag_vtbl =
