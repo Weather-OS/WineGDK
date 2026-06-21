@@ -161,8 +161,14 @@ VectorView<T>::VectorView( T* elems, UINT32 size ) noexcept :
     if constexpr ( std::is_base_of<IUnknown, T>() )
         for ( i = 0; i < size; ++i )
             elems[i]->AddRef();
+
     elements = (T *)malloc( size * sizeof(T) );
-    memcpy( elements, elems, size * sizeof(T) );
+
+    if constexpr ( std::is_same_v<T, HSTRING> )
+        for ( i = 0; i < size; ++i )
+            WindowsDuplicateString( elems[i], &elements[i] );
+    else
+        memcpy( elements, elems, size * sizeof(T) );
 }
 
 template<typename T>
@@ -217,6 +223,10 @@ VectorView<T>::Release() noexcept
         if constexpr ( std::is_base_of<IUnknown, T>() )
             for ( i = 0; i < size; ++i ) 
                 IInspectable_Release( elements[i] );
+
+        if constexpr ( std::is_same_v<T, HSTRING> )
+            for ( i = 0; i < size; ++i )
+                WindowsDeleteString( elements[i] );
 
         free( elements );
         delete this;
@@ -275,7 +285,10 @@ VectorView<T>::GetAt( UINT32 index, T *value )
     if constexpr ( std::is_base_of<IUnknown, T>() )
         elements[index]->AddRef();
 
-    *value = elements[index];
+    if constexpr ( std::is_same_v<T, HSTRING> )
+        WindowsDuplicateString( elements[index], value );
+    else
+        *value = elements[index];
 
     return S_OK;
 }
@@ -321,7 +334,10 @@ VectorView<T>::GetMany( UINT32 start_index, UINT32 items_size, T *items, UINT *c
         if ( i - start_index >= items_size ) break;
         if constexpr ( std::is_base_of<IUnknown, T>() )
             elements[i]->AddRef();
-        items[i - start_index] = elements[i];
+        if constexpr ( std::is_same_v<T, HSTRING> )
+            WindowsDuplicateString( elements[i], &items[i - start_index] );
+        else
+            items[i - start_index] = elements[i];
     }
 
     *count = i - start_index;
@@ -444,8 +460,10 @@ Vector<T>::GetAt( UINT32 index, T *value )
 
     if constexpr ( std::is_base_of<IUnknown, T>() )
         elements[index]->AddRef();
-
-    *value = elements[index];
+    if constexpr ( std::is_same_v<T, HSTRING> )
+        WindowsDuplicateString( elements[index], value );
+    else
+        *value = elements[index];
 
     return S_OK;
 }
@@ -497,8 +515,12 @@ Vector<T>::SetAt( UINT32 index, T value )
         elements[index]->Release();
         value->AddRef();
     }
-
-    elements[index] = value;
+    if constexpr ( std::is_same_v<T, HSTRING> )
+    {
+        WindowsDeleteString( elements[index] );
+        WindowsDuplicateString( value, &elements[index] );
+    } else
+        elements[index] = value;
     return S_OK;
 }
 
@@ -523,8 +545,10 @@ Vector<T>::InsertAt( UINT32 index, T value )
     memmove( elements + index + 1, elements + index, (size++ - index) * sizeof(*elements) );
     if constexpr ( std::is_base_of<IUnknown, T>() )
         value->AddRef();
-
-    elements[index] = value;
+    if constexpr ( std::is_same_v<T, HSTRING> )
+        WindowsDuplicateString( value, &elements[index] );
+    else
+        elements[index] = value;
     return S_OK;
 }
 
@@ -537,6 +561,8 @@ Vector<T>::RemoveAt( UINT32 index )
     if ( index >= size ) return E_BOUNDS;
     if constexpr ( std::is_base_of<IUnknown, T>() )
         elements[index]->Release();
+    if constexpr ( std::is_same_v<T, HSTRING> )
+        WindowsDeleteString( elements[index] );
 
     memmove( elements + index, elements + index + 1, (--size - index) * sizeof(*elements) );
     return S_OK;
@@ -562,6 +588,8 @@ Vector<T>::RemoveAtEnd()
         size--;
         if constexpr ( std::is_base_of<IUnknown, T>() )
             elements[size]->Release();
+        if constexpr ( std::is_same_v<T, HSTRING> )
+            WindowsDeleteString( elements[size] );
     }
 
     return S_OK;
@@ -599,7 +627,10 @@ Vector<T>::GetMany( UINT32 start_index, UINT32 items_size, T *items, UINT *count
         if ( i - start_index >= items_size ) break;
         if constexpr ( std::is_base_of<IUnknown, T>() )
             elements[i]->AddRef();
-        items[i - start_index] = elements[i];
+        if constexpr ( std::is_same_v<T, HSTRING> )
+            WindowsDuplicateString( elements[i], &items[i - start_index] );
+        else
+            items[i - start_index] = elements[i];
     }
 
     *count = i - start_index;
