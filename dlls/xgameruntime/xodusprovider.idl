@@ -46,7 +46,6 @@ namespace Xodus
     interface IXodusService;
     interface IXodusIPCPacket;
     interface IXodusXMLBuilder;
-    interface IXstsTokenResponse;
     interface IMsaTokenResponse;
 
     runtimeclass IPCLayer;
@@ -64,8 +63,6 @@ namespace Xodus
     {
         interface Windows.Foundation.AsyncOperationCompletedHandler<Xodus.IXodusIPCPacket *>;
         interface Windows.Foundation.IAsyncOperation<Xodus.IXodusIPCPacket *>;
-        interface Windows.Foundation.AsyncOperationCompletedHandler<Xodus.IXstsTokenResponse *>;
-        interface Windows.Foundation.IAsyncOperation<Xodus.IXstsTokenResponse *>;
         interface Windows.Foundation.AsyncOperationCompletedHandler<Xodus.IMsaTokenResponse *>;
         interface Windows.Foundation.IAsyncOperation<Xodus.IMsaTokenResponse *>;
     }
@@ -111,7 +108,6 @@ namespace Xodus
     interface IXodusService : IInspectable
     {
         HRESULT Ping( [out, retval] Windows.Foundation.IAsyncAction **operation );
-        HRESULT XstsTokenRequest( [in] HSTRING url, [out, retval] Windows.Foundation.IAsyncOperation<Xodus.IXstsTokenResponse *> **operation );
         HRESULT MsaTokenRequest( [in] HSTRING clientId, [out, retval] Windows.Foundation.IAsyncOperation<Xodus.IMsaTokenResponse *> **operation );
     }
 
@@ -120,22 +116,10 @@ namespace Xodus
     ]
     interface IXodusXMLBuilder : IInspectable
     {
-        HRESULT BuildXstsTokenRequestXml( [in] HSTRING url, [out, retval] LPSTR *xml_string );
-        HRESULT FromXstsTokenResponseXml( [in] LPCSTR xml_string, [out, retval] IXstsTokenResponse **response );
         HRESULT BuildMsaTokenRequestXml( [in] HSTRING clientId, [out, retval] LPSTR *xml_string );
         HRESULT FromMsaTokenResponseXml( [in] LPCSTR xml_string, [out, retval] IMsaTokenResponse **response );
     }
 
-    [
-        uuid(8b604b41-434b-40a0-b62e-155c3ec3194c)
-    ]
-    interface IXstsTokenResponse : IUnknown
-    {
-        [propget] HRESULT UserToken( [out, retval] HSTRING *out );
-        [propget] HRESULT Expiry( [out, retval] Windows.Foundation.DateTime *out );
-        [propget] HRESULT RelyingParty( [out, retval] HSTRING *out );
-        [propget] HRESULT SignaturePolicy( [out, retval] TitleMgtSignaturePolicy *out );
-    }
     
     [
         uuid(c25f9827-7718-48ea-aa4d-1567eba692d5)

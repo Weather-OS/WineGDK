@@ -90,38 +90,4 @@ private:
     std::atomic_long ref{ 1 };
 };
 
-struct XstsTokenResponse :
-    public IXstsTokenResponse
-{
-    XstsTokenResponse() = default;
-    virtual ~XstsTokenResponse() = default;
-
-    XstsTokenResponse( const XstsTokenResponse& ) = delete;
-    XstsTokenResponse& operator=( const XstsTokenResponse& ) = delete;
-
-    XstsTokenResponse( 
-        HSTRING userToken,
-        Windows::Foundation::DateTime expiry,
-        HSTRING relyingParty,
-        TitleMgtSignaturePolicy signaturePolicy );
-
-    /* IUnknown Methods */
-    HRESULT WINAPI QueryInterface( REFIID iid, void **out ) noexcept override;
-    ULONG WINAPI AddRef() noexcept override;
-    ULONG WINAPI Release() noexcept override;
-
-    /* IXstsTokenResponse Methods */
-    HRESULT WINAPI get_UserToken( HSTRING *out ) override;
-    HRESULT WINAPI get_Expiry( Windows::Foundation::DateTime *out ) override;
-    HRESULT WINAPI get_RelyingParty( HSTRING *out ) override;
-    HRESULT WINAPI get_SignaturePolicy( TitleMgtSignaturePolicy *out ) override;
-
-private:
-    HSTRING UserToken;
-    Windows::Foundation::DateTime Expiry;
-    HSTRING RelyingParty;
-    TitleMgtSignaturePolicy SignaturePolicy;
-    std::atomic_long ref{ 1 };
-};
-
 #endif

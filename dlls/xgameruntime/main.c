@@ -32,7 +32,6 @@ unixlib_module_t unixlib;
 unixlib_handle_t unixhandle;
 
 DEFINE_ASYNC_COMPLETED_HANDLER( async_action, IAsyncActionCompletedHandler, IAsyncAction );
-DEFINE_ASYNC_COMPLETED_HANDLER( async_operation_xsts_token_response, IAsyncOperationCompletedHandler_IXstsTokenResponse, IAsyncOperation_IXstsTokenResponse );
 
 static VOID LoadOtherRuntime( DWORD *asked )
 {
@@ -143,18 +142,10 @@ HRESULT WINAPI InitializeApiImplEx2( ULONG gdkVer, ULONG gsVer, CHAR mode, INITI
     HRESULT hr;
     NTSTATUS nts;
     UNICODE_STRING modname;
-    HSTRING testUrl;
-    HSTRING algorithm;
-    LPCWSTR testUrlStr = L"https://packagespc.xboxlive.com/GetBasePackage/7792d9ce-355a-493c-afbd-768f4a77c3b0";
     DWORD async;
     LPCSTR xodus_prefix = XODUS_SOCKET_SUFFIX;
-    TitleMgtSignaturePolicy signaturePolicy;
 
     IAsyncAction *pingAction = NULL;
-    IAsyncOperation_IXstsTokenResponse *tokenResponse = NULL;
-    IXstsTokenResponse *token = NULL;
-
-    WindowsCreateString( testUrlStr, wcslen( testUrlStr ), &testUrl );
 
     // load the unix lib as well.
     // The library is called xgameruntime.so on both macOS and Linux
@@ -207,38 +198,6 @@ HRESULT WINAPI InitializeApiImplEx2( ULONG gdkVer, ULONG gsVer, CHAR mode, INITI
         WARN("PING response error. HR was %#lx\n", hr);
         goto _INIT;
     }
-
-    hr = IXodusService_XstsTokenRequest( xodus_service, testUrl, &tokenResponse );
-    if ( FAILED( hr ) ) 
-    {
-        WARN("Xodus XstsTokenRequest Dispatch failed with %#lx\n", hr);
-        goto _INIT;
-    }
-
-    async = await_IAsyncOperation_IXstsTokenResponse( tokenResponse, IPC_REQUEST_TIMEOUT_MS );
-    if ( async )
-    {
-        if ( async == STATUS_TIMEOUT )
-            WARN("Timeout while waiting for XSTS_TOKEN_RESPONSE response.\n");
-        else 
-            WARN("Async action await failed. Status was %ld\n", async);
-        goto _INIT;
-    }
-
-    hr = IAsyncOperation_IXstsTokenResponse_GetResults( tokenResponse, &token );
-    if ( FAILED( hr ) )
-    {
-        WARN("XstsTokenResponse response error. HR was %#lx\n", hr);
-        goto _INIT;
-    }
-
-    hr = IXstsTokenResponse_get_SignaturePolicy( token, &signaturePolicy );
-    if ( FAILED( hr ) ) return hr;
-
-    hr = IVectorView_HSTRING_GetAt( signaturePolicy.SupportedAlgorithms, 0, &algorithm );
-    if ( FAILED( hr ) ) return hr;
-
-    TRACE("got algorithm %s\n", debugstr_hstring(algorithm));
 #endif
 _INIT:
     TRACE("gdkVer %ld, gsVer %ld, mode %d, options %p stub!\n", gdkVer, gsVer, mode, options);

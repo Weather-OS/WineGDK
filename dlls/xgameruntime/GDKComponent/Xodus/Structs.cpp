@@ -26,7 +26,6 @@ WINE_DEFAULT_DEBUG_CHANNEL(xodus);
 /**
  * XodusIPCPacket: Wraps IPC Packets sent to and received from Xodus.
  */
-
 XodusIPCPacket::XodusIPCPacket( 
     MagicHeaderType type, 
     UINT16 messageType, 
@@ -171,105 +170,4 @@ IPCResponseHandler::Invoke( IXodusIPCPacket *response )
 {
     TRACE("iface %p, response %p\n", this, response);
     return m_callback( m_context, response );
-}
-
-/**
- * XstsTokenResponse: Wraps XstsTokenResponse from Xodus. 
- */
-
-XstsTokenResponse::XstsTokenResponse( 
-    HSTRING userToken,
-    Windows::Foundation::DateTime expiry,
-    HSTRING relyingParty,
-    TitleMgtSignaturePolicy signaturePolicy )
-: Expiry(expiry),
-  SignaturePolicy(signaturePolicy)
-{
-    WindowsDuplicateString( userToken, &UserToken );
-    WindowsDuplicateString( relyingParty, &RelyingParty );
-    signaturePolicy.SupportedAlgorithms->AddRef();
-    signaturePolicy.SupportedSignatureTypes->AddRef();
-}
-
-HRESULT WINAPI
-XstsTokenResponse::QueryInterface( REFIID iid, void **out ) noexcept
-{
-    TRACE( "iface %p, iid %s, out %p.\n", this, debugstr_guid( &iid ), out );
-
-    if (!out) return E_POINTER;
-    *out = nullptr;
-
-    if ( iid == __uuidof( IUnknown ) ||
-         iid == __uuidof( IInspectable ) ||
-         iid == __uuidof( IAgileObject ) ||
-         iid == __uuidof( IXstsTokenResponse ) )
-    {
-        AddRef();
-        *out = static_cast<IXstsTokenResponse *>(this);
-        return S_OK;
-    }
-
-    FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( &iid ) );
-    *out = nullptr;
-    return E_NOINTERFACE;
-}
-
-ULONG WINAPI 
-XstsTokenResponse::AddRef() noexcept
-{
-    ULONG curr = static_cast<ULONG>(++ref);
-    TRACE( "iface %p increasing refcount to %lu.\n", this, curr );
-    return curr;
-}
-
-ULONG WINAPI 
-XstsTokenResponse::Release() noexcept
-{
-    ULONG curr = static_cast<ULONG>(--ref);
-    TRACE( "iface %p decreasing refcount to %lu.\n", this, curr );
-
-    if ( !curr )
-    {
-        WindowsDeleteString( UserToken );
-        WindowsDeleteString( RelyingParty );
-        SignaturePolicy.SupportedAlgorithms->Release();
-        SignaturePolicy.SupportedSignatureTypes->Release();
-        delete this;
-    }
-
-    return curr;
-}
-
-HRESULT WINAPI
-XstsTokenResponse::get_UserToken( HSTRING *out )
-{
-    TRACE("iface %p, type %p.\n", this, out);
-    WindowsDuplicateString( UserToken, out );
-    return S_OK;
-}
-
-HRESULT WINAPI
-XstsTokenResponse::get_Expiry( Windows::Foundation::DateTime *out )
-{
-    TRACE("iface %p, type %p,\n", this, out);
-    *out = Expiry;
-    return E_NOTIMPL;
-}
-
-HRESULT WINAPI
-XstsTokenResponse::get_RelyingParty( HSTRING *out )
-{
-    TRACE("iface %p, type %p.\n", this, out);
-    WindowsDuplicateString( RelyingParty, out );
-    return E_NOTIMPL;
-}
-
-HRESULT WINAPI
-XstsTokenResponse::get_SignaturePolicy( TitleMgtSignaturePolicy *out )
-{
-    TRACE("iface %p, type %p stub!\n", this, out);
-    SignaturePolicy.SupportedAlgorithms->AddRef();
-    SignaturePolicy.SupportedSignatureTypes->AddRef();
-    *out = SignaturePolicy;
-    return S_OK;
 }
