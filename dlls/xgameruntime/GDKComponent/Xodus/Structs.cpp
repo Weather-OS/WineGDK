@@ -171,3 +171,62 @@ IPCResponseHandler::Invoke( IXodusIPCPacket *response )
     TRACE("iface %p, response %p\n", this, response);
     return m_callback( m_context, response );
 }
+
+HRESULT WINAPI
+MsaTokenResponse::QueryInterface( REFIID iid, void **out ) noexcept
+{
+    TRACE( "iface %p, iid %s, out %p.\n", this, debugstr_guid( &iid ), out );
+
+    if (!out) return E_POINTER;
+    *out = nullptr;
+
+    if ( iid == __uuidof( IUnknown ) ||
+         iid == __uuidof( IInspectable ) ||
+         iid == __uuidof( IAgileObject ) ||
+         iid == __uuidof( IMsaTokenResponse ) )
+    {
+        AddRef();
+        *out = static_cast<IMsaTokenResponse *>(this);
+        return S_OK;
+    }
+
+    FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( &iid ) );
+    *out = nullptr;
+    return E_NOINTERFACE;
+}
+
+ULONG WINAPI 
+MsaTokenResponse::AddRef() noexcept
+{
+    ULONG curr = static_cast<ULONG>(++ref);
+    TRACE( "iface %p increasing refcount to %lu.\n", this, curr );
+    return curr;
+}
+
+ULONG WINAPI 
+MsaTokenResponse::Release() noexcept
+{
+    ULONG curr = static_cast<ULONG>(--ref);
+    TRACE( "iface %p decreasing refcount to %lu.\n", this, curr );
+
+    if ( !curr )
+    {
+        delete this;
+    }
+
+    return curr;
+}
+
+HRESULT WINAPI
+MsaTokenResponse::get_Token( HSTRING *out )
+{
+    FIXME( "iface %p, out %p\n", this, out );
+    return E_NOTIMPL;
+}
+
+HRESULT WINAPI
+MsaTokenResponse::get_Expiry( ABI::Windows::Foundation::DateTime *out )
+{
+    FIXME( "iface %p, out %p\n", this, out );
+    return E_NOTIMPL;
+}

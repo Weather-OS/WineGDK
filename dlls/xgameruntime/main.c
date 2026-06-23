@@ -136,8 +136,12 @@ HRESULT WINAPI InitializeApiImplEx2( ULONG gdkVer, ULONG gsVer, CHAR mode, INITI
     //  Initialization can be done however we want on our side.
     // You can choose to return `S_OK` once the full SDK is implemented.
     //
-    //  There's no documented information about what `INITIALIZE_OPTIONS` is,
-    // and xgameruntime.lib never utilizes this argument anyway.
+    //   Documentation for INITIALIZE_OPTIONS is at 
+    //  https://learn.microsoft.com/en-us/xbox/gdk/docs/reference/system/xgameruntimeinit/functions/xgameruntimeinitializewithoptions
+    // 
+    // NOTE: Never rely on INITIALIZE_OPTIONS to provide anything, as it can be nullptr.
+    //
+
 #if XODUS_INTEROP
     HRESULT hr;
     NTSTATUS nts;

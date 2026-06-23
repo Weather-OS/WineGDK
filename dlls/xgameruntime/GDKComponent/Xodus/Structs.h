@@ -90,4 +90,26 @@ private:
     std::atomic_long ref{ 1 };
 };
 
+struct MsaTokenResponse :
+    public IMsaTokenResponse
+{
+    MsaTokenResponse() = default;
+    virtual ~MsaTokenResponse() = default;
+
+    MsaTokenResponse( const MsaTokenResponse& ) = delete;
+    MsaTokenResponse& operator=( const MsaTokenResponse& ) = delete;
+
+    /* IUnknown Methods */
+    HRESULT WINAPI QueryInterface( REFIID iid, void **out ) noexcept override;
+    ULONG WINAPI AddRef() noexcept override;
+    ULONG WINAPI Release() noexcept override;
+
+    /* IMsaTokenResponse Methods */
+    HRESULT WINAPI get_Token( HSTRING *out );
+    HRESULT WINAPI get_Expiry( ABI::Windows::Foundation::DateTime *out );
+
+private:
+    std::atomic_long ref{ 1 };
+};
+
 #endif
