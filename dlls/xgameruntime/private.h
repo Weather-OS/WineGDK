@@ -93,6 +93,8 @@
 #define IPC_REQUEST_TIMEOUT_MS 5000
 #define XODUS_INTEROP 0
 
+extern BOOLEAN initializeCalled;
+
 extern IXThreadingImpl *x_threading_impl;
 extern IXGameRuntimeFeatureImpl *x_game_runtime_feature;
 extern IXSystemImpl *x_system;

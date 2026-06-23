@@ -108,7 +108,7 @@ namespace Xodus
     interface IXodusService : IInspectable
     {
         HRESULT Ping( [out, retval] Windows.Foundation.IAsyncAction **operation );
-        HRESULT MsaTokenRequest( [in] HSTRING clientId, [out, retval] Windows.Foundation.IAsyncOperation<Xodus.IMsaTokenResponse *> **operation );
+        HRESULT MsaTokenRequest( [in, string] const char *clientId, [in] boolean allowUi, [in] boolean fullTrust, [out, retval] Windows.Foundation.IAsyncOperation<Xodus.IMsaTokenResponse *> **operation );
     }
 
     [
@@ -116,8 +116,8 @@ namespace Xodus
     ]
     interface IXodusXMLBuilder : IInspectable
     {
-        HRESULT BuildMsaTokenRequestXml( [in] HSTRING clientId, [out, retval] LPSTR *xml_string );
-        HRESULT FromMsaTokenResponseXml( [in] LPCSTR xml_string, [out, retval] IMsaTokenResponse **response );
+        HRESULT BuildMsaTokenRequestXml( [in, string] const char *clientId, [in] boolean allowUi, [in] boolean fullTrust, [out, retval, string] char **xml_string );
+        HRESULT FromMsaTokenResponseXml( [in, string] const char *xml_string, [out, retval] IMsaTokenResponse **response );
     }
 
     
@@ -126,7 +126,7 @@ namespace Xodus
     ]
     interface IMsaTokenResponse : IUnknown
     {
-        [propget] HRESULT Token( [out, retval] HSTRING *out );
+        [propget] HRESULT Token( [out, retval] const char **out );
         [propget] HRESULT Expiry( [out, retval] Windows.Foundation.DateTime *out );
     }
 

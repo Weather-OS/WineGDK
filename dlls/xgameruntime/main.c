@@ -31,6 +31,8 @@ static HMODULE xgameruntime_threading;
 unixlib_module_t unixlib;
 unixlib_handle_t unixhandle;
 
+BOOLEAN initializeCalled = FALSE;
+
 DEFINE_ASYNC_COMPLETED_HANDLER( async_action, IAsyncActionCompletedHandler, IAsyncAction );
 
 static VOID LoadOtherRuntime( DWORD *asked )
@@ -151,6 +153,8 @@ HRESULT WINAPI InitializeApiImplEx2( ULONG gdkVer, ULONG gsVer, CHAR mode, INITI
 
     IAsyncAction *pingAction = NULL;
 
+    if (initializeCalled) goto _INIT;
+
     // load the unix lib as well.
     // The library is called xgameruntime.so on both macOS and Linux
     RtlInitUnicodeString( &modname, L"xgameruntime.so" );
@@ -195,16 +199,20 @@ HRESULT WINAPI InitializeApiImplEx2( ULONG gdkVer, ULONG gsVer, CHAR mode, INITI
             WARN("Async action await failed. Status was %ld\n", async);
         goto _INIT;
     }
-        
+
     hr = IAsyncAction_GetResults( pingAction );
     if ( FAILED( hr ) )
     {
         WARN("PING response error. HR was %#lx\n", hr);
         goto _INIT;
     }
-#endif
 _INIT:
+#endif
+
     TRACE("gdkVer %ld, gsVer %ld, mode %d, options %p stub!\n", gdkVer, gsVer, mode, options);
+
+    if (initializeCalled) return S_OK;
+    initializeCalled = TRUE;
     return S_OK;
 }
 
