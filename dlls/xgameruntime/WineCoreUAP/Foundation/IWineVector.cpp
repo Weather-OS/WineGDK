@@ -158,7 +158,7 @@ VectorView<T>::VectorView( T* elems, UINT32 size ) noexcept :
     size( size )
 {
     ULONG i;
-    if constexpr ( std::is_base_of<IUnknown, T>() )
+    if constexpr ( std::is_base_of_v<IUnknown, std::remove_pointer_t<T>> )
         for ( i = 0; i < size; ++i )
             elems[i]->AddRef();
 
@@ -220,9 +220,9 @@ VectorView<T>::Release() noexcept
 
     if ( !curr )
     {
-        if constexpr ( std::is_base_of<IUnknown, T>() )
+        if constexpr ( std::is_base_of_v<IUnknown, std::remove_pointer_t<T>> )
             for ( i = 0; i < size; ++i ) 
-                IInspectable_Release( elements[i] );
+                elements[i]->Release();
 
         if constexpr ( std::is_same_v<T, HSTRING> )
             for ( i = 0; i < size; ++i )
@@ -282,7 +282,7 @@ VectorView<T>::GetAt( UINT32 index, T *value )
     *value = nullptr;
     if ( index >= size) return E_BOUNDS;
 
-    if constexpr ( std::is_base_of<IUnknown, T>() )
+    if constexpr ( std::is_base_of_v<IUnknown, std::remove_pointer_t<T>> )
         elements[index]->AddRef();
 
     if constexpr ( std::is_same_v<T, HSTRING> )
@@ -332,7 +332,7 @@ VectorView<T>::GetMany( UINT32 start_index, UINT32 items_size, T *items, UINT *c
     for ( i = start_index; i < size; ++i )
     {
         if ( i - start_index >= items_size ) break;
-        if constexpr ( std::is_base_of<IUnknown, T>() )
+        if constexpr ( std::is_base_of_v<IUnknown, std::remove_pointer_t<T>> )
             elements[i]->AddRef();
         if constexpr ( std::is_same_v<T, HSTRING> )
             WindowsDuplicateString( elements[i], &items[i - start_index] );
@@ -458,7 +458,7 @@ Vector<T>::GetAt( UINT32 index, T *value )
     *value = nullptr;
     if ( index >= size) return E_BOUNDS;
 
-    if constexpr ( std::is_base_of<IUnknown, T>() )
+    if constexpr ( std::is_base_of_v<IUnknown, std::remove_pointer_t<T>> )
         elements[index]->AddRef();
     if constexpr ( std::is_same_v<T, HSTRING> )
         WindowsDuplicateString( elements[index], value );
@@ -510,7 +510,7 @@ Vector<T>::SetAt( UINT32 index, T value )
     TRACE( "iface %p, index %u, value %p.\n", this, index, value );
 
     if ( index >= size ) return E_BOUNDS;
-    if constexpr ( std::is_base_of<IUnknown, T>() )
+    if constexpr ( std::is_base_of_v<IUnknown, std::remove_pointer_t<T>> )
     {
         elements[index]->Release();
         value->AddRef();
@@ -543,7 +543,7 @@ Vector<T>::InsertAt( UINT32 index, T value )
     }
 
     memmove( elements + index + 1, elements + index, (size++ - index) * sizeof(*elements) );
-    if constexpr ( std::is_base_of<IUnknown, T>() )
+    if constexpr ( std::is_base_of_v<IUnknown, std::remove_pointer_t<T>> )
         value->AddRef();
     if constexpr ( std::is_same_v<T, HSTRING> )
         WindowsDuplicateString( value, &elements[index] );
@@ -559,7 +559,7 @@ Vector<T>::RemoveAt( UINT32 index )
     TRACE( "iface %p, index %u.\n", this, index );
 
     if ( index >= size ) return E_BOUNDS;
-    if constexpr ( std::is_base_of<IUnknown, T>() )
+    if constexpr ( std::is_base_of_v<IUnknown, std::remove_pointer_t<T>> )
         elements[index]->Release();
     if constexpr ( std::is_same_v<T, HSTRING> )
         WindowsDeleteString( elements[index] );
@@ -586,7 +586,7 @@ Vector<T>::RemoveAtEnd()
     if ( size )
     {
         size--;
-        if constexpr ( std::is_base_of<IUnknown, T>() )
+        if constexpr ( std::is_base_of_v<IUnknown, std::remove_pointer_t<T>> )
             elements[size]->Release();
         if constexpr ( std::is_same_v<T, HSTRING> )
             WindowsDeleteString( elements[size] );
@@ -625,7 +625,7 @@ Vector<T>::GetMany( UINT32 start_index, UINT32 items_size, T *items, UINT *count
     for ( i = start_index; i < size; ++i )
     {
         if ( i - start_index >= items_size ) break;
-        if constexpr ( std::is_base_of<IUnknown, T>() )
+        if constexpr ( std::is_base_of_v<IUnknown, std::remove_pointer_t<T>> )
             elements[i]->AddRef();
         if constexpr ( std::is_same_v<T, HSTRING> )
             WindowsDuplicateString( elements[i], &items[i - start_index] );
@@ -685,6 +685,10 @@ Vector<T>::Create( IVector<T> **out )
     TRACE( "created %p\n", *out );
     return S_OK;
 }
+
+template class Iterator<IInspectable *>;
+template class VectorView<IInspectable *>;
+template class Vector<IInspectable *>;
 
 template class Iterator<HSTRING>;
 template class VectorView<HSTRING>;
