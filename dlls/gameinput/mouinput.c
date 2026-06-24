@@ -302,6 +302,7 @@ HRESULT mouse_input_device_ReadCurrentStateFromDInput8( IN v2_IGameInputDevice *
         mouseState.wheelY = relativeWheelStore;
     }
 
+    mouseState.buttons = GameInputMouseNone;
     if ( GetAsyncKeyState( VK_LBUTTON ) & 0x8000 )
         mouseState.buttons |= GameInputMouseLeftButton;
     if ( GetAsyncKeyState( VK_RBUTTON ) & 0x8000 )
