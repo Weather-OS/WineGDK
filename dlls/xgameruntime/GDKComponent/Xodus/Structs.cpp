@@ -172,6 +172,18 @@ IPCResponseHandler::Invoke( IXodusIPCPacket *response )
     return m_callback( m_context, response );
 }
 
+
+/**
+ * MsaTokenResponse: Wraps Msa Token response packets sent by Xodus
+ */
+MsaTokenResponse::MsaTokenResponse( 
+    HSTRING token,
+    ABI::Windows::Foundation::DateTime expiry )
+: Expiry(expiry)
+{
+    WindowsDuplicateString( token, &Token );
+}
+
 HRESULT WINAPI
 MsaTokenResponse::QueryInterface( REFIID iid, void **out ) noexcept
 {
@@ -193,17 +205,6 @@ MsaTokenResponse::QueryInterface( REFIID iid, void **out ) noexcept
     FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( &iid ) );
     *out = nullptr;
     return E_NOINTERFACE;
-}
-
-/**
- * MsaTokenResponse: Wraps Msa Token response packets sent by Xodus
- */
-MsaTokenResponse::MsaTokenResponse( 
-    HSTRING token,
-    ABI::Windows::Foundation::DateTime expiry )
-: Expiry(expiry)
-{
-    WindowsDuplicateString( token, &Token );
 }
 
 ULONG WINAPI 

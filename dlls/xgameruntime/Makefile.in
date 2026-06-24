@@ -16,6 +16,8 @@ SOURCES = \
 	GDKComponent/System/Threading/WaitTimer.cpp \
 	GDKComponent/System/Threading/ThreadPool.cpp \
 	\
+	GDKComponent/System/User/UserImpl.cpp \
+	\
 	GDKComponent/System/XThreading.cpp \
 	GDKComponent/System/XGameRuntimeFeature.cpp \
 	GDKComponent/System/XSystem.cpp \
