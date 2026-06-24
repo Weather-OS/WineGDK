@@ -1,4 +1,4 @@
-IMPORTS   = user32 advapi32 crypt32 combase winhttp combase $(CXXABI_PE_LIBS) $(CXX_PE_LIBS) $(XML2_PE_LIBS) vcruntime140
+IMPORTS   = user32 advapi32 crypt32 combase winhttp shell32 $(CXXABI_PE_LIBS) $(CXX_PE_LIBS) $(XML2_PE_LIBS) vcruntime140
 EXTRAINCL = $(XML2_PE_CFLAGS)
 MODULE    = xgameruntime.dll
 UNIXLIB   = xgameruntime.so
@@ -24,6 +24,7 @@ SOURCES = \
 	GDKComponent/System/XSystemAnalytics.cpp \
 	GDKComponent/System/XNetworking.cpp \
 	GDKComponent/System/XUser.cpp \
+	GDKComponent/System/XLauncher.cpp \
 	\
 	GDKComponent/Xodus/Structs.cpp \
 	GDKComponent/Xodus/IPCLayer.cpp \
