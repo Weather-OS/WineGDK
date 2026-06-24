@@ -284,6 +284,8 @@ HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, voi
         }
         return func( runtimeClassId, interfaceId, out );
     }
+    else if (IsEqualGUID( runtimeClassId, &CLSID_XStoreImpl ))
+        return IXStoreImpl_QueryInterface( x_store, interfaceId, out );
     
     FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( runtimeClassId ) );
     return E_NOTIMPL;
