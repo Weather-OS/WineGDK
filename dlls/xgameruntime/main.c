@@ -22,6 +22,9 @@
 #include "private.h"
 
 #include "ntstatus.h"
+#include "shlwapi.h"
+
+#include "libxml/parser.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(xgameruntime);
 
@@ -30,6 +33,12 @@ static HMODULE xgameruntime_threading;
 
 unixlib_module_t unixlib;
 unixlib_handle_t unixhandle;
+
+char *msaAppId = NULL;
+UINT32 titleId = 0;
+BOOLEAN fullTrust = FALSE;
+
+BOOLEAN initializeCalled = FALSE;
 
 DEFINE_ASYNC_COMPLETED_HANDLER( async_action, IAsyncActionCompletedHandler, IAsyncAction );
 
@@ -116,14 +125,17 @@ BOOL WINAPI DllMain( HINSTANCE hinst, DWORD reason, void *reserved )
         case DLL_PROCESS_ATTACH:
         {
             DisableThreadLibraryCalls(hinst);
+            RoInitialize( RO_INIT_MULTITHREADED );
             xgameruntime_threading = LoadLibraryA("xgameruntime.dll.threading");
             break;
         }
         case DLL_PROCESS_DETACH:
             if (reserved) break;
+            if (msaAppId) free( msaAppId );
             if (xgameruntime) FreeLibrary(xgameruntime);
             if (xgameruntime_threading) FreeLibrary(xgameruntime_threading);
             if (unixlib) __wine_unload_unix_lib( unixlib );
+            RoUninitialize();
         break;
     }
     return TRUE;
@@ -142,6 +154,9 @@ HRESULT WINAPI InitializeApiImplEx2( ULONG gdkVer, ULONG gsVer, CHAR mode, INITI
     // NOTE: Never rely on INITIALIZE_OPTIONS to provide anything, as it can be nullptr.
     //
 
+    CHAR filename[MAX_PATH], *last;
+    xmlNodePtr child, root;
+    xmlDocPtr config;
 #if XODUS_INTEROP
     HRESULT hr;
     NTSTATUS nts;
@@ -150,6 +165,8 @@ HRESULT WINAPI InitializeApiImplEx2( ULONG gdkVer, ULONG gsVer, CHAR mode, INITI
     LPCSTR xodus_prefix = XODUS_SOCKET_SUFFIX;
 
     IAsyncAction *pingAction = NULL;
+
+    if (initializeCalled) goto _INIT;
 
     // load the unix lib as well.
     // The library is called xgameruntime.so on both macOS and Linux
@@ -195,17 +212,75 @@ HRESULT WINAPI InitializeApiImplEx2( ULONG gdkVer, ULONG gsVer, CHAR mode, INITI
             WARN("Async action await failed. Status was %ld\n", async);
         goto _INIT;
     }
-        
+
     hr = IAsyncAction_GetResults( pingAction );
     if ( FAILED( hr ) )
     {
         WARN("PING response error. HR was %#lx\n", hr);
         goto _INIT;
     }
-#endif
 _INIT:
+#endif
+
     TRACE("gdkVer %ld, gsVer %ld, mode %d, options %p stub!\n", gdkVer, gsVer, mode, options);
+
+    if (initializeCalled) return S_OK;
+    initializeCalled = TRUE;
+
+    if (options)
+    {
+        if (options->isInlineConfig && !(config = xmlReadMemory( options->gameConfig, strlen( options->gameConfig ), NULL, NULL, 0 )))
+            return E_GAMERUNTIME_GAMECONFIG_BAD_FORMAT;
+        else if (!(config = xmlReadFile( options->gameConfig, NULL, 0 )))
+            return E_GAMERUNTIME_GAMECONFIG_BAD_FORMAT;
+    }
+    else
+    {
+        if (!GetModuleFileNameA( NULL, filename, MAX_PATH )) return HRESULT_FROM_WIN32( GetLastError() );
+        /* executable can be in a subdirectory, search up the tree until we find MicrosoftGame.config */
+        while ((last = strrchr( filename, '\\' )))
+        {
+            *(last + 1) = 0;
+            if (strlen( filename ) + strlen( "MicrosoftGame.config" ) < MAX_PATH)
+                strcat( filename, "MicrosoftGame.config" );
+            else return HRESULT_FROM_WIN32( ERROR_INSUFFICIENT_BUFFER );
+            if (PathFileExistsA( filename )) break;
+            *last = 0;
+            if (!strrchr( filename, '\\' )) return E_GAME_MISSING_GAME_CONFIG;
+        }
+        if (!(config = xmlReadFile( filename, NULL, 0 ))) return E_GAMERUNTIME_GAMECONFIG_BAD_FORMAT;
+    }
+
+    if (!(root = xmlDocGetRootElement( config ))) goto badconfig;
+    if (!strcmp( (char *)root->name, "Game" ))
+    {
+        for (child = root->children; child; child = child->next)
+            if (child->type == XML_ELEMENT_NODE)
+            {
+                if (!strcmp( (char *)child->name, "MSAAppId" ))
+                    msaAppId = (char *)xmlNodeGetContent( child );
+                else if (!strcmp( (char *)child->name, "TitleId" ))
+                {
+                    char *value = (char *)xmlNodeGetContent( child );
+                    titleId = strtoul( value, NULL, 10 );
+                    free( value );
+                }
+                else if (!strcmp( (char *)child->name, "MSAFullTrust" ))
+                {
+                    char *value = (char *)xmlNodeGetContent( child );
+                    fullTrust = !strcmp( value, "true" );
+                    free( value );
+                }
+            }
+    }
+    else goto badconfig;
+
+    xmlFreeDoc( config );
     return S_OK;
+
+badconfig:
+    xmlFreeDoc( config );
+    return E_GAMERUNTIME_GAMECONFIG_BAD_FORMAT;
 }
 
 HRESULT WINAPI InitializeApiImplEx( ULONG gdkVer, ULONG gsVer, CHAR mode )
@@ -284,7 +359,19 @@ HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, voi
         }
         return func( runtimeClassId, interfaceId, out );
     }
-    
+    else if ( IsEqualGUID( runtimeClassId, &CLSID_XGameImpl ) )
+    {
+        return IXGameImpl_QueryInterface( x_game, interfaceId, out );
+    }
+    else if ( IsEqualGUID( runtimeClassId, &CLSID_XUserImpl ) )
+    {
+        return IXUserImpl6_QueryInterface( x_user, interfaceId, out );
+    }
+    else if ( IsEqualGUID( runtimeClassId, &CLSID_XUserDeviceImpl ) )
+    {
+        return IXUserDeviceImpl_QueryInterface( x_user_device, interfaceId, out );
+    }
+
     FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( runtimeClassId ) );
     return E_NOTIMPL;
 }

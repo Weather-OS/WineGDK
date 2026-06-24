@@ -222,7 +222,7 @@ MsaTokenResponse::Release() noexcept
 
     if ( !curr )
     {
-        WindowsDeleteString( Token );
+        if (token) free( const_cast<char *>(token) );
         delete this;
     }
 
@@ -230,10 +230,10 @@ MsaTokenResponse::Release() noexcept
 }
 
 HRESULT WINAPI
-MsaTokenResponse::get_Token( HSTRING *out )
+MsaTokenResponse::get_Token( const char **out )
 {
-    TRACE( "iface %p, out %p\n", this, out );
-    WindowsDuplicateString( Token, out );
+    TRACE( "iface %p, out %p.\n", this, out );
+    *out = strdup( token );
     return S_OK;
 }
 

@@ -1,10 +1,12 @@
-IMPORTS   = user32 advapi32 crypt32 combase winhttp combase $(CXXABI_PE_LIBS) $(CXX_PE_LIBS) $(XML2_PE_LIBS) vcruntime140
+IMPORTS   = user32 advapi32 bcrypt crypt32 combase shlwapi winhttp wininet $(CXXABI_PE_LIBS) $(CXX_PE_LIBS) $(XML2_PE_LIBS) vcruntime140
 EXTRAINCL = $(XML2_PE_CFLAGS)
 MODULE    = xgameruntime.dll
 UNIXLIB   = xgameruntime.so
 
 SOURCES = \
 	main.c \
+	userprovider.idl \
+	util.c \
 	xodusprovider.idl \
 	provider.idl \
 	\
@@ -17,11 +19,12 @@ SOURCES = \
 	GDKComponent/System/Threading/ThreadPool.cpp \
 	\
 	GDKComponent/System/XThreading.cpp \
+	GDKComponent/System/XGame.c \
 	GDKComponent/System/XGameRuntimeFeature.cpp \
 	GDKComponent/System/XSystem.cpp \
 	GDKComponent/System/XSystemAnalytics.cpp \
 	GDKComponent/System/XNetworking.cpp \
-	GDKComponent/System/XUser.cpp \
+	GDKComponent/System/XUser.c \
 	\
 	GDKComponent/Xodus/Structs.cpp \
 	GDKComponent/Xodus/IPCLayer.cpp \

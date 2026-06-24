@@ -212,7 +212,7 @@ static NTSTATUS send_frm( void *args )
     TRACE("magic is %#x\n", magic);
     TRACE("type is %d\n", type);
     TRACE("len is %d\n", len);
-    TRACE("body is %s\n", body);
+    TRACE("body is %s\n", debugstr_an(body, len));
 
     while ( sent < frame->frameSize )
     {

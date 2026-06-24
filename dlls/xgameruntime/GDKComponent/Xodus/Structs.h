@@ -96,6 +96,7 @@ struct MsaTokenResponse :
 {
 public:
     MsaTokenResponse() = default;
+    MsaTokenResponse( const char *token ) : token(token) {};
     virtual ~MsaTokenResponse() = default;
 
     MsaTokenResponse(
@@ -111,13 +112,21 @@ public:
     ULONG WINAPI Release() noexcept override;
 
     /* IMsaTokenResponse Methods */
-    HRESULT WINAPI get_Token( HSTRING *out );
+    HRESULT WINAPI get_Token( const char **out );
     HRESULT WINAPI get_Expiry( ABI::Windows::Foundation::DateTime *out );
 
 private:
     ABI::Windows::Foundation::DateTime Expiry;
     HSTRING Token;
     std::atomic_long ref{ 1 };
+    const char *token = NULL;
+};
+
+struct MsaTokenRequestContext
+{
+    const char *clientId;
+    boolean allowUi;
+    boolean fullTrust;
 };
 
 #endif
