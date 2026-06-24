@@ -195,6 +195,17 @@ MsaTokenResponse::QueryInterface( REFIID iid, void **out ) noexcept
     return E_NOINTERFACE;
 }
 
+/**
+ * MsaTokenResponse: Wraps Msa Token response packets sent by Xodus
+ */
+MsaTokenResponse::MsaTokenResponse( 
+    HSTRING token,
+    ABI::Windows::Foundation::DateTime expiry )
+: Expiry(expiry)
+{
+    WindowsDuplicateString( token, &Token );
+}
+
 ULONG WINAPI 
 MsaTokenResponse::AddRef() noexcept
 {
@@ -211,6 +222,7 @@ MsaTokenResponse::Release() noexcept
 
     if ( !curr )
     {
+        WindowsDeleteString( Token );
         delete this;
     }
 
@@ -220,13 +232,15 @@ MsaTokenResponse::Release() noexcept
 HRESULT WINAPI
 MsaTokenResponse::get_Token( HSTRING *out )
 {
-    FIXME( "iface %p, out %p\n", this, out );
-    return E_NOTIMPL;
+    TRACE( "iface %p, out %p\n", this, out );
+    WindowsDuplicateString( Token, out );
+    return S_OK;
 }
 
 HRESULT WINAPI
 MsaTokenResponse::get_Expiry( ABI::Windows::Foundation::DateTime *out )
 {
-    FIXME( "iface %p, out %p\n", this, out );
-    return E_NOTIMPL;
+    TRACE( "iface %p, out %p\n", this, out );
+    *out = Expiry;
+    return S_OK;
 }

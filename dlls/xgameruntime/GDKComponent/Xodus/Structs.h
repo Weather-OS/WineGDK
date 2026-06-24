@@ -66,6 +66,7 @@ private:
 struct IPCResponseHandler :
     public IIPCResponseHandler
 {
+public:
     IPCResponseHandler() = default;
     virtual ~IPCResponseHandler() = default;
 
@@ -93,8 +94,13 @@ private:
 struct MsaTokenResponse :
     public IMsaTokenResponse
 {
+public:
     MsaTokenResponse() = default;
     virtual ~MsaTokenResponse() = default;
+
+    MsaTokenResponse(
+        HSTRING token,
+        ABI::Windows::Foundation::DateTime expiry );
 
     MsaTokenResponse( const MsaTokenResponse& ) = delete;
     MsaTokenResponse& operator=( const MsaTokenResponse& ) = delete;
@@ -109,6 +115,8 @@ struct MsaTokenResponse :
     HRESULT WINAPI get_Expiry( ABI::Windows::Foundation::DateTime *out );
 
 private:
+    ABI::Windows::Foundation::DateTime Expiry;
+    HSTRING Token;
     std::atomic_long ref{ 1 };
 };
 
