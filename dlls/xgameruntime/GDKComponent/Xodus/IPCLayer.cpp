@@ -196,7 +196,7 @@ private:
         DWORD asyncres;
         HRESULT status = S_OK;
         NTSTATUS nts;
-        IPCFrame *frame = new IPCFrame();
+        IPCFrame frame{};
         IPCHeader_CTYPE header{};
         EventRegistrationToken token{};
         SendRequestContext context{ .event = CreateEventW(nullptr, TRUE, FALSE, nullptr) };
@@ -212,7 +212,7 @@ private:
         packet->get_Message( &message );
         packet->Release();
 
-        status = message->get_Length( &frame->frameSize );
+        status = message->get_Length( &frame.frameSize );
         if ( FAILED( status ) ) return status;
         status = message->QueryInterface<IBufferByteAccess>( &messageBufferByteAccess );
         message->Release();
@@ -221,24 +221,24 @@ private:
         messageBufferByteAccess->Release();
         if ( FAILED( status ) ) return status;
 
-        header.MessageLength = frame->frameSize;
+        header.MessageLength = frame.frameSize;
 
-        frame->frameSize += sizeof(IPCHeader_CTYPE);
+        frame.frameSize += sizeof(IPCHeader_CTYPE);
 
-        frame->frame = (PBYTE)CoTaskMemAlloc( sizeof(BYTE) * frame->frameSize );
-        if ( !frame->frame )
+        frame.frame = (PBYTE)CoTaskMemAlloc( sizeof(BYTE) * frame.frameSize );
+        if ( !frame.frame )
             return E_OUTOFMEMORY;
 
-        RtlCopyMemory( frame->frame, &header.Magic, sizeof(MagicHeaderType) );
-        RtlCopyMemory( frame->frame + sizeof(MagicHeaderType), &header.Message_Type, sizeof(UINT16) );
-        RtlCopyMemory( frame->frame + sizeof(MagicHeaderType) + sizeof(UINT16), &header.MessageLength, sizeof(UINT16) );
-        RtlCopyMemory( frame->frame + sizeof(IPCHeader_CTYPE), messageBuffer, header.MessageLength );
+        RtlCopyMemory( frame.frame, &header.Magic, sizeof(MagicHeaderType) );
+        RtlCopyMemory( frame.frame + sizeof(MagicHeaderType), &header.Message_Type, sizeof(UINT16) );
+        RtlCopyMemory( frame.frame + sizeof(MagicHeaderType) + sizeof(UINT16), &header.MessageLength, sizeof(UINT16) );
+        RtlCopyMemory( frame.frame + sizeof(IPCHeader_CTYPE), messageBuffer, header.MessageLength );
 
         status = iface->add_ResponseReceived( handler, &token );
         if ( FAILED( status ) ) return status;
 
-        nts = __wine_unix_call( unixhandle, send_frame, (void *)frame );
-        CoTaskMemFree( frame->frame );
+        nts = __wine_unix_call( unixhandle, send_frame, (void *)&frame );
+        CoTaskMemFree( frame.frame );
         if ( FAILED( nts ) ) return HRESULT_FROM_NT( nts );
 
         asyncres = WaitForSingleObject( context.event, IPC_REQUEST_TIMEOUT_MS );
