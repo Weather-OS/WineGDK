@@ -1251,6 +1251,7 @@ SOURCES = \
 	xnetworking.idl \
 	xpsobjectmodel.idl \
 	xpsobjectmodel_1.idl \
+	xstore.idl \
 	xsystem.idl \
 	xtaskqueue.h \
 	xuser.idl \
