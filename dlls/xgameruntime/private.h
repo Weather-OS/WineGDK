@@ -49,6 +49,7 @@
 
 #include <xgameerr.h>
 #include <xsystem.h>
+#include <xgame.h>
 #include <xgameruntimefeature.h>
 #include <xnetworking.h>
 #include <xuser.h>
@@ -99,6 +100,7 @@ extern IXSystemImpl *x_system;
 extern IXSystemAnalyticsImpl *x_system_analytics;
 extern IXNetworkingImpl *x_networking;
 extern IXUserImpl *x_user;
+extern IXGameImpl *x_game;
 
 #ifdef __cplusplus
 extern ABI::Xodus::IIPCLayer *xodus_ipclayer;

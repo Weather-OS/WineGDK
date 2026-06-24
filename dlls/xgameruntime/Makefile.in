@@ -19,6 +19,7 @@ SOURCES = \
 	GDKComponent/System/User/UserImpl.cpp \
 	\
 	GDKComponent/System/XThreading.cpp \
+	GDKComponent/System/XGame.cpp \
 	GDKComponent/System/XGameRuntimeFeature.cpp \
 	GDKComponent/System/XSystem.cpp \
 	GDKComponent/System/XSystemAnalytics.cpp \

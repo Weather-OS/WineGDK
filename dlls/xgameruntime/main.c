@@ -284,7 +284,9 @@ HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, voi
         }
         return func( runtimeClassId, interfaceId, out );
     }
-    
+    else if ( IsEqualGUID( runtimeClassId, &CLSID_XGameImpl ) )
+        return IXGameImpl_QueryInterface( x_game, interfaceId, out );
+
     FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( runtimeClassId ) );
     return E_NOTIMPL;
 }
