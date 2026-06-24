@@ -117,9 +117,16 @@ public:
     HRESULT WINAPI
     MsaTokenRequest( HSTRING clientId, IAsyncOperation<IMsaTokenResponse *> **operation ) override
     {
+        HRESULT hr;
+        HSTRING clientIdCopy;
+
         TRACE("clientId %s, operation %p.\n", debugstr_hstring(clientId), operation);
+
+        hr = WindowsDuplicateString( clientId, &clientIdCopy );
+        if ( FAILED( hr ) ) return hr;
+    
         return AsyncOperation<IMsaTokenResponse *>::Create( static_cast<IUnknown *>(this), 
-                    static_cast<PVOID>(clientId), MsaTokenRequestAsync, operation );
+                    static_cast<PVOID>(clientIdCopy), MsaTokenRequestAsync, operation );
     }
 
 private:
@@ -132,7 +139,7 @@ private:
         DWORD ret;
         LPSTR xmlStr;
         UINT16 messageType;
-        HRESULT status;
+        HRESULT status = S_OK;
         HSTRING bufferClass;
 
         IMsaTokenResponse *tokenResponse = nullptr;
@@ -145,28 +152,28 @@ private:
         TRACE("invoker %p, param %p, result %p\n", invoker, param, result);
 
         status = WindowsCreateString( RuntimeClass_Windows_Storage_Streams_Buffer, lstrlenW( RuntimeClass_Windows_Storage_Streams_Buffer ), &bufferClass );
-        if ( FAILED( status ) ) return status;
+        if ( FAILED( status ) ) goto _CLEANUP;
 
         status = RoGetActivationFactory( bufferClass, __uuidof( IBufferFactory ), (void **)&bufferFactory );
-        WindowsDeleteString( bufferClass );
-        if ( FAILED( status ) ) return status;
+        if ( FAILED( status ) ) goto _CLEANUP;
 
+        // FIXME: Probably need to do HSTRING on xmlStr as doing manual CoTaskMemFree on xmlStr is janky.
         status = xodus_xml_builder->BuildMsaTokenRequestXml( clientId, &xmlStr );
-        if ( FAILED( status ) ) return status;
+        if ( FAILED( status ) ) goto _CLEANUP;
 
         status = bufferFactory->Create( lstrlenA( xmlStr ) + 1, &message );
-        if ( FAILED( status ) ) return status;
+        if ( FAILED( status ) ) goto _CLEANUP;
 
         status = message->QueryInterface<IBufferByteAccess>( &messageByteAccess );
-        if ( FAILED( status ) ) return status;
+        if ( FAILED( status ) ) goto _CLEANUP;
 
         status = messageByteAccess->Buffer( &messageBuffer );
         messageByteAccess->Release();
-        if ( FAILED( status ) ) return status;
+        messageByteAccess = nullptr;
+        if ( FAILED( status ) ) goto _CLEANUP;
 
         RtlCopyMemory( messageBuffer, xmlStr, lstrlenA( xmlStr ) + 1 );
         status = message->put_Length( lstrlenA( xmlStr ) + 1 );
-        CoTaskMemFree( xmlStr );
 
         // Construct a new IPC Packet
         xodusPacket = new XodusIPCPacket(
@@ -179,33 +186,48 @@ private:
 
         ret = AsyncOperationCompletedHandler<IXodusIPCPacket *>::await_AsyncOperation( response, INFINITE );
         if ( ret )
-            return E_FAIL;
+        {
+            status = E_FAIL;
+            goto _CLEANUP;
+        }
 
         xodusPacket->Release();
+        xodusPacket = nullptr;
+
         message->Release();
+        message = nullptr;
 
         status = response->GetResults( &xodusPacket );
-        if ( FAILED( status ) ) return status;
-        response->Release();
+        if ( FAILED( status ) ) goto _CLEANUP;
+
         xodusPacket->get_MessageType( &messageType );
         xodusPacket->get_Message( &message );
-        xodusPacket->Release();
         status = message->QueryInterface<IBufferByteAccess>( &messageByteAccess );
-        message->Release();
-        if ( FAILED( status ) ) return status;
+        if ( FAILED( status ) ) goto _CLEANUP;
 
         status = messageByteAccess->Buffer( &messageBuffer );
-        if ( FAILED( status ) ) return status;
+        if ( FAILED( status ) ) goto _CLEANUP;
 
-        xodus_xml_builder->FromMsaTokenResponseXml( reinterpret_cast<LPCSTR>(messageBuffer), &tokenResponse );
-        messageByteAccess->Release();
+        status = xodus_xml_builder->FromMsaTokenResponseXml( reinterpret_cast<LPCSTR>(messageBuffer), &tokenResponse );
 
-        result->vt = VT_UNKNOWN;
-        result->punkVal = tokenResponse;
+        if ( SUCCEEDED( status ) )
+        {
+            result->vt = VT_UNKNOWN;
+            result->punkVal = tokenResponse;
 
-        if ( messageType != 4 /* MsaTokenResponse */)
-            return E_INVALIDARG;
+            if ( messageType != 4 /* MsaTokenResponse */ )
+                status = E_INVALIDARG;
+        }
         
+_CLEANUP:
+        if ( bufferClass ) WindowsDeleteString( bufferClass );
+        if ( bufferFactory ) bufferFactory->Release();
+        if ( xmlStr ) CoTaskMemFree( xmlStr );
+        if ( message ) message->Release();
+        if ( messageByteAccess ) messageByteAccess->Release();
+        if ( xodusPacket ) xodusPacket->Release();
+        if ( response ) response->Release();
+        if ( clientId ) WindowsDeleteString( clientId );
         return S_OK;
     }
 
@@ -225,14 +247,13 @@ private:
         TRACE("invoker %p, param %p, result %p\n", invoker, param, result);
 
         status = WindowsCreateString( RuntimeClass_Windows_Storage_Streams_Buffer, lstrlenW( RuntimeClass_Windows_Storage_Streams_Buffer ), &bufferClass );
-        if ( FAILED( status ) ) return status;
+        if ( FAILED( status ) ) goto _CLEANUP;
 
         status = RoGetActivationFactory( bufferClass, __uuidof( IBufferFactory ), (void **)&bufferFactory );
-        WindowsDeleteString( bufferClass );
-        if ( FAILED( status ) ) return status;
+        if ( FAILED( status ) ) goto _CLEANUP;
 
         status = bufferFactory->Create( 1, &message );
-        if ( FAILED( status ) ) return status;
+        if ( FAILED( status ) ) goto _CLEANUP;
 
         // Construct a new IPC Packet
         xodusPacket = new XodusIPCPacket(
@@ -245,21 +266,32 @@ private:
 
         ret = AsyncOperationCompletedHandler<IXodusIPCPacket *>::await_AsyncOperation( response, INFINITE );
         if ( ret )
-            return E_FAIL;
+        {
+            status = E_FAIL;
+            goto _CLEANUP;
+        }
 
         xodusPacket->Release();
+        xodusPacket = nullptr;
+
         message->Release();
+        message = nullptr;
 
         // confirm that we actually PONGed
         status = response->GetResults( &xodusPacket );
-        response->Release();
         if ( FAILED( status ) ) return status;
         xodusPacket->get_MessageType( &messageType );
-        xodusPacket->Release();
         if ( messageType != 2 /* PONG */)
             return E_INVALIDARG;
         
-        return S_OK;
+_CLEANUP:
+        if ( bufferClass ) WindowsDeleteString( bufferClass );
+        if ( bufferFactory ) bufferFactory->Release();
+        if ( message ) message->Release();
+        if ( response ) response->Release();
+        if ( xodusPacket ) xodusPacket->Release();
+
+        return status;
     }
 
     std::atomic_long ref{ 1 };
