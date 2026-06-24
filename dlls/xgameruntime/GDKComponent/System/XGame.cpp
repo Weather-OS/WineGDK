@@ -62,8 +62,9 @@ public:
 
     HRESULT WINAPI XGameGetXboxTitleId( UINT32 *value ) override
     {
-        FIXME( "iface %p, value %p stub!\n", this, value );
-        return E_NOTIMPL;
+        TRACE( "iface %p, value %p.\n", this, value );
+        *value = titleId;
+        return S_OK;
     }
 
     void WINAPI XLaunchNewGame( const char *exePath, const char *args, XUserHandle defaultUser ) override
