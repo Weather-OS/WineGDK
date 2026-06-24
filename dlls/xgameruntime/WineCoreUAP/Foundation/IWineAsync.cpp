@@ -512,6 +512,7 @@ AsyncOperation<T>::Create( IUnknown *invoker, PVOID param, async_operation_callb
 
 template class AsyncOperation<IInspectable*>;
 template class AsyncOperation<ABI::Xodus::IXodusIPCPacket*>;
+template class AsyncOperation<ABI::Xodus::IMsaTokenResponse*>;
 
 HRESULT WINAPI
 AsyncAction::QueryInterface( REFIID iid, void** out ) noexcept
