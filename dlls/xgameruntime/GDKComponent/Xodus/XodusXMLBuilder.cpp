@@ -127,15 +127,94 @@ public:
     HRESULT WINAPI
     BuildMsaTokenRequestXml( HSTRING clientId, LPSTR *xml_string ) override
     {
-        FIXME( "clientId %s, xml_string %p stub!\n", debugstr_hstring(clientId), xml_string );
-        return E_NOTIMPL;
+        INT bufSize;
+        INT clientIdStrSize;
+        LPSTR clientIdStr;
+        UINT32 clientIdStrLen;
+        LPCWSTR clientIdStrW = WindowsGetStringRawBuffer( clientId, &clientIdStrLen );
+        xmlChar *xmlBuff = nullptr;
+        xmlDocPtr doc = xmlNewDoc( BAD_CAST "1.0" );
+        xmlNodePtr root;
+
+        TRACE( "clientId %s, xml_string %p.\n", debugstr_hstring(clientId), xml_string );
+
+        clientIdStrSize = WideCharToMultiByte( CP_UTF8, 0, clientIdStrW, clientIdStrLen, nullptr, 0, nullptr, nullptr );
+        clientIdStr = (LPSTR)CoTaskMemAlloc( clientIdStrSize );
+        WideCharToMultiByte( CP_UTF8, 0, clientIdStrW, clientIdStrLen, clientIdStr, clientIdStrSize, nullptr, nullptr );
+
+        root = xmlNewNode( nullptr, BAD_CAST "XSTSTokenRequest" );
+        xmlDocSetRootElement(doc, root);
+        xmlNewChild( root, nullptr, BAD_CAST "Url", BAD_CAST clientIdStr );
+        CoTaskMemFree( clientIdStr );
+        xmlDocDumpFormatMemory( doc, &xmlBuff, &bufSize, 1 );
+        xmlFreeDoc( doc );
+
+        *xml_string = (LPSTR)CoTaskMemAlloc( bufSize );
+        lstrcpynA( *xml_string, reinterpret_cast<LPCSTR>(xmlBuff), bufSize );
+        xmlFree( xmlBuff );
+
+        return S_OK;
     }
 
     HRESULT WINAPI
     FromMsaTokenResponseXml( LPCSTR xml_string, IMsaTokenResponse **response ) override
     {
-        FIXME( "xml_string %s, response %p stub!\n", debugstr_a(xml_string), response );
-        return E_NOTIMPL;
+        INT strLen;
+        LPSTR str;
+        LPWSTR strW;
+        HRESULT hr;
+        HSTRING token = nullptr;
+        DateTime expiry{};
+        LONGLONG expiryUnix;
+        xmlChar *childContent;
+        xmlDocPtr doc;
+        xmlNodePtr curr_child, root;
+
+        TRACE( "xml_string %s, response %p.\n", debugstr_a( xml_string ), response );
+
+        if ( !( doc = xmlReadMemory( xml_string, strlen( xml_string ), nullptr, nullptr, 0 ) ) ) return E_FAIL;
+        if ( !( root = xmlDocGetRootElement( doc ) ) )
+        {
+            xmlFreeDoc( doc );
+            return E_FAIL;
+        }
+
+        if ( !strcmp( reinterpret_cast<LPCSTR>(root->name), "MSATokenResponse" ) )
+            for ( curr_child = root->children; curr_child != nullptr; curr_child = curr_child->next )
+            {
+                if ( curr_child->type == XML_ELEMENT_NODE && !strcmp( reinterpret_cast<LPCSTR>(curr_child->name), "Token" ) )
+                {
+                    childContent = xmlNodeGetContent( curr_child );
+                    str = (LPSTR)CoTaskMemAlloc( sizeof(CHAR) * ( lstrlenA( reinterpret_cast<LPCSTR>(childContent) ) + 1 ) );
+                    if ( !str )
+                        return E_OUTOFMEMORY;
+
+                    lstrcpyA( str, reinterpret_cast<LPCSTR>(childContent) );
+                    strLen = MultiByteToWideChar( CP_UTF8, 0, str, -1, nullptr, 0 );
+                    strW = (LPWSTR)CoTaskMemAlloc( strLen * sizeof(WCHAR) );
+                    MultiByteToWideChar( CP_UTF8, 0, str, -1, strW, strLen );
+                    hr = WindowsCreateString( strW, strLen - 1, &token );
+                    CoTaskMemFree( strW );
+                    CoTaskMemFree( str );
+                    if ( FAILED( hr ) ) return hr;
+                } 
+                else if ( curr_child->type == XML_ELEMENT_NODE && !strcmp( reinterpret_cast<LPCSTR>(curr_child->name), "Expiry" ) )
+                {
+                    childContent = xmlNodeGetContent( curr_child );
+                    str = (LPSTR)CoTaskMemAlloc( sizeof(CHAR) * ( lstrlenA( reinterpret_cast<LPCSTR>(childContent) ) + 1 ) );
+                    if ( !str )
+                        return E_OUTOFMEMORY;
+
+                    lstrcpyA( str, reinterpret_cast<LPCSTR>(childContent) );
+                    expiryUnix = strtoll( str, nullptr, 10 );
+                    expiry.UniversalTime = ((INT64)expiryUnix + SEC_TO_UNIX_EPOCH) * WINDOWS_TICK;
+                    CoTaskMemFree( str );
+                }
+            }
+
+        *response = new MsaTokenResponse( token, expiry );
+        xmlFreeDoc( doc );
+        return S_OK;
     }
 
 private:
