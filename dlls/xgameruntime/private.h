@@ -49,6 +49,7 @@
 
 #include <xgameerr.h>
 #include <xsystem.h>
+#include <xgame.h>
 #include <xgameruntimefeature.h>
 #include <xnetworking.h>
 #include <xuser.h>
@@ -93,12 +94,17 @@
 #define IPC_REQUEST_TIMEOUT_MS 5000
 #define XODUS_INTEROP 0
 
+extern BOOLEAN initializeCalled;
+
+extern UINT32 titleId;
+
 extern IXThreadingImpl *x_threading_impl;
 extern IXGameRuntimeFeatureImpl *x_game_runtime_feature;
 extern IXSystemImpl *x_system;
 extern IXSystemAnalyticsImpl *x_system_analytics;
 extern IXNetworkingImpl *x_networking;
 extern IXUserImpl *x_user;
+extern IXGameImpl *x_game;
 
 #ifdef __cplusplus
 extern ABI::Xodus::IIPCLayer *xodus_ipclayer;
@@ -112,7 +118,9 @@ extern IXodusXMLBuilder *xodus_xml_builder;
 
 typedef struct _INITIALIZE_OPTIONS
 {
-    int unused;
+    UINT32 unknown;
+    BOOLEAN isInlineConfig;
+    const char *gameConfig;
 } INITIALIZE_OPTIONS;
 
 typedef struct _POLL_SOCKET_ARGS
