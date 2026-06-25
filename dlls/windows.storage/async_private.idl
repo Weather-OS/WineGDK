@@ -1,7 +1,5 @@
 /*
- * Runtime Classes for windows.storage.dll
- *
- * Copyright (C) 2025 Mohamad Al-Jaf
+ * Copyright 2022 Rémi Bernon for CodeWeavers
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -18,30 +16,31 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#pragma makedep register
-#pragma winrt ns_prefix
+#pragma makedep header
 
+#ifdef __WIDL__
+#pragma winrt ns_prefix
+#endif
+
+import "propidl.idl";
 import "inspectable.idl";
 import "asyncinfo.idl";
-import "eventtoken.idl";
-import "windows.foundation.idl";
 import "windowscontracts.idl";
-import "windows.system.idl";
-import "windows.storage.idl";
-import "windows.storage.pickers.idl";
 
-namespace Windows.Storage.Pickers
-{
-    runtimeclass FileOpenPicker;
-    runtimeclass FileSavePicker;
-}
+namespace Wine.Internal {
+    /* type-pruning version of AsyncOperationCompletedHandlerImpl<T> */
+    delegate HRESULT AsyncOperationCompletedHandlerImpl([in] IInspectable *async, [in] AsyncStatus status);
 
-namespace Windows.Storage.Streams 
-{
-    runtimeclass RandomAccessStreamReference;
-}
+    [
+        uuid(d81ab70d-82e0-481c-983d-401225d98a2c)
+    ]
+    interface IAsyncInfoImpl : IUnknown
+    {
+        [propput] HRESULT Completed([in] AsyncOperationCompletedHandlerImpl *handler);
+        [propget] HRESULT Completed([out, retval] AsyncOperationCompletedHandlerImpl **handler);
+        [propget] HRESULT Result([out, retval] PROPVARIANT *result);
+        HRESULT Start();
+    }
 
-namespace Windows.Storage
-{
-    runtimeclass StorageFolder;
+    typedef HRESULT (*async_operation_callback)( IUnknown *invoker, IUnknown *param, PROPVARIANT *result, BOOL called_async );
 }

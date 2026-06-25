@@ -44,19 +44,32 @@
 
 #include "wine/debug.h"
 
+#include "roapi.h"
+#include "shobjidl.h"
+
 #define WIDL_using_Windows_Foundation
 #define WIDL_using_Windows_Foundation_Collections
 #include "windows.foundation.h"
 #define WIDL_using_Windows_Storage
+#define WIDL_using_Windows_Storage_Pickers
 #define WIDL_using_Windows_Storage_Streams
 #include "windows.storage.h"
+#include "windows.storage.pickers.h"
 #include "windows.storage.streams.h"
 #define WIDL_using_Windows_Storage_FileProperties
 #include "windows.storage.fileproperties.h"
 
+#ifdef __cplusplus
+HRESULT create_vector( ABI::Windows::Foundation::Collections::IVector<HSTRING> **vector );
+#else
+HRESULT create_vector( IVector_HSTRING **vector );
+#endif
+
 #define WINDOWS_TICK 10000000
 #define SEC_TO_UNIX_EPOCH 11644473600LL
 
+extern IActivationFactory *file_open_picker_factory;
+extern IActivationFactory *file_save_picker_factory;
 extern IActivationFactory *random_access_stream_reference_factory;
 extern IActivationFactory *storage_folder_factory;
 
@@ -65,7 +78,13 @@ struct async_operation_iids
     const GUID *operation;
 };
 
+#ifdef __cplusplus
 typedef HRESULT (WINAPI *async_operation_callback)( IUnknown *invoker, PVOID param, PROPVARIANT *result );
+#else
+#define WIDL_using_Wine_Internal
+#include "async_private.h"
+HRESULT async_operation_file_create( IUnknown *invoker, IUnknown *param, async_operation_callback callback, IAsyncOperation_StorageFile **out );
+#endif
 
 // DEFINE_IINSPECTABLE Should NOT be used in C++ contexts. Use classes instead.
 #ifndef __cplusplus
@@ -106,6 +125,8 @@ typedef HRESULT (WINAPI *async_operation_callback)( IUnknown *invoker, PVOID par
     }
 #define DEFINE_IINSPECTABLE( pfx, iface_type, impl_type, base_iface )                              \
     DEFINE_IINSPECTABLE_( pfx, iface_type, impl_type, impl_from_##iface_type, iface_type##_iface, &impl->base_iface )
+#define DEFINE_IINSPECTABLE_OUTER( pfx, iface_type, impl_type, outer_iface )                       \
+    DEFINE_IINSPECTABLE_( pfx, iface_type, impl_type, impl_from_##iface_type, iface_type##_iface, impl->outer_iface )
 #endif
 
 #endif
