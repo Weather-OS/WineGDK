@@ -57,8 +57,8 @@
 #define WINDOWS_TICK 10000000
 #define SEC_TO_UNIX_EPOCH 11644473600LL
 
-extern IActivationFactory *random_access_stream_reference_factory;
-extern IActivationFactory *storage_folder_factory;
+EXTERN_C IActivationFactory *random_access_stream_reference_factory;
+EXTERN_C IActivationFactory *storage_folder_factory;
 
 struct async_operation_iids
 {
