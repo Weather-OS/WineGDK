@@ -30,8 +30,8 @@ const INT32 XSystemConsoleIdBytes = 39;
 const INT32 XSystemXboxLiveSandboxIdMaxBytes = 16;
 const INT32 XSystemAppSpecificDeviceIdBytes = 45;
 
-class XSystemImpl : 
-    public IXSystemImpl
+class XSystemImpl :
+    public IXSystemImpl5
 {
 public:
     HRESULT WINAPI QueryInterface( REFIID iid, void **out )
@@ -44,10 +44,14 @@ public:
         if ( iid == __uuidof( IUnknown ) ||
              iid == __uuidof( IInspectable ) ||
              iid == __uuidof( IAgileObject ) ||
-             iid == __uuidof( IXSystemImpl ) )
+             iid == __uuidof( IXSystemImpl ) ||
+             iid == __uuidof( IXSystemImpl2 ) ||
+             iid == __uuidof( IXSystemImpl3 ) ||
+             iid == __uuidof( IXSystemImpl4 ) ||
+             iid == __uuidof( IXSystemImpl5 ) )
         {
             AddRef();
-            *out = static_cast<IXSystemImpl *>(this);
+            *out = static_cast<IXSystemImpl5 *>(this);
             return S_OK;
         }
 
@@ -105,14 +109,14 @@ public:
 
         TRACE( "sandboxIdSize %d, sandboxId %p, sandboxIdUsed %p\n", sandboxIdSize, sandboxId, sandboxIdUsed );
 
-        if ( !sandboxId || !sandboxIdUsed )
+        if ( !sandboxId )
             return E_POINTER;
 
         if ( sandboxIdSize < XSystemXboxLiveSandboxIdMaxBytes )
             return HRESULT_FROM_WIN32( ERROR_INSUFFICIENT_BUFFER );
 
         lstrcpynA( sandboxId, Id, sandboxIdSize );
-        *sandboxIdUsed = std::strlen( Id ) + 1;
+        if ( sandboxIdUsed ) *sandboxIdUsed = std::strlen( Id ) + 1;
         return S_OK;
     }
 
@@ -120,6 +124,23 @@ public:
     {    
         FIXME( "appSpecificDeviceIdSize %d, appSpecificDeviceId %p, appSpecificDeviceIdUsed %p stub!\n", appSpecificDeviceIdSize, appSpecificDeviceId, appSpecificDeviceIdUsed );
         return E_NOTIMPL;
+    }
+
+    HRESULT WINAPI XSystemHandleTrack( XSystemHandleCallback *callback, void *context ) override
+    {
+        FIXME( "callback %p, context %p stub!\n", callback, context );
+        return E_NOTIMPL;
+    }
+
+    BOOLEAN WINAPI XSystemIsHandleValid( XSystemHandle handle ) override
+    {
+        FIXME( "handle %p stub!\n", handle );
+        return FALSE;
+    }
+
+    void WINAPI XSystemAllowFullDownloadBandwidth( BOOLEAN enable ) override
+    {
+        FIXME( "enable %u stub!\n", enable );
     }
 
 private:

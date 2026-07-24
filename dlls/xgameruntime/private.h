@@ -95,10 +95,10 @@
 
 #define FAIL_FAST_IF_FAILED(hr)                                 do { HRESULT __hrRet = hr; if (FAILED(__hrRet)) { FAIL_FAST_MSG("%s 0x%#lx", #hr, __hrRet); }} while (0)
 
-#define POLL_BUFFER_SIZE 2048
+#define POLL_BUFFER_SIZE 0x10008 /* UINT16 payload plus IPC header */
 #define XODUS_SOCKET_SUFFIX "xodus.sock"
 #define IPC_REQUEST_TIMEOUT_MS 5000
-#define XODUS_INTEROP 0
+#define XODUS_INTEROP 1
 
 extern BOOLEAN initializeCalled;
 
@@ -125,7 +125,7 @@ extern IXodusService *xodus_service;
 extern IXodusXMLBuilder *xodus_xml_builder;
 #endif
 
-HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, void **out );
+EXTERN_C HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, void **out );
 
 typedef struct _INITIALIZE_OPTIONS
 {
@@ -147,7 +147,6 @@ enum unix_funcs
     send_frame
 };
 
-extern unixlib_module_t unixlib;
 extern unixlib_handle_t unixhandle;
 
 typedef HRESULT (WINAPI *async_operation_callback)( IUnknown *invoker, PVOID param, PROPVARIANT *result );

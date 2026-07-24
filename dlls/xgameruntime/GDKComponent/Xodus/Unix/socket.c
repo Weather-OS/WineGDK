@@ -102,7 +102,7 @@
 # define HAS_IRDA
 #endif
 
-#define POLL_BUFFER_SIZE 2048
+#define POLL_BUFFER_SIZE 0x10008 /* UINT16 payload plus IPC header */
 
 WINE_DEFAULT_DEBUG_CHANNEL(xodus);
 
@@ -124,41 +124,44 @@ typedef struct _IPCFrame
 static NTSTATUS conn_sock( void *args )
 {
     struct sockaddr_un addr;
-    LPCSTR socket_suffix = (LPCSTR)args;
+    LPCSTR socket_suffix = args;
+    char *socket_path;
+    size_t len;
+    int error;
 
 #ifdef __linux__
     const char *runtime = getenv( "XDG_RUNTIME_DIR" );
-    if ( !runtime )
-        return E_NOT_VALID_STATE;
+    if (!runtime) return E_NOT_VALID_STATE;
 #elif defined(__APPLE__)
     const char *runtime = "/tmp";
 #endif
 
-    size_t len = strlen( runtime ) + strlen( socket_suffix ) + 1;
-    char *socket_path = malloc( len );
-
-    TRACE( "args %p\n", args );
-
-    if ( !socket_path )
-        return STATUS_NO_MEMORY;
-
-    snprintf( socket_path, len + 1, "%s/%s", runtime, socket_suffix );
+    len = strlen( runtime ) + strlen( socket_suffix ) + 2;
+    if (!(socket_path = malloc( len ))) return STATUS_NO_MEMORY;
+    snprintf( socket_path, len, "%s/%s", runtime, socket_suffix );
 
     sockfd = socket( AF_UNIX, SOCK_STREAM, 0 );
-    if ( sockfd < 0 ) 
+    if (sockfd < 0)
+    {
+        free( socket_path );
         return STATUS_ABANDONED;
+    }
 
     memset( &addr, 0, sizeof(addr) );
     addr.sun_family = AF_UNIX;
-    lstrcpynA( addr.sun_path, socket_path, sizeof(addr.sun_path) - 1 );
+    lstrcpynA( addr.sun_path, socket_path, sizeof(addr.sun_path) );
 
-    if ( connect( sockfd, (struct sockaddr*)&addr, sizeof(addr) ) < 0 ) 
+    if (connect( sockfd, (struct sockaddr *)&addr, sizeof(addr) ) < 0)
     {
-        TRACE( "failed to load socket %s\n", socket_path );
-        TRACE( "socket connection failed with %d\n", errno );
+        error = errno;
+        WARN( "Failed to connect to Xodus socket %s: %s.\n", socket_path, strerror( error ) );
+        close( sockfd );
+        sockfd = -1;
+        free( socket_path );
         return STATUS_CONNECTION_REFUSED;
     }
 
+    free( socket_path );
     return STATUS_SUCCESS;
 }
 
@@ -208,7 +211,6 @@ static NTSTATUS send_frm( void *args )
     UINT16 type  = *(UINT16 *)(frame->frame + sizeof(UINT32));
     UINT16 len   = *(UINT16 *)(frame->frame + sizeof(UINT32) + sizeof(UINT16));
     BYTE* body  = frame->frame + 8;
-
     TRACE("magic is %#x\n", magic);
     TRACE("type is %d\n", type);
     TRACE("len is %d\n", len);

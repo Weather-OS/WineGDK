@@ -23,8 +23,49 @@
 
 #include <cstring>
 #include <atomic>
+#include <winhttp.h>
 
 WINE_DEFAULT_DEBUG_CHANNEL(gdkc);
+
+static HRESULT WINAPI security_information_provider( XAsyncOp op, const XAsyncProviderData *data )
+{
+    IXThreadingImpl *threading;
+    HRESULT hr;
+
+    TRACE( "op %u, asyncBlock %p, bufferSize %Iu, buffer %p.\n",
+            static_cast<unsigned int>(op), data->async, data->bufferSize, data->buffer );
+    if (FAILED(hr = QueryApiImpl( &CLSID_XThreadingImpl, IID_IXThreadingImpl, (void **)&threading )))
+        return hr;
+
+    switch (op)
+    {
+        case XAsyncOp::Begin:
+            hr = threading->XAsyncSchedule( data->async, 0 );
+            break;
+        case XAsyncOp::DoWork:
+            threading->XAsyncComplete( data->async, S_OK, sizeof(XNetworkingSecurityInformation) );
+            hr = S_OK;
+            break;
+        case XAsyncOp::GetResult:
+        {
+            auto *securityInformation = static_cast<XNetworkingSecurityInformation *>(data->buffer);
+            securityInformation->enabledHttpSecurityProtocolFlags = WINHTTP_FLAG_SECURE_PROTOCOL_TLS1
+                    | WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_1 | WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2;
+            securityInformation->thumbprintCount = 0;
+            securityInformation->thumbprints = nullptr;
+            hr = S_OK;
+            break;
+        }
+        case XAsyncOp::Cancel:
+        case XAsyncOp::Cleanup:
+            hr = S_OK;
+            break;
+    }
+
+    threading->Release();
+    return hr;
+}
+
 
 class XNetworkingImpl : 
     public IXNetworkingImpl
@@ -108,38 +149,74 @@ public:
 
     HRESULT WINAPI XNetworkingQuerySecurityInformationForUrlAsync( LPCSTR url, XAsyncBlock *asyncBlock ) override
     {
-        FIXME( "url %p, asyncBlock %p stub!\n", url, asyncBlock );
-        return E_NOTIMPL;
+        IXThreadingImpl *threading;
+        HRESULT hr;
+
+        TRACE( "url %s, asyncBlock %p.\n", debugstr_a( url ), asyncBlock );
+        if (!url || !asyncBlock) return E_POINTER;
+        if (FAILED(hr = QueryApiImpl( &CLSID_XThreadingImpl, IID_IXThreadingImpl, (void **)&threading )))
+            return hr;
+        hr = threading->XAsyncBegin( asyncBlock, nullptr, nullptr,
+                "XNetworkingQuerySecurityInformationForUrlAsync", security_information_provider );
+        threading->Release();
+        return hr;
     }
 
     HRESULT WINAPI XNetworkingQuerySecurityInformationForUrlAsyncResultSize( XAsyncBlock *asyncBlock, SIZE_T *securityInformationBufferByteCount ) override
     {
-        FIXME( "asyncBlock %p, securityInformationBufferByteCount %p stub!\n", asyncBlock, securityInformationBufferByteCount );
-        return E_NOTIMPL;
+        IXThreadingImpl *threading;
+        HRESULT hr;
+
+        TRACE( "asyncBlock %p, securityInformationBufferByteCount %p.\n", asyncBlock, securityInformationBufferByteCount );
+        if (!asyncBlock || !securityInformationBufferByteCount) return E_POINTER;
+        if (FAILED(hr = QueryApiImpl( &CLSID_XThreadingImpl, IID_IXThreadingImpl, (void **)&threading )))
+            return hr;
+        hr = threading->XAsyncGetResultSize( asyncBlock, securityInformationBufferByteCount );
+        threading->Release();
+        return hr;
     }
 
     HRESULT WINAPI XNetworkingQuerySecurityInformationForUrlAsyncResult( XAsyncBlock *asyncBlock, SIZE_T securityInformationBufferByteCount, SIZE_T *securityInformationBufferByteCountUsed, UINT8 *securityInformationBuffer, XNetworkingSecurityInformation **securityInformation ) override
     {
-        FIXME( "asyncBlock %p, securityInformationBufferByteCount %lld, securityInformationBufferByteCountUsed %p, securityInformationBuffer %p, securityInformation %p stub!\n", asyncBlock, securityInformationBufferByteCount, securityInformationBufferByteCountUsed, securityInformationBuffer, securityInformation );
-        return E_NOTIMPL;
+        IXThreadingImpl *threading;
+        HRESULT hr;
+
+        TRACE( "asyncBlock %p, securityInformationBufferByteCount %Iu, securityInformationBufferByteCountUsed %p, securityInformationBuffer %p, securityInformation %p.\n",
+                asyncBlock, securityInformationBufferByteCount, securityInformationBufferByteCountUsed, securityInformationBuffer, securityInformation );
+        if (!asyncBlock || !securityInformationBuffer || !securityInformation) return E_POINTER;
+        if (FAILED(hr = QueryApiImpl( &CLSID_XThreadingImpl, IID_IXThreadingImpl, (void **)&threading )))
+            return hr;
+        if (SUCCEEDED(hr = threading->XAsyncGetResult( asyncBlock, nullptr, securityInformationBufferByteCount,
+                securityInformationBuffer, securityInformationBufferByteCountUsed )))
+            *securityInformation = reinterpret_cast<XNetworkingSecurityInformation *>(securityInformationBuffer);
+        threading->Release();
+        return hr;
     }
 
     HRESULT WINAPI XNetworkingQuerySecurityInformationForUrlUtf16Async( LPCWSTR url, XAsyncBlock *asyncBlock ) override
     {
-        FIXME( "url %p, asyncBlock %p stub!\n", url, asyncBlock );
-        return E_NOTIMPL;
+        IXThreadingImpl *threading;
+        HRESULT hr;
+
+        TRACE( "url %s, asyncBlock %p.\n", debugstr_w( url ), asyncBlock );
+        if (!url || !asyncBlock) return E_POINTER;
+        if (FAILED(hr = QueryApiImpl( &CLSID_XThreadingImpl, IID_IXThreadingImpl, (void **)&threading )))
+            return hr;
+        hr = threading->XAsyncBegin( asyncBlock, nullptr, nullptr,
+                "XNetworkingQuerySecurityInformationForUrlUtf16Async", security_information_provider );
+        threading->Release();
+        return hr;
     }
 
     HRESULT WINAPI XNetworkingQuerySecurityInformationForUrlUtf16AsyncResultSize( XAsyncBlock *asyncBlock, SIZE_T *securityInformationBufferByteCount ) override
     {
-        FIXME( "asyncBlock %p, securityInformationBufferByteCount %p stub!\n", asyncBlock, securityInformationBufferByteCount );
-        return E_NOTIMPL;
+        return XNetworkingQuerySecurityInformationForUrlAsyncResultSize( asyncBlock, securityInformationBufferByteCount );
     }
 
     HRESULT WINAPI XNetworkingQuerySecurityInformationForUrlUtf16AsyncResult( XAsyncBlock *asyncBlock, SIZE_T securityInformationBufferByteCount, SIZE_T *securityInformationBufferByteCountUsed, UINT8 *securityInformationBuffer, XNetworkingSecurityInformation **securityInformation ) override
     {
-        TRACE( "asyncBlock %p, securityInformationBufferByteCount %lld, securityInformationBufferByteCountUsed %p, securityInformationBuffer %p, securityInformation %p stub!\n", asyncBlock, securityInformationBufferByteCount, securityInformationBufferByteCountUsed, securityInformationBuffer, securityInformation );
-        return E_NOTIMPL;
+        return XNetworkingQuerySecurityInformationForUrlAsyncResult( asyncBlock, securityInformationBufferByteCount,
+                securityInformationBufferByteCountUsed, securityInformationBuffer, securityInformation );
     }
 
     HRESULT WINAPI XNetworkingVerifyServerCertificate( PVOID requestHandle, const XNetworkingSecurityInformation *securityInformation ) override

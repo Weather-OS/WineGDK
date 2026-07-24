@@ -222,6 +222,7 @@ private:
         if ( FAILED( status ) ) return status;
 
         header.MessageLength = frame->frameSize;
+        TRACE( "Sending Xodus message type %u, payload %u bytes.\n", header.Message_Type, header.MessageLength );
 
         frame->frameSize += sizeof(IPCHeader_CTYPE);
 
@@ -239,14 +240,17 @@ private:
 
         nts = __wine_unix_call( unixhandle, send_frame, (void *)frame );
         CoTaskMemFree( frame->frame );
+        delete frame;
         if ( FAILED( nts ) ) return HRESULT_FROM_NT( nts );
 
         asyncres = WaitForSingleObject( context.event, IPC_REQUEST_TIMEOUT_MS );
         status = iface->remove_ResponseReceived( token );
+        handler->Release();
+        CloseHandle( context.event );
         if ( FAILED( status ) ) return status;
         if ( asyncres )
         {
-            WARN("Timeout while waiting for %p to respond.\n", handler);
+            WARN("Timeout while waiting for a Xodus response.\n");
             return HRESULT_FROM_NT( STATUS_TIMEOUT );
         }
 
@@ -268,6 +272,7 @@ private:
 
         status = packet->get_MessageType( &messageType );
         if ( FAILED( status ) ) return status;
+        TRACE( "Received Xodus response type %u.\n", messageType );
 
         if ( messageType == 1 /* PING */ )
             return S_OK; //Skip the packet we sent.
@@ -275,6 +280,7 @@ private:
         if ( messageType == 2 /* PONG */ )
             TRACE("Got PONGED!\n");
 
+        packet->AddRef();
         ctx->response = packet;
         SetEvent( ctx->event );
         return S_OK;
@@ -297,7 +303,7 @@ private:
         IBufferFactory *bufferFactory = nullptr;
         IXodusIPCPacket *xodusPacket = nullptr;
 
-        TRACE("invoker %p, param %p, result %p\n", invoker, param, result);
+        TRACE("Xodus response pump started.\n");
 
         status = WindowsCreateString( RuntimeClass_Windows_Storage_Streams_Buffer, lstrlenW( RuntimeClass_Windows_Storage_Streams_Buffer ), &bufferClass );
         if ( FAILED( status ) ) return status;
@@ -311,7 +317,12 @@ private:
         {
             // poll_sock()
             status = __wine_unix_call( unixhandle, poll_socket, (void *)&currentPoll );
-            if ( FAILED( status ) ) return HRESULT_FROM_NT( status );
+            if ( FAILED( status ) )
+            {
+                WARN( "Xodus response pump stopped, status %#lx.\n", status );
+                return HRESULT_FROM_NT( status );
+            }
+            TRACE( "Xodus response pump buffered %Iu bytes.\n", currentPoll.curr_buffer_size );
 
             // Multiple messages may arrive at the same time.
             // Try to parse them all
@@ -339,7 +350,8 @@ private:
 
                 if ( currentPoll.curr_buffer_size - offset < sizeof(IPCHeader_CTYPE) + header->MessageLength )
                     break; //We have not received the full message yet.
-                TRACE("header->Message_Type is %d!\n", header->Message_Type);
+                TRACE( "Dispatching Xodus response type %u, payload %u bytes.\n",
+                       header->Message_Type, header->MessageLength );
 
                 /**
                  * TODO: Should we ignore messages sent by ourselves?

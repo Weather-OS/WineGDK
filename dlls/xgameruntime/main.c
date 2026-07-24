@@ -31,7 +31,6 @@ WINE_DEFAULT_DEBUG_CHANNEL(xgameruntime);
 static HMODULE xgameruntime;
 static HMODULE xgameruntime_threading;
 
-unixlib_module_t unixlib;
 unixlib_handle_t unixhandle;
 
 char *msaAppId = NULL;
@@ -134,7 +133,6 @@ BOOL WINAPI DllMain( HINSTANCE hinst, DWORD reason, void *reserved )
             if (msaAppId) free( msaAppId );
             if (xgameruntime) FreeLibrary(xgameruntime);
             if (xgameruntime_threading) FreeLibrary(xgameruntime_threading);
-            if (unixlib) __wine_unload_unix_lib( unixlib );
             RoUninitialize();
         break;
     }
@@ -160,7 +158,6 @@ HRESULT WINAPI InitializeApiImplEx2( ULONG gdkVer, ULONG gsVer, CHAR mode, INITI
 #if XODUS_INTEROP
     HRESULT hr;
     NTSTATUS nts;
-    UNICODE_STRING modname;
     DWORD async;
     LPCSTR xodus_prefix = XODUS_SOCKET_SUFFIX;
 
@@ -168,15 +165,13 @@ HRESULT WINAPI InitializeApiImplEx2( ULONG gdkVer, ULONG gsVer, CHAR mode, INITI
 
     if (initializeCalled) goto _INIT;
 
-    // load the unix lib as well.
-    // The library is called xgameruntime.so on both macOS and Linux
-    RtlInitUnicodeString( &modname, L"xgameruntime.so" );
-    nts = __wine_load_unix_lib( &modname, &unixlib, &unixhandle );
-    if ( FAILED( nts ) )
+    nts = __wine_init_unix_call();
+    if (FAILED( nts ))
     {
-        WARN("Failed to load unix lib %s\n", "xgameruntime.so");
+        WARN("Failed to initialize unix lib, status %#lx\n", nts);
         return FALSE;
     }
+    unixhandle = __wine_unixlib_handle;
     nts = __wine_unix_call( unixhandle, conn_socket, (void *)xodus_prefix );
     if ( nts == STATUS_CONNECTION_REFUSED )
     {
@@ -299,78 +294,35 @@ typedef HRESULT (WINAPI *QueryApiImpl_ext)( const GUID *runtimeClassId, REFIID i
 
 HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, void **out )
 {
-    // Interfaces returned are COM interfaces and inherit IUnknown*
-    // 
-    //  On MSDN, There's no official documentation on the order of these interfaces and functions.
-    // However, we can hook a dummy `xgameruntime.dll` into test environments and individually query
-    // each class and what signatures they posses. Once we've pass through an empty IUnknown* interface,
-    // we can reconstruct the vtable of each class based on what function gets called.
-    //
-    //  Example: (e349bd1a-fc20-4e40-b99c-4178cc6b409f) corresponds to part of the `ISystem` class and implements
-    // these functions in order:
-    //
-    //  /*** IUnknown methods ***/
-    //  IXSystemImpl_QueryInterface,                    (offset 0)
-    //  IXSystemImpl_AddRef,                            (offset 8)
-    //  IXSystemImpl_Release,                           (offset 16)
-    //  /*** IXSystemImpl methods ***/
-    //  IXSystemImpl_XSystemGetConsoleId                (offset 24)
-    //  IXSystemImpl_XSystemGetXboxLiveSandboxId        (offset 32)
-    //  IXSystemImpl_XSystemGetAppSpecificDeviceId      (offset 40)
-    //  IXSystemImpl_XSystemHandleTrack                 (offset 48)
-    //  IXSystemImpl_XSystemIsHandleValid               (offset 56)
-    //  IXSystemImpl_XSystemAllowFullDownloadBandwidth  (offset 64)
-    //
-
     QueryApiImpl_ext func = (QueryApiImpl_ext)GetProcAddress( xgameruntime_threading, "QueryApiImpl" );
     DWORD asked;
 
-    TRACE("runtimeClassId %s, interfaceId %s, out %p\n", debugstr_guid(runtimeClassId), debugstr_guid(interfaceId), out);
+    TRACE( "runtimeClassId %s, interfaceId %s, out %p\n",
+           debugstr_guid( runtimeClassId ), debugstr_guid( interfaceId ), out );
 
-    if ( IsEqualGUID( runtimeClassId, &CLSID_XSystemImpl ) )
-    {
+    if (IsEqualGUID( runtimeClassId, &CLSID_XSystemImpl ))
         return IXSystemImpl_QueryInterface( x_system, interfaceId, out );
-    }
-    else if ( IsEqualGUID( runtimeClassId, &CLSID_XGameRuntimeFeatureImpl ) )
-    {
+    if (IsEqualGUID( runtimeClassId, &CLSID_XGameRuntimeFeatureImpl ))
         return IXGameRuntimeFeatureImpl_QueryInterface( x_game_runtime_feature, interfaceId, out );
-    }
-    else if ( IsEqualGUID( runtimeClassId, &CLSID_XSystemAnalyticsImpl ) )
-    {
+    if (IsEqualGUID( runtimeClassId, &CLSID_XSystemAnalyticsImpl ))
         return IXSystemAnalyticsImpl_QueryInterface( x_system_analytics, interfaceId, out );
-    }
-    else if ( IsEqualGUID( runtimeClassId, &CLSID_XNetworkingImpl ) )
-    {
+    if (IsEqualGUID( runtimeClassId, &CLSID_XNetworkingImpl ))
         return IXNetworkingImpl_QueryInterface( x_networking, interfaceId, out );
-    }
-    else if ( IsEqualGUID( runtimeClassId, &CLSID_XThreadingImpl ) )
+    if (IsEqualGUID( runtimeClassId, &CLSID_XThreadingImpl ))
     {
-        /**
-         * For IXThreading, It's much better to use the native library instead.
-         */
-        if ( !func )
-        {
-            LoadOtherRuntime( &asked );
-            if ( !asked )
-            {
-                MessageBoxA( NULL, "The game has requested XThreading\nIt's recommended that you use Microsoft's native binary for this instead.\nTo do so, copy xgameruntime.dll from a Windows machine and place it under the name \"xgameruntime.dll.threading\" within either the game's binaries or within your prefix's system32 folder.\nYou won't be asked this again.", "Attention Required!", MB_ICONEXCLAMATION );
-            }
-            return IXThreadingImpl_QueryInterface( x_threading_impl, interfaceId, out );
-        }
-        return func( runtimeClassId, interfaceId, out );
+        if (func) return func( runtimeClassId, interfaceId, out );
+
+        LoadOtherRuntime( &asked );
+        if (!asked)
+            MessageBoxA( NULL, "The game has requested XThreading\nIt's recommended that you use Microsoft's native binary for this instead.\nTo do so, copy xgameruntime.dll from a Windows machine and place it under the name \"xgameruntime.dll.threading\" within either the game's binaries or within your prefix's system32 folder.\nYou won't be asked this again.", "Attention Required!", MB_ICONEXCLAMATION );
+        return IXThreadingImpl_QueryInterface( x_threading_impl, interfaceId, out );
     }
-    else if ( IsEqualGUID( runtimeClassId, &CLSID_XGameImpl ) )
-    {
+    if (IsEqualGUID( runtimeClassId, &CLSID_XGameImpl ))
         return IXGameImpl_QueryInterface( x_game, interfaceId, out );
-    }
-    else if ( IsEqualGUID( runtimeClassId, &CLSID_XUserImpl ) )
-    {
+    if (IsEqualGUID( runtimeClassId, &CLSID_XUserImpl ))
         return IXUserImpl6_QueryInterface( x_user, interfaceId, out );
-    }
-    else if ( IsEqualGUID( runtimeClassId, &CLSID_XUserDeviceImpl ) )
-    {
+    if (IsEqualGUID( runtimeClassId, &CLSID_XUserDeviceImpl ))
         return IXUserDeviceImpl_QueryInterface( x_user_device, interfaceId, out );
-    }
 
     FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( runtimeClassId ) );
     return E_NOTIMPL;
@@ -384,6 +336,6 @@ HRESULT WINAPI UninitializeApiImpl( void )
 
 HRESULT WINAPI XErrorReport( HRESULT status, LPCSTR message )
 {
-    TRACE("stub!\n");
+    WARN( "status %#lx, message %s stub!\n", status, debugstr_a( message ) );
     return E_NOTIMPL;
 }

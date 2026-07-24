@@ -134,7 +134,7 @@ cpp_quote("#ifdef __WINESRC__")
 interface IXSystemImpl : IUnknown
 {
     HRESULT XSystemGetConsoleId( [in] INT32 consoleIdSize, [out, size_is(consoleIdSize)] char *consoleId, [out, optional] SIZE_T *consoleIdUsed );
-    HRESULT XSystemGetXboxLiveSandboxId( [in] INT32 sandboxIdSize, [out, size_is(sandboxIdSize)] char *sandboxId, [out] SIZE_T *sandboxIdUsed );
+    HRESULT XSystemGetXboxLiveSandboxId( [in] INT32 sandboxIdSize, [out, size_is(sandboxIdSize)] char *sandboxId, [out, optional] SIZE_T *sandboxIdUsed );
     HRESULT XSystemGetAppSpecificDeviceId( [in] INT32 appSpecificDeviceIdSize, [out, size_is(appSpecificDeviceIdSize)] char *appSpecificDeviceId, [out, optional] SIZE_T *appSpecificDeviceIdUsed );
 }
 
