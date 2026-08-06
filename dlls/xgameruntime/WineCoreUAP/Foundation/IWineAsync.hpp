@@ -209,6 +209,84 @@ private:
 };
 
 // NOTE: Do not create a non-static instance of this object.
+class AsyncActionCompletedHandler final
+    : public IAsyncActionCompletedHandler
+{
+public:
+    virtual ~AsyncActionCompletedHandler() = default;
+    
+    /* IUnknown Methods */
+    HRESULT WINAPI
+    QueryInterface( REFIID iid, void** out ) noexcept override
+    {
+        if (!out) return E_POINTER;
+        *out = nullptr;
+
+        if ( iid == __uuidof( IUnknown ) ||
+             iid == __uuidof( IInspectable ) ||
+             iid == __uuidof( IAgileObject ) ||
+             iid == __uuidof( IAsyncActionCompletedHandler ) )
+        {
+            AddRef();
+            *out = static_cast<IAsyncActionCompletedHandler *>(this);
+            return S_OK;
+        }
+
+        *out = NULL;
+        return E_NOINTERFACE;
+    }
+
+    ULONG WINAPI
+    AddRef() noexcept override
+    {
+        ULONG curr = static_cast<ULONG>(++ref);
+        return curr;
+    }
+
+    ULONG WINAPI
+    Release() noexcept override
+    {
+        ULONG curr = static_cast<ULONG>(--ref);
+
+        if ( !curr )
+        {
+            delete this;
+        }
+
+        return curr;
+    }
+
+    HRESULT WINAPI
+    Invoke( IAsyncAction *invoker, AsyncStatus status ) override
+    {
+        if ( event ) SetEvent( event );
+        return S_OK;
+    }
+
+    /* Internal methods */
+    static DWORD await_AsyncAction( IAsyncAction *async, DWORD timeout )
+    {
+        HRESULT hr;
+        DWORD ret;
+        auto handler = new AsyncActionCompletedHandler();
+        handler->event = CreateEventW( NULL, FALSE, FALSE, NULL );
+
+        hr = async->put_Completed( handler );
+        if ( FAILED( hr ) ) return hr;
+
+        ret = WaitForSingleObject( handler->event, timeout );
+        CloseHandle( handler->event );
+        handler->Release();
+
+        return ret;
+    }
+
+private:
+    HANDLE event;
+    std::atomic_long ref{ 1 };
+};
+
+// NOTE: Do not create a non-static instance of this object.
 template<typename T>
 class AsyncOperationCompletedHandler final
     : public IAsyncOperationCompletedHandler<T>
@@ -265,7 +343,7 @@ public:
     }
 
     /* Internal methods */
-    static DWORD await_AsyncOperation( IAsyncOperation<T>* async, DWORD timeout )
+    static DWORD await_AsyncOperation( IAsyncOperation<T> *async, DWORD timeout )
     {
         HRESULT hr;
         DWORD ret;
