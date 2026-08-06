@@ -1,6 +1,6 @@
 # NOTES FOR PEOPLE TRYING TO RUN MINECRAFT'S GDK BUILD
 
-Microsoft Services have not been added yet. This is because `XUser` hasn't been implemented in `xgameruntime.dll` yet.
+Microsoft Services is WIP.
 
 As of [3414250](https://github.com/Weather-OS/WineGDK/commit/341425050f4f9b968b807dbd61942dabca8f6af1), Online functionality has been implemented. To get it working, resort to [GDK-Proton](https://github.com/Weather-OS/GDK-Proton)
 
@@ -13,6 +13,11 @@ derived from other parts of the wine project, CC0 (A.K.A "Public Domain") (i.e x
 You're allowed to derive, redistribute and reimplement my code at will,  
 without any attributions.
 **THIS ONLY APPLIES TO THE CODE I HAVE WRITTEN, NOT THE REST OF WINE'S PROJECT!**
+
+**ADDITIONAL NOTES**: 
+- Code authored by "Olivia Ryan" is not covered by this clause.
+- [Xodus](<https://github.com/xodus-gaming/xodus>) interopability is not upstream safe. Please refrain from pushing changes that include any part of this feature upstream.
+  - This includes all code that run within the `xodus` wine debug channel.
 
 ## INTRODUCTION
 
