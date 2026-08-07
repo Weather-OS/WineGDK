@@ -1080,6 +1080,7 @@ SOURCES = \
 	windows.security.isolation.idl \
 	windows.storage.fileproperties.idl \
 	windows.storage.idl \
+	windows.storage.pickers.idl \
 	windows.storage.search.idl \
 	windows.storage.streams.idl \
 	windows.system.idl \
@@ -1102,7 +1103,6 @@ SOURCES = \
 	windows.ui.xaml.hosting.desktopwindowxamlsource.idl \
 	windows.ui.xaml.idl \
 	windows.ui.xaml.interop.idl \
-	windows.ui.text.core.idl \
 	windowscontracts.idl \
 	windowsx.h \
 	wine/afd.h \
@@ -1239,8 +1239,10 @@ SOURCES = \
 	xasyncprovider.idl \
 	xaudio2.idl \
 	xaudio2fx.idl \
-	xgameruntimefeature.idl \
 	xcmc.h \
+	xgameerr.h \
+	xgameruntimefeature.idl \
+	xgameruntimetypes.h \
 	xinput.h \
 	xmldom.h \
 	xmldom.idl \
