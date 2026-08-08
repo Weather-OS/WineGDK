@@ -20,6 +20,7 @@
 
 #include "initguid.h"
 #include "private.h"
+#include "GDKComponent/InitInternalGDKC.h"
 
 #include "ntstatus.h"
 
@@ -31,7 +32,36 @@ static HMODULE xgameruntime_threading;
 unixlib_module_t unixlib;
 unixlib_handle_t unixhandle;
 
-DEFINE_ASYNC_COMPLETED_HANDLER( async_action, IAsyncActionCompletedHandler, IAsyncAction );
+static HRESULT LoadUnixLib()
+{
+    LPCSTR xodus_prefix = XODUS_SOCKET_SUFFIX;
+    NTSTATUS nts;
+    UNICODE_STRING modname;
+
+    // load the unix lib as well.
+    // The library is called xgameruntime.so on both macOS and Linux
+    RtlInitUnicodeString( &modname, (PCWSTR)L"xgameruntime.so" );
+    nts = __wine_load_unix_lib( &modname, &unixlib, &unixhandle );
+    if ( FAILED( nts ) )
+    {
+        WARN("Failed to load unix lib %s\n", "xgameruntime.so");
+        return HRESULT_FROM_WIN32( ERROR_MOD_NOT_FOUND );
+    }
+    nts = __wine_unix_call( unixhandle, conn_socket, (void *)xodus_prefix );
+    if ( nts == STATUS_CONNECTION_REFUSED )
+    {
+        WARN("Failed to do unix call %s\n", "conn_socket");
+        MessageBoxA( NULL, "Could not load Xodus's service socket.\nXbox account functionality will be missing.\n", "Attention Required!", MB_ICONEXCLAMATION );
+        return HRESULT_FROM_NT( nts );
+    }
+    else if ( FAILED( nts ) )
+    {
+        WARN("Failed to do unix call %s\n", "conn_socket");
+        return HRESULT_FROM_NT( nts );
+    }
+
+    return S_OK;
+}
 
 static VOID LoadOtherRuntime( DWORD *asked )
 {
@@ -141,71 +171,15 @@ HRESULT WINAPI InitializeApiImplEx2( ULONG gdkVer, ULONG gsVer, CHAR mode, INITI
     // 
     // NOTE: Never rely on INITIALIZE_OPTIONS to provide anything, as it can be nullptr.
     //
-
-#if XODUS_INTEROP
     HRESULT hr;
-    NTSTATUS nts;
-    UNICODE_STRING modname;
-    DWORD async;
-    LPCSTR xodus_prefix = XODUS_SOCKET_SUFFIX;
 
-    IAsyncAction *pingAction = NULL;
-
-    // load the unix lib as well.
-    // The library is called xgameruntime.so on both macOS and Linux
-    RtlInitUnicodeString( &modname, L"xgameruntime.so" );
-    nts = __wine_load_unix_lib( &modname, &unixlib, &unixhandle );
-    if ( FAILED( nts ) )
+    if ( !unixlib )
     {
-        WARN("Failed to load unix lib %s\n", "xgameruntime.so");
-        return FALSE;
-    }
-    nts = __wine_unix_call( unixhandle, conn_socket, (void *)xodus_prefix );
-    if ( nts == STATUS_CONNECTION_REFUSED )
-    {
-        WARN("Failed to do unix call %s\n", "conn_socket");
-        MessageBoxA( NULL, "Could not load Xodus's service socket.\nXbox account functionality will be missing.\n", "Attention Required!", MB_ICONEXCLAMATION );
-        goto _INIT;
-    }
-    else if ( FAILED( nts ) )
-    {
-        WARN("Failed to do unix call %s\n", "conn_socket");
-        goto _INIT;
+        if ( FAILED( hr = LoadUnixLib() ) ) return hr;
     }
 
-    hr = IIPCLayer_InitializeSocket( xodus_ipclayer );
-    if ( FAILED( hr ) ) 
-    {
-        WARN("Socket initialization failed with %#lx\n", hr);
-        goto _INIT;
-    }
-    hr = IXodusService_Ping( xodus_service, &pingAction );
-    if ( FAILED( hr ) ) 
-    {
-        WARN("Xodus Ping Dispatch failed with %#lx\n", hr);
-        goto _INIT;
-    }
-
-    async = await_IAsyncAction( pingAction, IPC_REQUEST_TIMEOUT_MS );
-    if ( async )
-    {
-        if ( async == STATUS_TIMEOUT )
-            WARN("Timeout while waiting for PING response.\n");
-        else 
-            WARN("Async action await failed. Status was %ld\n", async);
-        goto _INIT;
-    }
-        
-    hr = IAsyncAction_GetResults( pingAction );
-    if ( FAILED( hr ) )
-    {
-        WARN("PING response error. HR was %#lx\n", hr);
-        goto _INIT;
-    }
-#endif
-_INIT:
-    TRACE("gdkVer %ld, gsVer %ld, mode %d, options %p stub!\n", gdkVer, gsVer, mode, options);
-    return S_OK;
+    TRACE("gdkVer %ld, gsVer %ld, mode %d, options %p stub!\n", gdkVer, gsVer, mode, options);    
+    return InitializeGDKComponent( options );
 }
 
 HRESULT WINAPI InitializeApiImplEx( ULONG gdkVer, ULONG gsVer, CHAR mode )

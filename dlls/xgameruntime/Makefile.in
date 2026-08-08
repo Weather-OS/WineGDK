@@ -30,4 +30,6 @@ SOURCES = \
 	GDKComponent/Xodus/XodusService.cpp \
 	GDKComponent/Xodus/XodusXMLBuilder.cpp \
 	\
-	GDKComponent/Xodus/Unix/socket.c
+	GDKComponent/Xodus/Unix/socket.c \
+	\
+	GDKComponent/InitInternalGDKC.cpp

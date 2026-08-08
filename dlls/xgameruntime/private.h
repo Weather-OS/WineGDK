@@ -112,7 +112,9 @@ extern IXodusXMLBuilder *xodus_xml_builder;
 
 typedef struct _INITIALIZE_OPTIONS
 {
-    int unused;
+    UINT32 unknown;
+    BOOLEAN isInlineConfig;
+    const char *gameConfig;
 } INITIALIZE_OPTIONS;
 
 typedef struct _POLL_SOCKET_ARGS
@@ -132,6 +134,17 @@ extern unixlib_module_t unixlib;
 extern unixlib_handle_t unixhandle;
 
 typedef HRESULT (WINAPI *async_operation_callback)( IUnknown *invoker, PVOID param, PROPVARIANT *result );
+
+// Deference is for other modules to communicate with eachother through the same binary.
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, void **out );
+
+#ifdef __cplusplus
+}
+#endif
 
 #define DEFINE_ASYNC_COMPLETED_HANDLER( name, iface_type, async_type )                              \
     struct name                                                                                     \
