@@ -36,6 +36,7 @@
 WINE_DEFAULT_DEBUG_CHANNEL(driver);
 WINE_DECLARE_DEBUG_CHANNEL(winediag);
 
+static const struct ratio no_dpi;
 static const struct user_driver_funcs lazy_load_driver;
 static struct user_driver_funcs null_user_driver;
 static WCHAR driver_load_error[80];
@@ -252,14 +253,14 @@ static INT nulldrv_GetDeviceCaps( PHYSDEV dev, INT cap )
     case DESKTOPHORZRES:
         if (NtGdiGetDeviceCaps( dev->hdc, TECHNOLOGY ) == DT_RASDISPLAY)
         {
-            RECT rect = get_virtual_screen_rect( 0, MDT_DEFAULT );
+            RECT rect = get_virtual_screen_rect( no_dpi, MDT_DEFAULT );
             return rect.right - rect.left;
         }
         return NtGdiGetDeviceCaps( dev->hdc, HORZRES );
     case DESKTOPVERTRES:
         if (NtGdiGetDeviceCaps( dev->hdc, TECHNOLOGY ) == DT_RASDISPLAY)
         {
-            RECT rect = get_virtual_screen_rect( 0, MDT_DEFAULT );
+            RECT rect = get_virtual_screen_rect( no_dpi, MDT_DEFAULT );
             return rect.bottom - rect.top;
         }
         return NtGdiGetDeviceCaps( dev->hdc, VERTRES );
@@ -765,7 +766,7 @@ static BOOL nodrv_CreateWindow( HWND hwnd )
     HWND parent = NtUserGetAncestor( hwnd, GA_PARENT );
 
     /* HWND_MESSAGE windows don't need a graphics driver */
-    if (!parent || parent == UlongToHandle( NtUserGetThreadInfo()->msg_window )) return TRUE;
+    if (!parent || parent == get_user_thread_info()->msg_window) return TRUE;
     if (warned++) return FALSE;
 
     ERR_(winediag)( "Application tried to create a window, but no driver could be loaded.\n" );
@@ -809,7 +810,7 @@ static BOOL nulldrv_ScrollDC( HDC hdc, INT dx, INT dy, HRGN update )
                         hdc, rect.left - dx, rect.top - dy, SRCCOPY, 0, 0 );
 }
 
-static void nulldrv_SetCapture( HWND hwnd, UINT flags )
+static void nulldrv_SetCapture( HWND hwnd, UINT flags, HWND previous )
 {
 }
 
@@ -877,6 +878,35 @@ static BOOL nulldrv_GetWindowStyleMasks( HWND hwnd, UINT style, UINT ex_style, U
 static BOOL nulldrv_GetWindowStateUpdates( HWND hwnd, UINT *state_cmd, UINT *swp_flags, RECT *rect, HWND *foreground )
 {
     return FALSE;
+}
+
+static void nulldrv_surface_destroy( struct client_surface *client )
+{
+}
+
+static void nulldrv_surface_detach( struct client_surface *client )
+{
+}
+
+static void nulldrv_surface_update( struct client_surface *client )
+{
+}
+
+static void nulldrv_surface_present( struct client_surface *client, HDC hdc )
+{
+}
+
+static const struct client_surface_funcs nulldrv_surface_funcs =
+{
+    .destroy = nulldrv_surface_destroy,
+    .detach = nulldrv_surface_detach,
+    .update = nulldrv_surface_update,
+    .present = nulldrv_surface_present,
+};
+
+static struct client_surface *nulldrv_CreateClientSurface( HWND hwnd, int pixel_format )
+{
+    return client_surface_create( sizeof(struct client_surface), &nulldrv_surface_funcs, hwnd );
 }
 
 static BOOL nulldrv_CreateWindowSurface( HWND hwnd, BOOL layered, const RECT *surface_rect, struct window_surface **surface )
@@ -1302,6 +1332,7 @@ static const struct user_driver_funcs lazy_load_driver =
     nulldrv_WindowPosChanging,
     nulldrv_GetWindowStyleMasks,
     nulldrv_GetWindowStateUpdates,
+    nulldrv_CreateClientSurface,
     nulldrv_CreateWindowSurface,
     nulldrv_MoveWindowBits,
     nulldrv_WindowPosChanged,
@@ -1401,6 +1432,7 @@ void __wine_set_user_driver( const struct user_driver_funcs *funcs, UINT version
     SET_USER_FUNC(WindowPosChanging);
     SET_USER_FUNC(GetWindowStyleMasks);
     SET_USER_FUNC(GetWindowStateUpdates);
+    SET_USER_FUNC(CreateClientSurface);
     SET_USER_FUNC(CreateWindowSurface);
     SET_USER_FUNC(MoveWindowBits);
     SET_USER_FUNC(WindowPosChanged);
@@ -1438,33 +1470,4 @@ INT WINAPI NtGdiExtEscape( HDC hdc, WCHAR *driver, int driver_id, INT escape, IN
     ret = physdev->funcs->pExtEscape( physdev, escape, input_size, input, output_size, output );
     release_dc_ptr( dc );
     return ret;
-}
-
-static void nulldrv_surface_destroy( struct client_surface *client )
-{
-}
-
-static void nulldrv_surface_detach( struct client_surface *client )
-{
-}
-
-static void nulldrv_surface_update( struct client_surface *client )
-{
-}
-
-static void nulldrv_surface_present( struct client_surface *client, HDC hdc )
-{
-}
-
-static const struct client_surface_funcs nulldrv_surface_funcs =
-{
-    .destroy = nulldrv_surface_destroy,
-    .detach = nulldrv_surface_detach,
-    .update = nulldrv_surface_update,
-    .present = nulldrv_surface_present,
-};
-
-struct client_surface *nulldrv_client_surface_create( HWND hwnd )
-{
-    return client_surface_create( sizeof(struct client_surface), &nulldrv_surface_funcs, hwnd );
 }

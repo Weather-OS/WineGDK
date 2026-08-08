@@ -43,6 +43,9 @@ typedef struct _domdoctype
     struct domnode *node;
 } domdoctype;
 
+static const struct nodemap_funcs domdoctype_entities_map;
+static const struct nodemap_funcs domdoctype_notations_map;
+
 static const tid_t doctype_se_tids[] =
 {
     IXMLDOMNode_tid,
@@ -187,23 +190,29 @@ static HRESULT WINAPI domdoctype_get_parentNode(IXMLDOMDocumentType *iface, IXML
 
 static HRESULT WINAPI domdoctype_get_childNodes(IXMLDOMDocumentType *iface, IXMLDOMNodeList **list)
 {
-    FIXME("%p, %p: stub\n", iface, list);
+    domdoctype *doctype = impl_from_IXMLDOMDocumentType(iface);
 
-    return E_NOTIMPL;
+    TRACE("%p, %p.\n", iface, list);
+
+    return node_get_child_nodes(doctype->node, list);
 }
 
 static HRESULT WINAPI domdoctype_get_firstChild(IXMLDOMDocumentType *iface, IXMLDOMNode **node)
 {
-    FIXME("%p, %p: stub\n", iface, node);
+    domdoctype *doctype = impl_from_IXMLDOMDocumentType(iface);
 
-    return E_NOTIMPL;
+    TRACE("%p, %p.\n", iface, node);
+
+    return node_get_first_child(doctype->node, node);
 }
 
 static HRESULT WINAPI domdoctype_get_lastChild(IXMLDOMDocumentType *iface, IXMLDOMNode **node)
 {
-    FIXME("%p, %p: stub\n", iface, node);
+    domdoctype *doctype = impl_from_IXMLDOMDocumentType(iface);
 
-    return E_NOTIMPL;
+    TRACE("%p, %p.\n", iface, node);
+
+    return node_get_last_child(doctype->node, node);
 }
 
 static HRESULT WINAPI domdoctype_get_previousSibling(IXMLDOMDocumentType *iface, IXMLDOMNode **node)
@@ -265,9 +274,11 @@ static HRESULT WINAPI domdoctype_appendChild(IXMLDOMDocumentType *iface, IXMLDOM
 
 static HRESULT WINAPI domdoctype_hasChildNodes(IXMLDOMDocumentType *iface, VARIANT_BOOL *v)
 {
-    FIXME("%p, %p: stub\n", iface, v);
+    domdoctype *doctype = impl_from_IXMLDOMDocumentType(iface);
 
-    return E_NOTIMPL;
+    TRACE("%p, %p.\n", iface, v);
+
+    return node_has_childnodes(doctype->node, v);
 }
 
 static HRESULT WINAPI domdoctype_get_ownerDocument(IXMLDOMDocumentType *iface, IXMLDOMDocument **doc)
@@ -423,18 +434,22 @@ static HRESULT WINAPI domdoctype_get_name(IXMLDOMDocumentType *iface, BSTR *p)
     return node_get_name(doctype->node, p);
 }
 
-static HRESULT WINAPI domdoctype_get_entities(IXMLDOMDocumentType *iface, IXMLDOMNamedNodeMap **entities)
+static HRESULT WINAPI domdoctype_get_entities(IXMLDOMDocumentType *iface, IXMLDOMNamedNodeMap **map)
 {
-    FIXME("%p, %p: stub\n", iface, entities);
+    domdoctype *doctype = impl_from_IXMLDOMDocumentType(iface);
 
-    return E_NOTIMPL;
+    TRACE("%p, %p.\n", iface, map);
+
+    return create_nodemap(doctype->node, &domdoctype_entities_map, map);
 }
 
-static HRESULT WINAPI domdoctype_get_notations(IXMLDOMDocumentType *iface, IXMLDOMNamedNodeMap **notations)
+static HRESULT WINAPI domdoctype_get_notations(IXMLDOMDocumentType *iface, IXMLDOMNamedNodeMap **map)
 {
-    FIXME("%p, %p: stub\n", iface, notations);
+    domdoctype *doctype = impl_from_IXMLDOMDocumentType(iface);
 
-    return E_NOTIMPL;
+    TRACE("%p, %p.\n", iface, map);
+
+    return create_nodemap(doctype->node, &domdoctype_notations_map, map);
 }
 
 static const struct IXMLDOMDocumentTypeVtbl domdoctype_vtbl =
@@ -485,6 +500,204 @@ static const struct IXMLDOMDocumentTypeVtbl domdoctype_vtbl =
     domdoctype_get_name,
     domdoctype_get_entities,
     domdoctype_get_notations
+};
+
+static HRESULT domnode_get_children_count_for_type(const struct domnode *node, DOMNodeType type, LONG *length)
+{
+    struct domnode *child;
+
+    if (!length)
+        return E_INVALIDARG;
+
+    *length = 0;
+
+    LIST_FOR_EACH_ENTRY(child, &node->children, struct domnode, entry)
+    {
+        if (child->type == type)
+            *length = *length + 1;
+    }
+
+    return S_OK;
+}
+
+static HRESULT domnode_get_named_child_for_type(const struct domnode *node, BSTR name, DOMNodeType type, IXMLDOMNode **item)
+{
+    struct domnode *child;
+
+    if (!name || !item)
+        return E_INVALIDARG;
+
+    *item = NULL;
+
+    LIST_FOR_EACH_ENTRY(child, &node->children, struct domnode, entry)
+    {
+        if (child->type == type && !wcscmp(child->name, name))
+            return create_node(child, item);
+    }
+
+    return S_FALSE;
+}
+
+static HRESULT domnode_get_child_for_type(const struct domnode *node, LONG index, DOMNodeType type, IXMLDOMNode **item)
+{
+    struct domnode *child, *curr = NULL;
+
+    *item = NULL;
+
+    if (index < 0)
+        return S_FALSE;
+
+    LIST_FOR_EACH_ENTRY(child, &node->children, struct domnode, entry)
+    {
+        if (child->type != type) continue;
+
+        curr = child;
+        if (!index--) break;
+        curr = NULL;
+    }
+
+    if (!curr)
+        return S_FALSE;
+
+    return create_node(curr, item);
+}
+
+static HRESULT domdoctype_entities_get_qualified_item(const struct domnode *node, BSTR name, BSTR uri,
+    IXMLDOMNode **item)
+{
+    FIXME("%p, %s, %s, %p.\n", node, debugstr_w(name), debugstr_w(uri), item);
+
+    return E_NOTIMPL;
+}
+
+static HRESULT domdoctype_entities_get_named_item(const struct domnode *node, BSTR name, IXMLDOMNode **item)
+{
+    TRACE("%p, %s, %p.\n", node, debugstr_w(name), item);
+
+    return domnode_get_named_child_for_type(node, name, NODE_ENTITY, item);
+}
+
+static HRESULT domdoctype_entities_set_named_item(struct domnode *node, IXMLDOMNode *newItem, IXMLDOMNode **namedItem)
+{
+    TRACE("%p, %p, %p.\n", node, newItem, namedItem );
+
+    return E_INVALIDARG;
+}
+
+static HRESULT domdoctype_entities_remove_qualified_item(struct domnode *node, BSTR name, BSTR uri, IXMLDOMNode **item)
+{
+    TRACE("%p, %s, %s, %p.\n", node, debugstr_w(name), debugstr_w(uri), item);
+
+    return E_INVALIDARG;
+}
+
+static HRESULT domdoctype_entities_remove_named_item(struct domnode *node, BSTR name, IXMLDOMNode **item)
+{
+    TRACE("%p, %s, %p.\n", node, debugstr_w(name), item);
+
+    return E_INVALIDARG;
+}
+
+static HRESULT domdoctype_entities_get_item(struct domnode *node, LONG index, IXMLDOMNode **item)
+{
+    TRACE("%p, %ld, %p.\n", node, index, item);
+
+    return domnode_get_child_for_type(node, index, NODE_ENTITY, item);
+}
+
+static HRESULT domdoctype_entities_get_length(struct domnode *node, LONG *length)
+{
+    TRACE("%p, %p.\n", node, length);
+
+    return domnode_get_children_count_for_type(node, NODE_ENTITY, length);
+}
+
+static HRESULT domdoctype_entities_next_node(const struct domnode *node, LONG *iter, IXMLDOMNode **nextNode)
+{
+    FIXME("%p, %ld, %p.\n", node, *iter, nextNode);
+
+    return E_NOTIMPL;
+}
+
+static const struct nodemap_funcs domdoctype_entities_map =
+{
+    .get_named_item = domdoctype_entities_get_named_item,
+    .set_named_item = domdoctype_entities_set_named_item,
+    .remove_named_item = domdoctype_entities_remove_named_item,
+    .get_item = domdoctype_entities_get_item,
+    .get_length = domdoctype_entities_get_length,
+    .get_qualified_item = domdoctype_entities_get_qualified_item,
+    .remove_qualified_item = domdoctype_entities_remove_qualified_item,
+    .next_node = domdoctype_entities_next_node,
+};
+
+static HRESULT domdoctype_notations_get_qualified_item(const struct domnode *node, BSTR name, BSTR uri,
+    IXMLDOMNode **item)
+{
+    FIXME("%p, %s, %s, %p.\n", node, debugstr_w(name), debugstr_w(uri), item);
+
+    return E_NOTIMPL;
+}
+
+static HRESULT domdoctype_notations_get_named_item(const struct domnode *node, BSTR name, IXMLDOMNode **item)
+{
+    TRACE("%p, %s, %p.\n", node, debugstr_w(name), item);
+
+    return domnode_get_named_child_for_type(node, name, NODE_NOTATION, item);
+}
+
+static HRESULT domdoctype_notations_set_named_item(struct domnode *node, IXMLDOMNode *newItem, IXMLDOMNode **namedItem)
+{
+    TRACE("%p, %p, %p.\n", node, newItem, namedItem );
+
+    return E_INVALIDARG;
+}
+
+static HRESULT domdoctype_notations_remove_qualified_item(struct domnode *node, BSTR name, BSTR uri, IXMLDOMNode **item)
+{
+    TRACE("%p, %s, %s, %p.\n", node, debugstr_w(name), debugstr_w(uri), item);
+
+    return E_INVALIDARG;
+}
+
+static HRESULT domdoctype_notations_remove_named_item(struct domnode *node, BSTR name, IXMLDOMNode **item)
+{
+    TRACE("%p, %s, %p.\n", node, debugstr_w(name), item);
+
+    return E_INVALIDARG;
+}
+
+static HRESULT domdoctype_notations_get_item(struct domnode *node, LONG index, IXMLDOMNode **item)
+{
+    TRACE("%p, %ld, %p.\n", node, index, item);
+
+    return domnode_get_child_for_type(node, index, NODE_NOTATION, item);
+}
+
+static HRESULT domdoctype_notations_get_length(struct domnode *node, LONG *length)
+{
+    TRACE("%p, %p.\n", node, length);
+
+    return domnode_get_children_count_for_type(node, NODE_NOTATION, length);
+}
+
+static HRESULT domdoctype_notations_next_node(const struct domnode *node, LONG *iter, IXMLDOMNode **nextNode)
+{
+    FIXME("%p, %ld, %p.\n", node, *iter, nextNode);
+
+    return E_NOTIMPL;
+}
+
+static const struct nodemap_funcs domdoctype_notations_map =
+{
+    .get_named_item = domdoctype_notations_get_named_item,
+    .set_named_item = domdoctype_notations_set_named_item,
+    .remove_named_item = domdoctype_notations_remove_named_item,
+    .get_item = domdoctype_notations_get_item,
+    .get_length = domdoctype_notations_get_length,
+    .get_qualified_item = domdoctype_notations_get_qualified_item,
+    .remove_qualified_item = domdoctype_notations_remove_qualified_item,
+    .next_node = domdoctype_notations_next_node,
 };
 
 static const tid_t domdoctype_iface_tids[] =

@@ -1313,6 +1313,27 @@ static void test_SendInput_keyboard_messages( WORD vkey, WORD scan, WCHAR wch, W
         {0},
     };
 
+    struct send_input_keyboard_test pause_scan[] =
+    {
+        {.scan = 0x21d, .flags = KEYEVENTF_SCANCODE, .expect_state = {[VK_CONTROL] = 0x80, [VK_LCONTROL] = 0x80},
+         .expect = {KEY_HOOK(WM_KEYDOWN, 0x1d, VK_LCONTROL), KEY_MSG(WM_KEYDOWN, 0x1d, VK_CONTROL), {0}}},
+        {.scan = 0x21d, .flags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP, .expect_state = {[VK_CONTROL] = 0x01, [VK_LCONTROL] = 0x01},
+         .expect = {KEY_HOOK(WM_KEYUP, 0x1d, VK_LCONTROL), KEY_MSG(WM_KEYUP, 0x1d, VK_CONTROL), {0}}},
+        {.scan = 0xe11d, .flags = KEYEVENTF_SCANCODE, .expect_state = {[VK_CONTROL] = 0x80, [VK_LCONTROL] = 0x80},
+         .expect = {KEY_HOOK(WM_KEYDOWN, 0x1d, VK_LCONTROL), KEY_MSG(WM_KEYDOWN, 0x1d, VK_CONTROL), {0}}},
+        {.scan = 0xe11d, .flags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP, .expect_state = {[VK_CONTROL] = 0x01, [VK_LCONTROL] = 0x01},
+         .expect = {KEY_HOOK(WM_KEYUP, 0x1d, VK_LCONTROL), KEY_MSG(WM_KEYUP, 0x1d, VK_CONTROL), {0}}},
+        {.scan = 0xe11d, .flags = KEYEVENTF_SCANCODE | KEYEVENTF_EXTENDEDKEY, .expect_state = {[VK_CONTROL] = 0x80, [VK_RCONTROL] = 0x80},
+         .expect = {KEY_HOOK_(WM_KEYDOWN, 0x1d, VK_RCONTROL, LLKHF_EXTENDED, .todo_value = TRUE), KEY_MSG(WM_KEYDOWN, 0x11d, VK_CONTROL), {0}}},
+        {.scan = 0xe11d, .flags = KEYEVENTF_SCANCODE | KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, .expect_state = {[VK_CONTROL] = 0x01, [VK_RCONTROL] = 0x01},
+         .expect = {KEY_HOOK_(WM_KEYUP, 0x1d, VK_RCONTROL, LLKHF_EXTENDED, .todo_value = TRUE), KEY_MSG(WM_KEYUP, 0x11d, VK_CONTROL), {0}}},
+        {.vkey = VK_PAUSE, .expect_state = {[VK_PAUSE] = 0x80},
+         .expect = {KEY_HOOK(WM_KEYDOWN, 0x7, VK_PAUSE), KEY_MSG(WM_KEYDOWN, 0x7, VK_PAUSE), {0}}},
+        {.vkey = VK_PAUSE, .flags = KEYEVENTF_KEYUP, .expect_state = {[VK_PAUSE] = 0x01},
+         .expect = {KEY_HOOK(WM_KEYUP, 0x8, VK_PAUSE), KEY_MSG(WM_KEYUP, 0x8, VK_PAUSE), {0}}},
+        {0},
+    };
+
 #undef WIN_MSG
 #undef KBD_HOOK
 #undef KEY_HOOK_
@@ -1397,6 +1418,7 @@ static void test_SendInput_keyboard_messages( WORD vkey, WORD scan, WCHAR wch, W
     check_send_input_keyboard_test( unicode_vkey_packet, TRUE );
     check_send_input_keyboard_test( numpad_scan, TRUE );
     check_send_input_keyboard_test( numpad_scan_numlock, TRUE );
+    check_send_input_keyboard_test( pause_scan, TRUE );
     winetest_pop_context();
 
     wait_messages( 100, FALSE );
@@ -1444,6 +1466,7 @@ static void test_SendInput_keyboard_messages( WORD vkey, WORD scan, WCHAR wch, W
     check_send_input_keyboard_test( unicode_vkey_packet, FALSE );
     check_send_input_keyboard_test( numpad_scan, FALSE );
     check_send_input_keyboard_test( numpad_scan_numlock, FALSE );
+    check_send_input_keyboard_test( pause_scan, FALSE );
     winetest_pop_context();
 
     ok_ret( 1, DestroyWindow( hwnd ) );
@@ -1456,6 +1479,36 @@ static void test_SendInput_keyboard_messages( WORD vkey, WORD scan, WCHAR wch, W
 
 static void test_keynames(void)
 {
+    static const struct
+    {
+        LONG lparam;
+        const char *expected_name;
+        BOOL todo;
+        BOOL todo_value;
+    } tests[] =
+    {
+        {0x00370000, "Num *", .todo_value = TRUE},
+        {0x01370000, "Prnt Scrn", .todo_value = TRUE},
+        {0x02370000, "Num *", .todo_value = TRUE},
+        {0xe0370000, "Num *", .todo_value = TRUE},
+        {0xe1370000, "Prnt Scrn", .todo_value = TRUE},
+        {0x00450000, "Pause", .todo_value = TRUE},
+        {0x01450000, "Num Lock"},
+        {0x02450000, "Pause", .todo_value = TRUE},
+        {0xe0450000, "Pause", .todo_value = TRUE},
+        {0xe1450000, "Num Lock"},
+        {0x00460000, "Scroll Lock", .todo_value = TRUE},
+        {0x01460000, "Break", .todo_value = TRUE},
+        {0xe0460000, "Scroll Lock", .todo_value = TRUE},
+        {0xe1460000, "Break", .todo_value = TRUE},
+        {0x01480000, "Up"},
+        {0x001d0000, "Ctrl", .todo_value = TRUE},
+        {0x011d0000, "Right Ctrl", .todo_value = TRUE},
+        {0x021d0000, "Ctrl", .todo_value = TRUE},
+        {0xe01d0000, "Ctrl", .todo_value = TRUE},
+        {0xe11d0000, "Right Ctrl", .todo_value = TRUE},
+    };
+    BOOL us_kbd = (GetKeyboardLayout(0) == (HKL)(ULONG_PTR)0x04090409);
     int i, len;
     char buff[256];
 
@@ -1464,6 +1517,18 @@ static void test_keynames(void)
         strcpy(buff, "----");
         len = GetKeyNameTextA(i << 16, buff, sizeof(buff));
         ok(len || !buff[0], "%d: Buffer is not zeroed\n", i);
+    }
+
+    if (!us_kbd) skip("skipping test with inconsistent results on non-us keyboard\n");
+    else for (i = 0; i < ARRAY_SIZE(tests); i++)
+    {
+        winetest_push_context("scancode %04x", (unsigned int)tests[i].lparam >> 16);
+        len = GetKeyNameTextA(tests[i].lparam, buff, sizeof(buff));
+        todo_wine_if(tests[i].todo) ok(len, "No key name\n");
+        todo_wine_if(tests[i].todo_value)
+        ok(!strcmp(buff, tests[i].expected_name), "Unexpected key name %s\n", debugstr_a(buff));
+        trace("name %s\n", debugstr_a(buff));
+        winetest_pop_context();
     }
 }
 
@@ -3196,10 +3261,65 @@ static void test_DefRawInputProc(void)
     ok(GetLastError() == 0xdeadbeef, "got %ld\n", GetLastError());
 }
 
+static const char *debug_map_type(UINT map_type)
+{
+#define MAP_TO_STR(x) case x: return #x
+    switch (map_type)
+    {
+        MAP_TO_STR(MAPVK_VK_TO_VSC);
+        MAP_TO_STR(MAPVK_VSC_TO_VK);
+        MAP_TO_STR(MAPVK_VK_TO_CHAR);
+        MAP_TO_STR(MAPVK_VSC_TO_VK_EX);
+        MAP_TO_STR(MAPVK_VK_TO_VSC_EX);
+    default:
+        return "<unknown>";
+    }
+#undef MAP_TO_STR
+}
+
 static void test_key_map(void)
 {
+    static const struct
+    {
+        UINT input;
+        UINT map_type;
+        UINT expected;
+        BOOL todo;
+    } tests[] =
+    {
+        {0x136, MAPVK_VSC_TO_VK_EX, 0, TRUE},
+        {0xe036, MAPVK_VSC_TO_VK_EX, 0, TRUE},
+        {0xe136, MAPVK_VSC_TO_VK_EX, 0, TRUE},
+        {0x37, MAPVK_VSC_TO_VK_EX, VK_MULTIPLY, TRUE},
+        {0x137, MAPVK_VSC_TO_VK_EX, 0, TRUE},
+        {0x237, MAPVK_VSC_TO_VK_EX, 0, TRUE},
+        {0xe037, MAPVK_VSC_TO_VK_EX, VK_SNAPSHOT},
+        {0xe137, MAPVK_VSC_TO_VK_EX, 0, TRUE},
+        {0x45, MAPVK_VSC_TO_VK_EX, VK_NUMLOCK},
+        {0x145, MAPVK_VSC_TO_VK_EX, 0, TRUE},
+        {0xe045, MAPVK_VSC_TO_VK_EX, 0, TRUE},
+        {0xe145, MAPVK_VSC_TO_VK_EX, 0, TRUE},
+        {0x1d, MAPVK_VSC_TO_VK_EX, VK_LCONTROL},
+        {0x011d, MAPVK_VSC_TO_VK_EX, 0, TRUE},
+        {0x021d, MAPVK_VSC_TO_VK_EX, 0, TRUE},
+        {0xe01d, MAPVK_VSC_TO_VK_EX, VK_RCONTROL, TRUE},
+        {0xe11d, MAPVK_VSC_TO_VK_EX, VK_PAUSE, TRUE},
+        {0x46, MAPVK_VSC_TO_VK_EX, VK_SCROLL},
+        {0xe046, MAPVK_VSC_TO_VK_EX, VK_CANCEL, TRUE},
+
+        {VK_RSHIFT, MAPVK_VK_TO_VSC_EX, 0x36},
+        {VK_MULTIPLY, MAPVK_VK_TO_VSC_EX, 0x37},
+        {VK_NUMLOCK, MAPVK_VK_TO_VSC_EX, 0x45},
+        {VK_UP, MAPVK_VK_TO_VSC_EX, 0x48},
+        {VK_LCONTROL, MAPVK_VK_TO_VSC_EX, 0x1d},
+        {VK_RCONTROL, MAPVK_VK_TO_VSC_EX, 0xe01d},
+        {VK_PAUSE, MAPVK_VK_TO_VSC_EX, 0xe11d, TRUE},
+        {VK_SCROLL, MAPVK_VK_TO_VSC_EX, 0x46},
+        {VK_CANCEL, MAPVK_VK_TO_VSC_EX, 0xe046, TRUE},
+        {VK_SNAPSHOT, MAPVK_VK_TO_VSC_EX, 0x54},
+    };
     HKL kl = GetKeyboardLayout(0);
-    UINT kL, kR, s, sL;
+    UINT kL, kR, s, sL, r;
     int i;
     static const UINT numpad_collisions[][2] = {
         { VK_NUMPAD0, VK_INSERT },
@@ -3256,6 +3376,13 @@ static void test_key_map(void)
     ok(s >> 8 == 0xE0 || broken(s == 0), "Scan code prefix for VK_RMENU should be 0xE0 when MAPVK_VK_TO_VSC_EX is set, was %#1x\n", s >> 8);
     s = MapVirtualKeyExA(VK_RSHIFT, MAPVK_VK_TO_VSC_EX, kl);
     ok(s >> 8 == 0x00 || broken(s == 0), "The scan code shouldn't have a prefix, got %#1x\n", s >> 8);
+
+    for (i = 0; i < ARRAY_SIZE(tests); i++)
+    {
+        r = MapVirtualKeyExA(tests[i].input, tests[i].map_type, kl);
+        todo_wine_if(tests[i].todo) ok(r == tests[i].expected, "Unexpected %s %x -> %x\n",
+                                       debug_map_type(tests[i].map_type), tests[i].input, r);
+    }
 }
 
 #define shift 1
@@ -5153,24 +5280,87 @@ static LRESULT WINAPI msg_source_proc( HWND hwnd, UINT message, WPARAM wp, LPARA
         ok( source.originId == expect_src.originId ||
             (message == WM_MOUSEMOVE && source.originId == IMO_SYSTEM),
             "%x: wrong originId %x/%x\n", message, source.originId, expect_src.originId );
+        ok( !PeekMessageW( &msg, hwnd, WM_USER, WM_USER, PM_REMOVE ), "got pending WM_USER\n" );
+        ok( source.deviceType == expect_src.deviceType || /* also accept system-generated WM_MOUSEMOVE */
+            (message == WM_MOUSEMOVE && source.deviceType == IMDT_UNAVAILABLE),
+            "%x: wrong deviceType %x/%x\n", message, source.deviceType, expect_src.deviceType );
+        ok( source.originId == expect_src.originId ||
+            (message == WM_MOUSEMOVE && source.originId == IMO_SYSTEM),
+            "%x: wrong originId %x/%x\n", message, source.originId, expect_src.originId );
         break;
     default:
         ok( source.deviceType == IMDT_UNAVAILABLE, "%x: wrong deviceType %x\n",
             message, source.deviceType );
-        ok( source.originId == 0, "%x: wrong originId %x\n", message, source.originId );
+        ok( source.originId == IMO_UNAVAILABLE, "%x: wrong originId %x\n", message, source.originId );
         break;
     }
 
     return DefWindowProcA( hwnd, message, wp, lp );
 }
 
+static LRESULT WINAPI get_message_hook( int code, WPARAM wp, LPARAM lp )
+{
+    INPUT_MESSAGE_SOURCE source;
+    MSG *msg = (MSG *)lp;
+    UINT message = msg->message;
+
+    if (code < 0) return CallNextHookEx( 0, code, wp, lp );
+
+    ok( pGetCurrentInputMessageSource( &source ), "GetCurrentInputMessageSource failed\n" );
+    switch (message)
+    {
+    case WM_KEYDOWN:
+    case WM_KEYUP:
+    case WM_SYSKEYDOWN:
+    case WM_SYSKEYUP:
+    case WM_MOUSEMOVE:
+    case WM_LBUTTONDOWN:
+    case WM_LBUTTONUP:
+    case WM_RBUTTONDOWN:
+    case WM_RBUTTONUP:
+        ok( source.deviceType == expect_src.deviceType || /* also accept system-generated WM_MOUSEMOVE */
+            (message == WM_MOUSEMOVE && source.deviceType == IMDT_UNAVAILABLE),
+            "%x: wrong deviceType %x/%x\n", message, source.deviceType, expect_src.deviceType );
+        ok( source.originId == expect_src.originId ||
+            (message == WM_MOUSEMOVE && source.originId == IMO_SYSTEM),
+            "%x: wrong originId %x/%x\n", message, source.originId, expect_src.originId );
+        break;
+    default:
+        ok( source.deviceType == IMDT_UNAVAILABLE, "%x: wrong deviceType %x\n",
+            message, source.deviceType );
+        ok( source.originId == IMO_UNAVAILABLE, "%x: wrong originId %x\n",
+            message, source.originId );
+        break;
+    }
+    return CallNextHookEx( 0, code, wp, lp );
+}
+
+static LRESULT WINAPI keyboard_hook( int code, WPARAM wp, LPARAM lp )
+{
+    INPUT_MESSAGE_SOURCE source;
+
+    if (code < 0) return CallNextHookEx( 0, code, wp, lp );
+
+    ok( pGetCurrentInputMessageSource( &source ), "GetCurrentInputMessageSource failed\n" );
+    ok( source.deviceType == expect_src.deviceType ||
+        broken( source.deviceType == IMDT_UNAVAILABLE ), /* <= win10 1507 */
+        "wrong deviceType %x/%x\n", source.deviceType, expect_src.deviceType );
+    ok( source.originId == expect_src.originId ||
+        broken( source.originId == IMO_UNAVAILABLE), /* <= win10 1507 */
+        "wrong originId %x/%x\n", source.originId, expect_src.originId );
+
+    return CallNextHookEx( 0, code, wp, lp );
+}
+
 static void test_input_message_source(void)
 {
+    INPUT_MESSAGE_SOURCE source;
     WNDCLASSA cls;
     INPUT inputs[2];
     HWND hwnd;
     RECT rc;
     MSG msg;
+    HHOOK msg_hook, kbd_hook;
 
     cls.style = 0;
     cls.lpfnWndProc = msg_source_proc;
@@ -5190,6 +5380,11 @@ static void test_input_message_source(void)
     SetForegroundWindow( hwnd );
     SetFocus( hwnd );
 
+    msg_hook = SetWindowsHookExW( WH_GETMESSAGE, get_message_hook, NULL, GetCurrentThreadId() );
+    ok( msg_hook != NULL, "SetWindowsHookEx failed\n" );
+    kbd_hook = SetWindowsHookExW( WH_KEYBOARD, keyboard_hook, NULL, GetCurrentThreadId() );
+    ok( kbd_hook != NULL, "SetWindowsHookEx failed\n" );
+
     inputs[0].type = INPUT_KEYBOARD;
     inputs[0].ki.dwExtraInfo = 0;
     inputs[0].ki.time = 0;
@@ -5204,24 +5399,28 @@ static void test_input_message_source(void)
     SendMessageA( hwnd, WM_KEYDOWN, 0, 0 );
     SendMessageA( hwnd, WM_MOUSEMOVE, 0, 0 );
 
+    expect_src.deviceType = IMDT_KEYBOARD;
+    expect_src.originId = IMO_INJECTED;
     SendInput( 2, inputs, sizeof(INPUT) );
     while (PeekMessageW( &msg, hwnd, 0, 0, PM_REMOVE ))
     {
-        expect_src.deviceType = IMDT_KEYBOARD;
-        expect_src.originId = IMO_INJECTED;
         TranslateMessage( &msg );
         DispatchMessageW( &msg );
     }
     GetWindowRect( hwnd, &rc );
     simulate_click( TRUE, (rc.left + rc.right) / 2, (rc.top + rc.bottom) / 2 );
     simulate_click( FALSE, (rc.left + rc.right) / 2 + 1, (rc.top + rc.bottom) / 2 + 1 );
+    expect_src.deviceType = IMDT_MOUSE;
+    expect_src.originId = IMO_INJECTED;
     while (PeekMessageW( &msg, hwnd, 0, 0, PM_REMOVE ))
     {
-        expect_src.deviceType = IMDT_MOUSE;
-        expect_src.originId = IMO_INJECTED;
         TranslateMessage( &msg );
         DispatchMessageW( &msg );
     }
+
+    ok( pGetCurrentInputMessageSource( &source ), "GetCurrentInputMessageSource failed\n" );
+    ok( source.deviceType == IMDT_UNAVAILABLE, "wrong type %x\n", source.deviceType );
+    ok( source.originId == IMO_UNAVAILABLE, "wrong origin %x\n", source.originId );
 
     expect_src.deviceType = IMDT_UNAVAILABLE;
     expect_src.originId = IMO_UNAVAILABLE;
@@ -5235,6 +5434,10 @@ static void test_input_message_source(void)
         DispatchMessageW( &msg );
     }
 
+    ok( pGetCurrentInputMessageSource( &source ), "GetCurrentInputMessageSource failed\n" );
+    ok( source.deviceType == IMDT_UNAVAILABLE, "wrong type %x\n", source.deviceType );
+    ok( source.originId == IMO_UNAVAILABLE, "wrong origin %x\n", source.originId );
+
     expect_src.deviceType = IMDT_UNAVAILABLE;
     expect_src.originId = IMO_SYSTEM;
     SetCursorPos( (rc.left + rc.right) / 2 - 1, (rc.top + rc.bottom) / 2 - 1 );
@@ -5244,8 +5447,14 @@ static void test_input_message_source(void)
         DispatchMessageW( &msg );
     }
 
+    ok( pGetCurrentInputMessageSource( &source ), "GetCurrentInputMessageSource failed\n" );
+    ok( source.deviceType == IMDT_UNAVAILABLE, "wrong type %x\n", source.deviceType );
+    ok( source.originId == IMO_UNAVAILABLE, "wrong origin %x\n", source.originId );
+
     DestroyWindow( hwnd );
     UnregisterClassA( cls.lpszClassName, GetModuleHandleA(0) );
+    UnhookWindowsHookEx( msg_hook );
+    UnhookWindowsHookEx( kbd_hook );
 }
 
 static void test_UnregisterDeviceNotification(void)
@@ -5545,9 +5754,7 @@ static void test_GetPointerInfo( BOOL mouse_in_pointer_enabled )
     ok( GetLastError() == ERROR_INVALID_PARAMETER, "got error %lu\n", GetLastError() );
     SetLastError( 0xdeadbeef );
     ret = pGetPointerType( 0xdead, &type );
-    todo_wine
     ok( !ret, "GetPointerType succeeded\n" );
-    todo_wine
     ok( GetLastError() == ERROR_INVALID_PARAMETER, "got error %lu\n", GetLastError() );
     ret = pGetPointerType( 1, &type );
     ok( ret, "GetPointerType failed, error %lu\n", GetLastError() );
@@ -5672,7 +5879,6 @@ static void test_GetPointerInfo( BOOL mouse_in_pointer_enabled )
 
     memset( pointer_info, 0xcd, sizeof(pointer_info) );
     ret = pGetPointerInfo( 1, pointer_info );
-    todo_wine_if(mouse_in_pointer_enabled)
     ok( ret == mouse_in_pointer_enabled, "GetPointerInfo failed, error %lu\n", GetLastError() );
     if (!mouse_in_pointer_enabled)
     {
@@ -5680,18 +5886,13 @@ static void test_GetPointerInfo( BOOL mouse_in_pointer_enabled )
         return;
     }
 
-    todo_wine
     ok( pointer_info[0].pointerType == PT_MOUSE, "got pointerType %lu\n", pointer_info[0].pointerType );
-    todo_wine
     ok( pointer_info[0].pointerId == 1, "got pointerId %u\n", pointer_info[0].pointerId );
     ok( !!pointer_info[0].frameId, "got frameId %u\n", pointer_info[0].frameId );
-    todo_wine
     ok( pointer_info[0].pointerFlags == (0x40000 | POINTER_MESSAGE_FLAG_INRANGE),
         "got pointerFlags %#x\n", pointer_info[0].pointerFlags );
-    todo_wine
     ok( pointer_info[0].sourceDevice == INVALID_HANDLE_VALUE || broken(!!pointer_info[0].sourceDevice) /* < w10 & 32bit */,
         "got sourceDevice %p\n", pointer_info[0].sourceDevice );
-    todo_wine
     ok( pointer_info[0].hwndTarget == hwnd, "got hwndTarget %p\n", pointer_info[0].hwndTarget );
     ok( !!pointer_info[0].ptPixelLocation.x, "got ptPixelLocation %s\n", wine_dbgstr_point( &pointer_info[0].ptPixelLocation ) );
     ok( !!pointer_info[0].ptPixelLocation.y, "got ptPixelLocation %s\n", wine_dbgstr_point( &pointer_info[0].ptPixelLocation ) );
@@ -5702,14 +5903,10 @@ static void test_GetPointerInfo( BOOL mouse_in_pointer_enabled )
     ok( !!pointer_info[0].ptHimetricLocationRaw.x, "got ptHimetricLocationRaw %s\n", wine_dbgstr_point( &pointer_info[0].ptHimetricLocationRaw ) );
     ok( !!pointer_info[0].ptHimetricLocationRaw.y, "got ptHimetricLocationRaw %s\n", wine_dbgstr_point( &pointer_info[0].ptHimetricLocationRaw ) );
     ok( !!pointer_info[0].dwTime, "got dwTime %lu\n", pointer_info[0].dwTime );
-    todo_wine
     ok( pointer_info[0].historyCount == 1, "got historyCount %u\n", pointer_info[0].historyCount );
-    todo_wine
     ok( pointer_info[0].InputData == 0, "got InputData %u\n", pointer_info[0].InputData );
-    todo_wine
     ok( pointer_info[0].dwKeyStates == 0, "got dwKeyStates %lu\n", pointer_info[0].dwKeyStates );
     ok( !!pointer_info[0].PerformanceCount, "got PerformanceCount %I64u\n", pointer_info[0].PerformanceCount );
-    todo_wine
     ok( pointer_info[0].ButtonChangeType == POINTER_CHANGE_FIRSTBUTTON_UP, "got ButtonChangeType %u\n", pointer_info[0].ButtonChangeType );
 
     thread = CreateThread( NULL, 0, test_GetPointerInfo_thread, NULL, 0, NULL );

@@ -88,7 +88,6 @@ enum error_codes
     E_SAX_MAX_ELEMENT_DEPTH = 0xc00cee92,
 };
 
-
 static inline bool array_reserve(void **elements, size_t *capacity, size_t count, size_t size)
 {
     size_t new_capacity, max_capacity;
@@ -193,16 +192,9 @@ enum domnode_flags
     DOMNODE_IGNORED_WS_AFTER_STARTTAG = 0x2,
     DOMNODE_IGNORED_WS = 0x4,
     DOMNODE_PARSED_VALUE = 0x8,
+    DOMNODE_NS_DECL = 0x10,
+    DOMNODE_NO_PARENT = 0x20,
 };
-
-typedef struct _select_ns_entry
-{
-    struct list entry;
-    xmlChar const* prefix;
-    xmlChar prefix_end;
-    xmlChar const* href;
-    xmlChar href_end;
-} select_ns_entry;
 
 struct domdoc_properties
 {
@@ -210,9 +202,13 @@ struct domdoc_properties
     VARIANT_BOOL preserving;
     VARIANT_BOOL validating;
     IXMLDOMSchemaCollection2* schemaCache;
-    struct list selectNsList;
-    xmlChar const* selectNsStr;
-    LONG selectNsStr_len;
+
+    struct
+    {
+        struct list entries;
+        BSTR value;
+    } namespaces;
+
     bool XPath;
     bool prohibit_dtd;
     bool normalize_attribute_values;
@@ -251,7 +247,7 @@ struct domnode
 extern IXMLDOMSchemaCollection2 *doc_properties_get_schema(struct domdoc_properties *properties);
 extern MSXML_VERSION doc_properties_get_version(struct domdoc_properties *properties);
 
-extern void domdoc_properties_clear_selection_namespaces(struct list *);
+extern void domdoc_properties_clear_selection_namespaces(struct domdoc_properties *);
 extern struct domdoc_properties *domdoc_create_properties(MSXML_VERSION version);
 extern MSXML_VERSION domdoc_version(const struct domnode *doc);
 extern HRESULT domnode_create(DOMNodeType type, const WCHAR *name, int name_len,
@@ -259,9 +255,15 @@ extern HRESULT domnode_create(DOMNodeType type, const WCHAR *name, int name_len,
 extern void domnode_destroy_tree(struct domnode *tree);
 extern struct domnode *domnode_addref(struct domnode *node);
 extern void domnode_release(struct domnode *node);
+extern struct domnode *domnode_get_root_element(struct domnode *doc);
+extern struct domnode *domnode_get_first_attribute(struct domnode *node);
+extern struct domnode *domnode_get_next_attribute_sibling(struct domnode *node);
 extern struct domnode *domnode_get_first_child(struct domnode *node);
+extern struct domnode *domnode_get_last_child(struct domnode *node);
 extern struct domnode *domnode_get_next_sibling(struct domnode *node);
+extern struct domnode *domnode_get_previous_sibling(struct domnode *node);
 extern HRESULT domnode_get_attribute(const struct domnode *node, const WCHAR *name, struct domnode **attr);
+extern bool domnode_is_namespace_declaration(const struct domnode *node);
 extern HRESULT node_clone_domnode(struct domnode *, bool, struct domnode **);
 extern HRESULT parse_stream(ISequentialStream *stream, bool utf16, const struct domdoc_properties *properties,
         struct domnode **tree);
@@ -283,6 +285,8 @@ static inline bool xml_is_space(WCHAR ch)
 {
     return ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n';
 }
+bool xml_is_ncname_startchar(WCHAR ch);
+bool xml_is_ncnamechar(WCHAR ch);
 
 /* IXMLDOMNamedNodeMap custom function table */
 struct nodemap_funcs
@@ -318,12 +322,14 @@ extern HRESULT create_cdata(struct domnode *, IUnknown **);
 extern HRESULT create_children_nodelist(struct domnode *, IXMLDOMNodeList **);
 extern HRESULT create_nodemap(struct domnode *, const struct nodemap_funcs *, IXMLDOMNamedNodeMap **);
 extern HRESULT create_doc_fragment(struct domnode *, IUnknown **);
+extern HRESULT create_entity(struct domnode *, IUnknown **);
 extern HRESULT create_entity_ref(struct domnode *, IUnknown **);
 extern HRESULT create_doc_type(struct domnode *, IUnknown **);
 extern HRESULT create_selection(struct domnode *, BSTR, bool xpath, IXMLDOMNodeList** );
 extern HRESULT create_selection_from_nodeset( xmlXPathObjectPtr, IXMLDOMNodeList ** );
 extern HRESULT create_enumvariant( IUnknown*, BOOL, const struct enumvariant_funcs*, IEnumVARIANT**);
 extern HRESULT create_dom_implementation(IXMLDOMImplementation **obj);
+extern HRESULT create_notation(struct domnode *, IUnknown **);
 
 extern void wineXmlCallbackLog(char const* caller, xmlErrorLevel lvl, char const* msg, va_list ap);
 extern void wineXmlCallbackError(char const* caller, const xmlError* err);
@@ -360,8 +366,10 @@ extern HRESULT node_put_value(struct domnode*,VARIANT*);
 extern HRESULT node_get_attribute(const struct domnode *,const WCHAR *,IXMLDOMAttribute **);
 extern HRESULT node_get_qualified_attribute(const struct domnode *, const WCHAR *name, const WCHAR *uri, IXMLDOMNode **);
 extern HRESULT node_get_attribute_by_index(const struct domnode *, LONG, IXMLDOMNode **);
+extern HRESULT node_get_attribute_count(const struct domnode *, LONG *);
 extern HRESULT node_get_attribute_value(struct domnode *,const WCHAR *,VARIANT *);
 extern HRESULT node_set_attribute(struct domnode *, IXMLDOMNode *, IXMLDOMNode **);
+extern HRESULT node_set_named_attribute(struct domnode *, IXMLDOMNode *, IXMLDOMNode **);
 extern HRESULT node_set_attribute_value(struct domnode *,const WCHAR *,const VARIANT *);
 extern HRESULT node_remove_attribute(struct domnode *, const WCHAR *, IXMLDOMNode **);
 extern HRESULT node_remove_attribute_node(struct domnode *,IXMLDOMAttribute *,IXMLDOMAttribute **);
@@ -391,7 +399,7 @@ extern HRESULT node_transform_node(struct domnode*,IXMLDOMNode*,BSTR*);
 extern HRESULT node_transform_node_params(struct domnode*,IXMLDOMNode*,BSTR*,ISequentialStream*,
     const struct xslprocessor_params*);
 extern HRESULT node_create_supporterrorinfo(const tid_t*,void**);
-extern HRESULT node_save(struct domnode *, IStream *);
+extern HRESULT node_save(struct domnode *, ISequentialStream *);
 extern HRESULT node_get_elements_by_tagname(struct domnode *,BSTR,IXMLDOMNodeList**);
 extern HRESULT node_validate(struct domnode *, IXMLDOMNode *, IXMLDOMParseError **);
 extern void node_move_children(struct domnode *dst, struct domnode *src);
@@ -401,6 +409,7 @@ extern HRESULT node_substring_data(struct domnode *, LONG, LONG, BSTR *);
 extern HRESULT node_get_data_length(struct domnode *, LONG *);
 extern HRESULT node_insert_data(struct domnode *, LONG, BSTR);
 extern HRESULT node_replace_data(struct domnode *, LONG, LONG, BSTR);
+extern void node_unlink_children(struct domnode *);
 
 extern UINT get_codepage_for_encoding(const WCHAR *encoding);
 

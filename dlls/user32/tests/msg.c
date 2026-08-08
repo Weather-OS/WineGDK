@@ -63,7 +63,7 @@
 
 #ifdef __i386__
 #define ARCH "x86"
-#elif defined __aarch64__ || defined__arm64ec__
+#elif defined __aarch64__ || defined __arm64ec__
 #define ARCH "arm64"
 #elif defined __x86_64__
 #define ARCH "amd64"
@@ -15956,7 +15956,6 @@ static void test_ShowWindow(void)
        "expected -1,-1 got %ld,%ld\n", wp.ptMinPosition.x, wp.ptMinPosition.y);
     ok(wp.ptMaxPosition.x == -1 && wp.ptMaxPosition.y == -1,
        "expected -1,-1 got %ld,%ld\n", wp.ptMaxPosition.x, wp.ptMaxPosition.y);
-    todo_wine_if (work_rc.left || work_rc.top) /* FIXME: remove once Wine is fixed */
     ok(EqualRect(&win_rc, &wp.rcNormalPosition), "expected %s got %s\n", wine_dbgstr_rect(&win_rc),
        wine_dbgstr_rect(&wp.rcNormalPosition));
 

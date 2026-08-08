@@ -1,0 +1,6 @@
+MODULE    = thumbcache.dll
+IMPORTS   = uuid
+
+SOURCES = \
+	thumbcache.c \
+	thumbcache_reg.idl

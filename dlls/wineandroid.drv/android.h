@@ -28,13 +28,15 @@
 #include <jni.h>
 #include <android/log.h>
 #include <android/input.h>
+#include <android/looper.h>
 #include <android/native_window_jni.h>
 
 #include "windef.h"
 #include "winbase.h"
 #include "ntgdi.h"
 #include "wine/gdi_driver.h"
-#include "unixlib.h"
+#include "ntuser.h"
+#include "wine/unixlib.h"
 #include "android_native.h"
 
 
@@ -58,6 +60,11 @@ DECL_FUNCPTR( AHardwareBuffer_unlock );
 DECL_FUNCPTR( AHardwareBuffer_recvHandleFromUnixSocket );
 DECL_FUNCPTR( AHardwareBuffer_sendHandleToUnixSocket );
 DECL_FUNCPTR( ANativeWindowBuffer_getHardwareBuffer );
+DECL_FUNCPTR( ALooper_acquire );
+DECL_FUNCPTR( ALooper_forThread );
+DECL_FUNCPTR( ALooper_addFd );
+DECL_FUNCPTR( ALooper_removeFd );
+DECL_FUNCPTR( ALooper_release );
 #endif
 
 #undef DECL_FUNCPTR
@@ -74,7 +81,7 @@ extern UINT ANDROID_OpenGLInit( UINT version, const struct opengl_funcs *opengl_
  * Android pseudo-device
  */
 
-extern void start_android_device(void);
+extern void createDesktopView( int *event_source );
 extern void register_native_window( HWND hwnd, struct ANativeWindow *win, BOOL client );
 extern struct ANativeWindow *create_ioctl_window( HWND hwnd, BOOL opengl );
 extern struct ANativeWindow *grab_ioctl_window( struct ANativeWindow *window );
@@ -104,22 +111,16 @@ extern void ANDROID_DestroyWindow( HWND hwnd );
 extern BOOL ANDROID_ProcessEvents( DWORD mask );
 extern LRESULT ANDROID_DesktopWindowProc( HWND hwnd, UINT msg, WPARAM wp, LPARAM lp );
 extern void ANDROID_SetParent( HWND hwnd, HWND parent, HWND old_parent );
-extern void ANDROID_SetCapture( HWND hwnd, UINT flags );
+extern void ANDROID_SetCapture( HWND hwnd, UINT flags, HWND previous );
 extern UINT ANDROID_ShowWindow( HWND hwnd, INT cmd, RECT *rect, UINT swp );
 extern LRESULT ANDROID_WindowMessage( HWND hwnd, UINT msg, WPARAM wp, LPARAM lp );
 extern BOOL ANDROID_WindowPosChanging( HWND hwnd, UINT swp_flags, BOOL shaped, const struct window_rects *rects );
+extern struct client_surface *ANDROID_CreateClientSurface( HWND hwnd, int pixel_format );
 extern BOOL ANDROID_CreateWindowSurface( HWND hwnd, BOOL layered, const RECT *surface_rect, struct window_surface **surface );
 extern void ANDROID_WindowPosChanged( HWND hwnd, HWND insert_after, HWND owner_hint, UINT swp_flags,
                                       const struct window_rects *new_rects, struct window_surface *surface );
 extern ANativeWindow *get_client_window( HWND hwnd );
 extern BOOL has_client_surface( HWND hwnd );
-
-/* unixlib interface */
-
-extern NTSTATUS android_dispatch_ioctl( void *arg );
-extern NTSTATUS android_java_init( void *arg );
-extern NTSTATUS android_java_uninit( void *arg );
-extern UINT64 start_device_callback;
 
 extern unsigned int screen_width;
 extern unsigned int screen_height;
@@ -131,12 +132,13 @@ enum android_window_messages
     WM_ANDROID_REFRESH = WM_WINE_FIRST_DRIVER_MSG,
 };
 
-extern HWND get_capture_window(void);
 extern void init_monitors( int width, int height );
 extern void set_screen_dpi( DWORD dpi );
 extern void update_keyboard_lock_state( WORD vkey, UINT state );
 
 /* JNI entry points */
+extern void looper_init( JNIEnv *env, jobject obj );
+extern void wine_init_jni( JNIEnv *env, jobject obj );
 extern void desktop_changed( JNIEnv *env, jobject obj, jint width, jint height );
 extern void config_changed( JNIEnv *env, jobject obj, jint dpi );
 extern void surface_changed( JNIEnv *env, jobject obj, jint win, jobject surface,
@@ -194,9 +196,7 @@ union event_data
 
 int send_event( const union event_data *data );
 
-extern JavaVM *java_vm;
-extern jobject java_object;
-extern unsigned short java_gdt_sel;
+extern int event_source;
 
 /* string helpers */
 

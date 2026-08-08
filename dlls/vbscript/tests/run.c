@@ -148,10 +148,18 @@ DEFINE_EXPECT(OnLeaveScript);
 #define DISPID_GLOBAL_THROWEXCEPTION  1027
 #define DISPID_GLOBAL_ISARRAYFIXED    1028
 #define DISPID_GLOBAL_MAXCHARSIZE     1029
+#define DISPID_GLOBAL_INVOKEDISP      1030
+#define DISPID_GLOBAL_INVOKEMETHOD    1031
 
 #define DISPID_TESTOBJ_PROPGET      2000
 #define DISPID_TESTOBJ_PROPPUT      2001
 #define DISPID_TESTOBJ_KEYWORD      2002
+#define DISPID_TESTOBJ_I8VAL        2003
+#define DISPID_TESTOBJ_UI8VAL       2004
+#define DISPID_TESTOBJ_I1VAL        2005
+#define DISPID_TESTOBJ_UI2VAL       2006
+#define DISPID_TESTOBJ_UI4VAL       2007
+#define DISPID_TESTOBJ_UINTVAL      2008
 
 #define DISPID_COLLOBJ_RESET        3000
 
@@ -846,6 +854,12 @@ static HRESULT WINAPI testObj_GetDispID(IDispatchEx *iface, BSTR bstrName, DWORD
     static const dispid_t dispids[] = {
        { L"propget",  DISPID_TESTOBJ_PROPGET, REF_EXPECT(testobj_propget_d) },
        { L"propput",  DISPID_TESTOBJ_PROPPUT, REF_EXPECT(testobj_propput_d) },
+       { L"i8val",    DISPID_TESTOBJ_I8VAL  },
+       { L"ui8val",   DISPID_TESTOBJ_UI8VAL },
+       { L"i1val",    DISPID_TESTOBJ_I1VAL  },
+       { L"ui2val",   DISPID_TESTOBJ_UI2VAL },
+       { L"ui4val",   DISPID_TESTOBJ_UI4VAL },
+       { L"uintval",  DISPID_TESTOBJ_UINTVAL },
        { L"rem",      DISPID_TESTOBJ_KEYWORD },
        { L"true",     DISPID_TESTOBJ_KEYWORD },
        { L"false",    DISPID_TESTOBJ_KEYWORD },
@@ -993,6 +1007,31 @@ static HRESULT WINAPI testObj_InvokeEx(IDispatchEx *iface, DISPID id, LCID lcid,
     case DISPID_TESTOBJ_KEYWORD:
         V_VT(pvarRes) = VT_I2;
         V_I2(pvarRes) = 10;
+        return S_OK;
+
+    case DISPID_TESTOBJ_I8VAL:
+        V_VT(pvarRes) = VT_I8;
+        V_I8(pvarRes) = 5;
+        return S_OK;
+    case DISPID_TESTOBJ_UI8VAL:
+        V_VT(pvarRes) = VT_UI8;
+        V_UI8(pvarRes) = 5;
+        return S_OK;
+    case DISPID_TESTOBJ_I1VAL:
+        V_VT(pvarRes) = VT_I1;
+        V_I1(pvarRes) = 5;
+        return S_OK;
+    case DISPID_TESTOBJ_UI2VAL:
+        V_VT(pvarRes) = VT_UI2;
+        V_UI2(pvarRes) = 5;
+        return S_OK;
+    case DISPID_TESTOBJ_UI4VAL:
+        V_VT(pvarRes) = VT_UI4;
+        V_UI4(pvarRes) = 5;
+        return S_OK;
+    case DISPID_TESTOBJ_UINTVAL:
+        V_VT(pvarRes) = VT_UINT;
+        V_UINT(pvarRes) = 5;
         return S_OK;
     }
 
@@ -1200,7 +1239,11 @@ static HRESULT WINAPI Global_GetDispID(IDispatchEx *iface, BSTR bstrName, DWORD 
         { L"MaxCharSize",     DISPID_GLOBAL_MAXCHARSIZE },
         { L"firstDayOfWeek",  DISPID_GLOBAL_WEEKSTARTDAY },
         { L"globalCallback",  DISPID_GLOBAL_GLOBALCALLBACK },
+        { L"invokeDisp",      DISPID_GLOBAL_INVOKEDISP },
+        { L"invokeMethod",    DISPID_GLOBAL_INVOKEMETHOD },
         { L"testObj",         DISPID_GLOBAL_TESTOBJ },
+        /* host property sharing its name with a builtin function */
+        { L"InputBox",        DISPID_GLOBAL_TESTOBJ },
         { L"collectionObj" ,  DISPID_GLOBAL_COLLOBJ },
         { L"vbvar",           DISPID_GLOBAL_VBVAR, REF_EXPECT(global_vbvar_d) },
         { L"letobj",          DISPID_GLOBAL_LETOBJ },
@@ -1324,6 +1367,63 @@ static HRESULT WINAPI Global_InvokeEx(IDispatchEx *iface, DISPID id, LCID lcid, 
         V_VT(pvarRes) = VT_I4;
         V_I4(pvarRes) = MaxCharSize;
         return S_OK;
+
+    case DISPID_GLOBAL_INVOKEDISP: {
+        DISPPARAMS params = { NULL, NULL, 0, 0 };
+        VARIANT *arg = pdp->rgvarg;
+        EXCEPINFO ei;
+        HRESULT hr;
+
+        ok(wFlags == INVOKE_FUNC || wFlags == (INVOKE_FUNC|INVOKE_PROPERTYGET), "wFlags = %x\n", wFlags);
+        ok(pdp != NULL, "pdp == NULL\n");
+        ok(pdp->cArgs == 1, "cArgs = %d\n", pdp->cArgs);
+        if(V_VT(arg) == (VT_VARIANT|VT_BYREF))
+            arg = V_VARIANTREF(arg);
+        ok(V_VT(arg) == VT_DISPATCH, "V_VT(arg) = %d\n", V_VT(arg));
+
+        /* Mimic an external object invoking a function reference back into the
+         * engine while a script frame is on the stack. With the host leaving
+         * the error unhandled, native returns SCRIPT_E_RECORDED to the caller;
+         * Wine returns the raw error code instead. */
+        memset(&ei, 0, sizeof(ei));
+        hr = IDispatch_Invoke(V_DISPATCH(arg), DISPID_VALUE, &IID_NULL, 0,
+                              DISPATCH_METHOD, &params, NULL, &ei, NULL);
+        todo_wine ok(hr == SCRIPT_E_RECORDED, "inner Invoke returned %08lx\n", hr);
+        return S_OK;
+    }
+
+    case DISPID_GLOBAL_INVOKEMETHOD: {
+        DISPPARAMS params = { NULL, NULL, 0, 0 };
+        VARIANT *arg = pdp->rgvarg;
+        IDispatchEx *dispex;
+        EXCEPINFO ei;
+        VARIANT v;
+        DISPID did;
+        BSTR str;
+        HRESULT hr;
+
+        ok(pdp->cArgs == 1, "cArgs = %d\n", pdp->cArgs);
+        if(V_VT(arg) == (VT_VARIANT|VT_BYREF))
+            arg = V_VARIANTREF(arg);
+        ok(V_VT(arg) == VT_DISPATCH, "V_VT(arg) = %d\n", V_VT(arg));
+
+        hr = IDispatch_QueryInterface(V_DISPATCH(arg), &IID_IDispatchEx, (void**)&dispex);
+        ok(hr == S_OK, "QueryInterface(IDispatchEx) returned %08lx\n", hr);
+        str = SysAllocString(L"raiser");
+        hr = IDispatchEx_GetDispID(dispex, str, fdexNameCaseInsensitive, &did);
+        ok(hr == S_OK, "GetDispID(raiser) returned %08lx\n", hr);
+        SysFreeString(str);
+
+        /* As above, but for a class method invoked by an external object. With
+         * the host leaving the error unhandled, native returns DISP_E_EXCEPTION
+         * to the caller; Wine returns the raw error code instead. */
+        memset(&ei, 0, sizeof(ei));
+        V_VT(&v) = VT_EMPTY;
+        hr = IDispatchEx_InvokeEx(dispex, did, 0, DISPATCH_METHOD, &params, &v, &ei, NULL);
+        todo_wine ok(hr == DISP_E_EXCEPTION, "inner InvokeEx returned %08lx\n", hr);
+        IDispatchEx_Release(dispex);
+        return S_OK;
+    }
 
     case DISPID_GLOBAL_WEEKSTARTDAY:
         V_VT(pvarRes) = VT_I4;
@@ -1981,6 +2081,8 @@ static HRESULT WINAPI ActiveScriptSite_GetItemInfo(IActiveScriptSite *iface, LPC
         *ppiunkItem = (IUnknown*)&Global;
     }else if(!lstrcmpW(pstrName, L"indexedObj")) {
         *ppiunkItem = (IUnknown*)&indexedObj;
+    }else if(!lstrcmpW(pstrName, L"Trim")) {
+        *ppiunkItem = (IUnknown*)&testObj;
     }else {
         ok(0, "unexpected pstrName %s\n", wine_dbgstr_w(pstrName));
         *ppiunkItem = NULL;
@@ -2929,6 +3031,12 @@ static void test_parse_errors(void)
             NULL, S_OK, 1041
         },
         {
+            /* A global Sub collides with a global Dim of the same name - error 1041 */
+            L"Dim s\nSub S\nEnd Sub\n",
+            1, 4,
+            NULL, S_OK, 1041
+        },
+        {
             /* Expected identifier - error 1010 */
             L"Dim If\n",
             0, 4,
@@ -3477,6 +3585,238 @@ static void test_parse_errors(void)
     error_source_line = NULL;
 }
 
+static void test_redefine_scope(void)
+{
+    static const WCHAR *valid[] = {
+        /* a local Dim may shadow a global Sub */
+        L"Sub S\nEnd Sub\nSub Other\nDim s\nEnd Sub\n",
+        /* a local Const may shadow a global Sub */
+        L"Sub S\nEnd Sub\nSub Other\nConst s = 1\nEnd Sub\n",
+        /* a Class name does not collide with a local Dim of another Sub */
+        L"Class S\nEnd Class\nSub Other\nDim s\nEnd Sub\n",
+        L"Sub Other\nDim s\nEnd Sub\nClass S\nEnd Class\n",
+    };
+    /* A class member lives in a separate namespace, so its name may collide
+     * with a global Dim or Const. Each script also calls the member to prove
+     * it stays usable. */
+    static const WCHAR *valid_class_member[] = {
+        L"Class C\nPublic Function M\nM = 42\nEnd Function\nEnd Class\n"
+        L"Dim M\nDim o : Set o = New C\nCall ok(o.M = 42, \"o.M = \" & o.M)\n",
+        L"Class C\nPublic Function M\nM = 42\nEnd Function\nEnd Class\n"
+        L"Const M = 7\nDim o : Set o = New C\nCall ok(o.M = 42, \"o.M = \" & o.M)\n",
+    };
+    HRESULT hres;
+    unsigned i;
+
+    for (i = 0; i < ARRAY_SIZE(valid); i++) {
+        hres = parse_script_wr(valid[i]);
+        ok(hres == S_OK, "[%u] parse returned %08lx\n", i, hres);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(valid_class_member); i++) {
+        hres = parse_script_wr(valid_class_member[i]);
+        ok(hres == S_OK, "[%u] class member parse returned %08lx\n", i, hres);
+    }
+}
+
+static void test_getref_error_reporting(void)
+{
+    /* An error raised inside a function reference obtained from GetRef, when
+     * the reference is called from script under the caller's On Error Resume
+     * Next, must propagate to that caller rather than be reported to the host. */
+    static const WCHAR *src =
+        L"Dim cb : Set cb = GetRef(\"RaisesError\")\n"
+        L"Sub CallIndirect\n"
+        L"    On Error Resume Next\n"
+        L"    cb\n"
+        L"    On Error Goto 0\n"
+        L"End Sub\n"
+        L"Sub RaisesError\n"
+        L"    Err.Raise 5\n"
+        L"End Sub\n"
+        L"CallIndirect\n";
+    HRESULT hres;
+
+    SET_EXPECT(OnScriptError);
+    hres = parse_script_wr(src);
+    ok(hres == S_OK, "parse_script_wr returned %08lx\n", hres);
+    ok(!called_OnScriptError,
+        "error in a GetRef reference under the caller's On Error Resume Next was reported to the host\n");
+    CLEAR_CALLED(OnScriptError);
+}
+
+static void test_getref_external_caller_error(void)
+{
+    static const WCHAR *src =
+        L"Dim cb : Set cb = GetRef(\"RaisesError\")\n"
+        L"Sub RaisesError\n"
+        L"    Err.Raise 5\n"
+        L"End Sub\n"
+        L"Call invokeDisp(cb)\n";
+    HRESULT hres;
+
+    SET_EXPECT(OnScriptError);
+    hres = parse_script_wr(src);
+    ok(hres == S_OK, "parse_script_wr returned %08lx\n", hres);
+    CHECK_CALLED(OnScriptError);
+}
+
+static void test_external_caller_method_error(void)
+{
+    static const WCHAR *src =
+        L"Class C\n"
+        L"    Public Sub raiser\n"
+        L"        Err.Raise 5\n"
+        L"    End Sub\n"
+        L"End Class\n"
+        L"Call invokeMethod(new C)\n";
+    HRESULT hres;
+
+    SET_EXPECT(OnScriptError);
+    hres = parse_script_wr(src);
+    ok(hres == S_OK, "parse_script_wr returned %08lx\n", hres);
+    CHECK_CALLED(OnScriptError);
+}
+
+static void test_class_decl_scope(void)
+{
+    static const struct {
+        const WCHAR *src;
+        BOOL expect_ok;     /* whether the script should compile */
+        USHORT error_code;  /* expected error number when it should not */
+        ULONG error_line;   /* expected 0-based error line when it should not */
+    } tests[] = {
+        { L"Dim x : Class C\nPublic v\nEnd Class\n", TRUE },
+        { L"Sub S\nClass C\nEnd Class\nEnd Sub\n", FALSE, 1002, 1 },
+        { L"If True Then\nClass C\nEnd Class\nEnd If\n", FALSE, 1002, 1 },
+        { L"Class C\nEnd Class\nDim x : Class C\nEnd Class\n", FALSE, 1041, 2 },
+    };
+    HRESULT hres;
+    unsigned i;
+
+    for (i = 0; i < ARRAY_SIZE(tests); i++) {
+        error_line = ~0;
+        error_code = 0;
+        onerror_hres = S_OK;
+        SET_EXPECT(OnScriptError);
+        hres = parse_script_wr(tests[i].src);
+        CLEAR_CALLED(OnScriptError);
+
+        if (tests[i].expect_ok)
+            ok(hres == S_OK, "[%u] %s: hres=%08lx\n", i, wine_dbgstr_w(tests[i].src), hres);
+        else
+            ok(FAILED(hres) && error_code == tests[i].error_code && error_line == tests[i].error_line,
+               "[%u] %s: hres=%08lx code=%u line=%lu\n", i, wine_dbgstr_w(tests[i].src),
+               hres, error_code, error_line);
+    }
+}
+
+/* Like a Class, a Sub or Function is only valid at script global scope (a
+   global If/Select block hoists it, a loop or procedure body does not). Native
+   rejects the disallowed cases; the parser does not yet, so these are todo. */
+static void test_sub_decl_scope(void)
+{
+    static const struct {
+        const WCHAR *src;
+        BOOL expect_ok;     /* whether the script should compile */
+        USHORT error_code;  /* expected native error number when it should not */
+        ULONG error_line;   /* expected 0-based native error line when it should not */
+        BOOL todo;          /* the parser does not yet reject this case */
+    } tests[] = {
+        { L"If False Then\nSub S\nEnd Sub\nEnd If\nCall S\n", TRUE, 0, 0, FALSE },
+        { L"Select Case 1\nCase 1\nSub S\nEnd Sub\nEnd Select\nCall S\n", TRUE, 0, 0, FALSE },
+        { L"Sub S\nSub T\nEnd Sub\nEnd Sub\n", FALSE, 1002, 1, TRUE },
+        { L"For i = 1 To 1\nSub S\nEnd Sub\nNext\n", FALSE, 1002, 1, TRUE },
+    };
+    HRESULT hres;
+    unsigned i;
+
+    for (i = 0; i < ARRAY_SIZE(tests); i++) {
+        error_line = ~0;
+        error_code = 0;
+        onerror_hres = S_OK;
+        SET_EXPECT(OnScriptError);
+        hres = parse_script_wr(tests[i].src);
+        CLEAR_CALLED(OnScriptError);
+
+        if (tests[i].expect_ok)
+            ok(hres == S_OK, "[%u] %s: hres=%08lx\n", i, wine_dbgstr_w(tests[i].src), hres);
+        else
+            todo_wine_if(tests[i].todo)
+            ok(FAILED(hres) && error_code == tests[i].error_code && error_line == tests[i].error_line,
+               "[%u] %s: hres=%08lx code=%u line=%lu\n", i, wine_dbgstr_w(tests[i].src),
+               hres, error_code, error_line);
+    }
+}
+
+static void test_named_item_builtin_shadowing(void)
+{
+    IActiveScriptParse *parser;
+    IActiveScript *engine;
+    BSTR str;
+    HRESULT hres;
+
+    strict_dispid_check = FALSE;
+
+    engine = create_and_init_script(SCRIPTITEM_GLOBALMEMBERS, TRUE);
+    if(!engine)
+        return;
+
+    hres = IActiveScript_QueryInterface(engine, &IID_IActiveScriptParse, (void**)&parser);
+    ok(hres == S_OK, "Could not get IActiveScriptParse: %08lx\n", hres);
+
+    hres = IActiveScript_AddNamedItem(engine, L"Trim", SCRIPTITEM_ISVISIBLE);
+    ok(hres == S_OK, "AddNamedItem failed: %08lx\n", hres);
+
+    str = SysAllocString(L"Call ok(getVT(Trim) = \"VT_DISPATCH\", \"getVT(Trim) = \" & getVT(Trim))\n"
+                         L"Trim.propput = 1\n");
+    SET_EXPECT(testobj_propput_d);
+    SET_EXPECT(testobj_propput_i);
+    hres = IActiveScriptParse_ParseScriptText(parser, str, NULL, NULL, NULL, 0, 0, 0, NULL, NULL);
+    ok(hres == S_OK, "ParseScriptText failed: %08lx\n", hres);
+    CHECK_CALLED(testobj_propput_d);
+    CHECK_CALLED(testobj_propput_i);
+    SysFreeString(str);
+
+    IActiveScriptParse_Release(parser);
+    close_script(engine);
+}
+
+/* Native counts '\n', '\r' and '\r\n' as line endings, so a '\n\r' pair is
+   two. Each script ends with a failing statement preceded by two separators,
+   and the reported 0-based error line is the number of line endings before
+   it: 2 for the single-break styles, 4 for the doubled '\n\r' and '\r\r'. */
+static void test_error_line_endings(void)
+{
+    static const struct {
+        const WCHAR *src;
+        ULONG error_line;
+    } tests[] = {
+        { L"' a\n' b\nx = 1 \\ 0\n",             2 },
+        { L"' a\r\n' b\r\nx = 1 \\ 0\r\n",       2 },
+        { L"' a\r' b\rx = 1 \\ 0\r",             2 },
+        { L"' a\n' b\rx = 1 \\ 0\r",             2 },
+        { L"' a\r' b\nx = 1 \\ 0\n",             2 },
+        { L"' a\n\r' b\n\rx = 1 \\ 0\n\r",       4 },
+        { L"' a\r\r' b\r\rx = 1 \\ 0\r\r",       4 },
+        { L"' a\r\n' b\rx = 1 \\ 0\r\n",         2 },
+    };
+    HRESULT hres;
+    unsigned i;
+
+    for (i = 0; i < ARRAY_SIZE(tests); i++) {
+        error_line = ~0;
+        error_code = 0;
+        onerror_hres = S_OK;
+        SET_EXPECT(OnScriptError);
+        hres = parse_script_wr(tests[i].src);
+        CLEAR_CALLED(OnScriptError);
+        ok(hres == 0x80020101 && error_code == 11 && error_line == tests[i].error_line,
+           "[%u] %s: hres=%08lx code=%u line=%lu\n", i, wine_dbgstr_w(tests[i].src),
+           hres, error_code, error_line);
+    }
+}
+
 static void test_msgbox(void)
 {
     HRESULT hres;
@@ -3972,6 +4312,12 @@ static void run_tests(void)
     CHECK_CALLED(testobj_propput_d);
     CHECK_CALLED(testobj_propput_i);
 
+    /* the builtin function wins over a global-members host property of the same name */
+    SET_EXPECT(OnScriptError);
+    hres = parse_script_wr(L"InputBox.propput = 1");
+    ok(hres == MAKE_VBSERROR(450), "InputBox.propput = 1 returned: %08lx\n", hres);
+    CHECK_CALLED(OnScriptError);
+
     SET_EXPECT(global_propargput_d);
     SET_EXPECT(global_propargput_i);
     parse_script_w(L"propargput(counter(), counter()) = counter()");
@@ -4170,9 +4516,17 @@ static void run_tests(void)
     test_procedures();
     test_gc();
     test_msgbox();
+    test_named_item_builtin_shadowing();
     test_isexpression();
     test_option_explicit_errors();
     test_parse_errors();
+    test_class_decl_scope();
+    test_sub_decl_scope();
+    test_error_line_endings();
+    test_redefine_scope();
+    test_getref_error_reporting();
+    test_getref_external_caller_error();
+    test_external_caller_method_error();
     test_parse_context();
     test_callbacks();
     test_multiple_parse();

@@ -1127,7 +1127,7 @@ static const char * const CCMMessageTypeNames[SPY_MAX_CCMMSGNUM + 1] =
     "CCM_SETNOTIFYWINDOW"
 };
 
-#define SPY_MAX_WINEMSGNUM   (WM_WINE_UPDATEWINDOWSTATE - WM_WINE_DESTROYWINDOW)
+#define SPY_MAX_WINEMSGNUM   (WM_WINE_SETPIXELFORMAT - WM_WINE_DESTROYWINDOW)
 static const char * const WINEMessageTypeNames[SPY_MAX_WINEMSGNUM + 1] =
 {
     "WM_WINE_DESTROYWINDOW",
@@ -1142,6 +1142,15 @@ static const char * const WINEMessageTypeNames[SPY_MAX_WINEMSGNUM + 1] =
     "WM_WINE_IME_NOTIFY",
     "WM_WINE_WINDOW_STATE_CHANGED",
     "WM_WINE_UPDATEWINDOWSTATE",
+    "WM_WINE_TRACKMOUSEEVENT",
+    "WM_WINE_SETPIXELFORMAT",
+};
+
+#define SPY_MAX_WINE_DRIVER_MSGNUM (WM_WINE_SETCURSOR - WM_WINE_CLIPCURSOR)
+static const char * const wine_driver_message_type_names[SPY_MAX_WINE_DRIVER_MSGNUM + 1] =
+{
+    "WM_WINE_CLIPCURSOR",
+    "WM_WINE_SETCURSOR",
 };
 
 /* Virtual key names */
@@ -2071,6 +2080,9 @@ static const char *SPY_GetMsgInternal( UINT msg )
 
     if (msg >= WM_WINE_DESTROYWINDOW && msg <= WM_WINE_DESTROYWINDOW + SPY_MAX_WINEMSGNUM)
         return WINEMessageTypeNames[msg-WM_WINE_DESTROYWINDOW];
+
+    if (msg >= WM_WINE_CLIPCURSOR && msg <= WM_WINE_CLIPCURSOR + SPY_MAX_WINE_DRIVER_MSGNUM)
+        return wine_driver_message_type_names[msg-WM_WINE_CLIPCURSOR];
 
     return NULL;
 }

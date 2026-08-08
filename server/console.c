@@ -76,27 +76,14 @@ static struct object *console_open_file( struct object *obj, unsigned int access
 
 static const struct object_ops console_ops =
 {
-    sizeof(struct console),           /* size */
-    &file_type,                       /* type */
-    console_dump,                     /* dump */
-    NULL,                             /* add_queue */
-    NULL,                             /* remove_queue */
-    NULL,                             /* signaled */
-    NULL,                             /* satisfied */
-    no_signal,                        /* signal */
-    console_get_fd,                   /* get_fd */
-    console_get_sync,                 /* get_sync */
-    default_map_access,               /* map_access */
-    default_get_sd,                   /* get_sd */
-    default_set_sd,                   /* set_sd */
-    no_get_full_name,                 /* get_full_name */
-    console_lookup_name,              /* lookup_name */
-    no_link_name,                     /* link_name */
-    NULL,                             /* unlink_name */
-    console_open_file,                /* open_file */
-    no_kernel_obj_list,               /* get_kernel_obj_list */
-    no_close_handle,                  /* close_handle */
-    console_destroy                   /* destroy */
+    .size        = sizeof(struct console),
+    .type        = &file_type,
+    .dump        = console_dump,
+    .get_fd      = console_get_fd,
+    .get_sync    = console_get_sync,
+    .lookup_name = console_lookup_name,
+    .open_file   = console_open_file,
+    .destroy     = console_destroy,
 };
 
 static enum server_fd_type console_get_fd_type( struct fd *fd );
@@ -108,18 +95,13 @@ static void console_ioctl( struct fd *fd, ioctl_code_t code, struct async *async
 
 static const struct fd_ops console_fd_ops =
 {
-    default_fd_get_poll_events,   /* get_poll_events */
-    default_poll_event,           /* poll_event */
-    console_get_fd_type,          /* get_fd_type */
-    console_read,                 /* read */
-    no_fd_write,                  /* write */
-    console_flush,                /* flush */
-    console_get_file_info,        /* get_file_info */
-    console_get_volume_info,      /* get_volume_info */
-    console_ioctl,                /* ioctl */
-    default_fd_cancel_async,      /* cancel_async */
-    default_fd_queue_async,       /* queue_async */
-    default_fd_reselect_async     /* reselect_async */
+    .get_fd_type     = console_get_fd_type,
+    .read            = console_read,
+    .flush           = console_flush,
+    .get_file_info   = console_get_file_info,
+    .get_volume_info = console_get_volume_info,
+    .ioctl           = console_ioctl,
+    .queue_async     = default_fd_queue_async,
 };
 
 struct console_host_ioctl
@@ -155,45 +137,23 @@ static struct object *console_server_open_file( struct object *obj, unsigned int
 
 static const struct object_ops console_server_ops =
 {
-    sizeof(struct console_server),    /* size */
-    &file_type,                       /* type */
-    console_server_dump,              /* dump */
-    NULL,                             /* add_queue */
-    NULL,                             /* remove_queue */
-    NULL,                             /* signaled */
-    NULL,                             /* satisfied */
-    no_signal,                        /* signal */
-    console_server_get_fd,            /* get_fd */
-    console_server_get_sync,          /* get_sync */
-    default_map_access,               /* map_access */
-    default_get_sd,                   /* get_sd */
-    default_set_sd,                   /* set_sd */
-    no_get_full_name,                 /* get_full_name */
-    console_server_lookup_name,       /* lookup_name */
-    no_link_name,                     /* link_name */
-    NULL,                             /* unlink_name */
-    console_server_open_file,         /* open_file */
-    no_kernel_obj_list,               /* get_kernel_obj_list */
-    no_close_handle,                  /* close_handle */
-    console_server_destroy            /* destroy */
+    .size        = sizeof(struct console_server),
+    .type        = &file_type,
+    .dump        = console_server_dump,
+    .get_fd      = console_server_get_fd,
+    .get_sync    = console_server_get_sync,
+    .lookup_name = console_server_lookup_name,
+    .open_file   = console_server_open_file,
+    .destroy     = console_server_destroy,
 };
 
 static void console_server_ioctl( struct fd *fd, ioctl_code_t code, struct async *async );
 
 static const struct fd_ops console_server_fd_ops =
 {
-    default_fd_get_poll_events,   /* get_poll_events */
-    default_poll_event,           /* poll_event */
-    console_get_fd_type,          /* get_fd_type */
-    no_fd_read,                   /* read */
-    no_fd_write,                  /* write */
-    no_fd_flush,                  /* flush */
-    no_fd_get_file_info,          /* get_file_info */
-    no_fd_get_volume_info,        /* get_volume_info */
-    console_server_ioctl,         /* ioctl */
-    default_fd_cancel_async,      /* cancel_async */
-    default_fd_queue_async,       /* queue_async */
-    default_fd_reselect_async     /* reselect_async */
+    .get_fd_type = console_get_fd_type,
+    .ioctl       = console_server_ioctl,
+    .queue_async = default_fd_queue_async,
 };
 
 struct font_info
@@ -226,27 +186,13 @@ static struct object *screen_buffer_open_file( struct object *obj, unsigned int 
 
 static const struct object_ops screen_buffer_ops =
 {
-    sizeof(struct screen_buffer),     /* size */
-    &file_type,                       /* type */
-    screen_buffer_dump,               /* dump */
-    NULL,                             /* add_queue */
-    NULL,                             /* remove_queue */
-    NULL,                             /* signaled */
-    NULL,                             /* satisfied */
-    no_signal,                        /* signal */
-    screen_buffer_get_fd,             /* get_fd */
-    screen_buffer_get_sync,           /* get_sync */
-    default_map_access,               /* map_access */
-    default_get_sd,                   /* get_sd */
-    default_set_sd,                   /* set_sd */
-    no_get_full_name,                 /* get_full_name */
-    no_lookup_name,                   /* lookup_name */
-    no_link_name,                     /* link_name */
-    NULL,                             /* unlink_name */
-    screen_buffer_open_file,          /* open_file */
-    no_kernel_obj_list,               /* get_kernel_obj_list */
-    no_close_handle,                  /* close_handle */
-    screen_buffer_destroy             /* destroy */
+    .size      = sizeof(struct screen_buffer),
+    .type      = &file_type,
+    .dump      = screen_buffer_dump,
+    .get_fd    = screen_buffer_get_fd,
+    .get_sync  = screen_buffer_get_sync,
+    .open_file = screen_buffer_open_file,
+    .destroy   = screen_buffer_destroy,
 };
 
 static void screen_buffer_write( struct fd *fd, struct async *async, file_pos_t pos );
@@ -254,18 +200,12 @@ static void screen_buffer_ioctl( struct fd *fd, ioctl_code_t code, struct async 
 
 static const struct fd_ops screen_buffer_fd_ops =
 {
-    default_fd_get_poll_events,   /* get_poll_events */
-    default_poll_event,           /* poll_event */
-    console_get_fd_type,          /* get_fd_type */
-    no_fd_read,                   /* read */
-    screen_buffer_write,          /* write */
-    no_fd_flush,                  /* flush */
-    console_get_file_info,        /* get_file_info */
-    console_get_volume_info,      /* get_volume_info */
-    screen_buffer_ioctl,          /* ioctl */
-    default_fd_cancel_async,      /* cancel_async */
-    default_fd_queue_async,       /* queue_async */
-    default_fd_reselect_async     /* reselect_async */
+    .get_fd_type     = console_get_fd_type,
+    .write           = screen_buffer_write,
+    .get_file_info   = console_get_file_info,
+    .get_volume_info = console_get_volume_info,
+    .ioctl           = screen_buffer_ioctl,
+    .queue_async     = default_fd_queue_async,
 };
 
 static void console_device_dump( struct object *obj, int verbose );
@@ -276,27 +216,11 @@ static struct object *console_device_open_file( struct object *obj, unsigned int
 
 static const struct object_ops console_device_ops =
 {
-    sizeof(struct object),            /* size */
-    &device_type,                     /* type */
-    console_device_dump,              /* dump */
-    no_add_queue,                     /* add_queue */
-    NULL,                             /* remove_queue */
-    NULL,                             /* signaled */
-    no_satisfied,                     /* satisfied */
-    no_signal,                        /* signal */
-    no_get_fd,                        /* get_fd */
-    default_get_sync,                 /* get_sync */
-    default_map_access,               /* map_access */
-    default_get_sd,                   /* get_sd */
-    default_set_sd,                   /* set_sd */
-    default_get_full_name,            /* get_full_name */
-    console_device_lookup_name,       /* lookup_name */
-    directory_link_name,              /* link_name */
-    default_unlink_name,              /* unlink_name */
-    console_device_open_file,         /* open_file */
-    no_kernel_obj_list,               /* get_kernel_obj_list */
-    no_close_handle,                  /* close_handle */
-    no_destroy                        /* destroy */
+    .size        = sizeof(struct object),
+    .type        = &device_type,
+    .dump        = console_device_dump,
+    .lookup_name = console_device_lookup_name,
+    .open_file   = console_device_open_file,
 };
 
 struct console_input
@@ -317,27 +241,13 @@ static void console_input_destroy( struct object *obj );
 
 static const struct object_ops console_input_ops =
 {
-    sizeof(struct console_input),     /* size */
-    &device_type,                     /* type */
-    console_input_dump,               /* dump */
-    NULL,                             /* add_queue */
-    NULL,                             /* remove_queue */
-    NULL,                             /* signaled */
-    NULL,                             /* satisfied */
-    no_signal,                        /* signal */
-    console_input_get_fd,             /* get_fd */
-    console_input_get_sync,           /* get_sync */
-    default_map_access,               /* map_access */
-    default_get_sd,                   /* get_sd */
-    default_set_sd,                   /* set_sd */
-    no_get_full_name,                 /* get_full_name */
-    no_lookup_name,                   /* lookup_name */
-    directory_link_name,              /* link_name */
-    default_unlink_name,              /* unlink_name */
-    console_input_open_file,          /* open_file */
-    no_kernel_obj_list,               /* get_kernel_obj_list */
-    no_close_handle,                  /* close_handle */
-    console_input_destroy             /* destroy */
+    .size      = sizeof(struct console_input),
+    .type      = &device_type,
+    .dump      = console_input_dump,
+    .get_fd    = console_input_get_fd,
+    .get_sync  = console_input_get_sync,
+    .open_file = console_input_open_file,
+    .destroy   = console_input_destroy,
 };
 
 static void console_input_read( struct fd *fd, struct async *async, file_pos_t pos );
@@ -346,18 +256,13 @@ static void console_input_ioctl( struct fd *fd, ioctl_code_t code, struct async 
 
 static const struct fd_ops console_input_fd_ops =
 {
-    default_fd_get_poll_events,   /* get_poll_events */
-    default_poll_event,           /* poll_event */
-    console_get_fd_type,          /* get_fd_type */
-    console_input_read,           /* read */
-    no_fd_write,                  /* write */
-    console_input_flush,          /* flush */
-    console_get_file_info,        /* get_file_info */
-    console_get_volume_info,      /* get_volume_info */
-    console_input_ioctl,          /* ioctl */
-    default_fd_cancel_async,      /* cancel_async */
-    default_fd_queue_async,       /* queue_async */
-    default_fd_reselect_async     /* reselect_async */
+    .get_fd_type     = console_get_fd_type,
+    .read            = console_input_read,
+    .flush           = console_input_flush,
+    .get_file_info   = console_get_file_info,
+    .get_volume_info = console_get_volume_info,
+    .ioctl           = console_input_ioctl,
+    .queue_async     = default_fd_queue_async,
 };
 
 struct console_output
@@ -378,27 +283,13 @@ static void console_output_destroy( struct object *obj );
 
 static const struct object_ops console_output_ops =
 {
-    sizeof(struct console_output),    /* size */
-    &device_type,                     /* type */
-    console_output_dump,              /* dump */
-    NULL,                             /* add_queue */
-    NULL,                             /* remove_queue */
-    NULL,                             /* signaled */
-    NULL,                             /* satisfied */
-    no_signal,                        /* signal */
-    console_output_get_fd,            /* get_fd */
-    console_output_get_sync,          /* get_sync */
-    default_map_access,               /* map_access */
-    default_get_sd,                   /* get_sd */
-    default_set_sd,                   /* set_sd */
-    no_get_full_name,                 /* get_full_name */
-    no_lookup_name,                   /* lookup_name */
-    directory_link_name,              /* link_name */
-    default_unlink_name,              /* unlink_name */
-    console_output_open_file,         /* open_file */
-    no_kernel_obj_list,               /* get_kernel_obj_list */
-    no_close_handle,                  /* close_handle */
-    console_output_destroy            /* destroy */
+    .size      = sizeof(struct console_output),
+    .type      = &device_type,
+    .dump      = console_output_dump,
+    .get_fd    = console_output_get_fd,
+    .get_sync  = console_output_get_sync,
+    .open_file = console_output_open_file,
+    .destroy   = console_output_destroy,
 };
 
 static void console_output_write( struct fd *fd, struct async *async, file_pos_t pos );
@@ -406,18 +297,12 @@ static void console_output_ioctl( struct fd *fd, ioctl_code_t code, struct async
 
 static const struct fd_ops console_output_fd_ops =
 {
-    default_fd_get_poll_events,   /* get_poll_events */
-    default_poll_event,           /* poll_event */
-    console_get_fd_type,          /* get_fd_type */
-    no_fd_read,                   /* read */
-    console_output_write,         /* write */
-    no_fd_flush,                  /* flush */
-    console_get_file_info,        /* get_file_info */
-    console_get_volume_info,      /* get_volume_info */
-    console_output_ioctl,         /* ioctl */
-    default_fd_cancel_async,      /* cancel_async */
-    default_fd_queue_async,       /* queue_async */
-    default_fd_reselect_async     /* reselect_async */
+    .get_fd_type     = console_get_fd_type,
+    .write           = console_output_write,
+    .get_file_info   = console_get_file_info,
+    .get_volume_info = console_get_volume_info,
+    .ioctl           = console_output_ioctl,
+    .queue_async     = default_fd_queue_async,
 };
 
 struct console_connection
@@ -437,45 +322,23 @@ static void console_connection_destroy( struct object *obj );
 
 static const struct object_ops console_connection_ops =
 {
-    sizeof(struct console_connection),/* size */
-    &device_type,                     /* type */
-    console_connection_dump,          /* dump */
-    no_add_queue,                     /* add_queue */
-    NULL,                             /* remove_queue */
-    NULL,                             /* signaled */
-    no_satisfied,                     /* satisfied */
-    no_signal,                        /* signal */
-    console_connection_get_fd,        /* get_fd */
-    default_get_sync,                 /* get_sync */
-    default_map_access,               /* map_access */
-    default_get_sd,                   /* get_sd */
-    default_set_sd,                   /* set_sd */
-    no_get_full_name,                 /* get_full_name */
-    console_connection_lookup_name,   /* lookup_name */
-    directory_link_name,              /* link_name */
-    default_unlink_name,              /* unlink_name */
-    console_connection_open_file,     /* open_file */
-    no_kernel_obj_list,               /* get_kernel_obj_list */
-    console_connection_close_handle,  /* close_handle */
-    console_connection_destroy        /* destroy */
+    .size         = sizeof(struct console_connection),
+    .type         = &device_type,
+    .dump         = console_connection_dump,
+    .get_fd       = console_connection_get_fd,
+    .lookup_name  = console_connection_lookup_name,
+    .open_file    = console_connection_open_file,
+    .close_handle = console_connection_close_handle,
+    .destroy      = console_connection_destroy,
 };
 
 static void console_connection_ioctl( struct fd *fd, ioctl_code_t code, struct async *async );
 
 static const struct fd_ops console_connection_fd_ops =
 {
-    default_fd_get_poll_events,   /* get_poll_events */
-    default_poll_event,           /* poll_event */
-    console_get_fd_type,          /* get_fd_type */
-    no_fd_read,                   /* read */
-    no_fd_write,                  /* write */
-    no_fd_flush,                  /* flush */
-    no_fd_get_file_info,          /* get_file_info */
-    no_fd_get_volume_info,        /* get_volume_info */
-    console_connection_ioctl,     /* ioctl */
-    default_fd_cancel_async,      /* cancel_async */
-    default_fd_queue_async,       /* queue_async */
-    default_fd_reselect_async     /* reselect_async */
+    .get_fd_type = console_get_fd_type,
+    .ioctl       = console_connection_ioctl,
+    .queue_async = default_fd_queue_async,
 };
 
 static int queue_host_ioctl( struct console_server *server, unsigned int code, unsigned int output,
@@ -1562,10 +1425,13 @@ static void console_output_write( struct fd *fd, struct async *async, file_pos_t
     screen_buffer_write( console->active->fd, async, pos );
 }
 
-struct object *create_console_device( struct object *root, const struct unicode_str *name,
+struct object *create_console_device( struct object *root, struct unicode_str name,
                                       unsigned int attr, const struct security_descriptor *sd )
 {
-    return create_named_object( root, &console_device_ops, name, attr, sd );
+    struct object_params params = { .ops = &console_device_ops, .root = root, .name = name,
+                                    .attr = attr, .sd = sd };
+
+    return create_named_object( &params );
 }
 
 /* retrieve the next pending console ioctl request */

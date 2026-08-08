@@ -132,6 +132,7 @@ my %manual_win_functions =
     (
      "glDebugEntry" => 1,
      "wglChoosePixelFormat" => 1,
+     "wglChoosePixelFormatARB" => 1,
      "wglCreateContext" => 1,
      "wglCreateLayerContext" => 1,
      "wglDescribeLayerPlane" => 1,
@@ -143,10 +144,13 @@ my %manual_win_functions =
      "wglGetExtensionsStringARB" => 1,
      "wglGetExtensionsStringEXT" => 1,
      "wglGetLayerPaletteEntries" => 1,
+     "wglGetPixelFormatAttribfvARB" => 1,
+     "wglGetPixelFormatAttribivARB" => 1,
      "wglGetProcAddress" => 1,
      "wglMakeCurrent" => 1,
      "wglRealizeLayerPalette" => 1,
      "wglSetLayerPaletteEntries" => 1,
+     "wglShareLists" => 1,
      "wglSwapLayerBuffers" => 1,
      "wglUseFontBitmapsA" => 1,
      "wglUseFontBitmapsW" => 1,
@@ -161,14 +165,15 @@ my %manual_win_thunks =
      "glGetString" => 1,
      "glGetStringi" => 1,
      "glImportSyncEXT" => 1,
-     "wglChoosePixelFormatARB" => 1,
+     "glGetFramebufferAttachmentParameteriv" => 1,
+     "glGetFramebufferAttachmentParameterivEXT" => 1,
+     "glGetNamedFramebufferAttachmentParameteriv" => 1,
+     "glGetNamedFramebufferAttachmentParameterivEXT" => 1,
      "wglCreateContextAttribsARB" => 1,
      "wglCreatePbufferARB" => 1,
      "wglDeleteContext" => 1,
      "wglDestroyPbufferARB" => 1,
      "wglGetPixelFormat" => 1,
-     "wglGetPixelFormatAttribfvARB" => 1,
-     "wglGetPixelFormatAttribivARB" => 1,
      "wglMakeContextCurrentARB" => 1,
      "wglQueryCurrentRendererStringWINE" => 1,
      "wglQueryRendererStringWINE" => 1,
@@ -271,8 +276,9 @@ sub map_default_fbo($$)
 sub manual_wow64_wrapper($)
 {
     my $name = shift;
-    return 0 if $name =~ /^glBufferStorageExternal/;
-    return 0 if $name =~ /^glBufferStorageMem/;
+    return "glBufferAttachMemoryNV"        if $name =~ /^glBufferAttachMemory/;
+    return "glBufferData"                  if $name =~ /^glBufferData/;
+    return "glBufferStorageMemEXT"         if $name =~ /^glBufferStorageMem/;
     return "glBufferStorage"               if $name =~ /^glBufferStorage/;
     return "glDeleteBuffers"               if $name =~ /^glDeleteBuffers/;
     return "glFlushMappedBufferRange"      if $name =~ /^glFlushMappedBufferRange/;
@@ -283,29 +289,14 @@ sub manual_wow64_wrapper($)
     return "glMapBuffer"                   if $name =~ /^glMapBuffer/;
     return "glMapNamedBufferRange"         if $name =~ /^glMapNamedBufferRange/;
     return "glMapNamedBuffer"              if $name =~ /^glMapNamedBuffer/;
-    return 0 if $name =~ /^glNamedBufferStorageExternal/;
-    return 0 if $name =~ /^glNamedBufferStorageMem/;
+    return "glNamedBufferAttachMemoryNV"   if $name =~ /^glNamedBufferAttachMemory/;
+    return "glNamedBufferData"             if $name =~ /^glNamedBufferData/;
+    return "glNamedBufferStorageMemEXT"    if $name =~ /^glNamedBufferStorageMem/;
     return "glNamedBufferStorage"          if $name =~ /^glNamedBufferStorage/;
     return "glUnmapBuffer"                 if $name =~ /^glUnmapBuffer/;
     return "glUnmapNamedBuffer"            if $name =~ /^glUnmapNamedBuffer/;
 }
 
-my %wow64_invalidate_buffer =
-    (
-     "glBufferAttachMemoryNV" => 1,
-     "glBufferData" => 1,
-     "glBufferDataARB" => 1,
-     "glBufferStorage" => 1,
-     "glBufferStorageExternalEXT" => 1,
-     "glBufferStorageMemEXT" => 1,
-     "glNamedBufferAttachMemoryNV" => 1,
-     "glNamedBufferData" => 1,
-     "glNamedBufferDataEXT" => 1,
-     "glNamedBufferStorage" => 1,
-     "glNamedBufferStorageEXT" => 1,
-     "glNamedBufferStorageExternalEXT" => 1,
-     "glNamedBufferStorageMemEXT" => 1,
-    );
 my %pointer_array_count =
     (
      "glCompileShaderIncludeARB" => "count",
@@ -407,11 +398,9 @@ sub generate_unix_thunk($$$$)
     my $func_ret = get_func_ret( $func );
     my $wow64_wrap = $is_wow64 ? manual_wow64_wrapper( $name ) : 0;
     my $wrapper = $wow64_wrap || needs_wrapper( $name, $func );
-    my $need_lock = 0;
     my $need_funcs = !$wrapper || $name !~ /^wgl/;
     my $teb = $is_wow64 ? "teb" : "params->teb";
     my $ret_stat = "return STATUS_SUCCESS;";
-    my $invalidation = "";
     my $input_conv = "";
     my $output_conv = "";
     my $use_pbuffer = 0;
@@ -492,7 +481,6 @@ sub generate_unix_thunk($$$$)
             {
                 $call_args .= " ULongToPtr(params->$pname),";
                 $need_manual_thunk = 1 if $arg_type =~ /(\*.*\*|(sizei|int)ptr.*\*)/;
-                $need_lock = 1 if $arg_type =~ /GLsync/;
             }
         }
         $call_args .= " UlongToHandle( params->ret )," if $func_ret =~ /HPBUFFERARB|HGLRC|GLsync/;
@@ -520,16 +508,6 @@ sub generate_unix_thunk($$$$)
             $ret .= "    return STATUS_NOT_IMPLEMENTED;\n";
             $ret .= "}\n\n";
             return $ret;
-        }
-        if (defined $wow64_invalidate_buffer{$name})
-        {
-            $need_lock = 1;
-            $need_funcs = 1;
-            $vars .= "    struct buffer *buffer;\n";
-            $invalidation .= $name =~ /NamedBuffer/
-                ? "    buffer = invalidate_buffer_name( $teb, params->buffer );\n"
-                : "    buffer = invalidate_buffer_target( $teb, params->target );\n";
-            $output_conv .= "    if (buffer) free_buffer( funcs, buffer );\n";
         }
         $ret .= "    TEB *teb = get_teb64( params->teb );\n" if $wrapper || (!$use_dc && !$use_pbuffer && !$use_context);
     }
@@ -594,7 +572,6 @@ sub generate_unix_thunk($$$$)
     }
     $ret .= "    resolve_default_fbo( $teb, TRUE );\n" if resolve_default_fbo( $name );
     $ret .= "    push_default_fbo( $teb );\n" if hide_default_fbo( $name );
-    $ret .= "    pthread_mutex_lock( &wgl_lock );\n$invalidation" if $need_lock;
     $ret .= "    $ret_expr";
     if ($wow64_wrap)
     {
@@ -611,7 +588,6 @@ sub generate_unix_thunk($$$$)
         $call_args =~ s/,$/ /;
         $ret .= "funcs->p_$name($call_args);\n";
     }
-    $ret .= "    pthread_mutex_unlock( &wgl_lock );\n" if $need_lock;
     $ret .= "    set_current_fbo( $teb, params->target, params->framebuffer );\n" if $name =~ /glBindFramebuffer/;
     $ret .= "    pop_default_fbo( $teb );\n" if hide_default_fbo( $name );
     if (defined $state_attrib_funcs{$name})
@@ -677,19 +653,152 @@ sub get_handle_function($)
     return 0;
 }
 
+sub get_object_type($$$$)
+{
+    my ($func, $ptype, $pname, $class) = @_;
+
+    $class = "program" if $class eq "program/shader" and has_extension( $func, "GL_ARB_fragment_program" );
+    $class = "program" if $class eq "program/shader" and has_extension( $func, "GL_ARB_vertex_program" );
+    $class = "program" if $class eq "program/shader" and has_extension( $func, "GL_NV_fragment_program" );
+    $class = "program" if $class eq "program/shader" and has_extension( $func, "GL_NV_vertex_program" );
+    $class = "program" if $class eq "program/shader" and has_extension( $func, "GL_EXT_direct_state_access" );
+
+    $class = "shader" if $class eq "program/shader" and $func !~ /(ARB|EXT|NV)$/;
+    $class = "shader" if $class eq "program/shader" and has_extension( $func, "GL_AMD_gpu_shader_int64" );
+    $class = "shader" if $class eq "program/shader" and has_extension( $func, "GL_ARB_bindless_texture" );
+    $class = "shader" if $class eq "program/shader" and has_extension( $func, "GL_ARB_geometry_shader4" );
+    $class = "shader" if $class eq "program/shader" and has_extension( $func, "GL_ARB_gpu_shader_int64" );
+    $class = "shader" if $class eq "program/shader" and has_extension( $func, "GL_ARB_robustness" );
+    $class = "shader" if $class eq "program/shader" and has_extension( $func, "GL_ARB_separate_shader_objects" );
+    $class = "shader" if $class eq "program/shader" and has_extension( $func, "GL_ARB_uniform_buffer_object" );
+    $class = "shader" if $class eq "program/shader" and has_extension( $func, "GL_EXT_bindable_uniform" );
+    $class = "shader" if $class eq "program/shader" and has_extension( $func, "GL_EXT_geometry_shader4" );
+    $class = "shader" if $class eq "program/shader" and has_extension( $func, "GL_EXT_gpu_shader4" );
+    $class = "shader" if $class eq "program/shader" and has_extension( $func, "GL_EXT_separate_shader_objects" );
+    $class = "shader" if $class eq "program/shader" and has_extension( $func, "GL_EXT_transform_feedback" );
+    $class = "shader" if $class eq "program/shader" and has_extension( $func, "GL_NV_bindless_texture" );
+    $class = "shader" if $class eq "program/shader" and has_extension( $func, "GL_NV_path_rendering" );
+    $class = "shader" if $class eq "program/shader" and has_extension( $func, "GL_NV_shader_buffer_load" );
+    $class = "shader" if $class eq "program/shader" and has_extension( $func, "GL_NV_transform_feedback" );
+
+    $class = "shader_ati" if has_extension( $func, "GL_ATI_fragment_shader" );
+    $class = "shader_ext" if has_extension( $func, "GL_EXT_vertex_shader" );
+
+    return "srcTarget == GL_RENDERBUFFER ? OBJ_TYPE_RENDERBUFFER : OBJ_TYPE_TEXTURE" if $pname eq "srcName";
+    return "dstTarget == GL_RENDERBUFFER ? OBJ_TYPE_RENDERBUFFER : OBJ_TYPE_TEXTURE" if $pname eq "dstName";
+
+    return "OBJ_TYPE_BUFFER"              if $class eq "buffer";
+    return "OBJ_TYPE_BUFFER"              if $func eq "glDeleteObjectBufferATI" and $pname eq "buffer";
+    return "OBJ_TYPE_BUFFER"              if $func eq "glDrawCommandsNV" and $pname eq "buffer";
+    return "OBJ_TYPE_DISPLAY_LIST"        if $class eq "display list";
+    return "OBJ_TYPE_FRAMEBUFFER"         if $class eq "framebuffer";
+    return "OBJ_TYPE_FRAMEBUFFER"         if $pname =~ "fbo";
+    return "OBJ_TYPE_MEMORY"              if $class eq "memory";
+    return "OBJ_TYPE_MEMORY"              if $ptype =~ /GLuint \*/ and $pname =~ /^memoryObjects/;
+    return "OBJ_TYPE_MEMORY"              if $ptype =~ /GLuint/ and $pname =~ /^memory(Object)?$/;
+    return "OBJ_TYPE_PATH"                if $class eq "Path";
+    return "OBJ_TYPE_PATH"                if $func =~ /^glGenPaths/ and $pname eq "ret";
+    return "OBJ_TYPE_PATH"                if $func eq "glPathGlyphIndexArrayNV" and $pname eq "firstPathName";
+    return "OBJ_TYPE_PATH"                if $func eq "glPathMemoryGlyphIndexArrayNV" and $pname eq "firstPathName";
+    return "OBJ_TYPE_PROGRAM"             if $class eq "program";
+    return "OBJ_TYPE_RENDERBUFFER"        if $class eq "renderbuffer";
+    return "OBJ_TYPE_SAMPLER"             if $class eq "sampler";
+    return "OBJ_TYPE_SEMAPHORE"           if $class eq "semaphore";
+    return "OBJ_TYPE_SEMAPHORE"           if $ptype =~ /GLuint \*/ and $pname =~ /^(waitS|signalS|s)emaphore(s|Array)$/;
+    return "OBJ_TYPE_SEMAPHORE"           if $ptype =~ /GLuint/ and $pname =~ /^semaphore$/;
+    return "OBJ_TYPE_SHADER"              if $class eq "shader";
+    return "OBJ_TYPE_SHADER"              if $func =~ /^gl(Get)?Attach(ed)?Object/ and $pname eq "obj";
+    return "OBJ_TYPE_SHADER"              if $func =~ /^glCreate(Program|Shader)Object/ and $pname eq "ret";
+    return "OBJ_TYPE_SHADER"              if $func =~ /^glGetShaderSource/ and $pname eq "obj";
+    return "OBJ_TYPE_SHADER"              if $ptype =~ /GLhandleARB/;
+    return "OBJ_TYPE_SHADER_ATI"          if $class eq "shader_ati" and $func =~ /^gl(Bind|GenFragment|Delete)/ and $pname =~ /^(id|ret)$/;
+    return "OBJ_TYPE_SHADER_EXT"          if $class eq "shader_ext" and $func =~ /^gl(Bind|GenVertex|Delete)/ and $pname =~ /^(id|ret)$/;
+    return "OBJ_TYPE_TEXTURE"             if $class eq "texture";
+    return "OBJ_TYPE_TEXTURE"             if $func =~ /^glVDPAURegister/ and $pname eq "textureNames";
+    return "OBJ_TYPE_TEXTURE"             if $func =~ /^gl(LGPU|Multicast|Async|)CopyImageSubData/ and $pname =~ /^(src|dst)Name$/;
+
+    return 0 if $class eq "Color";
+    return 0 if $class eq "ColorIndexMask";
+    return 0 if $class eq "perf query handle";
+    return 0 if $class eq "perf query id";
+    return 0 if $class eq "program pipeline";
+    return 0 if $class eq "query";
+    return 0 if $class eq "StencilMask";
+    return 0 if $class eq "StencilValue";
+    return 0 if $class eq "SelectName";
+    return 0 if $class eq "shader";
+    return 0 if $class eq "sync";
+    return 0 if $class eq "transform feedback";
+    return 0 if $class eq "vertex array";
+    return 0 if $class =~ /^Vector/;
+    return 0 if $func eq "glGetActiveAtomicCounterBufferiv" and $pname eq "bufferIndex";
+    return 0 if $func eq "glSelectPerfMonitorCountersAMD" and $pname eq "counterList";
+    return 0 if $func =~ /^glBlend(Equation|Func)/ and $pname eq "buf";
+    return 0 if $func =~ /^gl(Signal|Wait)Semaphore/ and $pname eq "numBufferBarriers";
+    return 0 if $func =~ /^gl(Signal|Wait)Semaphore/ and $pname eq "numTextureBarriers";
+    return 0 if $func eq "glCallCommandListNV" and $pname =~ /^list/;
+    return 0 if $func eq "glCommandListSegmentsNV" and $pname =~ /^list/;
+    return 0 if $func eq "glCompileCommandListNV" and $pname =~ /^list/;
+    return 0 if $func eq "glCreateCommandListsNV" and $pname =~ /^list/;
+    return 0 if $func eq "glDeleteCommandListsNV" and $pname =~ /^list/;
+    return 0 if $func eq "glIsCommandListNV" and $pname =~ /^list/;
+    return 0 if $func eq "glListDrawCommandsStatesClientNV" and $pname =~ /^list/;
+    return 0 if $ptype !~ /GLuint/;
+    return 0 if $ptype =~ /GLuint \*/ and $pname =~ /^fences$/;
+    return 0 if $pname eq "fence";
+    return 0 if $pname eq "vkSemaphore";
+    return 0 if $pname eq "vkFence";
+    return 0 if $pname eq "fenceValueArray";
+    return 0 if $pname eq "pathParameterTemplate";
+
+    print "Missing possible buffer: $func $ptype $pname $class\n" if lc( $pname ) =~ /buffer/;
+    print "Missing possible display list: $func $ptype $pname $class\n" if lc( $pname ) =~ /list/;
+    print "Missing possible framebuffer: $func $ptype $pname $class\n" if lc( $pname ) =~ /fbo/;
+    print "Missing possible memory: $func $ptype $pname $class\n" if lc( $pname ) =~ /memory/;
+    print "Missing possible path: $func $ptype $pname $class\n" if lc( $pname ) =~ /path/;
+    print "Missing possible program: $func $ptype $pname $class\n" if lc( $pname ) =~ /program/;
+    print "Missing possible sampler: $func $ptype $pname $class\n" if lc( $pname ) =~ /sampler/;
+    print "Missing possible semaphore: $func $ptype $pname $class\n" if lc( $pname ) =~ /semaphore/;
+    print "Missing possible texture: $func $ptype $pname $class\n" if lc( $pname ) =~ /texture/;
+    print "Missing possible list: $func $ptype $pname $class\n" if lc( $pname ) =~ /list/;
+    return 0;
+}
+
+sub allocate_object_names($$)
+{
+    my ($name, $type) = @_;
+    my $ret = $name =~ /(APPLE|ARB|ATI|EXT|NV)$/ ? "TRUE" : "FALSE";
+
+    return "TRUE" if has_extension( $name, "GL_EXT_direct_state_access" );
+    return "TRUE" if has_extension( $name, "GL_NV_path_rendering" ) and $type eq "OBJ_TYPE_PATH";
+    return $ret if $name =~ /^glBindBuffer/;
+    return $ret if $name =~ /^glBindFramebuffer/;
+    return $ret if $name =~ /^glBindProgram/;
+    return $ret if $name =~ /^glBindRenderbuffer/;
+    return $ret if $name =~ /^glBindSampler/;
+    return $ret if $name =~ /^glBindTexture/;
+    return $ret if $name =~ /^glBindFragmentShader/;
+    return $ret if $name =~ /^glBindVertexShader/;
+    return $ret if $name =~ /^glImportSemaphore/;
+    return $ret if $name =~ /^glNewList/;
+
+    return 0;
+}
+
 sub generate_win_thunk($$)
 {
     my ($name, $func) = @_;
     my $get_integer = get_integer_call( $name, $func );
     my $decl_args = get_func_args( $func );
     my $func_ret = get_func_ret( $func );
+    my $post_call = "";
+    my $map_args = "";
     my $params = "";
     my $checks = "";
     my $ret = "";
 
     $ret .= "$func_ret WINAPI $name($decl_args)\n";
     $ret .= "{\n";
-    $ret .= "    struct $name\_params args";
     $params .= " .teb = NtCurrentTeb()";
     foreach my $arg (@{$func->[1]})
     {
@@ -701,19 +810,80 @@ sub generate_win_thunk($$)
             $retval = "{ set_gl_error( GL_INVALID_VALUE ); $retval }" if $ptype =~ /GLsync/ && $name !~ /glIsSync/;
             $checks .= "    if (!$get_handle( $pname, &args.$pname )) $retval\n";
         }
+        elsif (my $map_type = get_object_type( $name, $ptype, $pname, get_arg_class( $arg ) ))
+        {
+            my $len = get_arg_len( $arg );
+            my $addr = $len eq "1" ? "&" : "";
+            my $deref = $len eq "1" ? "*" : "";
+
+            $len = "count" if $name =~ /^glDrawCommandsStates/ and $pname eq "fbos";
+            $addr = "" if $name =~ /^glDrawCommandsStates/ and $pname eq "fbos";
+
+            if ($name =~ /^(glGen|glCreate)/ and $name !~ /^glGenerate/)
+            {
+                $len = "n" if $name eq "glCreateMemoryObjectsEXT";
+                $addr = "" if $name eq "glCreateMemoryObjectsEXT";
+                $params .= ", .$pname = $pname";
+                $post_call .= "    if ($len > 0) put_context_objects( $map_type, $len, $addr$pname );\n";
+            }
+            elsif ($name =~ /^glDelete/)
+            {
+                if ($len eq "1")
+                {
+                    $map_args .= "    args.$pname = *del_context_objects( $map_type, 1, &$pname );\n";
+                }
+                else
+                {
+                    my ($buf, $tmp) = ($pname . "_buf", $pname . "_tmp");
+                    $ret .= "    GLuint $buf\[64\], *$tmp;\n";
+
+                    $map_args .= "    $tmp = $len > 0 ? memdup_objects( $len, $pname, $buf, ARRAY_SIZE($buf) ) : NULL;\n";
+                    $map_args .= "    args.$pname = $len > 0 ? del_context_objects( $map_type, $len, $tmp ) : NULL;\n";
+                    $post_call .= "    if ($tmp != $buf) free( $tmp );\n";
+                }
+            }
+            else
+            {
+                my $return = is_void_func($func) ? "" : " args.ret";
+                my $alloc = allocate_object_names( $name, $map_type );
+
+                if ($len eq "1")
+                {
+                    $checks .= "    if (!alloc_context_objects( $map_type, 1, &$pname, $alloc )) return$return;\n" if $alloc;
+                    $map_args .= "    args.$pname = *map_context_objects( $map_type, 1, &$pname );\n";
+                }
+                else
+                {
+                    my ($buf, $tmp) = ($pname . "_buf", $pname . "_tmp");
+                    $ret .= "    GLuint $buf\[64\], *$tmp;\n";
+                    $len =~ s/^COMPSIZE\((.*)\)$/$1/;
+
+                    $checks .= "    if (!alloc_context_objects( $map_type, $len, $pname, $alloc )) return$return;\n" if $alloc;
+                    $map_args .= "    $tmp = $len > 0 ? memdup_objects( $len, $pname, $buf, ARRAY_SIZE($buf) ) : NULL;\n";
+                    $map_args .= "    args.$pname = $len > 0 ? map_context_objects( $map_type, $len, $tmp ) : NULL;\n";
+                    $post_call .= "    if ($tmp != $buf) free( $tmp );\n";
+                }
+            }
+        }
         else
         {
             $params .= ", .$pname = $pname";
         }
     }
-    $ret .= " = {$params }";
-    $ret .= ";\n";
+    if (my $map_type = get_object_type( $name, $func_ret, "ret", get_arg_class( $func->[0] ) ))
+    {
+        $post_call .= "    if (range > 0) args.ret = put_context_object_range( $map_type, range, args.ret );\n" if $name =~ /^glGen/;
+        $post_call .= "    put_context_objects( $map_type, 1, &args.ret );\n" if $name =~ /^glCreate/;
+    }
+    $ret .= "    struct $name\_params args = {$params };\n";
     $ret .= "    NTSTATUS status;\n";
     $ret .= "    int integer;\n" if $get_integer;
     $ret .= "    " . get_func_trace( $name, $func, 1 );
     $ret .= $checks;
-    $ret .= $get_integer ? "    $get_integer\n    else " : "    ";
-    $ret .= "if ((status = UNIX_CALL( $name, &args ))) WARN( \"$name returned %#lx\\n\", status );\n";
+    $ret .= $map_args;
+    $ret .= "    if ((status = UNIX_CALL( $name, &args ))) WARN( \"$name returned %#lx\\n\", status );\n";
+    $ret .= "    else $get_integer\n" if $get_integer;
+    $ret .= $post_call;
     $ret .= "    return args.ret;\n" unless is_void_func($func);
     $ret .= "}\n";
 
@@ -817,6 +987,19 @@ sub get_arg_name($)
     return $name[0]->textContent();
 }
 
+sub get_arg_class($)
+{
+    my $p = shift;
+    return "program/shader" if defined $p->{class} and $p->{class} eq "program";
+    return $p->{class} || $p->{kind} || "";
+}
+
+sub get_arg_len($)
+{
+    my $p = shift;
+    return $p->{len} || "1";
+}
+
 #
 # Fetch the registry files
 #
@@ -894,6 +1077,7 @@ my %unsupported_extgroups =
    );
 my %unsupported_extensions =
    (
+    "GL_EXT_external_buffer" => 1,
     "WGL_AMD_gpu_association" => 1,
     "WGL_ARB_buffer_region" => 1,
     "WGL_EXT_display_color_table" => 1,
@@ -1069,6 +1253,12 @@ sub is_exposed_function($)
     return 0;
 }
 
+sub has_extension($$)
+{
+    my ($func, $name) = @_;
+    return grep( /^$name$/, keys %{$ext_functions{$func}->[2]} );
+}
+
 # some functions need a hand-written wrapper
 sub needs_wrapper($$)
 {
@@ -1097,6 +1287,9 @@ sub add_extension($)
 sub get_integer_call($)
 {
     my ($name, $func) = @_;
+    my $to_int = "";
+    my $to_val = "";
+    my $index = 0;
     my $params;
     my $pname;
 
@@ -1105,13 +1298,81 @@ sub get_integer_call($)
         my $name = get_arg_name( $arg );
         my $type = get_arg_type( $arg );
         $pname = $name if $name =~ /^(pname|target|value)$/;
+        $index = $name if $name eq "index";
+        $to_val = "(void *)(UINT_PTR)" if $type =~ /void \*/;
+        $to_int = "(UINT_PTR)" if $type =~ /void \*/;
         $params = $name;
     }
 
     return 0 if !$pname;
+    return 0 if $name !~ /^glGet/;
 
-    my $hook = "if (get_integer( $pname, &integer )) *$params = integer;";
-    return $hook if $name =~ /^glGet(Boolean|Double|Float|Integer|Integer64)v/;
+    my $hook = "if (get_integer( $pname, $index, $to_int*$params, &integer )) *$params = $to_val" . "integer;";
+    return $hook if $name =~ /^glGet(Boolean|Double|Fixed|Float|Integer|Pointer|UnsignedByte)/;
+    return $hook if $name =~ /^glGet(Multi)?Tex(ture)?LevelParameter/;
+    return $hook if $name =~ /^glGet(Named)?FramebufferAttachmentParameter/;
+    return $hook if $name =~ /^glGetProgramivARB/;
+    return $hook if $name =~ /^glGetProgramPipeline/;
+    return $hook if $name =~ /^glGetTransformFeedback/;
+    return $hook if $name =~ /^glGetVertex(Array|Attrib)/;
+
+    return 0 if $name =~ /^glGet(Detail|Sharpen)?Tex(Filter)?Func/;
+    return 0 if $name =~ /^glGet(Final)?Combiner/;
+    return 0 if $name =~ /^glGet(Multi)?Tex(ture)?Parameter/;
+    return 0 if $name =~ /^glGet(Multi)?TexEnv/;
+    return 0 if $name =~ /^glGet(Multi|Path)?TexGen/;
+    return 0 if $name =~ /^glGet(Named)?BufferParameter/;
+    return 0 if $name =~ /^glGet(Named)?BufferPointer/;
+    return 0 if $name =~ /^glGet(Named)?FramebufferParameter/;
+    return 0 if $name =~ /^glGet(Named)?Program(Env|Local|Subroutine)?Parameter/;
+    return 0 if $name =~ /^glGet(Named)?Program(Interface|Stage|String)/;
+    return 0 if $name =~ /^glGet(Named)?RenderbufferParameter/;
+    return 0 if $name =~ /^glGetActive(Subroutine)?Uniform/;
+    return 0 if $name =~ /^glGetActiveAtomicCounterBuffer/;
+    return 0 if $name =~ /^glGetArrayObject/;
+    return 0 if $name =~ /^glGetBuffer(Sub)?Data/;
+    return 0 if $name =~ /^glGetFence/;
+    return 0 if $name =~ /^glGetFragment(Material|Light)/;
+    return 0 if $name =~ /^glGetHandle/;
+    return 0 if $name =~ /^glGetImageTransformParameter/;
+    return 0 if $name =~ /^glGetInternalformat/;
+    return 0 if $name =~ /^glGetInvariant/;
+    return 0 if $name =~ /^glGetLight/;
+    return 0 if $name =~ /^glGetListParameter/;
+    return 0 if $name =~ /^glGetLocalConstant/;
+    return 0 if $name =~ /^glGetMaterial/;
+    return 0 if $name =~ /^glGetMemoryObjectDetachedResourcesu/;
+    return 0 if $name =~ /^glGetMemoryObjectParameter/;
+    return 0 if $name =~ /^glGetMultisample/;
+    return 0 if $name =~ /^glGetn?(Compressed)?(Multi)?Tex(ture)?Image/;
+    return 0 if $name =~ /^glGetn?Color/;
+    return 0 if $name =~ /^glGetn?Convolution/;
+    return 0 if $name =~ /^glGetn?Histogram/;
+    return 0 if $name =~ /^glGetn?Map/;
+    return 0 if $name =~ /^glGetn?Minmax/;
+    return 0 if $name =~ /^glGetn?Separable/;
+    return 0 if $name =~ /^glGetNamedProgram/;
+    return 0 if $name =~ /^glGetNamedString/;
+    return 0 if $name =~ /^glGetObjectBuffer/;
+    return 0 if $name =~ /^glGetObjectParameter/;
+    return 0 if $name =~ /^glGetOcclusionQuery/;
+    return 0 if $name =~ /^glGetPath(Parameter|Color)/;
+    return 0 if $name =~ /^glGetPerfMonitorCounter/;
+    return 0 if $name =~ /^glGetPixelTexGenParameter/;
+    return 0 if $name =~ /^glGetPixelTransformParameter/;
+    return 0 if $name =~ /^glGetProgram/;
+    return 0 if $name =~ /^glGetQuery/;
+    return 0 if $name =~ /^glGetSamplerParameter/;
+    return 0 if $name =~ /^glGetSemaphoreParameter/;
+    return 0 if $name =~ /^glGetShader/;
+    return 0 if $name =~ /^glGetSync/;
+    return 0 if $name =~ /^glGetTexBumpParameter/;
+    return 0 if $name =~ /^glGetTrackMatrixiv/;
+    return 0 if $name =~ /^glGetVariant/;
+    return 0 if $name =~ /^glGetVideo/;
+
+    print "Missing possible glGet integer: $name\n";
+    return 0;
 }
 
 sub parse_registry($)

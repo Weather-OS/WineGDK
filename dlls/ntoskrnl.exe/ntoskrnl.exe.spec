@@ -421,7 +421,7 @@
 @ stub IoGetLowerDeviceObject
 @ stdcall IoGetRelatedDeviceObject(ptr)
 @ stdcall IoGetRequestorProcess(ptr)
-@ stub IoGetRequestorProcessId
+@ stdcall IoGetRequestorProcessId(ptr)
 @ stub IoGetRequestorSessionId
 @ stdcall IoGetStackLimits(ptr ptr)
 @ stub IoGetTopLevelIrp
@@ -497,7 +497,7 @@
 @ stdcall IoStopTimer(ptr)
 @ stub IoSynchronousInvalidateDeviceRelations
 @ stub IoSynchronousPageWrite
-@ stub IoThreadToProcess
+@ stdcall IoThreadToProcess(ptr)
 @ stdcall IoUnregisterFileSystem(ptr)
 @ stub IoUnregisterFsRegistrationChange
 @ stdcall IoUnregisterPlugPlayNotification(ptr)

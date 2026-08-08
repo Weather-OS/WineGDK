@@ -59,27 +59,10 @@ static void irp_call_destroy( struct object *obj );
 
 static const struct object_ops irp_call_ops =
 {
-    sizeof(struct irp_call),          /* size */
-    &no_type,                         /* type */
-    irp_call_dump,                    /* dump */
-    no_add_queue,                     /* add_queue */
-    NULL,                             /* remove_queue */
-    NULL,                             /* signaled */
-    NULL,                             /* satisfied */
-    no_signal,                        /* signal */
-    no_get_fd,                        /* get_fd */
-    default_get_sync,                 /* get_sync */
-    default_map_access,               /* map_access */
-    default_get_sd,                   /* get_sd */
-    default_set_sd,                   /* set_sd */
-    no_get_full_name,                 /* get_full_name */
-    no_lookup_name,                   /* lookup_name */
-    no_link_name,                     /* link_name */
-    NULL,                             /* unlink_name */
-    no_open_file,                     /* open_file */
-    no_kernel_obj_list,               /* get_kernel_obj_list */
-    no_close_handle,                  /* close_handle */
-    irp_call_destroy                  /* destroy */
+    .size    = sizeof(struct irp_call),
+    .type    = &no_type,
+    .dump    = irp_call_dump,
+    .destroy = irp_call_destroy,
 };
 
 
@@ -101,27 +84,11 @@ static void device_manager_destroy( struct object *obj );
 
 static const struct object_ops device_manager_ops =
 {
-    sizeof(struct device_manager),    /* size */
-    &no_type,                         /* type */
-    device_manager_dump,              /* dump */
-    NULL,                             /* add_queue */
-    NULL,                             /* remove_queue */
-    NULL,                             /* signaled */
-    NULL,                             /* satisfied */
-    no_signal,                        /* signal */
-    no_get_fd,                        /* get_fd */
-    device_manager_get_sync,          /* get_sync */
-    default_map_access,               /* map_access */
-    default_get_sd,                   /* get_sd */
-    default_set_sd,                   /* set_sd */
-    no_get_full_name,                 /* get_full_name */
-    no_lookup_name,                   /* lookup_name */
-    no_link_name,                     /* link_name */
-    NULL,                             /* unlink_name */
-    no_open_file,                     /* open_file */
-    no_kernel_obj_list,               /* get_kernel_obj_list */
-    no_close_handle,                  /* close_handle */
-    device_manager_destroy            /* destroy */
+    .size     = sizeof(struct device_manager),
+    .type     = &no_type,
+    .dump     = device_manager_dump,
+    .get_sync = device_manager_get_sync,
+    .destroy  = device_manager_destroy,
 };
 
 
@@ -151,7 +118,14 @@ struct device
     struct list            files;         /* list of open files */
 };
 
+struct device_init_data
+{
+    struct device_manager *manager;
+    const char            *unix_path;
+};
+
 static void device_dump( struct object *obj, int verbose );
+static bool device_init( struct object *obj, const void *init_data );
 static void device_destroy( struct object *obj );
 static struct object *device_open_file( struct object *obj, unsigned int access,
                                         unsigned int sharing, unsigned int options );
@@ -159,27 +133,13 @@ static struct list *device_get_kernel_obj_list( struct object *obj );
 
 static const struct object_ops device_ops =
 {
-    sizeof(struct device),            /* size */
-    &device_type,                     /* type */
-    device_dump,                      /* dump */
-    no_add_queue,                     /* add_queue */
-    NULL,                             /* remove_queue */
-    NULL,                             /* signaled */
-    no_satisfied,                     /* satisfied */
-    no_signal,                        /* signal */
-    no_get_fd,                        /* get_fd */
-    default_get_sync,                 /* get_sync */
-    default_map_access,               /* map_access */
-    default_get_sd,                   /* get_sd */
-    default_set_sd,                   /* set_sd */
-    default_get_full_name,            /* get_full_name */
-    no_lookup_name,                   /* lookup_name */
-    directory_link_name,              /* link_name */
-    default_unlink_name,              /* unlink_name */
-    device_open_file,                 /* open_file */
-    device_get_kernel_obj_list,       /* get_kernel_obj_list */
-    no_close_handle,                  /* close_handle */
-    device_destroy                    /* destroy */
+    .size                = sizeof(struct device),
+    .type                = &device_type,
+    .dump                = device_dump,
+    .init                = device_init,
+    .open_file           = device_open_file,
+    .get_kernel_obj_list = device_get_kernel_obj_list,
+    .destroy             = device_destroy,
 };
 
 
@@ -212,50 +172,30 @@ static void device_file_get_volume_info( struct fd *fd, struct async *async, uns
 
 static const struct object_ops device_file_ops =
 {
-    sizeof(struct device_file),       /* size */
-    &file_type,                       /* type */
-    device_file_dump,                 /* dump */
-    NULL,                             /* add_queue */
-    NULL,                             /* remove_queue */
-    NULL,                             /* signaled */
-    NULL,                             /* satisfied */
-    no_signal,                        /* signal */
-    device_file_get_fd,               /* get_fd */
-    default_fd_get_sync,              /* get_sync */
-    default_map_access,               /* map_access */
-    default_get_sd,                   /* get_sd */
-    default_set_sd,                   /* set_sd */
-    device_file_get_full_name,        /* get_full_name */
-    no_lookup_name,                   /* lookup_name */
-    no_link_name,                     /* link_name */
-    NULL,                             /* unlink_name */
-    no_open_file,                     /* open_file */
-    device_file_get_kernel_obj_list,  /* get_kernel_obj_list */
-    device_file_close_handle,         /* close_handle */
-    device_file_destroy               /* destroy */
+    .size                = sizeof(struct device_file),
+    .type                = &file_type,
+    .dump                = device_file_dump,
+    .get_fd              = device_file_get_fd,
+    .get_sync            = default_fd_get_sync,
+    .get_full_name       = device_file_get_full_name,
+    .get_kernel_obj_list = device_file_get_kernel_obj_list,
+    .close_handle        = device_file_close_handle,
+    .destroy             = device_file_destroy,
 };
 
 static const struct fd_ops device_file_fd_ops =
 {
-    default_fd_get_poll_events,       /* get_poll_events */
-    default_poll_event,               /* poll_event */
-    device_file_get_fd_type,          /* get_fd_type */
-    device_file_read,                 /* read */
-    device_file_write,                /* write */
-    device_file_flush,                /* flush */
-    default_fd_get_file_info,         /* get_file_info */
-    device_file_get_volume_info,      /* get_volume_info */
-    device_file_ioctl,                /* ioctl */
-    device_file_cancel_async,         /* cancel_async */
-    default_fd_queue_async,           /* queue_async */
-    default_fd_reselect_async,        /* reselect_async */
+    .get_fd_type     = device_file_get_fd_type,
+    .read            = device_file_read,
+    .write           = device_file_write,
+    .flush           = device_file_flush,
+    .get_file_info   = default_fd_get_file_info,
+    .get_volume_info = device_file_get_volume_info,
+    .ioctl           = device_file_ioctl,
+    .cancel_async    = device_file_cancel_async,
+    .queue_async     = default_fd_queue_async,
 };
 
-
-struct list *no_kernel_obj_list( struct object *obj )
-{
-    return NULL;
-}
 
 struct kernel_object
 {
@@ -278,6 +218,7 @@ static struct kernel_object *kernel_object_from_obj( struct device_manager *mana
     struct kernel_object *kernel_object;
     struct list *list;
 
+    if (!obj->ops->get_kernel_obj_list) return NULL;
     if (!(list = obj->ops->get_kernel_obj_list( obj ))) return NULL;
     LIST_FOR_EACH_ENTRY( kernel_object, list, struct kernel_object, list_entry )
     {
@@ -298,6 +239,7 @@ static struct kernel_object *set_kernel_object( struct device_manager *manager, 
     struct kernel_object *kernel_object;
     struct list *list;
 
+    if (!obj->ops->get_kernel_obj_list) return NULL;
     if (!(list = obj->ops->get_kernel_obj_list( obj ))) return NULL;
 
     if (!(kernel_object = malloc( sizeof(*kernel_object) ))) return NULL;
@@ -406,6 +348,23 @@ static void device_dump( struct object *obj, int verbose )
     fputs( "Device\n", stderr );
 }
 
+static bool device_init( struct object *obj, const void *init_data )
+{
+    struct device *device = (struct device *)obj;
+    const struct device_init_data *data = init_data;
+
+    list_init( &device->kernel_object );
+    list_init( &device->files );
+
+    device->unix_path = data->unix_path ? strdup( data->unix_path ) : NULL;
+    if ((device->manager = data->manager))
+    {
+        grab_object( device );
+        list_add_tail( &device->manager->devices, &device->entry );
+    }
+    return true;
+}
+
 static void device_destroy( struct object *obj )
 {
     struct device *device = (struct device *)obj;
@@ -442,10 +401,10 @@ static struct object *device_open_file( struct object *obj, unsigned int access,
     list_add_tail( &device->files, &file->entry );
     if (device->unix_path)
     {
-        if ((fullname = device->obj.ops->get_full_name( &device->obj, ~0u, &nt_name.len )))
+        if ((fullname = default_get_full_name( &device->obj, ~0u, &nt_name.len )))
         {
             mode_t mode = 0666;
-            access = file->obj.ops->map_access( &file->obj, access );
+            access = map_obj_access( &file->obj, access );
             nt_name.str = fullname;
             file->fd = open_fd( NULL, device->unix_path, nt_name, O_NONBLOCK, &mode, access, sharing, options );
             if (file->fd) set_fd_user( file->fd, &device_file_fd_ops, &file->obj );
@@ -507,7 +466,7 @@ static struct fd *device_file_get_fd( struct object *obj )
 static WCHAR *device_file_get_full_name( struct object *obj, data_size_t max, data_size_t *len )
 {
     struct device_file *file = (struct device_file *)obj;
-    WCHAR *ret = file->device->obj.ops->get_full_name( &file->device->obj, max, len );
+    WCHAR *ret = default_get_full_name( &file->device->obj, max, len );
     if (*len > max) set_error( STATUS_BUFFER_OVERFLOW );
     return ret;
 }
@@ -715,38 +674,15 @@ static void device_file_cancel_async( struct fd *fd, struct async *async )
     }
 }
 
-static struct device *create_device( struct object *root, const struct unicode_str *name,
-                                     struct device_manager *manager )
-{
-    struct device *device;
-
-    if ((device = create_named_object( root, &device_ops, name, 0, NULL )))
-    {
-        device->unix_path = NULL;
-        device->manager = manager;
-        grab_object( device );
-        list_add_tail( &manager->devices, &device->entry );
-        list_init( &device->kernel_object );
-        list_init( &device->files );
-    }
-    return device;
-}
-
-struct object *create_unix_device( struct object *root, const struct unicode_str *name,
+struct object *create_unix_device( struct object *root, struct unicode_str name,
                                    unsigned int attr, const struct security_descriptor *sd,
                                    const char *unix_path )
 {
-    struct device *device;
+    struct device_init_data data = { .unix_path = unix_path };
+    struct object_params params = { .ops = &device_ops, .root = root, .name = name,
+                                    .attr = attr, .sd = sd, .init_data = &data };
 
-    if ((device = create_named_object( root, &device_ops, name, attr, sd )))
-    {
-        device->unix_path = strdup( unix_path );
-        device->manager = NULL;  /* no manager, requests go straight to the Unix device */
-        list_init( &device->kernel_object );
-        list_init( &device->files );
-    }
-    return &device->obj;
-
+    return create_named_object( &params );
 }
 
 /* terminate requests when the underlying device is deleted */
@@ -860,6 +796,7 @@ void free_kernel_objects( struct object *obj )
 {
     struct list *ptr, *list;
 
+    if (!obj->ops->get_kernel_obj_list) return;
     if (!(list = obj->ops->get_kernel_obj_list( obj ))) return;
 
     while ((ptr = list_head( list )))
@@ -904,23 +841,22 @@ DECL_HANDLER(create_device_manager)
 DECL_HANDLER(create_device)
 {
     struct device *device;
-    struct unicode_str name = get_req_unicode_str();
-    struct device_manager *manager;
-    struct object *root = NULL;
+    struct device_init_data data = { 0 };
+    struct object_params params = { .ops = &device_ops, .name = get_req_unicode_str(), .init_data = &data };
 
-    if (!(manager = (struct device_manager *)get_handle_obj( current->process, req->manager,
-                                                             0, &device_manager_ops )))
+    if (!(data.manager = (struct device_manager *)get_handle_obj( current->process, req->manager,
+                                                                  0, &device_manager_ops )))
         return;
 
-    if (req->rootdir && !(root = get_directory_obj( current->process, req->rootdir )))
+    if (req->rootdir && !(params.root = get_directory_obj( current->process, req->rootdir )))
     {
-        release_object( manager );
+        release_object( data.manager );
         return;
     }
 
-    if ((device = create_device( root, &name, manager )))
+    if ((device = create_named_object( &params )))
     {
-        struct kernel_object *ptr = set_kernel_object( manager, &device->obj, req->user_ptr );
+        struct kernel_object *ptr = set_kernel_object( data.manager, &device->obj, req->user_ptr );
         if (ptr)
             grab_kernel_object( ptr );
         else
@@ -928,8 +864,8 @@ DECL_HANDLER(create_device)
         release_object( device );
     }
 
-    if (root) release_object( root );
-    release_object( manager );
+    if (params.root) release_object( params.root );
+    release_object( data.manager );
 }
 
 

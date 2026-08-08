@@ -567,7 +567,6 @@ _CLEANUP:
     BOOLEAN canBeModified;
 };
 
-
 class StorageFolderImpl final
     : public IActivationFactory
     , public IStorageFolderStatics

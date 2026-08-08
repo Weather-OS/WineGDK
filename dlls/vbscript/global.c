@@ -647,6 +647,17 @@ static HRESULT show_msgbox(script_ctx_t *ctx, BSTR prompt, unsigned type, BSTR o
     return return_short(res, ret);
 }
 
+/* Cxxx() coercion functions raise err 94 (Illegal Null use) on Null and
+ * err 91 (Object variable not set) on Nothing, matching native VBScript. */
+static HRESULT check_coerce_arg(const VARIANT *arg)
+{
+    if(V_VT(arg) == VT_NULL)
+        return MAKE_VBSERROR(VBSE_ILLEGAL_NULL_USE);
+    if(V_VT(arg) == VT_DISPATCH && !V_DISPATCH(arg))
+        return MAKE_VBSERROR(VBSE_OBJECT_VARIABLE_NOT_SET);
+    return S_OK;
+}
+
 static HRESULT Global_CCur(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, VARIANT *res)
 {
     VARIANT v;
@@ -655,6 +666,10 @@ static HRESULT Global_CCur(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, V
     TRACE("%s\n", debugstr_variant(arg));
 
     assert(args_cnt == 1);
+
+    hres = check_coerce_arg(arg);
+    if(FAILED(hres))
+        return hres;
 
     V_VT(&v) = VT_EMPTY;
     hres = VariantChangeType(&v, arg, 0, VT_CY);
@@ -679,6 +694,10 @@ static HRESULT Global_CInt(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, V
 
     assert(args_cnt == 1);
 
+    hres = check_coerce_arg(arg);
+    if(FAILED(hres))
+        return hres;
+
     V_VT(&v) = VT_EMPTY;
     hres = VariantChangeType(&v, arg, 0, VT_I2);
     if(FAILED(hres))
@@ -701,6 +720,10 @@ static HRESULT Global_CLng(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, V
 
     assert(args_cnt == 1);
 
+    hres = check_coerce_arg(arg);
+    if(FAILED(hres))
+        return hres;
+
     hres = to_int(arg, &i);
     if(FAILED(hres))
         return hres;
@@ -718,6 +741,10 @@ static HRESULT Global_CBool(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, 
     TRACE("%s\n", debugstr_variant(arg));
 
     assert(args_cnt == 1);
+
+    hres = check_coerce_arg(arg);
+    if(FAILED(hres))
+        return hres;
 
     V_VT(&v) = VT_EMPTY;
     hres = VariantChangeType(&v, arg, VARIANT_LOCALBOOL, VT_BOOL);
@@ -739,6 +766,10 @@ static HRESULT Global_CByte(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, 
     TRACE("%s\n", debugstr_variant(arg));
 
     assert(args_cnt == 1);
+
+    hres = check_coerce_arg(arg);
+    if(FAILED(hres))
+        return hres;
 
     V_VT(&v) = VT_EMPTY;
     hres = VariantChangeType(&v, arg, VARIANT_LOCALBOOL, VT_UI1);
@@ -763,8 +794,9 @@ static HRESULT Global_CDate(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, 
 
     assert(args_cnt == 1);
 
-    if(V_VT(arg) == VT_NULL)
-        return MAKE_VBSERROR(VBSE_ILLEGAL_NULL_USE);
+    hres = check_coerce_arg(arg);
+    if(FAILED(hres))
+        return hres;
 
     V_VT(&v) = VT_EMPTY;
     hres = VariantChangeType(&v, arg, 0, VT_DATE);
@@ -792,6 +824,10 @@ static HRESULT Global_CDbl(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, V
 
     assert(args_cnt == 1);
 
+    hres = check_coerce_arg(arg);
+    if(FAILED(hres))
+        return hres;
+
     V_VT(&v) = VT_EMPTY;
     hres = VariantChangeType(&v, arg, 0, VT_R8);
     if(FAILED(hres))
@@ -814,6 +850,10 @@ static HRESULT Global_CSng(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, V
 
     assert(args_cnt == 1);
 
+    hres = check_coerce_arg(arg);
+    if(FAILED(hres))
+        return hres;
+
     V_VT(&v) = VT_EMPTY;
     hres = VariantChangeType(&v, arg, 0, VT_R4);
     if(FAILED(hres))
@@ -833,8 +873,9 @@ static HRESULT Global_CStr(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, V
 
     TRACE("%s\n", debugstr_variant(arg));
 
-    if(V_VT(arg) == VT_NULL)
-        return MAKE_VBSERROR(VBSE_ILLEGAL_NULL_USE);
+    hres = check_coerce_arg(arg);
+    if(FAILED(hres))
+        return hres;
 
     hres = to_string(This->ctx->lcid, arg, &str);
     if(FAILED(hres))
@@ -1168,6 +1209,8 @@ static HRESULT Global_Timer(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, 
 
 static HRESULT Global_LBound(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, VARIANT *res)
 {
+    VARIANT default_value;
+    VARIANT *array_arg = arg;
     SAFEARRAY *sa;
     HRESULT hres;
     LONG lbound;
@@ -1177,38 +1220,56 @@ static HRESULT Global_LBound(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt,
 
     TRACE("%s %s\n", debugstr_variant(arg), args_cnt == 2 ? debugstr_variant(arg + 1) : "1");
 
-    switch(V_VT(arg)) {
+    V_VT(&default_value) = VT_EMPTY;
+
+    if(V_VT(arg) == VT_DISPATCH) {
+        DISPPARAMS dp = {0};
+        if(!V_DISPATCH(arg))
+            return MAKE_VBSERROR(VBSE_OBJECT_VARIABLE_NOT_SET);
+        hres = disp_call(This->ctx, V_DISPATCH(arg), DISPID_VALUE, TRUE, &dp, &default_value);
+        if(FAILED(hres))
+            return hres;
+        array_arg = &default_value;
+    }
+
+    switch(V_VT(array_arg)) {
     case VT_VARIANT|VT_ARRAY:
-        sa = V_ARRAY(arg);
+        sa = V_ARRAY(array_arg);
         break;
     case VT_VARIANT|VT_ARRAY|VT_BYREF:
-        sa = *V_ARRAYREF(arg);
+        sa = *V_ARRAYREF(array_arg);
         break;
-    case VT_EMPTY:
-    case VT_NULL:
-        return MAKE_VBSERROR(VBSE_TYPE_MISMATCH);
     default:
-        FIXME("arg %s not supported\n", debugstr_variant(arg));
-        return E_NOTIMPL;
+        VariantClear(&default_value);
+        return MAKE_VBSERROR(VBSE_TYPE_MISMATCH);
+    }
+
+    if(!sa) {
+        hres = MAKE_VBSERROR(VBSE_OUT_OF_BOUNDS);
+        goto done;
     }
 
     if(args_cnt == 2) {
         hres = to_int(arg + 1, &dim);
         if(FAILED(hres))
-            return hres;
+            goto done;
     }else {
         dim = 1;
     }
 
     hres = SafeArrayGetLBound(sa, dim, &lbound);
-    if(FAILED(hres))
-        return hres;
+    if(SUCCEEDED(hres))
+        hres = return_int(res, lbound);
 
-    return return_int(res, lbound);
+done:
+    VariantClear(&default_value);
+    return hres;
 }
 
 static HRESULT Global_UBound(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, VARIANT *res)
 {
+    VARIANT default_value;
+    VARIANT *array_arg = arg;
     SAFEARRAY *sa;
     HRESULT hres;
     LONG ubound;
@@ -1218,34 +1279,50 @@ static HRESULT Global_UBound(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt,
 
     TRACE("%s %s\n", debugstr_variant(arg), args_cnt == 2 ? debugstr_variant(arg + 1) : "1");
 
-    switch(V_VT(arg)) {
+    V_VT(&default_value) = VT_EMPTY;
+
+    if(V_VT(arg) == VT_DISPATCH) {
+        DISPPARAMS dp = {0};
+        if(!V_DISPATCH(arg))
+            return MAKE_VBSERROR(VBSE_OBJECT_VARIABLE_NOT_SET);
+        hres = disp_call(This->ctx, V_DISPATCH(arg), DISPID_VALUE, TRUE, &dp, &default_value);
+        if(FAILED(hres))
+            return hres;
+        array_arg = &default_value;
+    }
+
+    switch(V_VT(array_arg)) {
     case VT_VARIANT|VT_ARRAY:
-        sa = V_ARRAY(arg);
+        sa = V_ARRAY(array_arg);
         break;
     case VT_VARIANT|VT_ARRAY|VT_BYREF:
-        sa = *V_ARRAYREF(arg);
+        sa = *V_ARRAYREF(array_arg);
         break;
-    case VT_EMPTY:
-    case VT_NULL:
-        return MAKE_VBSERROR(VBSE_TYPE_MISMATCH);
     default:
-        FIXME("arg %s not supported\n", debugstr_variant(arg));
-        return E_NOTIMPL;
+        VariantClear(&default_value);
+        return MAKE_VBSERROR(VBSE_TYPE_MISMATCH);
+    }
+
+    if(!sa) {
+        hres = MAKE_VBSERROR(VBSE_OUT_OF_BOUNDS);
+        goto done;
     }
 
     if(args_cnt == 2) {
         hres = to_int(arg + 1, &dim);
         if(FAILED(hres))
-            return hres;
+            goto done;
     }else {
         dim = 1;
     }
 
     hres = SafeArrayGetUBound(sa, dim, &ubound);
-    if(FAILED(hres))
-        return hres;
+    if(SUCCEEDED(hres))
+        hres = return_int(res, ubound);
 
-    return return_int(res, ubound);
+done:
+    VariantClear(&default_value);
+    return hres;
 }
 
 static HRESULT Global_RGB(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, VARIANT *res)
@@ -1330,6 +1407,19 @@ static HRESULT Global_Left(BuiltinDisp *This, VARIANT *args, unsigned args_cnt, 
 
     TRACE("(%s %s)\n", debugstr_variant(args+1), debugstr_variant(args));
 
+    if(V_VT(args+1) == VT_NULL)
+        return MAKE_VBSERROR(VBSE_ILLEGAL_NULL_USE);
+
+    hres = to_int(args+1, &len);
+    if(FAILED(hres))
+        return hres;
+
+    if(len < 0)
+        return MAKE_VBSERROR(VBSE_ILLEGAL_FUNC_CALL);
+
+    if(V_VT(args) == VT_NULL)
+        return return_null(res);
+
     if(V_VT(args) == VT_BSTR) {
         str = V_BSTR(args);
     }else {
@@ -1337,15 +1427,6 @@ static HRESULT Global_Left(BuiltinDisp *This, VARIANT *args, unsigned args_cnt, 
         if(FAILED(hres))
             return hres;
         str = conv_str;
-    }
-
-    hres = to_int(args+1, &len);
-    if(FAILED(hres))
-        return hres;
-
-    if(len < 0) {
-        FIXME("len = %d\n", len);
-        return E_FAIL;
     }
 
     str_len = SysStringLen(str);
@@ -2405,6 +2486,9 @@ static HRESULT Global_Day(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, VA
 
     TRACE("(%s)\n", debugstr_variant(arg));
 
+    if (V_VT(arg) == VT_NULL)
+        return return_null(res);
+
     hres = to_system_time(This->ctx->lcid, arg, &st);
     return FAILED(hres) ? hres : return_short(res, st.wDay);
 }
@@ -2415,6 +2499,9 @@ static HRESULT Global_Month(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, 
     HRESULT hres;
 
     TRACE("(%s)\n", debugstr_variant(arg));
+
+    if (V_VT(arg) == VT_NULL)
+        return return_null(res);
 
     hres = to_system_time(This->ctx->lcid, arg, &st);
     return FAILED(hres) ? hres : return_short(res, st.wMonth);
@@ -2473,6 +2560,9 @@ static HRESULT Global_Year(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, V
 
     TRACE("(%s)\n", debugstr_variant(arg));
 
+    if (V_VT(arg) == VT_NULL)
+        return return_null(res);
+
     hres = to_system_time(This->ctx->lcid, arg, &st);
     return FAILED(hres) ? hres : return_short(res, st.wYear);
 }
@@ -2483,6 +2573,9 @@ static HRESULT Global_Hour(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, V
     HRESULT hres;
 
     TRACE("(%s)\n", debugstr_variant(arg));
+
+    if (V_VT(arg) == VT_NULL)
+        return return_null(res);
 
     hres = to_system_time(This->ctx->lcid, arg, &st);
     return FAILED(hres) ? hres : return_short(res, st.wHour);
@@ -2495,6 +2588,9 @@ static HRESULT Global_Minute(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt,
 
     TRACE("(%s)\n", debugstr_variant(arg));
 
+    if (V_VT(arg) == VT_NULL)
+        return return_null(res);
+
     hres = to_system_time(This->ctx->lcid, arg, &st);
     return FAILED(hres) ? hres : return_short(res, st.wMinute);
 }
@@ -2505,6 +2601,9 @@ static HRESULT Global_Second(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt,
     HRESULT hres;
 
     TRACE("(%s)\n", debugstr_variant(arg));
+
+    if (V_VT(arg) == VT_NULL)
+        return return_null(res);
 
     hres = to_system_time(This->ctx->lcid, arg, &st);
     return FAILED(hres) ? hres : return_short(res, st.wSecond);
@@ -2553,14 +2652,54 @@ static HRESULT Global_SetLocale(BuiltinDisp *This, VARIANT *args, unsigned args_
 
 static HRESULT Global_DateValue(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, VARIANT *res)
 {
-    FIXME("\n");
-    return E_NOTIMPL;
+    VARIANT v;
+    HRESULT hres;
+    DATE date;
+
+    TRACE("(%s)\n", debugstr_variant(arg));
+
+    if(V_VT(arg) == VT_NULL)
+        return MAKE_VBSERROR(VBSE_ILLEGAL_NULL_USE);
+
+    if(V_VT(arg) == VT_DATE) {
+        date = V_DATE(arg);
+    }else if(V_VT(arg) == VT_BSTR) {
+        V_VT(&v) = VT_EMPTY;
+        hres = VariantChangeTypeEx(&v, arg, This->ctx->lcid, 0, VT_DATE);
+        if(FAILED(hres))
+            return MAKE_VBSERROR(VBSE_TYPE_MISMATCH);
+        date = V_DATE(&v);
+    }else {
+        return MAKE_VBSERROR(VBSE_TYPE_MISMATCH);
+    }
+
+    return return_date(res, trunc(date));
 }
 
 static HRESULT Global_TimeValue(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, VARIANT *res)
 {
-    FIXME("\n");
-    return E_NOTIMPL;
+    VARIANT v;
+    HRESULT hres;
+    DATE date;
+
+    TRACE("(%s)\n", debugstr_variant(arg));
+
+    if(V_VT(arg) == VT_NULL)
+        return MAKE_VBSERROR(VBSE_ILLEGAL_NULL_USE);
+
+    if(V_VT(arg) == VT_DATE) {
+        date = V_DATE(arg);
+    }else if(V_VT(arg) == VT_BSTR) {
+        V_VT(&v) = VT_EMPTY;
+        hres = VariantChangeTypeEx(&v, arg, This->ctx->lcid, 0, VT_DATE);
+        if(FAILED(hres))
+            return MAKE_VBSERROR(VBSE_TYPE_MISMATCH);
+        date = V_DATE(&v);
+    }else {
+        return MAKE_VBSERROR(VBSE_TYPE_MISMATCH);
+    }
+
+    return return_date(res, date - trunc(date));
 }
 
 static HRESULT Global_DateSerial(BuiltinDisp *This, VARIANT *args, unsigned args_cnt, VARIANT *res)
@@ -2821,10 +2960,152 @@ static HRESULT Global_DateAdd(BuiltinDisp *This, VARIANT *args, unsigned args_cn
     return hres;
 }
 
-static HRESULT Global_DateDiff(BuiltinDisp *This, VARIANT *arg, unsigned args_cnt, VARIANT *res)
+static HRESULT Global_DateDiff(BuiltinDisp *This, VARIANT *args, unsigned args_cnt, VARIANT *res)
 {
-    FIXME("\n");
-    return E_NOTIMPL;
+    BSTR interval = NULL;
+    int firstday = 0;
+    UDATE ud1, ud2;
+    DATE date1, date2;
+    VARIANT date_var;
+    HRESULT hres;
+    LONG result;
+
+    TRACE("\n");
+
+    assert(args_cnt >= 3 && args_cnt <= 5);
+
+    if(V_VT(args) == VT_NULL)
+        return MAKE_VBSERROR(VBSE_ILLEGAL_NULL_USE);
+
+    if(args_cnt >= 4 && V_VT(args + 3) == VT_NULL)
+        return MAKE_VBSERROR(VBSE_ILLEGAL_NULL_USE);
+
+    if(args_cnt >= 5 && V_VT(args + 4) == VT_NULL)
+        return MAKE_VBSERROR(VBSE_ILLEGAL_NULL_USE);
+
+    if(V_VT(args + 1) == VT_NULL || V_VT(args + 2) == VT_NULL)
+        return return_null(res);
+
+    hres = to_string(This->ctx->lcid, args, &interval);
+    if(FAILED(hres))
+        return hres;
+
+    V_VT(&date_var) = VT_EMPTY;
+    hres = VariantChangeType(&date_var, args + 1, 0, VT_DATE);
+    if(FAILED(hres))
+    {
+        SysFreeString(interval);
+        return hres;
+    }
+    date1 = V_DATE(&date_var);
+
+    V_VT(&date_var) = VT_EMPTY;
+    hres = VariantChangeType(&date_var, args + 2, 0, VT_DATE);
+    if(FAILED(hres))
+    {
+        SysFreeString(interval);
+        return hres;
+    }
+    date2 = V_DATE(&date_var);
+
+    if(!wcsicmp(interval, L"yyyy"))
+    {
+        hres = VarUdateFromDate(date1, 0, &ud1);
+        if(SUCCEEDED(hres))
+            hres = VarUdateFromDate(date2, 0, &ud2);
+        if(SUCCEEDED(hres))
+            result = (LONG)ud2.st.wYear - (LONG)ud1.st.wYear;
+    }
+    else if(!wcsicmp(interval, L"q"))
+    {
+        hres = VarUdateFromDate(date1, 0, &ud1);
+        if(SUCCEEDED(hres))
+            hres = VarUdateFromDate(date2, 0, &ud2);
+        if(SUCCEEDED(hres))
+            result = ((LONG)ud2.st.wYear * 4 + (ud2.st.wMonth - 1) / 3)
+                   - ((LONG)ud1.st.wYear * 4 + (ud1.st.wMonth - 1) / 3);
+    }
+    else if(!wcsicmp(interval, L"m"))
+    {
+        hres = VarUdateFromDate(date1, 0, &ud1);
+        if(SUCCEEDED(hres))
+            hres = VarUdateFromDate(date2, 0, &ud2);
+        if(SUCCEEDED(hres))
+            result = ((LONG)ud2.st.wYear - (LONG)ud1.st.wYear) * 12
+                   + (LONG)ud2.st.wMonth - (LONG)ud1.st.wMonth;
+    }
+    else if(!wcsicmp(interval, L"y") || !wcsicmp(interval, L"d"))
+    {
+        result = (LONG)date2 - (LONG)date1;
+    }
+    else if(!wcsicmp(interval, L"w"))
+    {
+        result = ((LONG)date2 - (LONG)date1) / 7;
+    }
+    else if(!wcsicmp(interval, L"ww"))
+    {
+        LONG day1, day2, anchor;
+        int firstday_wday;
+
+        if(args_cnt >= 4)
+        {
+            hres = to_int(args + 3, &firstday);
+            if(FAILED(hres))
+            {
+                SysFreeString(interval);
+                return hres;
+            }
+        }
+
+        /* firstday: 0=system default, 1=vbSunday(wday 0), ..., 7=vbSaturday(wday 6) */
+        if(firstday >= 1 && firstday <= 7)
+        {
+            firstday_wday = firstday - 1;
+        }
+        else
+        {
+            int locale_firstday = 0;
+            GetLocaleInfoW(This->ctx->lcid, LOCALE_RETURN_NUMBER | LOCALE_IFIRSTDAYOFWEEK,
+                    (LPWSTR)&locale_firstday, sizeof(locale_firstday) / sizeof(WCHAR));
+            firstday_wday = (locale_firstday + 1) % 7;
+        }
+
+        day1 = date1;
+        day2 = date2;
+        /* anchor is any day number whose day-of-week equals firstday_wday.
+         * Day 0 (12/30/1899) is Saturday (wday 6), so dow(d) = (d + 6) % 7.
+         * We need (anchor + 6) % 7 == firstday_wday, i.e. anchor = (firstday_wday + 1) % 7. */
+        anchor = (firstday_wday + 1) % 7;
+
+        /* Floor-divide (day - anchor) by 7. C integer division truncates
+         * toward zero; pre-shift negative operands by -6 so truncation
+         * matches floor. */
+        if(day1 < anchor) day1 -= 6;
+        if(day2 < anchor) day2 -= 6;
+        result = (day2 - anchor) / 7 - (day1 - anchor) / 7;
+    }
+    else if(!wcsicmp(interval, L"h") || !wcsicmp(interval, L"n") || !wcsicmp(interval, L"s"))
+    {
+        /* OLE DATE convention: integer part is the day (truncated toward zero),
+         * fractional part is the time-of-day as a positive offset within that
+         * day. For negative DATEs, plain D*units gives the wrong wall-clock
+         * count, so reconstruct as trunc(D)*units + |D - trunc(D)|*units. */
+        double units = !wcsicmp(interval, L"h") ? 24.0 : !wcsicmp(interval, L"n") ? 1440.0 : 86400.0;
+        double t1 = trunc(date1) * units + fabs(date1 - trunc(date1)) * units;
+        double t2 = trunc(date2) * units + fabs(date2 - trunc(date2)) * units;
+        result = units == 86400.0 ? lround(t2 - t1) : floor(t2) - floor(t1);
+    }
+    else
+    {
+        WARN("Unrecognized interval %s.\n", debugstr_w(interval));
+        hres = MAKE_VBSERROR(VBSE_ILLEGAL_FUNC_CALL);
+    }
+
+    SysFreeString(interval);
+    if(FAILED(hres))
+        return hres;
+
+    return return_int(res, result);
 }
 
 static HRESULT Global_DatePart(BuiltinDisp *This, VARIANT *args, unsigned args_cnt, VARIANT *res)
@@ -3028,9 +3309,13 @@ static HRESULT Global_TypeName(BuiltinDisp *This, VARIANT *arg, unsigned args_cn
             return return_string(res, L"Empty");
         case VT_NULL:
             return return_string(res, L"Null");
-        case VT_DISPATCH:
+        case VT_DISPATCH: {
+            const WCHAR *class_name;
+
             if (!V_DISPATCH(arg))
                 return return_string(res, L"Nothing");
+            if ((class_name = vbdisp_class_name(V_DISPATCH(arg))))
+                return return_string(res, class_name);
             if (SUCCEEDED(IDispatch_GetTypeInfo(V_DISPATCH(arg), 0, GetUserDefaultLCID(), &typeinfo)))
             {
                 hres = ITypeInfo_GetDocumentation(typeinfo, MEMBERID_NIL, &name, NULL, NULL, NULL);
@@ -3042,6 +3327,7 @@ static HRESULT Global_TypeName(BuiltinDisp *This, VARIANT *arg, unsigned args_cn
                 SysFreeString(name);
             }
             return return_string(res, L"Object");
+        }
         default:
             FIXME("arg %s not supported\n", debugstr_variant(arg));
             return E_NOTIMPL;
@@ -4306,7 +4592,7 @@ static HRESULT dispatch_to_string(script_ctx_t *ctx, IDispatch *disp, BSTR *ret)
 
     if(!disp)
         return MAKE_VBSERROR(VBSE_OBJECT_VARIABLE_NOT_SET);
-    hres = disp_call(ctx, disp, DISPID_VALUE, &dp, &v);
+    hres = disp_call(ctx, disp, DISPID_VALUE, TRUE, &dp, &v);
     if(FAILED(hres))
         return hres;
     if(V_VT(&v) == VT_BSTR) {
@@ -4772,7 +5058,7 @@ static HRESULT Err_Clear(BuiltinDisp *This, VARIANT *args, unsigned args_cnt, VA
 {
     TRACE("\n");
 
-    clear_ei(&This->ctx->ei);
+    clear_error(This->ctx);
     return S_OK;
 }
 
@@ -4801,6 +5087,9 @@ static HRESULT Err_Raise(BuiltinDisp *This, VARIANT *args, unsigned args_cnt, VA
 
     if(SUCCEEDED(hres)) {
         script_ctx_t *ctx = This->ctx;
+
+        SysFreeString(ctx->ei_identifier);
+        ctx->ei_identifier = NULL;
 
         if(source) {
             SysFreeString(ctx->ei.bstrSource);

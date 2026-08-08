@@ -47,9 +47,6 @@ WINE_DEFAULT_DEBUG_CHANNEL(hid);
 
 static DRIVER_OBJECT *driver_obj;
 
-static DEVICE_OBJECT *mouse_obj;
-static DEVICE_OBJECT *keyboard_obj;
-
 /* The root-enumerated device stack. */
 static DEVICE_OBJECT *bus_pdo;
 static DEVICE_OBJECT *bus_fdo;
@@ -573,6 +570,16 @@ static BOOL is_hidraw_enabled(WORD vid, WORD pid, const USAGE_AND_PAGE *usages, 
         if ((buttons == 32) || (buttons == 50) || (buttons == 64)) prefer_hidraw = TRUE;
         if (pid == 0x2055) prefer_hidraw = TRUE; /* ATMEL/VIRPIL/200325 VPC Throttle MT-50 CM2 */
         break;
+    case 0x4098:
+        if (pid == 0xbea8) prefer_hidraw = TRUE; /* Winwing Orion Joystick Base Metal 2 */
+        if (pid == 0xbd64) prefer_hidraw = TRUE; /* Winwing Orion Throttle Base II */
+        if (pid == 0xbef0) prefer_hidraw = TRUE; /* Winwing Orion Combat Rudder Pedals */
+        break;
+    case 0x057e:
+        if (pid == 0x057e) prefer_hidraw = TRUE; /* Joy-Con L */
+        if (pid == 0x2007) prefer_hidraw = TRUE; /* Joy-Con R */
+        if (pid == 0x2009) prefer_hidraw = TRUE; /* Pro Controller */
+        break;
     }
 
     RtlInitUnicodeString(&str, L"EnableHidraw");
@@ -813,7 +820,7 @@ static void mouse_device_create(void)
     struct device_create_params params = {{0}};
 
     if (winebus_call(mouse_create, &params)) return;
-    mouse_obj = bus_create_hid_device(&params.desc, params.device);
+    bus_create_hid_device(&params.desc, params.device);
     IoInvalidateDeviceRelations(bus_pdo, BusRelations);
 }
 
@@ -822,7 +829,7 @@ static void keyboard_device_create(void)
     struct device_create_params params = {{0}};
 
     if (winebus_call(keyboard_create, &params)) return;
-    keyboard_obj = bus_create_hid_device(&params.desc, params.device);
+    bus_create_hid_device(&params.desc, params.device);
     IoInvalidateDeviceRelations(bus_pdo, BusRelations);
 }
 

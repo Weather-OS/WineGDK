@@ -479,43 +479,24 @@ static void poll_socket( struct sock *poll_sock, struct async *async, int exclus
 
 static const struct object_ops sock_ops =
 {
-    sizeof(struct sock),          /* size */
-    &file_type,                   /* type */
-    sock_dump,                    /* dump */
-    NULL,                         /* add_queue */
-    NULL,                         /* remove_queue */
-    NULL,                         /* signaled */
-    NULL,                         /* satisfied */
-    no_signal,                    /* signal */
-    sock_get_fd,                  /* get_fd */
-    default_fd_get_sync,          /* get_sync */
-    default_map_access,           /* map_access */
-    default_get_sd,               /* get_sd */
-    default_set_sd,               /* set_sd */
-    no_get_full_name,             /* get_full_name */
-    no_lookup_name,               /* lookup_name */
-    no_link_name,                 /* link_name */
-    NULL,                         /* unlink_name */
-    no_open_file,                 /* open_file */
-    no_kernel_obj_list,           /* get_kernel_obj_list */
-    sock_close_handle,            /* close_handle */
-    sock_destroy                  /* destroy */
+    .size         = sizeof(struct sock),
+    .type         = &file_type,
+    .dump         = sock_dump,
+    .get_fd       = sock_get_fd,
+    .get_sync     = default_fd_get_sync,
+    .close_handle = sock_close_handle,
+    .destroy      = sock_destroy,
 };
 
 static const struct fd_ops sock_fd_ops =
 {
-    sock_get_poll_events,         /* get_poll_events */
-    sock_poll_event,              /* poll_event */
-    sock_get_fd_type,             /* get_fd_type */
-    no_fd_read,                   /* read */
-    no_fd_write,                  /* write */
-    no_fd_flush,                  /* flush */
-    default_fd_get_file_info,     /* get_file_info */
-    no_fd_get_volume_info,        /* get_volume_info */
-    sock_ioctl,                   /* ioctl */
-    sock_cancel_async,            /* cancel_async */
-    no_fd_queue_async,            /* queue_async */
-    sock_reselect_async           /* reselect_async */
+    .get_poll_events = sock_get_poll_events,
+    .poll_event      = sock_poll_event,
+    .get_fd_type     = sock_get_fd_type,
+    .get_file_info   = default_fd_get_file_info,
+    .ioctl           = sock_ioctl,
+    .cancel_async    = sock_cancel_async,
+    .reselect_async  = sock_reselect_async,
 };
 
 static int sockaddr_from_unix( const union unix_sockaddr *uaddr, struct WS_sockaddr *wsaddr, socklen_t wsaddrlen )
@@ -2742,6 +2723,11 @@ static void sock_ioctl( struct fd *fd, ioctl_code_t code, struct async *async )
             set_error( STATUS_INVALID_ADDRESS );
             return;
         }
+        if (sock->state == SOCK_UNCONNECTED) /* clear events */
+        {
+            sock->pending_events &= ~AFD_POLL_CONNECT_ERR;
+            sock->reported_events &= ~AFD_POLL_CONNECT_ERR;
+        }
         if (unix_addr.addr.sa_family == AF_INET && !memcmp( &unix_addr.in.sin_addr, magic_loopback_addr, 4 ))
             unix_addr.in.sin_addr.s_addr = htonl( INADDR_LOOPBACK );
 
@@ -3699,43 +3685,17 @@ struct ifchange
 
 static const struct object_ops ifchange_ops =
 {
-    sizeof(struct ifchange), /* size */
-    &no_type,                /* type */
-    ifchange_dump,           /* dump */
-    no_add_queue,            /* add_queue */
-    NULL,                    /* remove_queue */
-    NULL,                    /* signaled */
-    no_satisfied,            /* satisfied */
-    no_signal,               /* signal */
-    ifchange_get_fd,         /* get_fd */
-    default_get_sync,        /* get_sync */
-    default_map_access,      /* map_access */
-    default_get_sd,          /* get_sd */
-    default_set_sd,          /* set_sd */
-    no_get_full_name,        /* get_full_name */
-    no_lookup_name,          /* lookup_name */
-    no_link_name,            /* link_name */
-    NULL,                    /* unlink_name */
-    no_open_file,            /* open_file */
-    no_kernel_obj_list,      /* get_kernel_obj_list */
-    no_close_handle,         /* close_handle */
-    ifchange_destroy         /* destroy */
+    .size    = sizeof(struct ifchange),
+    .type    = &no_type,
+    .dump    = ifchange_dump,
+    .get_fd  = ifchange_get_fd,
+    .destroy = ifchange_destroy,
 };
 
 static const struct fd_ops ifchange_fd_ops =
 {
-    ifchange_get_poll_events, /* get_poll_events */
-    ifchange_poll_event,      /* poll_event */
-    NULL,                     /* get_fd_type */
-    no_fd_read,               /* read */
-    no_fd_write,              /* write */
-    no_fd_flush,              /* flush */
-    no_fd_get_file_info,      /* get_file_info */
-    no_fd_get_volume_info,    /* get_volume_info */
-    no_fd_ioctl,              /* ioctl */
-    NULL,                     /* cancel_async */
-    NULL,                     /* queue_async */
-    NULL                      /* reselect_async */
+    .get_poll_events = ifchange_get_poll_events,
+    .poll_event      = ifchange_poll_event,
 };
 
 static void ifchange_dump( struct object *obj, int verbose )
@@ -3921,27 +3881,11 @@ static struct object *socket_device_open_file( struct object *obj, unsigned int 
 
 static const struct object_ops socket_device_ops =
 {
-    sizeof(struct object),      /* size */
-    &device_type,               /* type */
-    socket_device_dump,         /* dump */
-    no_add_queue,               /* add_queue */
-    NULL,                       /* remove_queue */
-    NULL,                       /* signaled */
-    no_satisfied,               /* satisfied */
-    no_signal,                  /* signal */
-    no_get_fd,                  /* get_fd */
-    default_get_sync,           /* get_sync */
-    default_map_access,         /* map_access */
-    default_get_sd,             /* get_sd */
-    default_set_sd,             /* set_sd */
-    default_get_full_name,      /* get_full_name */
-    socket_device_lookup_name,  /* lookup_name */
-    directory_link_name,        /* link_name */
-    default_unlink_name,        /* unlink_name */
-    socket_device_open_file,    /* open_file */
-    no_kernel_obj_list,         /* get_kernel_obj_list */
-    no_close_handle,            /* close_handle */
-    no_destroy                  /* destroy */
+    .size        = sizeof(struct object),
+    .type        = &device_type,
+    .dump        = socket_device_dump,
+    .lookup_name = socket_device_lookup_name,
+    .open_file   = socket_device_open_file,
 };
 
 static void socket_device_dump( struct object *obj, int verbose )
@@ -3970,10 +3914,13 @@ static struct object *socket_device_open_file( struct object *obj, unsigned int 
     return &sock->obj;
 }
 
-struct object *create_socket_device( struct object *root, const struct unicode_str *name,
+struct object *create_socket_device( struct object *root, struct unicode_str name,
                                      unsigned int attr, const struct security_descriptor *sd )
 {
-    return create_named_object( root, &socket_device_ops, name, attr, sd );
+    struct object_params params = { .ops = &socket_device_ops, .root = root,
+                                    .name = name, .attr = attr, .sd = sd };
+
+    return create_named_object( &params );
 }
 
 DECL_HANDLER(recv_socket)

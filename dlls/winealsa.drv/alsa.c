@@ -58,6 +58,7 @@ struct alsa_stream
     AUDCLNT_SHAREMODE share;
     EDataFlow flow;
     HANDLE event;
+    HANDLE timer_thread;
 
     BOOL need_remapping;
     int alsa_channels;
@@ -475,27 +476,6 @@ static WCHAR *alsa_get_card_name(int card)
     free(cardname);
 
     return ret;
-}
-
-static NTSTATUS alsa_process_attach(void *args)
-{
-#ifdef _WIN64
-    if (NtCurrentTeb()->WowTebOffset)
-    {
-        SYSTEM_BASIC_INFORMATION info;
-
-        NtQuerySystemInformation(SystemEmulationBasicInformation, &info, sizeof(info), NULL);
-        zero_bits = (ULONG_PTR)info.HighestUserAddress | 0x7fffffff;
-    }
-#endif
-    return STATUS_SUCCESS;
-}
-
-static NTSTATUS alsa_main_loop(void *args)
-{
-    struct main_loop_params *params = args;
-    NtSetEvent(params->event, NULL);
-    return STATUS_SUCCESS;
 }
 
 static NTSTATUS alsa_get_endpoint_ids(void *args)
@@ -1045,10 +1025,10 @@ static NTSTATUS alsa_release_stream(void *args)
     struct alsa_stream *stream = handle_get_stream(params->stream);
     SIZE_T size;
 
-    if(params->timer_thread){
+    if(stream->timer_thread){
         stream->please_quit = TRUE;
-        NtWaitForSingleObject(params->timer_thread, FALSE, NULL);
-        NtClose(params->timer_thread);
+        NtWaitForSingleObject(stream->timer_thread, FALSE, NULL);
+        NtClose(stream->timer_thread);
     }
 
     snd_pcm_drop(stream->pcm_handle);
@@ -1535,10 +1515,46 @@ static int alsa_rewind_best_effort(struct alsa_stream *stream)
     return len;
 }
 
+static void alsa_timer_loop(void *args)
+{
+    struct alsa_stream *stream = args;
+    LARGE_INTEGER delay, next;
+    int adjust;
+
+    alsa_lock(stream);
+
+    delay.QuadPart = -stream->mmdev_period_rt;
+    NtQueryPerformanceCounter(&stream->last_period_time, NULL);
+    next.QuadPart = stream->last_period_time.QuadPart + stream->mmdev_period_rt;
+
+    while(!stream->please_quit){
+        if(stream->flow == eRender)
+            alsa_write_data(stream);
+        else if(stream->flow == eCapture)
+            alsa_read_data(stream);
+        alsa_unlock(stream);
+
+        NtDelayExecution(FALSE, &delay);
+
+        alsa_lock(stream);
+        NtQueryPerformanceCounter(&stream->last_period_time, NULL);
+        adjust = next.QuadPart - stream->last_period_time.QuadPart;
+        if(adjust > stream->mmdev_period_rt / 2)
+            adjust = stream->mmdev_period_rt / 2;
+        else if(adjust < -stream->mmdev_period_rt / 2)
+            adjust = -stream->mmdev_period_rt / 2;
+        delay.QuadPart = -(stream->mmdev_period_rt + adjust);
+        next.QuadPart += stream->mmdev_period_rt;
+    }
+
+    alsa_unlock(stream);
+}
+
 static NTSTATUS alsa_start(void *args)
 {
     struct start_params *params = args;
     struct alsa_stream *stream = handle_get_stream(params->stream);
+    static const WCHAR name[] = {'a','u','d','i','o','_','c','l','i','e','n','t','_','t','i','m','e','r',0};
 
     alsa_lock(stream);
 
@@ -1576,6 +1592,7 @@ static NTSTATUS alsa_start(void *args)
             stream->data_in_alsa_frames = 0;
         }
     }
+    if (!stream->timer_thread) create_unix_thread( &stream->timer_thread, name, alsa_timer_loop, stream );
     stream->started = TRUE;
 
     return alsa_unlock_result(stream, &params->result, S_OK);
@@ -1632,44 +1649,6 @@ static NTSTATUS alsa_reset(void *args)
     stream->wri_offs_frames = 0;
 
     return alsa_unlock_result(stream, &params->result, S_OK);
-}
-
-static NTSTATUS alsa_timer_loop(void *args)
-{
-    struct timer_loop_params *params = args;
-    struct alsa_stream *stream = handle_get_stream(params->stream);
-    LARGE_INTEGER delay, next;
-    int adjust;
-
-    alsa_lock(stream);
-
-    delay.QuadPart = -stream->mmdev_period_rt;
-    NtQueryPerformanceCounter(&stream->last_period_time, NULL);
-    next.QuadPart = stream->last_period_time.QuadPart + stream->mmdev_period_rt;
-
-    while(!stream->please_quit){
-        if(stream->flow == eRender)
-            alsa_write_data(stream);
-        else if(stream->flow == eCapture)
-            alsa_read_data(stream);
-        alsa_unlock(stream);
-
-        NtDelayExecution(FALSE, &delay);
-
-        alsa_lock(stream);
-        NtQueryPerformanceCounter(&stream->last_period_time, NULL);
-        adjust = next.QuadPart - stream->last_period_time.QuadPart;
-        if(adjust > stream->mmdev_period_rt / 2)
-            adjust = stream->mmdev_period_rt / 2;
-        else if(adjust < -stream->mmdev_period_rt / 2)
-            adjust = -stream->mmdev_period_rt / 2;
-        delay.QuadPart = -(stream->mmdev_period_rt + adjust);
-        next.QuadPart += stream->mmdev_period_rt;
-    }
-
-    alsa_unlock(stream);
-
-    return STATUS_SUCCESS;
 }
 
 static NTSTATUS alsa_get_render_buffer(void *args)
@@ -2422,16 +2401,16 @@ static NTSTATUS alsa_get_prop_value(void *args)
 
 const unixlib_entry_t __wine_unix_call_funcs[] =
 {
-    alsa_process_attach,
     alsa_not_implemented,
-    alsa_main_loop,
+    alsa_not_implemented,
+    alsa_not_implemented,
+    alsa_not_implemented,
     alsa_get_endpoint_ids,
     alsa_create_stream,
     alsa_release_stream,
     alsa_start,
     alsa_stop,
     alsa_reset,
-    alsa_timer_loop,
     alsa_get_render_buffer,
     alsa_release_render_buffer,
     alsa_get_capture_buffer,
@@ -2467,17 +2446,13 @@ C_ASSERT(ARRAYSIZE(__wine_unix_call_funcs) == funcs_count);
 
 typedef UINT PTR32;
 
-static NTSTATUS alsa_wow64_main_loop(void *args)
+static NTSTATUS alsa_wow64_process_attach(void *args)
 {
-    struct
-    {
-        PTR32 event;
-    } *params32 = args;
-    struct main_loop_params params =
-    {
-        .event = ULongToHandle(params32->event)
-    };
-    return alsa_main_loop(&params);
+    SYSTEM_BASIC_INFORMATION info;
+
+    NtQuerySystemInformation(SystemEmulationBasicInformation, &info, sizeof(info), NULL);
+    zero_bits = (ULONG_PTR)info.HighestUserAddress | 0x7fffffff;
+    return STATUS_SUCCESS;
 }
 
 static NTSTATUS alsa_wow64_get_endpoint_ids(void *args)
@@ -2544,13 +2519,11 @@ static NTSTATUS alsa_wow64_release_stream(void *args)
     struct
     {
         stream_handle stream;
-        PTR32 timer_thread;
         HRESULT result;
     } *params32 = args;
     struct release_stream_params params =
     {
         .stream = params32->stream,
-        .timer_thread = ULongToHandle(params32->timer_thread)
     };
     alsa_release_stream(&params);
     params32->result = params.result;
@@ -2879,16 +2852,16 @@ static NTSTATUS alsa_wow64_get_prop_value(void *args)
 
 const unixlib_entry_t __wine_unix_call_wow64_funcs[] =
 {
-    alsa_process_attach,
+    alsa_wow64_process_attach,
     alsa_not_implemented,
-    alsa_wow64_main_loop,
+    alsa_not_implemented,
+    alsa_not_implemented,
     alsa_wow64_get_endpoint_ids,
     alsa_wow64_create_stream,
     alsa_wow64_release_stream,
     alsa_start,
     alsa_stop,
     alsa_reset,
-    alsa_timer_loop,
     alsa_wow64_get_render_buffer,
     alsa_release_render_buffer,
     alsa_wow64_get_capture_buffer,

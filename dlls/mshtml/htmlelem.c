@@ -1214,6 +1214,9 @@ static HRESULT WINAPI HTMLElement_removeAttribute(IHTMLElement *iface, BSTR strA
             list_remove(&attr->entry);
             IHTMLDOMNode_Release(&attr->elem->node.IHTMLDOMNode_iface);
             attr->elem = NULL;
+
+            /* The collection also keeps ref to us, release it */
+            IHTMLDOMAttribute_Release(&attr->IHTMLDOMAttribute_iface);
         }
 
         if(id == DISPID_IHTMLELEMENT_STYLE) {
@@ -8206,6 +8209,7 @@ static HRESULT HTMLAttributeCollection_get_dispid(DispatchEx *dispex, const WCHA
             if(iter == nsattr)
                 break;
         }
+        nsIDOMAttr_Release(nsattr);
 
         assert(i < length);
         *dispid = MSHTML_DISPID_CUSTOM_MIN + i;

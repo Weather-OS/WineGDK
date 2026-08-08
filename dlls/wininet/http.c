@@ -151,6 +151,7 @@ void server_release(server_t *server)
         CertFreeCertificateChain(server->cert_chain);
     free(server->name);
     free(server->scheme_host_port);
+    free(server->addr);
     free(server);
 }
 
@@ -1157,6 +1158,7 @@ static BOOL HTTP_DoAuthorization( http_request_t *request, LPCWSTR pszAuthValue,
                                                 in.pvBuffer ? &in_desc : NULL,
                                                 0, &pAuthInfo->ctx, &out_desc,
                                                 &pAuthInfo->attr, &pAuthInfo->exp);
+        free(in.pvBuffer);
         if (sec_status == SEC_E_OK)
         {
             pAuthInfo->finished = TRUE;
@@ -1760,9 +1762,8 @@ static BOOL HTTP_DealWithProxy(appinfo_t *hIC, http_session_t *session, http_req
 static DWORD HTTP_ResolveName(http_request_t *request)
 {
     server_t *server = request->proxy ? request->proxy : request->server;
-    int addr_len;
 
-    if(server->addr_len)
+    if(server->addr)
         return ERROR_SUCCESS;
 
     INTERNET_SendCallback(&request->hdr, request->hdr.dwContext,
@@ -1770,16 +1771,14 @@ static DWORD HTTP_ResolveName(http_request_t *request)
                           server->name,
                           (lstrlenW(server->name)+1) * sizeof(WCHAR));
 
-    addr_len = sizeof(server->addr);
-    if (!GetAddress(server->name, server->port, (SOCKADDR*)&server->addr, &addr_len, server->addr_str))
+    if (!(server->addr = GetAddress(server->name, server->port)))
         return ERROR_INTERNET_NAME_NOT_RESOLVED;
 
-    server->addr_len = addr_len;
     INTERNET_SendCallback(&request->hdr, request->hdr.dwContext,
                           INTERNET_STATUS_NAME_RESOLVED,
-                          server->addr_str, strlen(server->addr_str)+1);
+                          server->addr->addr_str, strlen(server->addr->addr_str)+1);
 
-    TRACE("resolved %s to %s\n", debugstr_w(server->name), server->addr_str);
+    TRACE("resolved %s to %s\n", debugstr_w(server->name), server->addr->addr_str);
     return ERROR_SUCCESS;
 }
 
@@ -4911,6 +4910,7 @@ static void http_process_keep_alive(http_request_t *req)
 
 static DWORD open_http_connection(http_request_t *request, BOOL *reusing)
 {
+    server_t *server;
     netconn_t *netconn = NULL;
     DWORD res;
 
@@ -4959,13 +4959,9 @@ static DWORD open_http_connection(http_request_t *request, BOOL *reusing)
 
     TRACE("connecting to %s, proxy %s\n", debugstr_w(request->server->name),
           request->proxy ? debugstr_w(request->proxy->name) : "(null)");
-
-    INTERNET_SendCallback(&request->hdr, request->hdr.dwContext,
-                          INTERNET_STATUS_CONNECTING_TO_SERVER,
-                          request->server->addr_str,
-                          strlen(request->server->addr_str)+1);
-
-    res = create_netconn(request->proxy ? request->proxy : request->server, request->security_flags,
+    server = request->proxy ? request->proxy : request->server;
+    assert(server->addr);
+    res = create_netconn(server, &request->hdr, request->security_flags,
                          (request->hdr.ErrorMask & INTERNET_ERROR_MASK_COMBINED_SEC_CERT) != 0,
                          request->hdr.connect_timeout, &netconn);
     if(res != ERROR_SUCCESS) {
@@ -4974,11 +4970,6 @@ static DWORD open_http_connection(http_request_t *request, BOOL *reusing)
     }
 
     request->netconn = netconn;
-
-    INTERNET_SendCallback(&request->hdr, request->hdr.dwContext,
-            INTERNET_STATUS_CONNECTED_TO_SERVER,
-            request->server->addr_str, strlen(request->server->addr_str)+1);
-
     *reusing = FALSE;
     TRACE("Created connection to %s: %p\n", debugstr_w(request->server->name), netconn);
     return ERROR_SUCCESS;

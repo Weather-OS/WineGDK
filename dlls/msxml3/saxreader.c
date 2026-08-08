@@ -657,7 +657,7 @@ static int convert_utf16be(UINT cp, const char *src, int src_size, WCHAR *buffer
     if (!buffer) return src_size / 2;
 
     for (int i = 0; i < size; ++i)
-        buffer[i] = src[i + 1] | src[i];
+        buffer[i] = src[2 * i + 1] | (src[2 * i] << 8);
 
     return size;
 }
@@ -3356,43 +3356,6 @@ static void saxreader_parse_sddecl(struct saxlocator *locator, const struct pars
         saxreader_set_error(locator, E_SAX_INVALID_STANDALONE);
 }
 
-/*
-static bool saxreader_parse_xmldecl(struct saxlocator *locator)
-{
-    WCHAR ch;
-
-    saxreader_more(locator);
-
-    ch = saxreader_get_char(locator, 5);
-    if (!saxreader_peek(locator, L"<?xml", 5) || !saxreader_is_space(ch))
-        return false;
-    saxreader_skip(locator, 5);
-    saxreader_skipspaces(locator);
-
-    saxreader_parse_versioninfo(locator);
-
-    if (saxreader_cmp(locator, L"?>"))
-        return true;
-
-    saxreader_parse_encdecl(locator);
-
-    if (locator->saxreader->xmldecl_encoding)
-    {
-        if (saxreader_cmp(locator, L"?>"))
-            return true;
-        saxreader_skip_required_spaces(locator);
-    }
-
-    saxreader_skipspaces(locator);
-    saxreader_parse_sddecl(locator);
-    saxreader_skipspaces(locator);
-
-    if (!saxreader_cmp(locator, L"?>"))
-        saxreader_set_error(locator, E_SAX_BAD_XMLDECL);
-
-    return true;
-}
-*/
 static BSTR saxreader_parse_xmldecl_attribute(struct saxlocator *locator, struct parsed_name *name);
 
 /* [85] BaseChar ::= ... */
@@ -3580,15 +3543,25 @@ static bool saxreader_is_namechar(WCHAR ch)
 }
 
 /* [5] NCNameChar ::= NameChar - ':' */
-static bool saxreader_is_ncnamechar(WCHAR ch)
+bool xml_is_ncnamechar(WCHAR ch)
 {
     return saxreader_is_namechar(ch) && ch != ':';
 }
 
+static bool saxreader_is_ncnamechar(WCHAR ch)
+{
+    return xml_is_ncnamechar(ch);
+}
+
 /* [6] NCNameStartChar ::= Letter | '_' */
-static bool saxreader_is_ncname_startchar(WCHAR ch)
+bool xml_is_ncname_startchar(WCHAR ch)
 {
     return saxreader_is_letter(ch) || ch == '_';
+}
+
+static bool saxreader_is_ncname_startchar(WCHAR c)
+{
+    return xml_is_ncname_startchar(c);
 }
 
 static void *saxreader_calloc(struct saxlocator *locator, size_t count, size_t size)
@@ -5906,10 +5879,6 @@ static enum xmlencoding saxreader_match_encoding(const char *data, size_t size, 
         return XML_ENCODING_UTF16LE;
     if (b[0] == 0 && b[1] == '<' && b[2] == 0 && b[3] == '?')
         return XML_ENCODING_UTF16BE;
-    if (b[0] == '<' && b[1] == '?' && b[2] == 'x' && b[3] == 'm')
-        return XML_ENCODING_UTF8;
-    if (b[0] == '<' && b[1] && b[1] != '?')
-        return XML_ENCODING_UTF8;
 
     if (b[0] == 0xef && b[1] == 0xbb && b[2] == 0xbf)
     {
@@ -5929,7 +5898,7 @@ static enum xmlencoding saxreader_match_encoding(const char *data, size_t size, 
         return XML_ENCODING_UTF16LE;
     }
 
-    return XML_ENCODING_UNKNOWN;
+    return XML_ENCODING_UTF8;
 }
 
 static void saxreader_detect_encoding(struct saxlocator *locator, bool force_utf16)

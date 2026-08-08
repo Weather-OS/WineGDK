@@ -23,6 +23,7 @@
 #define COBJMACROS
 #define CONST_VTABLE
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <assert.h>
 
@@ -34,6 +35,22 @@
 #include "dispex.h"
 
 #include "wine/test.h"
+
+#define check_writer_output(writer, expected) check_writer_output_(writer, expected, false, __LINE__)
+#define check_writer_output_todo(writer, expected) check_writer_output_(writer, expected, true, __LINE__)
+static void check_writer_output_(IMXWriter *writer, const WCHAR *expected, bool todo, int line)
+{
+    VARIANT dest;
+    HRESULT hr;
+
+    V_VT(&dest) = VT_EMPTY;
+    hr = IMXWriter_get_output(writer, &dest);
+    ok_(__FILE__, line)(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    ok(V_VT(&dest) == VT_BSTR, "Unexpected type %d.\n", V_VT(&dest));
+    todo_wine_if(todo)
+    ok_(__FILE__, line)(!wcscmp(expected, V_BSTR(&dest)), "Unexpected content %s.\n", wine_dbgstr_w(V_BSTR(&dest)));
+    VariantClear(&dest);
+}
 
 struct sink
 {
@@ -2513,8 +2530,6 @@ static void test_saxreader_cdata(void)
         ISAXXMLReader_Release(reader);
         table++;
     }
-
-    free_bstrs();
 }
 
 static void test_saxreader_pi(void)
@@ -2562,8 +2577,6 @@ static void test_saxreader_pi(void)
         ISAXXMLReader_Release(reader);
         table++;
     }
-
-    free_bstrs();
 }
 
 static void test_saxreader_characters(void)
@@ -2622,8 +2635,6 @@ static void test_saxreader_characters(void)
         ISAXXMLReader_Release(reader);
         table++;
     }
-
-    free_bstrs();
 }
 
 static void test_saxreader_properties(void)
@@ -3417,10 +3428,15 @@ static void test_saxreader_encoding(void)
     static const char xml_shift_jis_test2[] =
         "<?xml version=\"1.0\" encoding=\"shift-jis\" ?><a>" "\x83\x89" "</a>";
 
+    static const char utf8_ws_test[] =
+        "    \r\n    <a>text</a>";
+
     const struct enc_test_entry_t *entry = encoding_test_data;
     static const CHAR testXmlA[] = "test.xml";
     DWORD ucs4_be_test[ARRAYSIZE(ucs4_le_test)];
     ISAXXMLReader *reader;
+    LARGE_INTEGER li = { 0 };
+    IStream* stream;
     HRESULT hr;
 
     for (int i = 0; i < ARRAYSIZE(ucs4_le_test); ++i)
@@ -3463,6 +3479,20 @@ static void test_saxreader_encoding(void)
         V_BSTR(&input) = _bstr_("<element></element>");
         hr = ISAXXMLReader_parse(reader, input);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+        /* UTF-8 with leading white-spaces */
+        hr = CreateStreamOnHGlobal(NULL, TRUE, &stream);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        hr = IStream_Write(stream, utf8_ws_test, sizeof(utf8_ws_test) - 1, NULL);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        hr = IStream_Seek(stream, li, STREAM_SEEK_SET, NULL);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+        V_VT(&input) = VT_UNKNOWN;
+        V_UNKNOWN(&input) = (IUnknown*)stream;
+        hr = ISAXXMLReader_parse(reader, input);
+        ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+        VariantClear(&input);
 
         ISAXXMLReader_Release(reader);
 
@@ -3676,7 +3706,6 @@ static void test_mxwriter_properties(void)
     VARIANT_BOOL b;
     HRESULT hr;
     BSTR str, str2;
-    VARIANT dest;
 
     test_mxwriter_default_properties(mxwriter_default_props);
 
@@ -3769,13 +3798,8 @@ static void test_mxwriter_properties(void)
     hr = ISAXContentHandler_endDocument(content);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<?xml version=\"1.0\" encoding=\"UTF-16\" standalone=\"yes\"?>\r\n",
-        V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<?xml version=\"1.0\" encoding=\"UTF-16\" standalone=\"yes\"?>\r\n");
+
     ISAXContentHandler_Release(content);
 
     hr = IMXWriter_get_version(writer, NULL);
@@ -4022,7 +4046,6 @@ static void test_mxwriter_startenddocument(void)
 {
     ISAXContentHandler *content;
     IMXWriter *writer;
-    VARIANT dest;
     HRESULT hr;
 
     hr = CoCreateInstance(&CLSID_MXXMLWriter, NULL, CLSCTX_INPROC_SERVER,
@@ -4038,26 +4061,14 @@ static void test_mxwriter_startenddocument(void)
     hr = ISAXContentHandler_endDocument(content);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<?xml version=\"1.0\" encoding=\"UTF-16\" standalone=\"no\"?>\r\n", V_BSTR(&dest)),
-        "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<?xml version=\"1.0\" encoding=\"UTF-16\" standalone=\"no\"?>\r\n");
 
     /* now try another startDocument */
     hr = ISAXContentHandler_startDocument(content);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     /* and get duplicated prolog */
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<?xml version=\"1.0\" encoding=\"UTF-16\" standalone=\"no\"?>\r\n"
-                  "<?xml version=\"1.0\" encoding=\"UTF-16\" standalone=\"no\"?>\r\n", V_BSTR(&dest)),
-        "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<?xml version=\"1.0\" encoding=\"UTF-16\" standalone=\"no\"?>\r\n"
+                  "<?xml version=\"1.0\" encoding=\"UTF-16\" standalone=\"no\"?>\r\n");
 
     ISAXContentHandler_Release(content);
     IMXWriter_Release(writer);
@@ -4079,17 +4090,32 @@ static void test_mxwriter_startenddocument(void)
     hr = ISAXContentHandler_endDocument(content);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"", V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"");
 
     ISAXContentHandler_Release(content);
     IMXWriter_Release(writer);
 
-    free_bstrs();
+    /* declaration with indentation */
+    hr = CoCreateInstance(&CLSID_MXXMLWriter, NULL, CLSCTX_INPROC_SERVER,
+            &IID_IMXWriter, (void**)&writer);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = IMXWriter_put_indent(writer, VARIANT_TRUE);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = IMXWriter_QueryInterface(writer, &IID_ISAXContentHandler, (void**)&content);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = ISAXContentHandler_startDocument(content);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = ISAXContentHandler_startElement(content, L"", 0, L"", 0, L"a", -1, NULL);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = ISAXContentHandler_endDocument(content);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    check_writer_output(writer, L"<?xml version=\"1.0\" encoding=\"UTF-16\" standalone=\"no\"?>\r\n<a>");
 }
 
 enum startendtype
@@ -4213,6 +4239,8 @@ static void test_mxwriter_startendelement_batch(const struct writer_startendelem
             &IID_IMXWriter, (void**)&writer);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
+        winetest_push_context("Test %d", i);
+
         hr = IMXWriter_QueryInterface(writer, &IID_ISAXContentHandler, (void**)&content);
         ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
@@ -4233,7 +4261,7 @@ static void test_mxwriter_startendelement_batch(const struct writer_startendelem
             hr = ISAXContentHandler_startElement(content, table->uri, table->uri ? lstrlenW(table->uri) : 0,
                 table->local_name, table->local_name ? lstrlenW(table->local_name) : 0, table->qname,
                 table->qname ? lstrlenW(table->qname) : 0, table->attr);
-            ok(hr == table->hr, "test %d: got %#lx, expected %#lx\n", i, hr, table->hr);
+            ok(hr == table->hr, "Unexpected hr %#lx.\n", hr);
         }
 
         if (table->type & EndElement)
@@ -4241,31 +4269,21 @@ static void test_mxwriter_startendelement_batch(const struct writer_startendelem
             hr = ISAXContentHandler_endElement(content, table->uri, table->uri ? lstrlenW(table->uri) : 0,
                 table->local_name, table->local_name ? lstrlenW(table->local_name) : 0, table->qname,
                 table->qname ? lstrlenW(table->qname) : 0);
-            ok(hr == table->hr, "test %d: got %#lx, expected %#lx\n", i, hr, table->hr);
+            ok(hr == table->hr, "Unexpected hr %#lx.\n", hr);
         }
 
         /* test output */
         if (hr == S_OK)
-        {
-            VARIANT dest;
-
-            V_VT(&dest) = VT_EMPTY;
-            hr = IMXWriter_get_output(writer, &dest);
-            ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-            ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-            ok(!lstrcmpW(table->output, V_BSTR(&dest)),
-                "test %d: got wrong content %s, expected %s\n", i, wine_dbgstr_w(V_BSTR(&dest)), wine_dbgstr_w(table->output));
-            VariantClear(&dest);
-        }
+            check_writer_output(writer, table->output);
 
         ISAXContentHandler_Release(content);
         IMXWriter_Release(writer);
 
+        winetest_pop_context();
+
         table++;
         i++;
     }
-
-    free_bstrs();
 }
 
 /* point of these test is to start/end element with different names and name lengths */
@@ -4326,25 +4344,13 @@ static void test_mxwriter_startendelement_batch2(const struct writer_startendele
 
         /* test output */
         if (hr == S_OK)
-        {
-            VARIANT dest;
-
-            V_VT(&dest) = VT_EMPTY;
-            hr = IMXWriter_get_output(writer, &dest);
-            ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-            ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-            ok(!lstrcmpW(table->output, V_BSTR(&dest)),
-                "test %d: got wrong content %s, expected %s\n", i, wine_dbgstr_w(V_BSTR(&dest)), wine_dbgstr_w(table->output));
-            VariantClear(&dest);
-        }
+            check_writer_output(writer, table->output);
 
         ISAXContentHandler_Release(content);
         IMXWriter_Release(writer);
 
         table++;
         i++;
-
-        free_bstrs();
     }
 }
 
@@ -4385,22 +4391,12 @@ static void test_mxwriter_startendelement(void)
     hr = IVBSAXContentHandler_startElement(vb_content, &bstr_empty, &bstr_b, &bstr_empty, NULL);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<>", V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<>");
 
     hr = IVBSAXContentHandler_startElement(vb_content, &bstr_empty, &bstr_empty, &bstr_b, NULL);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<><b>", V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<><b>");
 
     hr = IVBSAXContentHandler_endElement(vb_content, &bstr_null, &bstr_null, &bstr_b);
     ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
@@ -4420,12 +4416,7 @@ static void test_mxwriter_startendelement(void)
     hr = IVBSAXContentHandler_endElement(vb_content, &bstr_empty, &bstr_empty, &bstr_b);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<><b></b>", V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<><b></b>");
 
     SysFreeString(bstr_empty);
     SysFreeString(bstr_a);
@@ -4455,22 +4446,12 @@ static void test_mxwriter_startendelement(void)
     hr = ISAXContentHandler_startElement(content, L"", 0, L"b", 1, L"", 0, NULL);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<>", V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<>");
 
     hr = ISAXContentHandler_startElement(content, L"", 0, L"", 0, L"b", 1, NULL);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<><b>", V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<><b>");
 
     hr = ISAXContentHandler_endElement(content, NULL, 0, NULL, 0, L"a:b", 3);
     ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
@@ -4484,13 +4465,7 @@ static void test_mxwriter_startendelement(void)
 
     hr = ISAXContentHandler_endElement(content, L"", 0, L"", 0, L"b", 1);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<><b></b>", V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<><b></b>");
 
     hr = ISAXContentHandler_endDocument(content);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
@@ -4499,25 +4474,14 @@ static void test_mxwriter_startendelement(void)
     hr = IMXWriter_put_output(writer, dest);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"", V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"");
 
     hr = ISAXContentHandler_startDocument(content);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
     hr = ISAXContentHandler_startElement(content, L"", 0, L"", 0, L"abcdef", 3, NULL);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<abc>", V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<abc>");
 
     hr = ISAXContentHandler_endDocument(content);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
@@ -4525,12 +4489,7 @@ static void test_mxwriter_startendelement(void)
 
     hr = ISAXContentHandler_endElement(content, L"", 0, L"", 0, L"abdcdef", 3);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<abc></abd>", V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<abc></abd>");
 
     V_VT(&dest) = VT_EMPTY;
     hr = IMXWriter_put_output(writer, dest);
@@ -4539,12 +4498,7 @@ static void test_mxwriter_startendelement(void)
     /* length -1 */
     hr = ISAXContentHandler_startElement(content, L"", 0, L"", 0, L"a", -1, NULL);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<a>", V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<a>");
 
     ISAXContentHandler_Release(content);
     IMXWriter_Release(writer);
@@ -4605,12 +4559,7 @@ static void test_mxwriter_characters(void)
     hr = ISAXContentHandler_characters(content, L"TESTCHARDATA .", 14);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"VbCharsTESTCHARDATA .", V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"VbCharsTESTCHARDATA .");
 
     hr = ISAXContentHandler_endDocument(content);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
@@ -4642,12 +4591,7 @@ static void test_mxwriter_characters(void)
     hr = ISAXContentHandler_endElement(content, L"", 0, L"", 0, L"a", 1);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<a></a>", V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<a></a>");
 
     ISAXContentHandler_Release(content);
     IMXWriter_Release(writer);
@@ -4727,12 +4671,7 @@ static void test_mxwriter_characters(void)
     hr = ISAXContentHandler_characters(content, L"\ncd", 3);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "Unexpected type %d.\n", V_VT(&dest));
-    ok(!lstrcmpW(L"ab\r\n\r\ncd", V_BSTR(&dest)), "Unexpected content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"ab\r\n\r\ncd");
 
     V_VT(&dest) = VT_EMPTY;
     hr = IMXWriter_put_output(writer, dest);
@@ -4741,12 +4680,7 @@ static void test_mxwriter_characters(void)
     hr = ISAXContentHandler_characters(content, L"\nab\rc\r\n", 7);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "Unexpected type %d.\n", V_VT(&dest));
-    ok(!lstrcmpW(L"\r\nab\r\nc\r\n", V_BSTR(&dest)), "Unexpected content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"\r\nab\r\nc\r\n");
 
     ISAXContentHandler_Release(content);
     IMXWriter_Release(writer);
@@ -4759,6 +4693,8 @@ static void test_mxwriter_characters(void)
             i++;
             continue;
         }
+
+        winetest_push_context("Test %d", i);
 
         hr = CoCreateInstance(table->clsid, NULL, CLSCTX_INPROC_SERVER,
             &IID_IMXWriter, (void**)&writer);
@@ -4778,15 +4714,7 @@ static void test_mxwriter_characters(void)
 
         /* test output */
         if (hr == S_OK)
-        {
-            V_VT(&dest) = VT_EMPTY;
-            hr = IMXWriter_get_output(writer, &dest);
-            ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-            ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-            ok(!lstrcmpW(table->output, V_BSTR(&dest)),
-                "test %d: got wrong content %s, expected %s\n", i, wine_dbgstr_w(V_BSTR(&dest)), wine_dbgstr_w(table->output));
-            VariantClear(&dest);
-        }
+            check_writer_output(writer, table->output);
 
         /* with disabled escaping */
         V_VT(&dest) = VT_EMPTY;
@@ -4801,22 +4729,47 @@ static void test_mxwriter_characters(void)
 
         /* test output */
         if (hr == S_OK)
-        {
-            V_VT(&dest) = VT_EMPTY;
-            hr = IMXWriter_get_output(writer, &dest);
-            ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-            ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-            ok(!lstrcmpW(table->data, V_BSTR(&dest)),
-                "test %d: got wrong content %s, expected %s\n", i, wine_dbgstr_w(V_BSTR(&dest)), wine_dbgstr_w(table->data));
-            VariantClear(&dest);
-        }
+            check_writer_output(writer, table->data);
 
         ISAXContentHandler_Release(content);
         IMXWriter_Release(writer);
 
+        winetest_pop_context();
+
         table++;
         i++;
     }
+
+    /* test surrounding node indentation */
+    hr = CoCreateInstance(&CLSID_MXXMLWriter, NULL, CLSCTX_INPROC_SERVER,
+            &IID_IMXWriter, (void**)&writer);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = IMXWriter_put_indent(writer, VARIANT_TRUE);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = IMXWriter_QueryInterface(writer, &IID_ISAXContentHandler, (void**)&content);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = IMXWriter_put_omitXMLDeclaration(writer, VARIANT_TRUE);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = ISAXContentHandler_startDocument(content);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = ISAXContentHandler_startElement(content, L"", 0, L"", 0, L"a", 1, NULL);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = ISAXContentHandler_characters(content, L"test", 4);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = ISAXContentHandler_endElement(content, L"", 0, L"", 0, L"a", 1);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    check_writer_output(writer, L"<a>test</a>");
+
+    ISAXContentHandler_Release(content);
+    IMXWriter_Release(writer);
 
     free_bstrs();
 }
@@ -4963,13 +4916,7 @@ static void test_mxwriter_stream(void)
     hr = ISAXContentHandler_endDocument(content);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "Expected VT_BSTR, got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<?xml version=\"1.0\" encoding=\"UTF-16\" standalone=\"no\"?>\r\n", V_BSTR(&dest)),
-            "Got wrong content: %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<?xml version=\"1.0\" encoding=\"UTF-16\" standalone=\"no\"?>\r\n");
 
     /* test when BOM is written to output stream */
     V_VT(&dest) = VT_EMPTY;
@@ -5052,13 +4999,7 @@ static void test_mxwriter_encoding(void)
     /* The content is always re-encoded to UTF-16 when the output is
      * retrieved as a BSTR.
      */
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "Expected VT_BSTR, got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<?xml version=\"1.0\" encoding=\"UTF-16\" standalone=\"no\"?>\r\n", V_BSTR(&dest)),
-            "got wrong content: %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<?xml version=\"1.0\" encoding=\"UTF-16\" standalone=\"no\"?>\r\n");
 
     /* switch encoding when something is written already */
     hr = CreateStreamOnHGlobal(NULL, TRUE, &stream);
@@ -5339,48 +5280,72 @@ static void test_mxwriter_comment(void)
     hr = ISAXLexicalHandler_comment(lexical, L"comment", 0);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<!---->\r\n", V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<!---->\r\n");
 
     hr = ISAXLexicalHandler_comment(lexical, L"comment", 7);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<!---->\r\n<!--comment-->\r\n", V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<!---->\r\n<!--comment-->\r\n");
 
     /* As an element child */
     V_VT(&dest) = VT_EMPTY;
     hr = IMXWriter_put_output(writer, dest);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    hr = ISAXContentHandler_startElement(content, L"", 0, L"", 0, _bstr_("a"), -1, NULL);
+    hr = ISAXLexicalHandler_comment(lexical, L"c1", 2);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    hr = ISAXLexicalHandler_comment(lexical, L"comment", 7);
+    check_writer_output(writer, L"<!--c1-->\r\n");
+    hr = ISAXContentHandler_startElement(content, L"", 0, L"", 0, L"a", -1, NULL);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    hr = ISAXContentHandler_endElement(content, L"", 0, L"", 0, _bstr_("a"), -1);
+    check_writer_output(writer, L"<!--c1-->\r\n<a>");
+    hr = ISAXLexicalHandler_comment(lexical, L"c2", 2);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    check_writer_output_todo(writer, L"<!--c1-->\r\n<a><!--c2-->");
+    hr = ISAXContentHandler_endElement(content, L"", 0, L"", 0, L"a", -1);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    check_writer_output_todo(writer, L"<!--c1-->\r\n<a><!--c2--></a>");
+    hr = ISAXLexicalHandler_comment(lexical, L"c3", 2);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    check_writer_output_todo(writer, L"<!--c1-->\r\n<a><!--c2--></a><!--c3-->");
+
+    hr = IMXWriter_put_indent(writer, VARIANT_TRUE);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
     V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
+    hr = IMXWriter_put_output(writer, dest);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "Unexpected type %d.\n", V_VT(&dest));
-    todo_wine
-    ok(!lstrcmpW(L"<a><!--comment--></a>", V_BSTR(&dest)), "Unexpected content %s.\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+
+    hr = ISAXLexicalHandler_comment(lexical, L"c1", 2);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    check_writer_output_todo(writer, L"<!--c1-->");
+    hr = ISAXContentHandler_startElement(content, L"", 0, L"", 0, L"a", -1, NULL);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    check_writer_output_todo(writer, L"<!--c1-->\r\n<a>");
+    hr = ISAXLexicalHandler_comment(lexical, L"c2", 2);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    check_writer_output_todo(writer, L"<!--c1-->\r\n<a>\r\n\t<!--c2-->");
+    hr = ISAXContentHandler_endElement(content, L"", 0, L"", 0, L"a", -1);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    check_writer_output_todo(writer, L"<!--c1-->\r\n<a>\r\n\t<!--c2-->\r\n</a>");
+    hr = ISAXLexicalHandler_comment(lexical, L"c3", 2);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    check_writer_output_todo(writer, L"<!--c1-->\r\n<a>\r\n\t<!--c2-->\r\n</a>\r\n<!--c3-->");
+
+    hr = ISAXContentHandler_startElement(content, L"", 0, L"", 0, L"b", -1, NULL);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    hr = ISAXLexicalHandler_comment(lexical, L"c4", 2);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    hr = ISAXContentHandler_endElement(content, L"", 0, L"", 0, L"b", -1);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    hr = ISAXLexicalHandler_comment(lexical, L"c5", 2);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    check_writer_output_todo(writer, L"<!--c1-->\r\n<a>\r\n\t<!--c2-->\r\n</a>\r\n"
+            "<!--c3-->\r\n<b>\r\n\t<!--c4-->\r\n</b>\r\n<!--c5-->");
 
     ISAXContentHandler_Release(content);
     ISAXLexicalHandler_Release(lexical);
     IVBSAXLexicalHandler_Release(vblexical);
     IMXWriter_Release(writer);
-    free_bstrs();
 }
 
 static void test_mxwriter_cdata(void)
@@ -5389,7 +5354,6 @@ static void test_mxwriter_cdata(void)
     ISAXContentHandler *content;
     ISAXLexicalHandler *lexical;
     IMXWriter *writer;
-    VARIANT dest;
     HRESULT hr;
 
     hr = CoCreateInstance(&CLSID_MXXMLWriter, NULL, CLSCTX_INPROC_SERVER,
@@ -5414,12 +5378,7 @@ static void test_mxwriter_cdata(void)
     hr = ISAXLexicalHandler_startCDATA(lexical);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<![CDATA[", V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<![CDATA[");
 
     hr = IVBSAXLexicalHandler_startCDATA(vblexical);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
@@ -5434,19 +5393,12 @@ static void test_mxwriter_cdata(void)
     hr = ISAXLexicalHandler_endCDATA(lexical);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    todo_wine
-    ok(!lstrcmpW(L"<![CDATA[<![CDATA[< > & \"\r\na\r\nb\r\n]]>", V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<![CDATA[<![CDATA[< > & \"\r\na\r\nb\r\n]]>");
 
     ISAXContentHandler_Release(content);
     ISAXLexicalHandler_Release(lexical);
     IVBSAXLexicalHandler_Release(vblexical);
     IMXWriter_Release(writer);
-    free_bstrs();
 }
 
 static void test_mxwriter_pi(void)
@@ -5472,22 +5424,12 @@ static void test_mxwriter_pi(void)
     hr = ISAXContentHandler_processingInstruction(content, L"target", 6, NULL, 0);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<?\?>\r\n<?target?>\r\n", V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<?\?>\r\n<?target?>\r\n");
 
     hr = ISAXContentHandler_processingInstruction(content, L"target", 4, L"data", 4);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<?\?>\r\n<?target?>\r\n<?targ data?>\r\n", V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<?\?>\r\n<?target?>\r\n<?targ data?>\r\n");
 
     V_VT(&dest) = VT_EMPTY;
     hr = IMXWriter_put_output(writer, dest);
@@ -5496,13 +5438,58 @@ static void test_mxwriter_pi(void)
     hr = ISAXContentHandler_processingInstruction(content, L"target", 6, L"data", 0);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<?target?>\r\n", V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<?target?>\r\n");
 
+    /* As an element child */
+    V_VT(&dest) = VT_EMPTY;
+    hr = IMXWriter_put_output(writer, dest);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = ISAXContentHandler_processingInstruction(content, L"t1", 2, L"d1", 2);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    check_writer_output(writer, L"<?t1 d1?>\r\n");
+
+    hr = ISAXContentHandler_startElement(content, L"", 0, L"", 0, L"a", -1, NULL);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    check_writer_output(writer, L"<?t1 d1?>\r\n<a>");
+
+    hr = ISAXContentHandler_processingInstruction(content, L"t2", 2, L"d2", 2);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    hr = ISAXContentHandler_endElement(content, L"", 0, L"", 0, L"a", -1);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    hr = ISAXContentHandler_processingInstruction(content, L"t3", 2, L"d3", 2);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    hr = ISAXContentHandler_processingInstruction(content, L"t4", 2, L"d4", 2);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    check_writer_output_todo(writer, L"<?t1 d1?>\r\n<a><?t2 d2?></a><?t3 d3?><?t4 d4?>");
+
+    /* With indentation */
+    hr = IMXWriter_put_indent(writer, VARIANT_TRUE);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    V_VT(&dest) = VT_EMPTY;
+    hr = IMXWriter_put_output(writer, dest);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    hr = ISAXContentHandler_processingInstruction(content, L"t1", 2, L"d1", 2);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    check_writer_output_todo(writer, L"<?t1 d1?>");
+    hr = ISAXContentHandler_startElement(content, L"", 0, L"", 0, L"a", -1, NULL);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    check_writer_output(writer, L"<?t1 d1?>\r\n<a>");
+    hr = ISAXContentHandler_processingInstruction(content, L"t2", 2, L"d2", 2);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    check_writer_output_todo(writer, L"<?t1 d1?>\r\n<a>\r\n\t<?t2 d2?>");
+    hr = ISAXContentHandler_endElement(content, L"", 0, L"", 0, L"a", -1);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    check_writer_output(writer, L"<?t1 d1?>\r\n<a>\r\n\t<?t2 d2?>\r\n</a>");
+    hr = ISAXContentHandler_processingInstruction(content, L"t3", 2, L"d3", 2);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+    hr = ISAXContentHandler_processingInstruction(content, L"t4", 2, L"d4", 2);
+    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
+
+    check_writer_output_todo(writer, L"<?t1 d1?>\r\n<a>\r\n\t<?t2 d2?>\r\n</a>\r\n<?t3 d3?>\r\n<?t4 d4?>");
 
     ISAXContentHandler_Release(content);
     IMXWriter_Release(writer);
@@ -5512,7 +5499,6 @@ static void test_mxwriter_ignorablespaces(void)
 {
     ISAXContentHandler *content;
     IMXWriter *writer;
-    VARIANT dest;
     HRESULT hr;
 
     hr = CoCreateInstance(&CLSID_MXXMLWriter, NULL, CLSCTX_INPROC_SERVER,
@@ -5534,12 +5520,7 @@ static void test_mxwriter_ignorablespaces(void)
     hr = ISAXContentHandler_ignorableWhitespace(content, L"data", 1);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"datad", V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"datad");
 
     ISAXContentHandler_Release(content);
     IMXWriter_Release(writer);
@@ -5600,12 +5581,7 @@ static void test_mxwriter_dtd(void)
     hr = ISAXLexicalHandler_startDTD(lexical, L"name", 4, NULL, 0, NULL, 0);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<!DOCTYPE name [\r\n", V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<!DOCTYPE name [\r\n");
 
     /* system id is required if public is present */
     hr = ISAXLexicalHandler_startDTD(lexical, L"name", 4, L"pub", 3, NULL, 0);
@@ -5614,13 +5590,8 @@ static void test_mxwriter_dtd(void)
     hr = ISAXLexicalHandler_startDTD(lexical, L"name", 4, L"pub", 3, L"sys", 3);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<!DOCTYPE name [\r\n<!DOCTYPE name PUBLIC \"pub\""
-        "<!DOCTYPE name PUBLIC \"pub\" \"sys\" [\r\n", V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<!DOCTYPE name [\r\n<!DOCTYPE name PUBLIC \"pub\""
+        "<!DOCTYPE name PUBLIC \"pub\" \"sys\" [\r\n");
 
     hr = ISAXLexicalHandler_endDTD(lexical);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
@@ -5628,14 +5599,8 @@ static void test_mxwriter_dtd(void)
     hr = IVBSAXLexicalHandler_endDTD(vblexical);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<!DOCTYPE name [\r\n<!DOCTYPE name PUBLIC \"pub\""
-         "<!DOCTYPE name PUBLIC \"pub\" \"sys\" [\r\n]>\r\n]>\r\n",
-        V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<!DOCTYPE name [\r\n<!DOCTYPE name PUBLIC \"pub\""
+         "<!DOCTYPE name PUBLIC \"pub\" \"sys\" [\r\n]>\r\n]>\r\n");
 
     /* element declaration */
     V_VT(&dest) = VT_EMPTY;
@@ -5654,13 +5619,7 @@ static void test_mxwriter_dtd(void)
     hr = ISAXDeclHandler_elementDecl(decl, L"name", 4, L"content", 7);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<!ELEMENT name content>\r\n",
-        V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<!ELEMENT name content>\r\n");
 
     V_VT(&dest) = VT_EMPTY;
     hr = IMXWriter_put_output(writer, dest);
@@ -5669,13 +5628,7 @@ static void test_mxwriter_dtd(void)
     hr = ISAXDeclHandler_elementDecl(decl, L"name", 4, L"content", 0);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<!ELEMENT name >\r\n",
-        V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<!ELEMENT name >\r\n");
 
     /* attribute declaration */
     V_VT(&dest) = VT_EMPTY;
@@ -5686,13 +5639,7 @@ static void test_mxwriter_dtd(void)
             L"#REQUIRED", 9, L"value", 5);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<!ATTLIST element attribute CDATA #REQUIRED \"value\">\r\n",
-        V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<!ATTLIST element attribute CDATA #REQUIRED \"value\">\r\n");
 
     hr = ISAXDeclHandler_attributeDecl(decl, L"element", 7, L"attribute2", 10, L"CDATA", 5,
             L"#REQUIRED", 9, L"value2", 6);
@@ -5702,15 +5649,9 @@ static void test_mxwriter_dtd(void)
             L"#REQUIRED", 9, L"value3", 6);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<!ATTLIST element attribute CDATA #REQUIRED \"value\">\r\n"
+    check_writer_output(writer, L"<!ATTLIST element attribute CDATA #REQUIRED \"value\">\r\n"
                         "<!ATTLIST element attribute2 CDATA #REQUIRED \"value2\">\r\n"
-                        "<!ATTLIST element2 attribute3 CDATA #REQUIRED \"value3\">\r\n",
-        V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+                        "<!ATTLIST element2 attribute3 CDATA #REQUIRED \"value3\">\r\n");
 
     /* internal entities */
     V_VT(&dest) = VT_EMPTY;
@@ -5729,12 +5670,7 @@ static void test_mxwriter_dtd(void)
     hr = ISAXDeclHandler_internalEntityDecl(decl, L"name", 4, L"value", 5);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<!ENTITY name \"value\">\r\n", V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<!ENTITY name \"value\">\r\n");
 
     /* external entities */
     V_VT(&dest) = VT_EMPTY;
@@ -5762,14 +5698,7 @@ static void test_mxwriter_dtd(void)
     hr = ISAXDeclHandler_externalEntityDecl(decl, L"name", 4, L"pubid", 5, NULL, 0);
     ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<!ENTITY name PUBLIC \"pubid\" \"sysid\">\r\n<!ENTITY name SYSTEM \"sysid\">\r\n",
-        V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-
-    VariantClear(&dest);
+    check_writer_output(writer, L"<!ENTITY name PUBLIC \"pubid\" \"sysid\">\r\n<!ENTITY name SYSTEM \"sysid\">\r\n");
 
     /* notation declaration */
     hr = IMXWriter_QueryInterface(writer, &IID_ISAXDTDHandler, (void**)&dtd);
@@ -5794,17 +5723,11 @@ static void test_mxwriter_dtd(void)
     hr = ISAXDTDHandler_notationDecl(dtd, L"name", 4, NULL, 0, L"sysid", 5);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(
+    check_writer_output(writer,
         L"<!NOTATION name"
         "<!NOTATION name PUBLIC \"pubid\">\r\n"
         "<!NOTATION name PUBLIC \"pubid\" \"sysid\">\r\n"
-        "<!NOTATION name SYSTEM \"sysid\">\r\n",
-        V_BSTR(&dest)), "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-
-    VariantClear(&dest);
+        "<!NOTATION name SYSTEM \"sysid\">\r\n");
 
     ISAXDTDHandler_Release(dtd);
 
@@ -5814,7 +5737,6 @@ static void test_mxwriter_dtd(void)
     IVBSAXDeclHandler_Release(vbdecl);
     ISAXDeclHandler_Release(decl);
     IMXWriter_Release(writer);
-    free_bstrs();
 }
 
 typedef struct {
@@ -6255,7 +6177,6 @@ static void test_mxwriter_indent(void)
 {
     ISAXContentHandler *content;
     IMXWriter *writer;
-    VARIANT dest;
     HRESULT hr;
 
     hr = CoCreateInstance(&CLSID_MXXMLWriter, NULL, CLSCTX_INPROC_SERVER, &IID_IMXWriter, (void**)&writer);
@@ -6294,18 +6215,11 @@ static void test_mxwriter_indent(void)
     hr = ISAXContentHandler_endDocument(content);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    V_VT(&dest) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &dest);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&dest) == VT_BSTR, "got %d\n", V_VT(&dest));
-    ok(!lstrcmpW(L"<?xml version=\"1.0\" encoding=\"UTF-16\" standalone=\"no\"?>\r\n<a><b>\r\n\t\t<c/>\r\n\t</b>\r\n</a>", V_BSTR(&dest)),
-        "got wrong content %s\n", wine_dbgstr_w(V_BSTR(&dest)));
-    VariantClear(&dest);
+    check_writer_output(writer, L"<?xml version=\"1.0\" encoding=\"UTF-16\" standalone=\"no\"?>\r\n"
+            "<a><b>\r\n\t\t<c/>\r\n\t</b>\r\n</a>");
 
     ISAXContentHandler_Release(content);
     IMXWriter_Release(writer);
-
-    free_bstrs();
 }
 
 static void test_saxreader_vb_content_handler(void)
@@ -6362,12 +6276,7 @@ static void test_mxwriter_from_reader(void)
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     VariantClear(&var);
 
-    V_VT(&var) = VT_EMPTY;
-    hr = IMXWriter_get_output(writer, &var);
-    ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
-    ok(V_VT(&var) == VT_BSTR, "Unexpected output type %d.\n", V_VT(&var));
-    ok(!lstrcmpW(L"<a>text</a>", V_BSTR(&var)), "Unexpected content %s.\n", wine_dbgstr_w(V_BSTR(&var)));
-    VariantClear(&var);
+    check_writer_output(writer, L"<a>text</a>");
 
     IMXWriter_Release(writer);
     IVBSAXXMLReader_Release(reader);
@@ -6497,34 +6406,34 @@ static void test_saxreader_max_element_depth(void)
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
     memset(&v, 0, sizeof(v));
-    hr = ISAXXMLReader_getProperty(reader, _bstr_("max-element-depth"), &v);
+    hr = ISAXXMLReader_getProperty(reader, L"max-element-depth", &v);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     ok(V_VT(&v) == VT_I4, "Unexpected type %d.\n", V_VT(&v));
     ok(V_I4(&v) == 5000, "Unexpected value %ld.\n", V_I4(&v));
 
     V_UI4(&v) = 2147483648;
-    hr = ISAXXMLReader_putProperty(reader, _bstr_("max-element-depth"), v);
+    hr = ISAXXMLReader_putProperty(reader, L"max-element-depth", v);
     ok(hr == E_INVALIDARG, "Unexpected hr %#lx.\n", hr);
 
     V_I4(&v) = 2147483647;
-    hr = ISAXXMLReader_putProperty(reader, _bstr_("max-element-depth"), v);
+    hr = ISAXXMLReader_putProperty(reader, L"max-element-depth", v);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    hr = ISAXXMLReader_getProperty(reader, _bstr_("max-element-depth"), &v);
+    hr = ISAXXMLReader_getProperty(reader, L"max-element-depth", &v);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     ok(V_VT(&v) == VT_I4, "Unexpected type %d.\n", V_VT(&v));
     ok(V_I4(&v) == 2147483647, "Unexpected value %ld.\n", V_I4(&v));
 
     V_I4(&v) = 0;
-    hr = ISAXXMLReader_putProperty(reader, _bstr_("max-element-depth"), v);
+    hr = ISAXXMLReader_putProperty(reader, L"max-element-depth", v);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
-    hr = ISAXXMLReader_getProperty(reader, _bstr_("max-element-depth"), &v);
+    hr = ISAXXMLReader_getProperty(reader, L"max-element-depth", &v);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
     ok(V_I4(&v) == 0, "Unexpected value %ld.\n", V_I4(&v));
 
     V_I4(&v) = 1;
-    hr = ISAXXMLReader_putProperty(reader, _bstr_("max-element-depth"), v);
+    hr = ISAXXMLReader_putProperty(reader, L"max-element-depth", v);
     ok(hr == S_OK, "Unexpected hr %#lx.\n", hr);
 
     V_VT(&v) = VT_BSTR;

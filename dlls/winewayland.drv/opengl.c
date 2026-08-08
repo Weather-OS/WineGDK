@@ -80,18 +80,16 @@ static void wayland_gl_drawable_sync_size(struct wayland_gl_drawable *gl)
     wl_egl_window_resize(gl->wl_egl_window, client_width, client_height, 0, 0);
 }
 
-static BOOL wayland_opengl_surface_create(HWND hwnd, int format, struct opengl_drawable **drawable)
+static BOOL wayland_opengl_surface_create(struct client_surface *client, int format, struct opengl_drawable **drawable)
 {
+    struct wayland_client_surface *surface = impl_from_client_surface(client);
     EGLConfig config = egl_config_for_format(format);
-    struct wayland_client_surface *client;
     EGLint attribs[4], *attrib = attribs;
-    struct opengl_drawable *previous;
     struct wayland_gl_drawable *gl;
+    HWND hwnd = client->hwnd;
     RECT rect;
 
-    TRACE("hwnd=%p format=%d\n", hwnd, format);
-
-    if ((previous = *drawable) && previous->format == format) return TRUE;
+    TRACE("client=%s format=%d\n", debugstr_client_surface(client), format);
 
     NtUserGetClientRect(hwnd, &rect, NtUserGetDpiForWindow(hwnd));
     if (rect.right == rect.left) rect.right = rect.left + 1;
@@ -106,23 +104,19 @@ static BOOL wayland_opengl_surface_create(HWND hwnd, int format, struct opengl_d
     }
     *attrib++ = EGL_NONE;
 
-    if (!(client = wayland_client_surface_create(hwnd))) return FALSE;
-    gl = opengl_drawable_create(sizeof(*gl), &wayland_drawable_funcs, format, &client->client);
-    client_surface_release(&client->client);
-    if (!gl) return FALSE;
+    if (!(gl = opengl_drawable_create(sizeof(*gl), &wayland_drawable_funcs, format, client))) return FALSE;
 
     opengl_drawable_map_buffer(&gl->base, GL_FRONT_LEFT, GL_BACK_LEFT);
     opengl_drawable_map_buffer(&gl->base, GL_FRONT, GL_BACK);
     opengl_drawable_map_buffer(&gl->base, GL_FRONT_AND_BACK, GL_BACK);
     if (gl->base.stereo) opengl_drawable_map_buffer(&gl->base, GL_FRONT_RIGHT, GL_BACK_RIGHT);
 
-    if (!(gl->wl_egl_window = wl_egl_window_create(client->wl_surface, rect.right, rect.bottom))) goto err;
+    if (!(gl->wl_egl_window = wl_egl_window_create(surface->wl_surface, rect.right, rect.bottom))) goto err;
     if (!(gl->base.surface = funcs->p_eglCreateWindowSurface(egl->display, config, gl->wl_egl_window, attribs))) goto err;
-    set_client_surface(hwnd, client);
+    set_client_surface(hwnd, surface);
 
     TRACE("Created drawable %s with egl_surface %p\n", debugstr_opengl_drawable(&gl->base), gl->base.surface);
 
-    if (previous) opengl_drawable_release( previous );
     *drawable = &gl->base;
     return TRUE;
 

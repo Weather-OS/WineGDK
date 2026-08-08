@@ -233,7 +233,7 @@ extern void X11DRV_GetDC( HDC hdc, HWND hwnd, HWND top, const RECT *win_rect,
                           const RECT *top_rect, DWORD flags );
 extern void X11DRV_ReleaseDC( HWND hwnd, HDC hdc );
 extern BOOL X11DRV_ScrollDC( HDC hdc, INT dx, INT dy, HRGN update );
-extern void X11DRV_SetCapture( HWND hwnd, UINT flags );
+extern void X11DRV_SetCapture( HWND hwnd, UINT flags, HWND previous );
 extern void X11DRV_SetDesktopWindow( HWND hwnd );
 extern void X11DRV_SetLayeredWindowAttributes( HWND hwnd, COLORREF key, BYTE alpha,
                                                DWORD flags );
@@ -251,6 +251,7 @@ extern LRESULT X11DRV_WindowMessage( HWND hwnd, UINT msg, WPARAM wp, LPARAM lp )
 extern BOOL X11DRV_WindowPosChanging( HWND hwnd, UINT swp_flags, BOOL shaped, const struct window_rects *rects );
 extern BOOL X11DRV_GetWindowStyleMasks( HWND hwnd, UINT style, UINT ex_style, UINT *style_mask, UINT *ex_style_mask );
 extern BOOL X11DRV_GetWindowStateUpdates( HWND hwnd, UINT *state_cmd, UINT *swp_flags, RECT *rect, HWND *foreground );
+extern struct client_surface *X11DRV_CreateClientSurface( HWND hwnd, int format );
 extern BOOL X11DRV_CreateWindowSurface( HWND hwnd, BOOL layered, const RECT *surface_rect, struct window_surface **surface );
 extern void X11DRV_MoveWindowBits( HWND hwnd, const struct window_rects *old_rects,
                                    const struct window_rects *new_rects, const RECT *valid_rects );
@@ -364,11 +365,23 @@ struct x11drv_escape_get_drawable
     RECT                     dc_rect;      /* DC rectangle relative to drawable */
 };
 
+struct x11drv_client_surface
+{
+    struct client_surface client;
+    XWindowChanges changes;
+    Colormap colormap;
+    Window window;
+
+    HDC hdc_src;
+    HDC hdc_dst;
+};
+
+extern struct x11drv_client_surface *impl_from_client_surface( struct client_surface *client );
+
 extern BOOL needs_offscreen_rendering( HWND hwnd );
 extern void set_dc_drawable( HDC hdc, Drawable drawable, const RECT *rect, int mode );
 extern Drawable get_dc_drawable( HDC hdc, RECT *rect );
 extern HRGN get_dc_monitor_region( HWND hwnd, HDC hdc );
-extern Window x11drv_client_surface_create( HWND hwnd, int format, struct client_surface **client );
 
 /**************************************************************************
  * X11 USER driver
@@ -401,7 +414,6 @@ struct x11drv_thread_data
 {
     Display *display;
     XEvent  *current_event;        /* event currently being processed */
-    HWND     grab_hwnd;            /* window that currently grabs the mouse */
     HWND     last_focus;           /* last window that had focus */
     HWND     keymapnotify_hwnd;    /* window that should receive modifier release events */
     XIM      xim;                  /* input method */
@@ -418,6 +430,7 @@ struct x11drv_thread_data
     XIValuatorClassInfo x_valuator;
     XIValuatorClassInfo y_valuator;
     int      xinput2_pointer;      /* XInput2 master pointer device id */
+    int      root_window_users;    /* counter for root window XISelectEvents */
 #endif /* HAVE_X11_EXTENSIONS_XINPUT2_H */
 
     struct display_state desired_state;       /* display state tracking the desired / win32 state */
@@ -427,10 +440,11 @@ struct x11drv_thread_data
 };
 
 extern struct x11drv_thread_data *x11drv_init_thread_data(void);
+extern pthread_key_t x11drv_thread_data_key;
 
 static inline struct x11drv_thread_data *x11drv_thread_data(void)
 {
-    return (struct x11drv_thread_data *)(UINT_PTR)NtUserGetThreadInfo()->driver_data;
+    return pthread_getspecific( x11drv_thread_data_key );
 }
 
 /* retrieve the thread display, or NULL if not created yet */
@@ -695,6 +709,7 @@ struct x11drv_win_data
     unsigned long wm_normal_hints_serial;/* serial of last pending WM_NORMAL_HINTS request */
     unsigned long configure_serial;    /* serial of last pending configure request */
     unsigned long net_wm_icon_serial;  /* serial of last pending _NET_WM_ICON request */
+    unsigned long state_locks;         /* X11 state requests lock while updating win32 state */
 };
 
 extern struct x11drv_win_data *get_win_data( HWND hwnd );
@@ -973,6 +988,13 @@ static inline HWND get_active_window(void)
     GUITHREADINFO info;
     info.cbSize = sizeof(info);
     return NtUserGetGUIThreadInfo( GetCurrentThreadId(), &info ) ? info.hwndActive : 0;
+}
+
+static inline HWND get_capture_window(void)
+{
+    GUITHREADINFO info;
+    info.cbSize = sizeof(info);
+    return NtUserGetGUIThreadInfo( GetCurrentThreadId(), &info ) ? info.hwndCapture : 0;
 }
 
 static inline BOOL intersect_rect( RECT *dst, const RECT *src1, const RECT *src2 )

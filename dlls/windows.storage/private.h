@@ -58,6 +58,7 @@
 #define SEC_TO_UNIX_EPOCH 11644473600LL
 
 extern IActivationFactory *random_access_stream_reference_factory;
+extern IActivationFactory *memory_stream_activation_factory;
 extern IActivationFactory *storage_folder_factory;
 
 struct async_operation_iids
@@ -107,5 +108,50 @@ typedef HRESULT (WINAPI *async_operation_callback)( IUnknown *invoker, PVOID par
 #define DEFINE_IINSPECTABLE( pfx, iface_type, impl_type, base_iface )                              \
     DEFINE_IINSPECTABLE_( pfx, iface_type, impl_type, impl_from_##iface_type, iface_type##_iface, &impl->base_iface )
 #endif
+#define DEFINE_IINSPECTABLE_OUTER( pfx, iface_type, impl_type, outer_iface )                       \
+    DEFINE_IINSPECTABLE_( pfx, iface_type, impl_type, impl_from_##iface_type, iface_type##_iface, impl->outer_iface )
+
+#define DEFINE_ASYNC_PARAMS( type )                                                                \
+    static struct type *type##_from_IUnknown( IUnknown *iface )                                    \
+    {                                                                                              \
+        return CONTAINING_RECORD( iface, struct type, IUnknown_iface );                            \
+    }                                                                                              \
+    static HRESULT WINAPI type##_QueryInterface( IUnknown *iface, REFIID iid, void **out )         \
+    {                                                                                              \
+        if (IsEqualIID( iid, &IID_IUnknown ))                                                      \
+        {                                                                                          \
+            IUnknown_AddRef( iface );                                                              \
+            *out = iface;                                                                          \
+            return S_OK;                                                                           \
+        }                                                                                          \
+        *out = NULL;                                                                               \
+        return E_NOINTERFACE;                                                                      \
+    }                                                                                              \
+    static ULONG WINAPI type##_AddRef( IUnknown *iface )                                           \
+    {                                                                                              \
+        struct type *object = type##_from_IUnknown( iface );                                       \
+        return InterlockedIncrement( &object->ref );                                               \
+    }                                                                                              \
+    static ULONG WINAPI type##_Release( IUnknown *iface )                                          \
+    {                                                                                              \
+        struct type *object = type##_from_IUnknown( iface );                                       \
+        ULONG ref = InterlockedDecrement( &object->ref );                                          \
+        if (!ref) type##_##destroy( object );                                                      \
+        return ref;                                                                                \
+    }                                                                                              \
+    static const IUnknownVtbl type##_vtbl =                                                        \
+    {                                                                                              \
+        type##_QueryInterface,                                                                     \
+        type##_AddRef,                                                                             \
+        type##_Release,                                                                            \
+    };                                                                                             \
+    static struct type *type##_alloc(void)                                                         \
+    {                                                                                              \
+        struct type *object;                                                                       \
+        if (!(object = calloc( 1, sizeof(*object) ))) return NULL;                                 \
+        object->IUnknown_iface.lpVtbl = &type##_vtbl;                                              \
+        object->ref = 1;                                                                           \
+        return object;                                                                             \
+    }
 
 #endif

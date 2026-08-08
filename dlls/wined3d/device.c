@@ -2741,7 +2741,7 @@ void CDECL wined3d_device_set_max_frame_latency(struct wined3d_device *device, u
 
     device->max_frame_latency = latency;
     for (i = 0; i < device->swapchain_count; ++i)
-        swapchain_set_max_frame_latency(device->swapchains[i], device);
+        wined3d_swapchain_set_max_frame_latency(device->swapchains[i], device->max_frame_latency);
 }
 
 unsigned int CDECL wined3d_device_get_max_frame_latency(const struct wined3d_device *device)
@@ -4987,7 +4987,7 @@ static void update_swapchain_flags(struct wined3d_texture *texture)
 {
     unsigned int flags = texture->swapchain->state.desc.flags;
 
-    if (flags & WINED3D_SWAPCHAIN_LOCKABLE_BACKBUFFER)
+    if (flags & WINED3D_SWAPCHAIN_LOCKABLE_BACKBUFFER && !texture->swapchain->state.desc.multisample_type)
         texture->resource.access |= WINED3D_RESOURCE_ACCESS_MAP_R | WINED3D_RESOURCE_ACCESS_MAP_W;
     else
         texture->resource.access &= ~(WINED3D_RESOURCE_ACCESS_MAP_R | WINED3D_RESOURCE_ACCESS_MAP_W);
@@ -5005,6 +5005,7 @@ HRESULT CDECL wined3d_device_reset(struct wined3d_device *device,
     static struct wined3d_rendertarget_view *const views[WINED3D_MAX_RENDER_TARGETS];
     const struct wined3d_d3d_info *d3d_info = &device->adapter->d3d_info;
     struct wined3d_device_context *context = &device->cs->c;
+    BOOL backbuffer_resized, flags_changed, windowed;
     struct wined3d_swapchain_state *swapchain_state;
     struct wined3d_state *state = context->state;
     struct wined3d_swapchain_desc *current_desc;
@@ -5012,7 +5013,6 @@ HRESULT CDECL wined3d_device_reset(struct wined3d_device *device,
     struct wined3d_rendertarget_view *view;
     struct wined3d_swapchain *swapchain;
     struct wined3d_view_desc view_desc;
-    BOOL backbuffer_resized, windowed;
     HRESULT hr = WINED3D_OK;
     HWND device_window;
     unsigned int i;
@@ -5082,6 +5082,9 @@ HRESULT CDECL wined3d_device_reset(struct wined3d_device *device,
     TRACE("refresh_rate %u\n", swapchain_desc->refresh_rate);
     TRACE("auto_restore_display_mode %#x\n", swapchain_desc->auto_restore_display_mode);
 
+    if (FAILED(hr = wined3d_swapchain_desc_validate_flags(swapchain_desc)))
+        return hr;
+
     if (swapchain_desc->backbuffer_bind_flags && swapchain_desc->backbuffer_bind_flags != WINED3D_BIND_RENDER_TARGET)
         FIXME("Got unexpected backbuffer bind flags %#x.\n", swapchain_desc->backbuffer_bind_flags);
 
@@ -5109,6 +5112,7 @@ HRESULT CDECL wined3d_device_reset(struct wined3d_device *device,
 
     backbuffer_resized = swapchain_desc->backbuffer_width != current_desc->backbuffer_width
             || swapchain_desc->backbuffer_height != current_desc->backbuffer_height;
+    flags_changed = swapchain_desc->flags != current_desc->flags;
     windowed = current_desc->windowed;
 
     if (!swapchain_desc->windowed != !windowed || swapchain->reapply_mode
@@ -5163,13 +5167,11 @@ HRESULT CDECL wined3d_device_reset(struct wined3d_device *device,
 
     if (FAILED(hr = wined3d_swapchain_resize_buffers(swapchain, swapchain_desc->backbuffer_count,
             swapchain_desc->backbuffer_width, swapchain_desc->backbuffer_height, swapchain_desc->backbuffer_format,
-            swapchain_desc->multisample_type, swapchain_desc->multisample_quality)))
+            swapchain_desc->multisample_type, swapchain_desc->multisample_quality, swapchain_desc->flags)))
         return hr;
 
-    if (swapchain_desc->flags != current_desc->flags)
+    if (flags_changed)
     {
-        current_desc->flags = swapchain_desc->flags;
-
         update_swapchain_flags(swapchain->front_buffer);
         for (i = 0; i < current_desc->backbuffer_count; ++i)
         {

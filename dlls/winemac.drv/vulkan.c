@@ -27,8 +27,6 @@
 
 #include "config.h"
 
-#include <stdarg.h>
-#include <stdio.h>
 #include <dlfcn.h>
 
 #include "ntstatus.h"
@@ -42,17 +40,14 @@ WINE_DEFAULT_DEBUG_CHANNEL(vulkan);
 
 static const struct vulkan_driver_funcs macdrv_vulkan_driver_funcs;
 
-static VkResult macdrv_vulkan_surface_create(HWND hwnd, const struct vulkan_instance *instance, VkSurfaceKHR *handle,
-                                             struct client_surface **client)
+static VkResult macdrv_vulkan_surface_create(struct client_surface *client, const struct vulkan_instance *instance, VkSurfaceKHR *handle)
 {
     VkResult res;
-    struct macdrv_client_surface *surface;
+    struct macdrv_client_surface *surface = impl_from_client_surface(client);
 
-    TRACE("%p %p %p %p\n", hwnd, instance, handle, client);
+    TRACE("%s %p %p\n", debugstr_client_surface(client), instance, handle);
 
-    if (!(surface = macdrv_client_surface_create(hwnd))) return VK_ERROR_OUT_OF_HOST_MEMORY;
-    if (!(surface->metal_device = macdrv_create_metal_device())) goto err;
-    if (!(surface->metal_view = macdrv_view_create_metal_view(surface->cocoa_view, surface->metal_device))) goto err;
+    if (!macdrv_client_surface_acquire_metal_swapchain(surface)) return VK_ERROR_INCOMPATIBLE_DRIVER;
 
     if (instance->p_vkCreateMetalSurfaceEXT)
     {
@@ -60,9 +55,9 @@ static VkResult macdrv_vulkan_surface_create(HWND hwnd, const struct vulkan_inst
         create_info_host.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
         create_info_host.pNext = NULL;
         create_info_host.flags = 0; /* reserved */
-        create_info_host.pLayer = macdrv_view_get_metal_layer(surface->metal_view);
+        create_info_host.pLayer = macdrv_swapchain_get_layer(surface->metal_swapchain);
 
-        res = instance->p_vkCreateMetalSurfaceEXT(instance->host.instance, &create_info_host, NULL /* allocator */, handle);
+        if ((res = instance->p_vkCreateMetalSurfaceEXT(instance->host.instance, &create_info_host, NULL /* allocator */, handle))) return res;
     }
     else
     {
@@ -70,23 +65,13 @@ static VkResult macdrv_vulkan_surface_create(HWND hwnd, const struct vulkan_inst
         create_info_host.sType = VK_STRUCTURE_TYPE_MACOS_SURFACE_CREATE_INFO_MVK;
         create_info_host.pNext = NULL;
         create_info_host.flags = 0; /* reserved */
-        create_info_host.pView = macdrv_view_get_metal_layer(surface->metal_view);
+        create_info_host.pView = macdrv_swapchain_get_layer(surface->metal_swapchain);
 
-        res = instance->p_vkCreateMacOSSurfaceMVK(instance->host.instance, &create_info_host, NULL /* allocator */, handle);
-    }
-    if (res != VK_SUCCESS)
-    {
-        ERR("Failed to create MoltenVK surface, res=%d\n", res);
-        goto err;
+        if ((res = instance->p_vkCreateMacOSSurfaceMVK(instance->host.instance, &create_info_host, NULL /* allocator */, handle))) return res;
     }
 
-    *client = &surface->client;
-    TRACE("Created surface=0x%s, client=%p\n", wine_dbgstr_longlong(*handle), *client);
+    TRACE("Created surface=0x%s\n", wine_dbgstr_longlong(*handle));
     return VK_SUCCESS;
-
-err:
-    client_surface_release(&surface->client);
-    return VK_ERROR_INCOMPATIBLE_DRIVER;
 }
 
 static VkBool32 macdrv_get_physical_device_presentation_support(struct vulkan_physical_device *physical_device,

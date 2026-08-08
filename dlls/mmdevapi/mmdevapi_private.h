@@ -75,8 +75,6 @@ struct audio_client {
     UINT32 channel_count;
     stream_handle stream;
 
-    HANDLE timer_thread;
-
     struct audio_session *session;
     struct audio_session_wrapper *session_wrapper;
 
@@ -128,8 +126,6 @@ extern HRESULT SpatialAudioClient_Create(IMMDevice *device, ISpatialAudioClient 
 extern BOOL get_device_name_from_guid( const GUID *guid, char **name, EDataFlow *flow );
 extern HRESULT load_devices_from_reg(void);
 extern HRESULT load_driver_devices(EDataFlow flow);
-
-extern void main_loop_stop(void);
 
 extern const WCHAR drv_keyW[];
 

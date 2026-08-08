@@ -324,7 +324,7 @@ static NTSTATUS pdo_pnp(DEVICE_OBJECT *device_obj, IRP *irp)
 
             query_id_count = 0;
             status = IoRegisterDeviceInterface(device_obj, &child_class, NULL, &device->child_symlink);
-            todo_wine ok(query_id_count == 0, "expected no IRP_MN_QUERY_ID\n");
+            ok(query_id_count == 0, "expected no IRP_MN_QUERY_ID\n");
             ok(!status, "Failed to register interface, status %#lx.\n", status);
             ok(device->child_symlink.Length == sizeof(expect_symlink) - sizeof(WCHAR),
                     "Got length %u.\n", device->child_symlink.Length);
@@ -693,6 +693,16 @@ static void test_device_properties( DEVICE_OBJECT *device )
         const DEVPROPKEY *key = deviceprops[i].key;
         void *value = &deviceprops[i].value;
 
+        /*
+         * Io{Get,Set}DevicePropertyData() being used with a non-PDO device causes a
+         * BSoD on native with an error code of PNP_DETECTED_FATAL_ERROR.
+         */
+        if (0)
+        {
+            status = IoSetDevicePropertyData( bus_fdo, key, LOCALE_NEUTRAL, 0, type, size, value );
+            ok( status == STATUS_SUCCESS, "Failed to set device property, status %#lx.\n", status );
+        }
+
         status = IoSetDevicePropertyData( device, key, LOCALE_NEUTRAL, 0, type, size, value );
         ok( status == STATUS_SUCCESS, "Failed to set device property, status %#lx.\n", status );
         if (status == STATUS_SUCCESS)
@@ -726,6 +736,17 @@ static void test_device_properties( DEVICE_OBJECT *device )
                 if (status == STATUS_SUCCESS)
                     ok( kmemcmp( buf, value, size ) == 0,
                         "Got unexpected device property value.\n" );
+                /* Crashes in the same manner as IoSetDevicePropertyData(). */
+                if (0)
+                {
+                    req_size = 0;
+                    stored_type = DEVPROP_TYPE_EMPTY;
+                    memset( buf, 0, size );
+                    status = IoGetDevicePropertyData( bus_fdo, key, LOCALE_NEUTRAL, 0, size, buf,
+                                                      &req_size, &stored_type );
+                    ok( status == STATUS_SUCCESS, "Failed to get device property, status %#lx.\n",
+                        status );
+                }
                 ExFreePool( buf );
             }
         }
@@ -747,12 +768,12 @@ static void test_child_device_properties(DEVICE_OBJECT *device)
 
     query_id_count = 0;
     status = IoSetDevicePropertyData(device, key, LOCALE_NEUTRAL, 0, type, size, &value);
-    todo_wine ok(query_id_count == 0, "expected no IRP_MN_QUERY_ID\n");
+    ok(query_id_count == 0, "expected no IRP_MN_QUERY_ID\n");
     ok(status == STATUS_SUCCESS, "failed to set device property, status %#lx\n", status);
 
     query_id_count = 0;
     status = IoGetDevicePropertyData(device, key, LOCALE_NEUTRAL, 0, size, &stored_value, &req_size, &stored_type);
-    todo_wine ok(query_id_count == 0, "expected no IRP_MN_QUERY_ID\n");
+    ok(query_id_count == 0, "expected no IRP_MN_QUERY_ID\n");
     ok(status == STATUS_SUCCESS, "failed to get device property, status %#lx\n", status);
     ok(req_size == size, "expected required size %lu, got %lu\n", req_size, size);
     ok(stored_type == type, "expected DEVPROPTYPE value %#lx, got %#lx\n", type, stored_type);
@@ -760,7 +781,7 @@ static void test_child_device_properties(DEVICE_OBJECT *device)
 
     query_id_count = 0;
     status = IoSetDevicePropertyData(device, key, LOCALE_NEUTRAL, 0, type, 0, NULL);
-    todo_wine ok(query_id_count == 0, "expected no IRP_MN_QUERY_ID\n");
+    ok(query_id_count == 0, "expected no IRP_MN_QUERY_ID\n");
     ok(status == STATUS_SUCCESS, "failed to delete device property, status %#lx\n", status);
 }
 
@@ -833,12 +854,14 @@ static void test_enumerator_name(void)
     NTSTATUS status;
 
     status = IoGetDeviceProperty(bus_fdo, DevicePropertyEnumeratorName, sizeof(buffer), buffer, &req_size);
-    todo_wine ok(status == STATUS_INVALID_DEVICE_REQUEST, "got unexpected status %#lx\n", status);
+    ok(status == STATUS_INVALID_DEVICE_REQUEST, "got unexpected status %#lx\n", status);
+    ok(!(bus_fdo->Flags & DO_BUS_ENUMERATED_DEVICE), "Unexpected bus_fdo flags %#lx.\n", bus_fdo->Flags);
 
     req_size = 0;
     memset(buffer, 0, sizeof(buffer));
     status = IoGetDeviceProperty(bus_pdo, DevicePropertyEnumeratorName, sizeof(buffer), buffer, &req_size);
     ok(status == STATUS_SUCCESS, "IoGetDeviceProperty failed: %#lx\n", status);
+    ok(!!(bus_pdo->Flags & DO_BUS_ENUMERATED_DEVICE), "Unexpected bus_pdo flags %#lx.\n", bus_pdo->Flags);
     ok(req_size == sizeof(root), "unexpected size %lu\n", req_size);
     if (status == STATUS_SUCCESS)
         ok(!wcscmp(root, buffer), "unexpected property value '%ls'\n", buffer);
@@ -853,7 +876,7 @@ static void test_child_enumerator_name(DEVICE_OBJECT *device)
 
     query_id_count = 0;
     status = IoGetDeviceProperty(device, DevicePropertyEnumeratorName, sizeof(buffer), buffer, &req_size);
-    todo_wine ok(query_id_count == 0, "expected no IRP_MN_QUERY_ID\n");
+    ok(query_id_count == 0, "expected no IRP_MN_QUERY_ID\n");
     ok(status == STATUS_SUCCESS, "IoGetDeviceProperty failed: %#lx\n", status);
     ok(req_size == sizeof(wine), "unexpected size %lu\n", req_size);
     if (status == STATUS_SUCCESS)
@@ -872,10 +895,12 @@ static void test_device_registry_key(void)
     DWORD size;
 
     status = IoOpenDeviceRegistryKey(bus_fdo, PLUGPLAY_REGKEY_DEVICE, KEY_ALL_ACCESS, &hkey);
-    todo_wine ok(status == STATUS_INVALID_PARAMETER, "got unexpected status %#lx\n", status);
+    ok(status == STATUS_INVALID_PARAMETER, "got unexpected status %#lx\n", status);
+    ok(!(bus_fdo->Flags & DO_BUS_ENUMERATED_DEVICE), "Unexpected bus_fdo flags %#lx.\n", bus_fdo->Flags);
 
     status = IoOpenDeviceRegistryKey(bus_pdo, PLUGPLAY_REGKEY_DEVICE, KEY_ALL_ACCESS, &hkey);
     ok(status == STATUS_SUCCESS, "IoOpenDeviceRegistryKey failed: %#lx\n", status);
+    ok(!!(bus_pdo->Flags & DO_BUS_ENUMERATED_DEVICE), "Unexpected bus_pdo flags %#lx.\n", bus_pdo->Flags);
     if (status == STATUS_SUCCESS)
     {
         RtlInitUnicodeString(&name_str, foobar);
@@ -913,7 +938,7 @@ static void test_child_device_registry_key(DEVICE_OBJECT *device)
 
     query_id_count = 0;
     status = IoOpenDeviceRegistryKey(device, PLUGPLAY_REGKEY_DEVICE, KEY_ALL_ACCESS, &hkey);
-    todo_wine ok(query_id_count == 0, "expected no IRP_MN_QUERY_ID\n");
+    ok(query_id_count == 0, "expected no IRP_MN_QUERY_ID\n");
     ok(status == STATUS_SUCCESS, "IoOpenDeviceRegistryKey failed: %#lx\n", status);
     if (status == STATUS_SUCCESS)
     {
@@ -1144,11 +1169,15 @@ static NTSTATUS WINAPI driver_ioctl(DEVICE_OBJECT *device, IRP *irp)
 
 static NTSTATUS WINAPI driver_add_device(DRIVER_OBJECT *driver, DEVICE_OBJECT *pdo)
 {
+    DEVOBJ_EXTENSION *pdo_ext = pdo->DeviceObjectExtension;
+    DEVOBJ_EXTENSION *fdo_ext;
     NTSTATUS ret;
 
+    ok(!!(pdo->Flags & DO_BUS_ENUMERATED_DEVICE), "Unexpected pdo flags %#lx.\n", pdo->Flags);
     if ((ret = IoCreateDevice(driver, 0, NULL, FILE_DEVICE_BUS_EXTENDER, 0, FALSE, &bus_fdo)))
         return ret;
 
+    fdo_ext = bus_fdo->DeviceObjectExtension;
     if ((ret = IoRegisterDeviceInterface(pdo, &control_class, NULL, &control_symlink)))
     {
         IoDeleteDevice(bus_fdo);
@@ -1156,6 +1185,12 @@ static NTSTATUS WINAPI driver_add_device(DRIVER_OBJECT *driver, DEVICE_OBJECT *p
     }
 
     IoAttachDeviceToDeviceStack(bus_fdo, pdo);
+    ok(pdo->AttachedDevice == bus_fdo, "Unexpected AttachedDevice %p.\n", pdo->AttachedDevice);
+    if (pdo_ext)
+        ok(!pdo_ext->AttachedTo, "Unexpected AttachedTo %p.\n", pdo_ext->AttachedTo);
+    ok(!bus_fdo->AttachedDevice, "Unexpected AttachedDevice %p.\n", bus_fdo->AttachedDevice);
+    if (fdo_ext)
+        ok(fdo_ext->AttachedTo == pdo, "Unexpected AttachedTo %p.\n", fdo_ext->AttachedTo);
     bus_pdo = pdo;
     bus_fdo->Flags &= ~DO_DEVICE_INITIALIZING;
     return STATUS_SUCCESS;

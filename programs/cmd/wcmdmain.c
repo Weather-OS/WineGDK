@@ -68,6 +68,11 @@ static BOOL unicodeOutput = FALSE;
 static HANDLE console_input;
 BOOL echo_mode = TRUE;
 
+/* Output handling */
+static DWORD orig_console_mode;
+static DWORD internal_console_mode = ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT
+                                     | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+
 /* Variables pertaining to paging */
 static BOOL paged_mode;
 static const WCHAR *pagedMessage = NULL;
@@ -1165,9 +1170,7 @@ static void handleExpansion(WCHAR *cmd, BOOL atExecute) {
   WCHAR *t;
   int   i;
   BOOL delayed = atExecute ? delayedsubst : FALSE;
-  WCHAR *delayedp = NULL;
   WCHAR  startchar = '%';
-  WCHAR *normalp;
 
   /* Display the FOR variables in effect */
   for (i=0;i<ARRAY_SIZE(forloopcontext->variable);i++) {
@@ -1179,13 +1182,24 @@ static void handleExpansion(WCHAR *cmd, BOOL atExecute) {
 
   for (;;)
   {
-    /* Find the next environment variable delimiter */
-    normalp = wcschr(p, '%');
-    if (delayed) delayedp = wcschr(p, '!');
-    if (!normalp) p = delayedp;
-    else if (!delayedp) p = normalp;
-    else p = min(p,delayedp);
+    /* Find the next variable delimiter or caret escape */
+    if (delayed)
+        p = wcspbrk(p, L"%!^");
+    else
+        p = wcschr(p, '%');
     if (!p) break;
+
+    /* Handle caret escape: if caret precedes ! during delayed expansion,
+     * consume the caret and treat the ! as literal. Other caret sequences
+     * (e.g. ^% in pipe payloads) are left untouched for subprocesses.   */
+    if (*p == L'^')
+    {
+        if (p[1] != L'!') { p++; continue; }
+        p = WCMD_strsubstW(p, p + 1, NULL, 0);  /* remove the caret */
+        p++;  /* skip the now-literal exclamation mark */
+        continue;
+    }
+
     startchar = *p;
 
     WINE_TRACE("Translate command:%s %d (at: %s)\n",
@@ -1798,6 +1812,8 @@ static RETURN_CODE spawn_external_full_path(const WCHAR *file, WCHAR *full_cmdli
         console = SHGetFileInfoW(exe_path, 0, &psfi, sizeof(psfi), SHGFI_EXETYPE);
 
     init_msvcrt_io_block(&si);
+    if (console && !HIWORD(console))
+        SetConsoleMode( GetStdHandle(STD_OUTPUT_HANDLE), orig_console_mode );
     ret = CreateProcessW(file, full_cmdline, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi);
     free(si.lpReserved2);
 
@@ -2812,7 +2828,7 @@ static BOOL node_builder_parse(struct node_builder *builder, unsigned precedence
     CMD_FOR_CONTROL *for_ctrl = NULL;
     union token_parameter pmt;
     enum builder_token tkn;
-    BOOL done, do_echo = TRUE;
+    BOOL done = FALSE, do_echo = TRUE;
 
 #define ERROR_IF(x) if (x) {bogus_line = __LINE__; goto error_handling;}
     do
@@ -4689,6 +4705,7 @@ static RETURN_CODE node_execute_with_echo(CMD_NODE *node, BOOL with_echo)
 
 RETURN_CODE node_execute(CMD_NODE *node)
 {
+    SetConsoleMode( GetStdHandle(STD_OUTPUT_HANDLE), internal_console_mode );
     return node_execute_with_echo(node, echo_mode && WCMD_is_in_context(NULL));
 }
 
@@ -4849,7 +4866,7 @@ static void parse_command_line_parameters(struct cmd_parameters *parameters)
         /* opt_s left unflagged if the command starts with and contains exactly
          * one quoted string (exactly two quote characters). The quoted string
          * must be an executable name that has whitespace and must not have the
-         * following characters: &<>()@^|
+         * following characters: &<>@^|
          */
 
         /* 1. Confirm there is at least one quote */
@@ -4867,7 +4884,7 @@ static void parse_command_line_parameters(struct cmd_parameters *parameters)
             opt_s = TRUE;
             for (p = q1; p != q2; p++)
             {
-                if (wcschr(L"&<>()@^'", *p))
+                if (wcschr(L"&<>@^'", *p))
                 {
                     opt_s = TRUE;
                     break;
@@ -4941,6 +4958,7 @@ static void WCMD_setup(void)
     /* init for loop context */
     forloopcontext = NULL;
     WCMD_save_for_loop_context(TRUE);
+    GetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), &orig_console_mode);
 }
 
 /*****************************************************************************

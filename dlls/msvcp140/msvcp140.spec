@@ -3634,20 +3634,20 @@
 @ cdecl _Cnd_unregister_at_thread_exit(ptr)
 @ cdecl _Cnd_wait(ptr ptr)
 @ cdecl _Copy_file(wstr wstr)
-@ stub _Cosh
+@ cdecl _Cosh(double double)
 @ cdecl _Current_get(ptr)
 @ cdecl _Current_set(wstr) tr2_sys__Current_set_wchar
 @ extern _Denorm
 @ cdecl _Dtest(ptr)
 @ cdecl _Equivalent(wstr wstr) _Equivalent
 @ cdecl _Exp(ptr double long)
-@ stub _FCosh
+@ cdecl _FCosh(float float)
 @ extern _FDenorm
 @ cdecl _FDtest(ptr)
 @ cdecl _FExp(ptr float long)
 @ extern _FInf
 @ extern _FNan
-@ stub _FSinh
+@ cdecl _FSinh(float float)
 @ extern _FSnan
 @ cdecl _File_size(wstr)
 @ cdecl -norelay _Getcoll()
@@ -3659,13 +3659,13 @@
 @ stub _Hard_links
 @ extern _Hugeval
 @ extern _Inf
-@ stub _LCosh
+@ cdecl _LCosh(double double) _Cosh
 @ extern _LDenorm
 @ cdecl _LDtest(ptr) _Dtest
 @ stub _LExp
 @ extern _LInf
 @ extern _LNan
-@ stub _LSinh
+@ cdecl _LSinh(double double) _Sinh
 @ extern _LSnan
 @ cdecl _Last_write_time(int64)
 @ cdecl _Link(wstr wstr) tr2_sys__Link_wchar
@@ -3698,7 +3698,7 @@
 @ cdecl _Rename(wstr wstr) tr2_sys__Rename_wchar
 @ cdecl _Resize(wstr int64)
 @ cdecl _Set_last_write_time(wstr int64)
-@ stub _Sinh
+@ cdecl _Sinh(double double)
 @ extern _Snan
 @ cdecl _Stat(wstr ptr)
 @ stub _Statvfs

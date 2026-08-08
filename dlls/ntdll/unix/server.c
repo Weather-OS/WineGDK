@@ -1554,9 +1554,8 @@ static int get_unix_tid(void)
  *
  * Create the server->client communication pipe.
  */
-static int init_thread_pipe(void)
+static int init_thread_pipe( struct thread_data *data )
 {
-    struct thread_data *data = get_thread_data();
     int reply_pipe[2];
     stack_t ss;
 
@@ -1571,6 +1570,18 @@ static int init_thread_pipe(void)
     wine_server_send_fd( data->wait_fd[1] );
     data->reply_fd = reply_pipe[0];
     return reply_pipe[1];
+}
+
+
+/***********************************************************************
+ *           init_teb_data
+ */
+static void init_teb_data( struct thread_data *data )
+{
+    struct teb_data *teb_data = get_teb_data( data );
+
+    teb_data->syscall_table = KeServiceDescriptorTable;
+    teb_data->syscall_trace = TRACE_ON(syscall);
 }
 
 
@@ -1663,7 +1674,7 @@ size_t server_init_process(void)
     sigemptyset( &sig_act.sa_mask );
     sigaction( SIGPIPE, &sig_act, NULL );
 
-    reply_pipe = init_thread_pipe();
+    reply_pipe = init_thread_pipe( data );
 
     SERVER_START_REQ( init_first_thread )
     {
@@ -1672,6 +1683,7 @@ size_t server_init_process(void)
         req->reply_fd    = reply_pipe;
         req->wait_fd     = data->wait_fd[1];
         req->debug_level = (TRACE_ON(server) != 0);
+        req->page_size   = get_host_page_size();
         wine_server_set_reply( req, supported_machines, sizeof(supported_machines) );
         if (!(ret = wine_server_call( req )))
         {
@@ -1731,12 +1743,10 @@ size_t server_init_process(void)
  */
 void server_init_process_done(void)
 {
-    void *teb;
     unsigned int status;
-    int suspend;
     FILE_FS_DEVICE_INFORMATION info;
     struct thread_data *data = get_thread_data();
-    struct teb_data *teb_data = get_teb_data( data );
+    TEB64 *teb64 = get_teb64( data->teb );
 
     if (!get_device_info( initial_cwd, &info ) && (info.Characteristics & FILE_REMOVABLE_MEDIA))
         chdir( "/" );
@@ -1749,25 +1759,21 @@ void server_init_process_done(void)
     /* Install signal handlers; this cannot be done earlier, since we cannot
      * send exceptions to the debugger before the create process event that
      * is sent by init_process_done */
-    signal_init_process();
-    teb_data->syscall_table = KeServiceDescriptorTable;
-    teb_data->syscall_trace = TRACE_ON(syscall);
-
-    /* always send the native TEB */
-    if (!(teb = NtCurrentTeb64())) teb = data->teb;
+    signal_init_process( data->teb );
+    init_teb_data( data );
 
     /* Signal the parent process to continue */
     SERVER_START_REQ( init_process_done )
     {
-        req->teb = wine_server_client_ptr( teb );
-        req->peb = NtCurrentTeb64() ? NtCurrentTeb64()->Peb : wine_server_client_ptr( peb );
+        req->teb = wine_server_client_ptr( teb64 ? (void *)teb64 : (void *)data->teb );
+        req->peb = teb64 ? teb64->Peb : wine_server_client_ptr( peb );
         status = wine_server_call( req );
-        suspend = reply->suspend;
+        data->suspend = reply->suspend;
     }
     SERVER_END_REQ;
 
     assert( !status );
-    signal_start_thread( main_image_info.TransferAddress, peb, suspend, data->teb );
+    signal_start_thread( main_image_info.TransferAddress, peb, data->teb );
 }
 
 
@@ -1776,27 +1782,39 @@ void server_init_process_done(void)
  *
  * Send an init thread request.
  */
-void server_init_thread( void *entry_point, BOOL *suspend )
+void server_init_thread( struct thread_data *data )
 {
-    void *teb;
-    struct thread_data *data = get_thread_data();
-    int reply_pipe = init_thread_pipe();
+    int reply_pipe;
+    TEB64 *teb64 = get_teb64( data->teb );
 
-    /* always send the native TEB */
-    if (!(teb = NtCurrentTeb64())) teb = data->teb;
+    data->pthread_id = pthread_self();
+    pthread_setspecific( thread_data_key, data );
 
+    reply_pipe = init_thread_pipe( data );
     SERVER_START_REQ( init_thread )
     {
         req->unix_tid  = get_unix_tid();
-        req->teb       = wine_server_client_ptr( teb );
-        req->entry     = wine_server_client_ptr( entry_point );
+        req->teb       = wine_server_client_ptr( teb64 ? (void *)teb64 : (void *)data->teb );
         req->reply_fd  = reply_pipe;
         req->wait_fd   = data->wait_fd[1];
+        if (data->teb) req->entry = wine_server_client_ptr( data->start );
         wine_server_call( req );
-        *suspend = reply->suspend;
+        data->suspend = reply->suspend;
     }
     SERVER_END_REQ;
     close( reply_pipe );
+
+    if (data->teb)
+    {
+        init_teb_data( data );
+        signal_start_thread( data->start, data->param, data->teb );
+    }
+    else
+    {
+        void (*entry)(void *) = data->start;
+        entry( data->param );
+        PsTerminateSystemThread( 1 );
+    }
 }
 
 NTSTATUS WINAPI NtAllocateReserveObject( HANDLE *handle, const OBJECT_ATTRIBUTES *attr,
@@ -1958,8 +1976,10 @@ NTSTATUS WINAPI NtClose( HANDLE handle )
     if (!peb->BeingDebugged) return ret;
     if (!NtQueryInformationProcess( NtCurrentProcess(), ProcessDebugPort, &port, sizeof(port), NULL) && port)
     {
-        NtCurrentTeb()->ExceptionCode = ret;
-        call_raise_user_exception_dispatcher();
+        struct thread_data *data = get_thread_data();
+        if (!data->teb) return ret;
+        data->teb->ExceptionCode = ret;
+        call_raise_user_exception_dispatcher( data );
     }
     return ret;
 }

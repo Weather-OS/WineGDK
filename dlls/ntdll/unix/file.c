@@ -3127,12 +3127,18 @@ static const WCHAR driversetcW[] = {'s','y','s','t','e','m','3','2','\\','d','r'
 static const WCHAR logfilesW[] = {'s','y','s','t','e','m','3','2','\\','l','o','g','f','i','l','e','s',0};
 static const WCHAR spoolW[] = {'s','y','s','t','e','m','3','2','\\','s','p','o','o','l',0};
 static const WCHAR system32W[] = {'s','y','s','t','e','m','3','2',0};
-static const WCHAR syswow64W[] = {'s','y','s','w','o','w','6','4',0};
 static const WCHAR sysnativeW[] = {'s','y','s','n','a','t','i','v','e',0};
 static const WCHAR regeditW[] = {'r','e','g','e','d','i','t','.','e','x','e',0};
-static const WCHAR syswow64_regeditW[] = {'s','y','s','w','o','w','6','4','\\','r','e','g','e','d','i','t','.','e','x','e',0};
 static const WCHAR windirW[] = {'\\','?','?','\\','C',':','\\','w','i','n','d','o','w','s','\\',0};
+#ifdef __arm__
+static const WCHAR syswow64W[] = {'s','y','s','a','r','m','3','2',0};
+static const WCHAR syswow64_regeditW[] = {'s','y','s','a','r','m','3','2','\\','r','e','g','e','d','i','t','.','e','x','e',0};
+static const WCHAR syswow64dirW[] = {'\\','?','?','\\','C',':','\\','w','i','n','d','o','w','s','\\','s','y','s','a','r','m','3','2','\\'};
+#else
+static const WCHAR syswow64W[] = {'s','y','s','w','o','w','6','4',0};
+static const WCHAR syswow64_regeditW[] = {'s','y','s','w','o','w','6','4','\\','r','e','g','e','d','i','t','.','e','x','e',0};
 static const WCHAR syswow64dirW[] = {'\\','?','?','\\','C',':','\\','w','i','n','d','o','w','s','\\','s','y','s','w','o','w','6','4','\\'};
+#endif
 
 static const WCHAR * const no_redirect[] =
 {
@@ -3216,8 +3222,9 @@ static void get_redirect( OBJECT_ATTRIBUTES *attr, UNICODE_STRING *redir )
 {
     const WCHAR *name = attr->ObjectName->Buffer;
     unsigned int i, prefix_len = 0, len = attr->ObjectName->Length / sizeof(WCHAR);
+    TEB64 *teb64 = get_teb64( NtCurrentTeb() );
 
-    if (!NtCurrentTeb64()) return;
+    if (!teb64) return;
 
     if (!attr->RootDirectory)
     {
@@ -3236,7 +3243,7 @@ static void get_redirect( OBJECT_ATTRIBUTES *attr, UNICODE_STRING *redir )
         if (!is_same_file( &windir, &st ))
         {
             if (!is_same_file( &sysdir, &st )) return;
-            if (NtCurrentTeb64()->TlsSlots[WOW64_TLS_FILESYSREDIR]) return;
+            if (teb64->TlsSlots[WOW64_TLS_FILESYSREDIR]) return;
             if (name[0] == '\\') return;
 
             /* only check for paths that should NOT be redirected */
@@ -3260,7 +3267,7 @@ static void get_redirect( OBJECT_ATTRIBUTES *attr, UNICODE_STRING *redir )
 
     if (replace_path( attr, redir, prefix_len, sysnativeW, system32W )) return;
 
-    if (NtCurrentTeb64()->TlsSlots[WOW64_TLS_FILESYSREDIR]) return;
+    if (teb64->TlsSlots[WOW64_TLS_FILESYSREDIR]) return;
 
     for (i = 0; i < ARRAY_SIZE( no_redirect ); i++)
         if (starts_with_path( name + prefix_len, len - prefix_len, no_redirect[i] )) return;
@@ -3883,7 +3890,7 @@ static NTSTATUS nt_to_unix_file_name( OBJECT_ATTRIBUTES *attr, UNICODE_STRING *n
     }
     else
     {
-        TRACE( "%s not found in %s\n", debugstr_w(name), unix_name );
+        TRACE( "%s not found in %s\n", debugstr_wn(name, name_len), unix_name );
         free( unix_name );
     }
     return status;
@@ -4433,7 +4440,7 @@ NTSTATUS get_full_path( char *name, const WCHAR *curdir, UNICODE_STRING *nt_name
     ULONG prefix_len, len = max( ARRAY_SIZE(unix_prefixW), wcslen(curdir) ) + strlen(name) + 1;
 
     /* special case for Unix file name */
-    if (name[0] == '/' && !find_drive_nt_root( name, strlen(name), &ret, FILE_OPEN )) goto done;
+    if (name[0] == '/' && !find_drive_nt_root( name, strlen(name), &ret, FILE_OPEN ) && ret) goto done;
 
     if (!(ret = malloc( len * sizeof(WCHAR) ))) return STATUS_NO_MEMORY;
 
@@ -4456,7 +4463,13 @@ NTSTATUS get_full_path( char *name, const WCHAR *curdir, UNICODE_STRING *nt_name
             prefix_len = ARRAY_SIZE(unc_prefixW);
         }
     }
-    else if (IS_SEPARATOR(name[0]))  /* absolute path */
+    else if (name[0] == '/') /* Unix path */
+    {
+        /* if we got here, there is no DOS drive */
+        memcpy( ret, unix_prefixW, sizeof(unix_prefixW) );
+        prefix_len = ARRAY_SIZE(unix_prefixW);
+    }
+    else if (name[0] == '\\')  /* absolute path */
     {
         memcpy( ret, dos_prefixW, sizeof(dos_prefixW) );
         prefix_len = ARRAY_SIZE(dos_prefixW);
@@ -7535,7 +7548,8 @@ NTSTATUS WINAPI NtQueryVolumeInformationFile( HANDLE handle, IO_STATUS_BLOCK *io
             memcpy(info->FileSystemName, fat32W, info->FileSystemNameLength);
             break;
         default:
-            info->FileSystemAttributes = FILE_CASE_PRESERVED_NAMES | FILE_PERSISTENT_ACLS;
+            info->FileSystemAttributes = FILE_CASE_PRESERVED_NAMES | FILE_PERSISTENT_ACLS |
+                                         FILE_SUPPORTS_OPEN_BY_FILE_ID;
             info->MaximumComponentNameLength = 255;
             info->FileSystemNameLength = min( sizeof(ntfsW), length - offsetof( FILE_FS_ATTRIBUTE_INFORMATION, FileSystemName ) );
             memcpy(info->FileSystemName, ntfsW, info->FileSystemNameLength);
@@ -7552,7 +7566,6 @@ NTSTATUS WINAPI NtQueryVolumeInformationFile( HANDLE handle, IO_STATUS_BLOCK *io
         FILE_FS_VOLUME_INFORMATION *info = buffer;
         ULONGLONG data[64];
         struct mountmgr_unix_drive *drive = (struct mountmgr_unix_drive *)data;
-        const WCHAR *label;
 
         if (length < sizeof(FILE_FS_VOLUME_INFORMATION))
         {
@@ -7562,17 +7575,22 @@ NTSTATUS WINAPI NtQueryVolumeInformationFile( HANDLE handle, IO_STATUS_BLOCK *io
 
         if (get_mountmgr_fs_info( handle, fd, drive, sizeof(data) ))
         {
-            status = STATUS_NOT_IMPLEMENTED;
-            break;
+            /* fall back to an empty reply rather than failing */
+            info->VolumeCreationTime.QuadPart = 0;
+            info->VolumeSerialNumber = 0;
+            info->VolumeLabelLength = 0;
+            info->SupportsObjects = FALSE;
         }
-
-        label = (WCHAR *)((char *)drive + drive->label_offset);
-        info->VolumeCreationTime.QuadPart = 0; /* FIXME */
-        info->VolumeSerialNumber = drive->serial;
-        info->VolumeLabelLength = min( wcslen( label ) * sizeof(WCHAR),
-                                       length - offsetof( FILE_FS_VOLUME_INFORMATION, VolumeLabel ) );
-        info->SupportsObjects = (drive->fs_type == MOUNTMGR_FS_TYPE_NTFS);
-        memcpy( info->VolumeLabel, label, info->VolumeLabelLength );
+        else
+        {
+            const WCHAR *label = (WCHAR *)((char *)drive + drive->label_offset);
+            info->VolumeCreationTime.QuadPart = 0; /* FIXME */
+            info->VolumeSerialNumber = drive->serial;
+            info->VolumeLabelLength = min( wcslen( label ) * sizeof(WCHAR),
+                                           length - offsetof( FILE_FS_VOLUME_INFORMATION, VolumeLabel ) );
+            info->SupportsObjects = (drive->fs_type == MOUNTMGR_FS_TYPE_NTFS);
+            memcpy( info->VolumeLabel, label, info->VolumeLabelLength );
+        }
         io->Information = offsetof( FILE_FS_VOLUME_INFORMATION, VolumeLabel ) + info->VolumeLabelLength;
         status = STATUS_SUCCESS;
         break;

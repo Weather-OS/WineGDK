@@ -98,7 +98,21 @@ enum negotiate_flags
     NTLMSSP_NEGOTIATE_56                        = 0x80000000,
 };
 
-struct ntlm_server_challenge
+struct ntlm_negotiate
+{
+    char signature[8];
+    int message_type;
+    enum negotiate_flags negotiate_flags;
+    unsigned short target_name_len;
+    unsigned short target_name_max_len;
+    unsigned int target_name_off;
+    unsigned short workstation_name_len;
+    unsigned short workstation_name_max_len;
+    unsigned int workstation_name_off;
+    BYTE os_version[8];
+};
+
+struct ntlm_challenge
 {
     char signature[8];
     int message_type;
@@ -115,7 +129,7 @@ struct ntlm_server_challenge
 
 struct server_challenge
 {
-    struct ntlm_server_challenge challenge;
+    struct ntlm_challenge challenge;
     WCHAR name[8];
     WCHAR info[42];
 
@@ -534,12 +548,48 @@ static void communicate(SspiData *from, SspiData *to)
 /**********************************************************************/
 static void testInitializeSecurityContextFlags(void)
 {
+    static const struct
+    {
+        ULONG req_attr;
+        ULONG flags;
+        ULONG ctxt_attr;
+        ULONG ctxt_attr_chlg;
+        ULONG ctxt_attr_auth;
+        ULONG ctxt_attr_serv;
+    } test_data[] =
+    {
+        { 0, 0, 0, 0, 0 },
+        { ISC_REQ_CONNECTION, 0, ISC_RET_CONNECTION, 0, 0, 0 },
+        { ISC_REQ_EXTENDED_ERROR, 0, 0, 0, 0, 0 },
+        { ISC_REQ_MUTUAL_AUTH, 0, 0, 0, ISC_RET_MUTUAL_AUTH, 0 },
+        { ISC_REQ_USE_DCE_STYLE, 0, 0, 0, 0, 0 },
+        { ISC_REQ_DELEGATE, 0, 0, 0, 0, 0 },
+        { ISC_REQ_INTEGRITY, NTLMSSP_NEGOTIATE_SIGN, ISC_RET_INTEGRITY,
+            ASC_RET_SEQUENCE_DETECT | ASC_RET_REPLAY_DETECT,
+            ISC_RET_INTEGRITY | ISC_RET_SEQUENCE_DETECT | ISC_RET_REPLAY_DETECT,
+            ASC_RET_INTEGRITY | ASC_RET_SEQUENCE_DETECT | ASC_RET_REPLAY_DETECT },
+        { ISC_REQ_REPLAY_DETECT, NTLMSSP_NEGOTIATE_SIGN, ISC_RET_REPLAY_DETECT,
+            ASC_RET_SEQUENCE_DETECT | ASC_RET_REPLAY_DETECT,
+            ISC_RET_INTEGRITY | ISC_RET_SEQUENCE_DETECT | ISC_RET_REPLAY_DETECT,
+            ASC_RET_INTEGRITY | ASC_RET_SEQUENCE_DETECT | ASC_RET_REPLAY_DETECT },
+        { ISC_REQ_SEQUENCE_DETECT, NTLMSSP_NEGOTIATE_SIGN, ISC_RET_SEQUENCE_DETECT,
+            ASC_RET_SEQUENCE_DETECT | ASC_RET_REPLAY_DETECT,
+            ISC_RET_INTEGRITY | ISC_RET_SEQUENCE_DETECT | ISC_RET_REPLAY_DETECT,
+            ASC_RET_INTEGRITY | ASC_RET_SEQUENCE_DETECT | ASC_RET_REPLAY_DETECT },
+        { ISC_REQ_CONFIDENTIALITY, NTLMSSP_NEGOTIATE_SIGN | NTLMSSP_NEGOTIATE_SEAL,
+            ISC_RET_CONFIDENTIALITY | ISC_RET_INTEGRITY,
+            ASC_RET_SEQUENCE_DETECT | ASC_RET_REPLAY_DETECT | ASC_RET_CONFIDENTIALITY,
+            ISC_RET_INTEGRITY | ISC_RET_SEQUENCE_DETECT | ISC_RET_REPLAY_DETECT | ISC_RET_CONFIDENTIALITY,
+            ASC_RET_INTEGRITY | ASC_RET_SEQUENCE_DETECT | ASC_RET_REPLAY_DETECT | ASC_RET_CONFIDENTIALITY }
+    };
+
     SECURITY_STATUS         sec_status;
     PSecPkgInfoA            pkg_info = NULL;
-    SspiData                client = {{0}};
-    ULONG                   req_attr, ctxt_attr;
+    SspiData                client = {{0}}, server = {{0}};
+    ULONG                   i, ctxt_attr;
     TimeStamp               ttl;
-    PBYTE                   packet;
+    struct ntlm_negotiate   *negotiate;
+    struct ntlm_challenge   *challenge;
 
     if(QuerySecurityPackageInfoA( sec_pkg_name, &pkg_info) != SEC_E_OK)
     {
@@ -555,186 +605,62 @@ static void testInitializeSecurityContextFlags(void)
                 getSecError(sec_status));
         return;
     }
+    sec_status = setupServer(&server, sec_pkg_name);
+    ok(sec_status == SEC_E_OK, "setupServer returned %s\n", getSecError(sec_status));
 
-    packet = client.out_buf->pBuffers[0].pvBuffer;
+    negotiate = client.out_buf->pBuffers[0].pvBuffer;
+    challenge = server.out_buf->pBuffers[0].pvBuffer;
 
-    /* Due to how the requesting of the flags is implemented in ntlm_auth,
-     * the tests need to be in this order, as there is no way to specify
-     * "I request no special features" in ntlm_auth */
-
-    /* Without any flags, the lowest byte should not have bits 0x20 or 0x10 set*/
-    req_attr = 0;
-
-    if((sec_status = InitializeSecurityContextA(&client.cred, NULL, NULL, req_attr,
-        0, SECURITY_NETWORK_DREP, NULL, 0, &client.ctxt, client.out_buf,
-        &ctxt_attr, &ttl)) != SEC_I_CONTINUE_NEEDED)
+    for(i = 0; i < ARRAY_SIZE(test_data); i++)
     {
-        trace("InitializeSecurityContext returned %s not SEC_I_CONTINUE_NEEDED, aborting.\n",
+        winetest_push_context("%lx", test_data[i].req_attr);
+
+        client.out_buf->pBuffers[0].cbBuffer = client.max_token;
+        ctxt_attr = 0xffffffff;
+        sec_status = InitializeSecurityContextA(&client.cred, NULL, NULL, test_data[i].req_attr, 0,
+                SECURITY_NETWORK_DREP, NULL, 0, &client.ctxt, client.out_buf, &ctxt_attr, &ttl);
+        ok(sec_status == SEC_I_CONTINUE_NEEDED, "InitializeSecurityContext returned %s\n",
+            getSecError(sec_status));
+        ok((negotiate->negotiate_flags & (NTLMSSP_NEGOTIATE_SIGN | NTLMSSP_NEGOTIATE_SEAL)) == test_data[i].flags,
+            "negotiate_flags = %08x\n", negotiate->negotiate_flags);
+        ok(ctxt_attr == test_data[i].ctxt_attr, "ctxt_attr = %lx\n", ctxt_attr);
+
+        server.out_buf->pBuffers[0].cbBuffer = server.max_token;
+        ctxt_attr = 0xffffffff;
+        sec_status = AcceptSecurityContext(&server.cred, NULL, client.out_buf, 0,
+                SECURITY_NETWORK_DREP, &server.ctxt, server.out_buf, &ctxt_attr, &ttl);
+        ok(sec_status == SEC_I_CONTINUE_NEEDED, "AcceptSecurityContext returned %s\n",
                 getSecError(sec_status));
-        goto tISCFend;
+        ok(server.out_buf->cBuffers == 1, "cBuffers = %lu\n", server.out_buf->cBuffers);
+        ok(server.out_buf->pBuffers[0].BufferType == SECBUFFER_TOKEN,
+                "BufferType = %ld\n", server.out_buf->pBuffers[0].BufferType);
+        ok(ctxt_attr == test_data[i].ctxt_attr_chlg, "ctxt_attr = %lx\n", ctxt_attr);
+
+        client.out_buf->pBuffers[0].cbBuffer = client.max_token;
+        ctxt_attr = 0xffffffff;
+        sec_status = InitializeSecurityContextA(NULL, &client.ctxt, NULL, 0, 0, SECURITY_NETWORK_DREP,
+                server.out_buf, 0, &client.ctxt, client.out_buf, &ctxt_attr, &ttl);
+        ok(sec_status == SEC_E_OK, "InitializeSecurityContext returned %s\n", getSecError(sec_status));
+        todo_wine_if(test_data[i].req_attr & ISC_REQ_MUTUAL_AUTH)
+            ok(ctxt_attr == test_data[i].ctxt_attr_auth, "ctxt_attr = %lx (negotiated flags: %x)\n",
+                    ctxt_attr, challenge->negotiate_flags);
+
+        ctxt_attr = 0xffffffff;
+        sec_status = AcceptSecurityContext(&server.cred, &server.ctxt, client.out_buf, 0,
+                SECURITY_NETWORK_DREP, &server.ctxt, NULL, &ctxt_attr, &ttl);
+        ok(sec_status == SEC_E_OK, "AcceptSecurityContext returned %s\n", getSecError(sec_status));
+        ok(ctxt_attr == test_data[i].ctxt_attr_serv, "ctxt_attr = %lx\n", ctxt_attr);
+
+        DeleteSecurityContext(&client.ctxt);
+        DeleteSecurityContext(&server.ctxt);
+
+        winetest_pop_context();
     }
 
-    ok(((packet[12] & 0x10) == 0) && ((packet[12] & 0x20) == 0),
-            "With req_attr == 0, flags are 0x%02x%02x%02x%02x.\n",
-            packet[15], packet[14], packet[13], packet[12]);
-    DeleteSecurityContext(&client.ctxt);
-
-    /* With ISC_REQ_CONNECTION, the lowest byte should not have bits 0x20 or 0x10 set*/
-    req_attr = ISC_REQ_CONNECTION;
-
-    if((sec_status = InitializeSecurityContextA(&client.cred, NULL, NULL, req_attr,
-        0, SECURITY_NETWORK_DREP, NULL, 0, &client.ctxt, client.out_buf,
-        &ctxt_attr, &ttl)) != SEC_I_CONTINUE_NEEDED)
-    {
-        trace("InitializeSecurityContext returned %s not SEC_I_CONTINUE_NEEDED, aborting.\n",
-                getSecError(sec_status));
-        goto tISCFend;
-    }
-
-    ok(((packet[12] & 0x10) == 0) && ((packet[12] & 0x20) == 0),
-            "For ISC_REQ_CONNECTION, flags are 0x%02x%02x%02x%02x.\n",
-            packet[15], packet[14], packet[13], packet[12]);
-    DeleteSecurityContext(&client.ctxt);
-
-    /* With ISC_REQ_EXTENDED_ERROR, the lowest byte should not have bits 0x20 or 0x10 set*/
-    req_attr = ISC_REQ_EXTENDED_ERROR;
-
-    if((sec_status = InitializeSecurityContextA(&client.cred, NULL, NULL, req_attr,
-        0, SECURITY_NETWORK_DREP, NULL, 0, &client.ctxt, client.out_buf,
-        &ctxt_attr, &ttl)) != SEC_I_CONTINUE_NEEDED)
-    {
-        trace("InitializeSecurityContext returned %s not SEC_I_CONTINUE_NEEDED, aborting.\n",
-                getSecError(sec_status));
-        goto tISCFend;
-    }
-
-    ok(((packet[12] & 0x10) == 0) && ((packet[12] & 0x20) == 0),
-            "For ISC_REQ_EXTENDED_ERROR, flags are 0x%02x%02x%02x%02x.\n",
-            packet[15], packet[14], packet[13], packet[12]);
-    DeleteSecurityContext(&client.ctxt);
-
-    /* With ISC_REQ_MUTUAL_AUTH, the lowest byte should not have bits 0x20 or 0x10 set*/
-    req_attr = ISC_REQ_MUTUAL_AUTH;
-
-    if((sec_status = InitializeSecurityContextA(&client.cred, NULL, NULL, req_attr,
-        0, SECURITY_NETWORK_DREP, NULL, 0, &client.ctxt, client.out_buf,
-        &ctxt_attr, &ttl)) != SEC_I_CONTINUE_NEEDED)
-    {
-        trace("InitializeSecurityContext returned %s not SEC_I_CONTINUE_NEEDED, aborting.\n",
-                getSecError(sec_status));
-        goto tISCFend;
-    }
-
-    ok(((packet[12] & 0x10) == 0) && ((packet[12] & 0x20) == 0),
-            "For ISC_REQ_MUTUAL_AUTH, flags are 0x%02x%02x%02x%02x.\n",
-            packet[15], packet[14], packet[13], packet[12]);
-    DeleteSecurityContext(&client.ctxt);
-
-    /* With ISC_REQ_USE_DCE_STYLE, the lowest byte should not have bits 0x20 or 0x10 set*/
-    req_attr = ISC_REQ_USE_DCE_STYLE;
-
-    if((sec_status = InitializeSecurityContextA(&client.cred, NULL, NULL, req_attr,
-        0, SECURITY_NETWORK_DREP, NULL, 0, &client.ctxt, client.out_buf,
-        &ctxt_attr, &ttl)) != SEC_I_CONTINUE_NEEDED)
-    {
-        trace("InitializeSecurityContext returned %s not SEC_I_CONTINUE_NEEDED, aborting.\n",
-                getSecError(sec_status));
-        goto tISCFend;
-    }
-
-    ok(((packet[12] & 0x10) == 0) && ((packet[12] & 0x20) == 0),
-            "For ISC_REQ_USE_DCE_STYLE, flags are 0x%02x%02x%02x%02x.\n",
-            packet[15], packet[14], packet[13], packet[12]);
-    DeleteSecurityContext(&client.ctxt);
-
-    /* With ISC_REQ_DELEGATE, the lowest byte should not have bits 0x20 or 0x10 set*/
-    req_attr = ISC_REQ_DELEGATE;
-
-    if((sec_status = InitializeSecurityContextA(&client.cred, NULL, NULL, req_attr,
-        0, SECURITY_NETWORK_DREP, NULL, 0, &client.ctxt, client.out_buf,
-        &ctxt_attr, &ttl)) != SEC_I_CONTINUE_NEEDED)
-    {
-        trace("InitializeSecurityContext returned %s not SEC_I_CONTINUE_NEEDED, aborting.\n",
-                getSecError(sec_status));
-        goto tISCFend;
-    }
-
-    ok(((packet[12] & 0x10) == 0) && ((packet[12] & 0x20) == 0),
-            "For ISC_REQ_DELEGATE, flags are 0x%02x%02x%02x%02x.\n",
-            packet[15], packet[14], packet[13], packet[12]);
-    DeleteSecurityContext(&client.ctxt);
-
-    /* With ISC_REQ_INTEGRITY, the lowest byte should have bit 0x10 set */
-    req_attr = ISC_REQ_INTEGRITY;
-
-    if((sec_status = InitializeSecurityContextA(&client.cred, NULL, NULL, req_attr,
-        0, SECURITY_NETWORK_DREP, NULL, 0, &client.ctxt, client.out_buf,
-        &ctxt_attr, &ttl)) != SEC_I_CONTINUE_NEEDED)
-    {
-        trace("InitializeSecurityContext returned %s not SEC_I_CONTINUE_NEEDED, aborting.\n",
-                getSecError(sec_status));
-        goto tISCFend;
-    }
-
-    ok((packet[12] & 0x10) != 0,
-            "For ISC_REQ_INTEGRITY, flags are 0x%02x%02x%02x%02x.\n",
-            packet[15], packet[14], packet[13], packet[12]);
-    DeleteSecurityContext(&client.ctxt);
-
-    /* With ISC_REQ_REPLAY_DETECT, the lowest byte should have bit 0x10 set */
-    req_attr = ISC_REQ_REPLAY_DETECT;
-
-    if((sec_status = InitializeSecurityContextA(&client.cred, NULL, NULL, req_attr,
-        0, SECURITY_NETWORK_DREP, NULL, 0, &client.ctxt, client.out_buf,
-        &ctxt_attr, &ttl)) != SEC_I_CONTINUE_NEEDED)
-    {
-        trace("InitializeSecurityContext returned %s not SEC_I_CONTINUE_NEEDED, aborting.\n",
-                getSecError(sec_status));
-        goto tISCFend;
-    }
-
-    ok((packet[12] & 0x10) != 0,
-            "For ISC_REQ_REPLAY_DETECT, flags are 0x%02x%02x%02x%02x.\n",
-            packet[15], packet[14], packet[13], packet[12]);
-    DeleteSecurityContext(&client.ctxt);
-
-    /* With ISC_REQ_SEQUENCE_DETECT, the lowest byte should have bit 0x10 set */
-    req_attr = ISC_REQ_SEQUENCE_DETECT;
-
-    if((sec_status = InitializeSecurityContextA(&client.cred, NULL, NULL, req_attr,
-        0, SECURITY_NETWORK_DREP, NULL, 0, &client.ctxt, client.out_buf,
-        &ctxt_attr, &ttl)) != SEC_I_CONTINUE_NEEDED)
-    {
-        trace("InitializeSecurityContext returned %s not SEC_I_CONTINUE_NEEDED, aborting.\n",
-                getSecError(sec_status));
-        goto tISCFend;
-    }
-
-    ok((packet[12] & 0x10) != 0,
-            "For ISC_REQ_SEQUENCE_DETECT, flags are 0x%02x%02x%02x%02x.\n",
-            packet[15], packet[14], packet[13], packet[12]);
-    DeleteSecurityContext(&client.ctxt);
-
-    /* With ISC_REQ_CONFIDENTIALITY, the lowest byte should have bit 0x20 set */
-    req_attr = ISC_REQ_CONFIDENTIALITY;
-
-    if((sec_status = InitializeSecurityContextA(&client.cred, NULL, NULL, req_attr,
-        0, SECURITY_NETWORK_DREP, NULL, 0, &client.ctxt, client.out_buf,
-        &ctxt_attr, &ttl)) != SEC_I_CONTINUE_NEEDED)
-    {
-        trace("InitializeSecurityContext returned %s not SEC_I_CONTINUE_NEEDED, aborting.\n",
-                getSecError(sec_status));
-        goto tISCFend;
-    }
-
-    ok((packet[12] & 0x20) != 0,
-            "For ISC_REQ_CONFIDENTIALITY, flags are 0x%02x%02x%02x%02x.\n",
-            packet[15], packet[14], packet[13], packet[12]);
-    DeleteSecurityContext(&client.ctxt);
-
-tISCFend:
     cleanupBuffers(&client);
+    cleanupBuffers(&server);
     FreeCredentialsHandle(&client.cred);
+    FreeCredentialsHandle(&server.cred);
 }
 
 /**********************************************************************/
@@ -803,7 +729,6 @@ static void testAuth(ULONG data_rep, BOOL fake)
     {
         client_stat = runClient(&client, first, data_rep);
 
-        todo_wine_if(!fake && client_stat != SEC_I_CONTINUE_NEEDED)
         ok(client_stat == SEC_E_OK || client_stat == SEC_I_CONTINUE_NEEDED,
                 "Running the client returned %s, more tests will fail.\n",
                 getSecError(client_stat));
@@ -1132,11 +1057,9 @@ static void test_Encrypt(void)
     BOOL                    first = TRUE;
     SspiData                client = {{0}}, server = {{0}};
     SecBufferDesc           crypt;
-    SecBuffer               data[2], complex_data[4];
+    SecBuffer               data[3] = {0}, complex_data[4] = {0};
     ULONG                   qop = 0xdeadbeef;
     SecPkgContext_Sizes     ctxt_sizes;
-
-    complex_data[1].pvBuffer = complex_data[3].pvBuffer = NULL;
 
     /****************************************************************
      * This is basically the same as in testAuth with a fake server,
@@ -1171,7 +1094,6 @@ static void test_Encrypt(void)
     {
         client_stat = runClient(&client, first, SECURITY_NETWORK_DREP);
 
-        todo_wine_if(client_stat != SEC_I_CONTINUE_NEEDED)
         ok(client_stat == SEC_E_OK || client_stat == SEC_I_CONTINUE_NEEDED,
                 "Running the client returned %s, more tests will fail.\n",
                 getSecError(client_stat));
@@ -1262,6 +1184,25 @@ static void test_Encrypt(void)
             getSecError(sec_status));
     ok(qop == 0xdeadbeef, "qop changed to %lu\n", qop);
 
+    /* Test decryption with multiple data buffers */
+    crypt.ulVersion = SECBUFFER_VERSION;
+    crypt.cBuffers = 2;
+    crypt.pBuffers = data;
+
+    sec_status = EncryptMessage(&client.ctxt, 0, &crypt, 0);
+    ok(sec_status == SEC_E_OK, "EncryptMessage returned %s, not SEC_E_OK.\n",
+            getSecError(sec_status));
+
+    crypt.cBuffers = 3;
+    data[2].BufferType = SECBUFFER_DATA;
+    data[2].cbBuffer = data[1].cbBuffer - 8;
+    data[2].pvBuffer = (BYTE *)data[1].pvBuffer + 8;
+    data[1].cbBuffer = 8;
+
+    sec_status = DecryptMessage(&server.ctxt, &crypt, 0, &qop);
+    ok(sec_status == SEC_E_OK, "DecryptMessage returned %s, not SEC_E_OK.\n", getSecError(sec_status));
+    ok(qop == 0xdeadbeef, "qop changed to %lu\n", qop);
+
 end:
     cleanupBuffers(&client);
     cleanupBuffers(&server);
@@ -1269,6 +1210,8 @@ end:
     DeleteSecurityContext(&client.ctxt);
     FreeCredentialsHandle(&client.cred);
 
+    HeapFree(GetProcessHeap(), 0, data[0].pvBuffer);
+    HeapFree(GetProcessHeap(), 0, data[1].pvBuffer);
     HeapFree(GetProcessHeap(), 0, complex_data[1].pvBuffer);
     HeapFree(GetProcessHeap(), 0, complex_data[3].pvBuffer);
 }
@@ -1348,6 +1291,7 @@ static void testAcquireCredentialsHandleW(void)
     SECURITY_STATUS ret;
     SEC_WINNT_AUTH_IDENTITY_A idA;
     SEC_WINNT_AUTH_IDENTITY_W id;
+    SEC_WINNT_AUTH_IDENTITY_EXW ex;
     PSecPkgInfoA pkg_info = NULL;
 
     if(QuerySecurityPackageInfoA(sec_pkg_name, &pkg_info) != SEC_E_OK)
@@ -1419,6 +1363,157 @@ static void testAcquireCredentialsHandleW(void)
     ok(ret == SEC_E_OK, "AcquireCredentialsHandeW() returned %s\n",
             getSecError(ret));
     FreeCredentialsHandle(&cred);
+
+    memset( &ex, 0, sizeof(ex) );
+    ex.Version = SEC_WINNT_AUTH_IDENTITY_VERSION;
+    ex.Length = sizeof(id);
+    ex.User = (USHORT *)L"winetest";
+    ex.UserLength = ARRAY_SIZE( L"winetest" ) - 1;
+    ex.Domain = (USHORT *)L"winetest";
+    ex.DomainLength = ARRAY_SIZE( L"winetest" ) - 1;
+    ex.Password = (USHORT *)L"winetest";
+    ex.PasswordLength = ARRAY_SIZE( L"winetest" ) - 1;
+    ex.Flags = SEC_WINNT_AUTH_IDENTITY_UNICODE;
+    ex.PackageList = (USHORT *)L"ntlm,!kerberos";
+    ex.PackageListLength = ARRAY_SIZE( L"ntlm,!kerberos" ) - 1;
+
+    ret = AcquireCredentialsHandleW( NULL, sec_pkg_nameW, SECPKG_CRED_OUTBOUND,
+                                     NULL, &ex, NULL, NULL, &cred, NULL );
+    ok( ret == SEC_E_OK, "got %#lx\n", ret );
+    FreeCredentialsHandle( &cred );
+
+    ex.PackageList = (USHORT *)L"nosuch";
+    ex.PackageListLength = ARRAY_SIZE( L"nosuch" );
+    ret = AcquireCredentialsHandleW( NULL, sec_pkg_nameW, SECPKG_CRED_OUTBOUND,
+                                     NULL, &ex, NULL, NULL, &cred, NULL );
+    ok( ret == SEC_E_OK, "got %#lx\n", ret );
+    FreeCredentialsHandle( &cred );
+
+    ex.Length = 0;
+    ret = AcquireCredentialsHandleW( NULL, sec_pkg_nameW, SECPKG_CRED_OUTBOUND,
+                                     NULL, &ex, NULL, NULL, &cred, NULL );
+    ok( ret == SEC_E_OK, "got %#lx\n", ret );
+    FreeCredentialsHandle( &cred );
+}
+
+static const char *get_name_from_token(HANDLE token)
+{
+    static char ret[512];
+
+    DWORD size, name_len, domain_len;
+    char name[256];
+    TOKEN_USER *token_user;
+    SID_NAME_USE use;
+    BOOL r;
+
+    r = GetTokenInformation(token, TokenUser, NULL, 0, &size);
+    ok(!r, "expected failure\n");
+    ok(GetLastError() == ERROR_INSUFFICIENT_BUFFER, "GetLastError() = %lu\n", GetLastError());
+    token_user = malloc(size);
+    r = GetTokenInformation(token, TokenUser, token_user, size, &size);
+    ok(r, "GetTokenInformation() failed %lu\n", GetLastError());
+
+    name_len = sizeof(name);
+    domain_len = sizeof(ret) - sizeof(name) - 1;
+    r = LookupAccountSidA(NULL, token_user->User.Sid, name, &name_len, ret, &domain_len, &use);
+    ok(r, "LookupAccountSid() failed %lu\n", GetLastError());
+    free(token_user);
+
+    strcat(ret, "\\");
+    strcat(ret, name);
+    return ret;
+}
+
+static void testQueryCredentialsAttributes(void)
+{
+    SecPkgCredentials_NamesA names;
+    SEC_WINNT_AUTH_IDENTITY_A id;
+    PSecPkgInfoA pkg_info;
+    SECURITY_STATUS ret;
+    const char *name;
+    CredHandle cred;
+    TimeStamp ttl;
+    HANDLE token;
+    BOOL r;
+
+    if (QuerySecurityPackageInfoA(sec_pkg_name, &pkg_info) != SEC_E_OK)
+    {
+        ok(0, "NTLM package not installed, skipping test\n");
+        return;
+    }
+    FreeContextBuffer(pkg_info);
+
+    r = OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token);
+    ok(r, "OpenProcessToken() failed %lu\n", GetLastError());
+    ret = AcquireCredentialsHandleA(NULL, sec_pkg_name, SECPKG_CRED_OUTBOUND,
+            NULL, NULL, NULL, NULL, &cred, &ttl);
+    ok(ret == SEC_E_OK, "AcquireCredentialsHandle() returned %s\n", getSecError(ret));
+
+    ret = QueryCredentialsAttributesA(&cred, SECPKG_CRED_ATTR_NAMES, &names);
+    ok(ret == SEC_E_OK, "QueryCredentialsAttributes() returned %s\n", getSecError(ret));
+    name = get_name_from_token(token);
+    ok(!strcmp(names.sUserName, name), "sUserName = %s, expected %s\n",
+            wine_dbgstr_a(names.sUserName), wine_dbgstr_a(name));
+    FreeContextBuffer(names.sUserName);
+    CloseHandle(token);
+    ret = FreeCredentialsHandle(&cred);
+    ok(ret == SEC_E_OK, "FreeCredentialsHandle() returned %s\n", getSecError(ret));
+
+    r = ImpersonateAnonymousToken(GetCurrentThread());
+    todo_wine ok(r, "ImpersonateAnonymousToken failed %lu\n", GetLastError());
+    if (r)
+    {
+        r = OpenThreadToken(GetCurrentThread(), TOKEN_QUERY, TRUE, &token);
+        ok(r, "OpenProcessToken() failed %lu\n", GetLastError());
+        ret = AcquireCredentialsHandleA(NULL, sec_pkg_name, SECPKG_CRED_OUTBOUND,
+                NULL, NULL, NULL, NULL, &cred, &ttl);
+        ok(ret == SEC_E_OK, "AcquireCredentialsHandle() returned %s\n", getSecError(ret));
+        r = RevertToSelf();
+        ok(r, "RevertToSelf failed %lu\n", GetLastError());
+
+        ret = QueryCredentialsAttributesA(&cred, SECPKG_CRED_ATTR_NAMES, &names);
+        ok(ret == SEC_E_OK, "QueryCredentialsAttributes() returned %s\n", getSecError(ret));
+        name = get_name_from_token(token);
+        CloseHandle(token);
+        ok(!strcmp(names.sUserName, name), "sUserName = %s, expected %s\n",
+                wine_dbgstr_a(names.sUserName), wine_dbgstr_a(name));
+        todo_wine ok(!strcmp(names.sUserName, "NT AUTHORITY\\ANONYMOUS LOGON"),
+                "sUserName = %s\n", wine_dbgstr_a(names.sUserName));
+        FreeContextBuffer(names.sUserName);
+        ret = FreeCredentialsHandle(&cred);
+        ok(ret == SEC_E_OK, "FreeCredentialsHandle() returned %s\n", getSecError(ret));
+    }
+
+    id.User = (unsigned char *)test_user;
+    id.UserLength = strlen((char *)id.User);
+    id.Domain = (unsigned char *)workgroup;
+    id.DomainLength = strlen((char *)id.Domain);
+    id.Password = (unsigned char *)test_pass;
+    id.PasswordLength = strlen((char *)id.Password);
+    id.Flags = SEC_WINNT_AUTH_IDENTITY_ANSI;
+    ret = AcquireCredentialsHandleA(NULL, sec_pkg_name, SECPKG_CRED_OUTBOUND,
+            NULL, &id, NULL, NULL, &cred, &ttl);
+    ok(ret == SEC_E_OK, "AcquireCredentialsHandle() returned %s\n", getSecError(ret));
+
+    ret = QueryCredentialsAttributesA(&cred, SECPKG_CRED_ATTR_NAMES, &names);
+    ok(ret == SEC_E_OK, "QueryCredentialsAttributes() returned %s\n", getSecError(ret));
+    ok(!strcmp(names.sUserName, "WORKGROUP\\testuser"), "sUserName = %s\n", wine_dbgstr_a(names.sUserName));
+    FreeContextBuffer(names.sUserName);
+    ret = FreeCredentialsHandle(&cred);
+    ok(ret == SEC_E_OK, "FreeCredentialsHandle() returned %s\n", getSecError(ret));
+
+    id.Domain = NULL;
+    id.DomainLength = 0;
+    ret = AcquireCredentialsHandleA(NULL, sec_pkg_name, SECPKG_CRED_OUTBOUND,
+            NULL, &id, NULL, NULL, &cred, &ttl);
+    ok(ret == SEC_E_OK, "AcquireCredentialsHandle() returned %s\n", getSecError(ret));
+
+    ret = QueryCredentialsAttributesA(&cred, SECPKG_CRED_ATTR_NAMES, &names);
+    ok(ret == SEC_E_OK, "QueryCredentialsAttributes() returned %s\n", getSecError(ret));
+    ok(!strcmp(names.sUserName, "testuser"), "sUserName = %s\n", wine_dbgstr_a(names.sUserName));
+    FreeContextBuffer(names.sUserName);
+    ret = FreeCredentialsHandle(&cred);
+    ok(ret == SEC_E_OK, "FreeCredentialsHandle() returned %s\n", getSecError(ret));
 }
 
 static void test_cred_multiple_use(void)
@@ -1535,6 +1630,7 @@ START_TEST(ntlm)
 {
     testAcquireCredentialsHandleW();
     testAcquireCredentialsHandle();
+    testQueryCredentialsAttributes();
     testInitializeSecurityContextFlags();
     testAuth(SECURITY_NATIVE_DREP, TRUE);
     testAuth(SECURITY_NETWORK_DREP, TRUE);

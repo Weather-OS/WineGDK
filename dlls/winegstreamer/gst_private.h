@@ -138,8 +138,6 @@ HRESULT mpeg_splitter_create(IUnknown *outer, IUnknown **out);
 HRESULT wave_parser_create(IUnknown *outer, IUnknown **out);
 HRESULT wma_decoder_create(IUnknown *outer, IUnknown **out);
 HRESULT wmv_decoder_create(IUnknown *outer, IUnknown **out);
-HRESULT resampler_create(IUnknown *outer, IUnknown **out);
-HRESULT color_convert_create(IUnknown *outer, IUnknown **out);
 HRESULT mp3_sink_class_factory_create(IUnknown *outer, IUnknown **out);
 HRESULT mpeg4_sink_class_factory_create(IUnknown *outer, IUnknown **out);
 
@@ -183,8 +181,6 @@ bool wg_video_format_is_rgb(enum wg_video_format format);
 
 HRESULT aac_decoder_create(REFIID riid, void **ret);
 HRESULT h264_decoder_create(REFIID riid, void **ret);
-HRESULT video_processor_create(REFIID riid, void **ret);
-
 HRESULT h264_encoder_create(REFIID riid, void **ret);
 
 extern const GUID MFAudioFormat_RAW_AAC;

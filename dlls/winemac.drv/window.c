@@ -825,7 +825,7 @@ static BOOL set_capture_window_for_move(HWND hwnd)
 
     if (ret)
     {
-        macdrv_SetCapture(hwnd, GUI_INMOVESIZE);
+        macdrv_SetCapture(NtUserGetAncestor(hwnd, GA_ROOT), GUI_INMOVESIZE, NtUserGetAncestor(previous, GA_ROOT));
 
         if (previous && previous != hwnd)
             send_message(previous, WM_CAPTURECHANGED, 0, (LPARAM)hwnd);
@@ -859,7 +859,7 @@ static LRESULT move_window(HWND hwnd, WPARAM wparam)
     POINT capturePoint;
     LONG style = NtUserGetWindowLongW(hwnd, GWL_STYLE);
     BOOL moved = FALSE;
-    DWORD dwPoint = NtUserGetThreadInfo()->message_pos;
+    DWORD dwPoint = NtUserGetMessagePos();
     INT captionHeight;
     HMONITOR mon = 0;
     MONITORINFO info;
@@ -1076,8 +1076,7 @@ static void macdrv_client_surface_destroy(struct client_surface *client)
 
     TRACE("%s\n", debugstr_client_surface(client));
 
-    if (surface->metal_view) macdrv_view_release_metal_view(surface->metal_view);
-    if (surface->metal_device) macdrv_release_metal_device(surface->metal_device);
+    if (surface->metal_swapchain) macdrv_destroy_swapchain(surface->metal_swapchain);
 }
 
 static void macdrv_client_surface_detach(struct client_surface *client)
@@ -1106,16 +1105,11 @@ static void macdrv_client_surface_update(struct client_surface *client)
     struct macdrv_client_surface *surface = impl_from_client_surface(client);
     HWND hwnd = client->hwnd, toplevel = NtUserGetAncestor(hwnd, GA_ROOT);
     struct macdrv_win_data *data;
-    RECT rect;
 
     TRACE("%s\n", debugstr_client_surface(client));
 
-    NtUserGetClientRect(hwnd, &rect, NtUserGetWinMonitorDpi(hwnd, MDT_RAW_DPI));
-    NtUserMapWindowPoints(hwnd, toplevel, (POINT *)&rect, 2, NtUserGetWinMonitorDpi(toplevel, MDT_RAW_DPI));
-
     if (!(data = get_win_data(toplevel))) return;
-    OffsetRect(&rect, data->rects.client.left - data->rects.visible.left, data->rects.client.top - data->rects.visible.top);
-    macdrv_set_view_frame(surface->cocoa_view, cgrect_from_rect(rect));
+    macdrv_set_view_frame(surface->cocoa_view, cgrect_from_rect(client->monitor_rect));
     macdrv_set_view_superview(surface->cocoa_view, toplevel == hwnd ? NULL : data->client_view, data->cocoa_window, NULL, NULL);
     release_win_data(data);
 }
@@ -1145,17 +1139,18 @@ static const struct client_surface_funcs macdrv_client_surface_funcs =
     .present = macdrv_client_surface_present,
 };
 
-struct macdrv_client_surface *macdrv_client_surface_create(HWND hwnd)
+struct macdrv_client_surface *impl_from_client_surface(struct client_surface *client)
 {
-    HWND toplevel = NtUserGetAncestor(hwnd, GA_ROOT);
-    struct macdrv_client_surface *surface;
-    RECT rect;
+    assert(client->funcs == &macdrv_client_surface_funcs);
+    return CONTAINING_RECORD(client, struct macdrv_client_surface, client);
+}
 
-    NtUserGetClientRect(hwnd, &rect, NtUserGetWinMonitorDpi(hwnd, MDT_RAW_DPI));
-    NtUserMapWindowPoints(hwnd, toplevel, (POINT *)&rect, 2, NtUserGetWinMonitorDpi(toplevel, MDT_RAW_DPI));
+struct client_surface *macdrv_CreateClientSurface(HWND hwnd, int pixel_format)
+{
+    struct macdrv_client_surface *surface;
 
     surface = client_surface_create(sizeof(*surface), &macdrv_client_surface_funcs, hwnd);
-    surface->cocoa_view = macdrv_create_view(cgrect_from_rect(rect));
+    surface->cocoa_view = macdrv_create_view(cgrect_from_rect(surface->client.monitor_rect));
     macdrv_set_view_hidden(surface->cocoa_view, TRUE);
 
     if (surface)
@@ -1164,7 +1159,36 @@ struct macdrv_client_surface *macdrv_client_surface_create(HWND hwnd)
         macdrv_client_surface_present(&surface->client, 0);
     }
 
-    return surface;
+    return &surface->client;
+}
+
+BOOL macdrv_client_surface_acquire_metal_swapchain(struct macdrv_client_surface *surface)
+{
+    HWND hwnd = surface->client.hwnd;
+    struct macdrv_win_data *data;
+
+    if (surface->metal_swapchain) return TRUE;
+
+    if ((data = get_win_data(hwnd)))
+    {
+        release_win_data(data);
+        surface->metal_swapchain = macdrv_create_view_swapchain(surface->cocoa_view);
+    }
+    else
+    {
+        RECT rect;
+
+        if (NtUserGetAncestor(hwnd, GA_ROOT) != hwnd)
+        {
+            FIXME("Cross-process child window Metal swapchains are not implemented\n");
+            return FALSE;
+        }
+
+        if (!NtUserGetClientRect(hwnd, &rect, NtUserGetWinMonitorDpi(hwnd, MDT_RAW_DPI))) return FALSE;
+        surface->metal_swapchain = macdrv_create_offscreen_swapchain(hwnd, cgrect_from_rect(rect));
+    }
+
+    return surface->metal_swapchain != NULL;
 }
 
 /**********************************************************************
@@ -1245,7 +1269,6 @@ void macdrv_DestroyWindow(HWND hwnd)
 
     if (!(data = get_win_data(hwnd))) return;
 
-    if (hwnd == get_capture()) macdrv_SetCapture(0, 0);
     if (data->drag_event) NtSetEvent(data->drag_event, NULL);
 
     destroy_cocoa_window(data);
@@ -1531,10 +1554,38 @@ LRESULT macdrv_WindowMessage(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         activate_on_following_focus();
         TRACE("WM_MACDRV_ACTIVATE_ON_FOLLOWING_FOCUS time %u\n", activate_on_focus_time);
         return 0;
+    case WM_MACDRV_CREATE_REMOTE_LAYER:
+        if ((data = get_win_data(hwnd)))
+        {
+            TRACE("WM_MACDRV_CREATE_REMOTE_LAYER context_id %u\n", (unsigned int)lp);
+            if (data->cocoa_window) macdrv_window_create_ca_layer_host_view(data->cocoa_window, (unsigned int)lp);
+            release_win_data(data);
+        }
+        return 0;
+    case WM_MACDRV_RELEASE_REMOTE_LAYER:
+        if ((data = get_win_data(hwnd)))
+        {
+            TRACE("WM_MACDRV_RELEASE_REMOTE_LAYER context_id %u\n", (unsigned int)lp);
+            if (data->cocoa_window) macdrv_window_release_ca_layer_host_view(data->cocoa_window, (unsigned int)lp);
+            release_win_data(data);
+        }
+        return 0;
     }
 
     FIXME("unrecognized window msg %x hwnd %p wp %lx lp %lx\n", msg, hwnd, (unsigned long)wp, lp);
     return 0;
+}
+
+
+void macdrv_create_remote_layer(void* hwnd_ptr, unsigned int context_id)
+{
+    NtUserPostMessage((HWND)hwnd_ptr, WM_MACDRV_CREATE_REMOTE_LAYER, 0, context_id);
+}
+
+
+void macdrv_release_remote_layer(void* hwnd_ptr, unsigned int context_id)
+{
+    NtUserPostMessage((HWND)hwnd_ptr, WM_MACDRV_RELEASE_REMOTE_LAYER, 0, context_id);
 }
 
 

@@ -204,14 +204,14 @@ static DWORD chunked_fill_buffer( struct data_stream *stream, struct request *re
     int read_bytes;
     char ch;
 
-    if (chunked_end_of_data( stream, request )) return ERROR_SUCCESS;
+    if (chunked_end_of_data( stream, request ) || buf->size) return ERROR_SUCCESS;
 
     if (buf->pos)
     {
         if (buf->size) memmove( buf->buf, buf->buf + buf->pos, buf->size );
         buf->pos = 0;
     }
-    to_read = sizeof(buf->buf) - buf->size;
+    to_read = sizeof(buf->buf);
 
     do
     {
@@ -306,7 +306,11 @@ static DWORD chunked_fill_buffer( struct data_stream *stream, struct request *re
             buf->size += read_bytes;
             to_read -= read_bytes;
             offset += read_bytes;
-            if (!chunked_stream->chunk_size) chunked_stream->state = CHUNKED_STREAM_STATE_DISCARD_EOL_AFTER_DATA;
+            if (!chunked_stream->chunk_size)
+            {
+                chunked_stream->state = CHUNKED_STREAM_STATE_DISCARD_EOL_AFTER_DATA;
+                continue_read = FALSE; /* don't buffer more than 1 chunk */
+            }
             break;
 
         case CHUNKED_STREAM_STATE_DISCARD_EOL_AFTER_DATA:
@@ -3343,7 +3347,7 @@ BOOL WINAPI WinHttpReceiveResponse( HINTERNET hrequest, LPVOID reserved )
     return !ret;
 }
 
-#define RECURSION_LIMIT 5
+#define RECURSION_LIMIT 3
 static BOOL skip_async_queue( struct request *request, BOOL *wont_block, DWORD to_read )
 {
     to_read = min( to_read, request->content_length - request->content_read );
@@ -3637,7 +3641,6 @@ BOOL WINAPI WinHttpWriteData( HINTERNET hrequest, const void *buffer, DWORD to_w
 {
     DWORD ret;
     struct request *request;
-    BOOL async;
 
     TRACE( "%p, %p, %lu, %p\n", hrequest, buffer, to_write, written );
 
@@ -3653,9 +3656,9 @@ BOOL WINAPI WinHttpWriteData( HINTERNET hrequest, const void *buffer, DWORD to_w
         return FALSE;
     }
 
-    if (!(async = request->connect->hdr.flags & WINHTTP_FLAG_ASYNC) || request->hdr.recursion_count <= RECURSION_LIMIT)
+    if (!(request->connect->hdr.flags & WINHTTP_FLAG_ASYNC))
     {
-        ret = write_data( request, buffer, to_write, written, async );
+        ret = write_data( request, buffer, to_write, written, FALSE );
     }
     else
     {

@@ -46,15 +46,18 @@ static NTSTATUS (WINAPI *pNtCreateSection)(HANDLE *, ACCESS_MASK, const OBJECT_A
 static NTSTATUS (WINAPI *pNtMapViewOfSection)(HANDLE, HANDLE, PVOID *, ULONG_PTR, SIZE_T, const LARGE_INTEGER *, SIZE_T *, ULONG, ULONG, ULONG);
 static DWORD (WINAPI *pNtUnmapViewOfSection)(HANDLE, PVOID);
 static NTSTATUS (WINAPI *pNtQuerySection)(HANDLE, SECTION_INFORMATION_CLASS, void *, SIZE_T, SIZE_T *);
-static PVOID  (WINAPI *pRtlAddVectoredExceptionHandler)(ULONG, PVECTORED_EXCEPTION_HANDLER);
-static ULONG  (WINAPI *pRtlRemoveVectoredExceptionHandler)(PVOID);
-static BOOL   (WINAPI *pGetProcessDEPPolicy)(HANDLE, LPDWORD, PBOOL);
 static BOOL   (WINAPI *pIsWow64Process)(HANDLE, PBOOL);
 static NTSTATUS (WINAPI *pNtProtectVirtualMemory)(HANDLE, PVOID *, SIZE_T *, ULONG, ULONG *);
 static NTSTATUS (WINAPI *pNtReadVirtualMemory)(HANDLE,const void *,void *,SIZE_T, SIZE_T *);
 static NTSTATUS (WINAPI *pNtWriteVirtualMemory)(HANDLE, void *, const void *, SIZE_T, SIZE_T *);
 static BOOL  (WINAPI *pPrefetchVirtualMemory)(HANDLE, ULONG_PTR, PWIN32_MEMORY_RANGE_ENTRY, ULONG);
 static void  (WINAPI *pFlushProcessWriteBuffers)(void);
+
+#ifdef __i386__
+static BOOL   (WINAPI *pGetProcessDEPPolicy)(HANDLE, LPDWORD, PBOOL);
+static PVOID  (WINAPI *pRtlAddVectoredExceptionHandler)(ULONG, PVECTORED_EXCEPTION_HANDLER);
+static ULONG  (WINAPI *pRtlRemoveVectoredExceptionHandler)(PVOID);
+#endif
 
 /* ############################### */
 
@@ -163,7 +166,9 @@ static void test_VirtualAllocEx(void)
     if (GetLastError() == ERROR_NOACCESS)
         ok( bytes_read == 0, "%Iu bytes read\n", bytes_read );
     else
-        ok( bytes_read == 0x2000, "%Iu bytes read\n", bytes_read );
+        ok( bytes_read == 0x2000 ||
+            broken(LOWORD(bytes_read) == 0x2000 || bytes_read == 0xffffffff) /* Win10 1607/1709 */,
+            "%Iu bytes read\n", bytes_read );
     bytes_written = 0xdeadbeef;
     status = pNtWriteVirtualMemory( hProcess, addr1, src, alloc_size, &bytes_written );
     ok( status == STATUS_PARTIAL_COPY, "wrong status %lx\n", status );
@@ -171,7 +176,9 @@ static void test_VirtualAllocEx(void)
     bytes_read = 0xdeadbeef;
     status = pNtReadVirtualMemory( hProcess, addr1, src, alloc_size, &bytes_read );
     ok( status == STATUS_PARTIAL_COPY || status == STATUS_ACCESS_VIOLATION, "wrong status %lx\n", status );
-    ok( bytes_read == (status == STATUS_PARTIAL_COPY ? 0x2000 : 0), "%Iu bytes read\n", bytes_read );
+    ok( bytes_read == (status == STATUS_PARTIAL_COPY ? 0x2000 : 0) ||
+        broken(LOWORD(bytes_read) == (status == STATUS_PARTIAL_COPY ? 0x2000 : 0) || bytes_read == 0xffffffff) /* Win10 1607/1709 */,
+        "%Iu bytes read\n", bytes_read );
 
     b = VirtualProtect( src, 0x2000, PAGE_NOACCESS, &old_prot );
     ok( b, "VirtualProtect failed error %lu\n", GetLastError() );
@@ -188,7 +195,9 @@ static void test_VirtualAllocEx(void)
     ok( GetLastError() == ERROR_NOACCESS ||
         GetLastError() == ERROR_PARTIAL_COPY, /* win10 v1607+ */
         "wrong error %lu\n", GetLastError() );
-    ok( bytes_read == 0, "%Iu bytes read\n", bytes_read );
+    ok( bytes_read == 0 ||
+        broken(LOWORD(bytes_read) == 0 || bytes_read == 0xffffffff) /* Win10 1607/1709 */,
+        "%Iu bytes read\n", bytes_read );
     bytes_written = 0xdeadbeef;
     status = pNtWriteVirtualMemory( hProcess, addr1, src, alloc_size, &bytes_written );
     ok( status == STATUS_PARTIAL_COPY, "wrong status %lx\n", status );
@@ -196,7 +205,9 @@ static void test_VirtualAllocEx(void)
     bytes_read = 0xdeadbeef;
     status = pNtReadVirtualMemory( hProcess, addr1, src, alloc_size, &bytes_read );
     ok( status == STATUS_PARTIAL_COPY || status == STATUS_ACCESS_VIOLATION, "wrong status %lx\n", status );
-    ok( bytes_read == 0, "%Iu bytes read\n", bytes_read );
+    ok( bytes_read == 0 ||
+        broken(LOWORD(bytes_read) == 0 || bytes_read == 0xffffffff) /* Win10 1607/1709 */,
+        "%Iu bytes read\n", bytes_read );
     b = VirtualProtect( src, alloc_size, PAGE_READWRITE, &old_prot );
     ok( b, "VirtualProtect failed error %lu\n", GetLastError() );
 
@@ -214,21 +225,27 @@ static void test_VirtualAllocEx(void)
     ok( status == STATUS_PARTIAL_COPY || broken(status == STATUS_ACCESS_VIOLATION),
         "wrong status %lx\n", status );
     todo_wine_if(status == STATUS_SUCCESS)
-    ok( bytes_written == 0, "%Iu bytes written\n", bytes_written );
+    ok( bytes_written == 0 ||
+        broken(LOWORD(bytes_written) == 0 || bytes_written == 0xffffffff) /* Win10 1607/1709 */,
+        "%Iu bytes written\n", bytes_written );
 
     b = VirtualProtectEx( hProcess, addr1, alloc_size, PAGE_EXECUTE_READ, &old_prot );
     ok( b, "VirtualProtectEx, error %lu\n", GetLastError() );
     bytes_written = 0xdeadbeef;
     b = WriteProcessMemory(hProcess, addr1, src, alloc_size, &bytes_written);
-    ok( b, "WriteProcessMemory failed\n" );
-    ok( bytes_written == alloc_size, "%Iu bytes written\n", bytes_written );
+    ok( b ||
+        broken(b == 0 && GetLastError() == ERROR_NOACCESS) /* Win10 1607 */,
+        "WriteProcessMemory failed GetLastError()=%ld\n", GetLastError() );
+    if (b) ok( bytes_written == alloc_size, "%Iu bytes written\n", bytes_written );
     bytes_written = 0xdeadbeef;
     status = pNtWriteVirtualMemory( hProcess, addr1, src, alloc_size, &bytes_written );
     todo_wine_if(status == STATUS_SUCCESS)
     ok( status == STATUS_PARTIAL_COPY || broken(status == STATUS_ACCESS_VIOLATION),
         "wrong status %lx\n", status );
     todo_wine_if(status == STATUS_SUCCESS)
-    ok( bytes_written == 0, "%Iu bytes written\n", bytes_written );
+    ok( bytes_written == 0 ||
+        broken(LOWORD(bytes_written) == 0 || bytes_written == 0xffffffff) /* Win10 1607/1709 */,
+        "%Iu bytes written\n", bytes_written );
 
     b = VirtualProtectEx( hProcess, addr1, 0x2000, PAGE_EXECUTE_READWRITE, &old_prot );
     ok( b, "VirtualProtectEx, error %lu\n", GetLastError() );
@@ -241,7 +258,9 @@ static void test_VirtualAllocEx(void)
     todo_wine_if(status == STATUS_SUCCESS)
     ok( status == STATUS_PARTIAL_COPY || broken(status == STATUS_SUCCESS), /* <= win10 1507 */
         "wrong status %lx\n", status );
-    ok( bytes_written == (status ? 0x2000 : alloc_size), "%Iu bytes written\n", bytes_written );
+    ok( bytes_written == (status ? 0x2000 : alloc_size) ||
+        broken(LOWORD(bytes_written) == (status ? 0x2000 : alloc_size) || bytes_written == 0xffffffff) /* Win10 1607/1709 */,
+        "%Iu bytes written\n", bytes_written );
 
     b = VirtualProtectEx( hProcess, (char *)addr1 + 0x2000, alloc_size - 0x2000, PAGE_READONLY, &old_prot );
     ok( b, "VirtualProtectEx, error %lu\n", GetLastError() );
@@ -253,7 +272,9 @@ static void test_VirtualAllocEx(void)
     todo_wine_if(b)
     ok( status == STATUS_PARTIAL_COPY || broken(status == STATUS_SUCCESS), /* <= win10 1507 */
         "wrong status %lx\n", status );
-    ok( bytes_written == (status ? 0x2000 : alloc_size), "%Iu bytes written\n", bytes_written );
+    ok( bytes_written == (status ? 0x2000 : alloc_size) ||
+        broken(LOWORD(bytes_written) == (status ? 0x2000 : alloc_size) || bytes_written == 0xffffffff) /* Win10 1607/1709 */,
+        "%Iu bytes written\n", bytes_written );
 
     VirtualFree( src, 0, MEM_RELEASE );
     VirtualFree( dst, 0, MEM_RELEASE );
@@ -4774,20 +4795,22 @@ START_TEST(virtual)
 
     pGetWriteWatch = (void *) GetProcAddress(hkernel32, "GetWriteWatch");
     pResetWriteWatch = (void *) GetProcAddress(hkernel32, "ResetWriteWatch");
-    pGetProcessDEPPolicy = (void *)GetProcAddress( hkernel32, "GetProcessDEPPolicy" );
     pIsWow64Process = (void *)GetProcAddress( hkernel32, "IsWow64Process" );
     pNtAreMappedFilesTheSame = (void *)GetProcAddress( hntdll, "NtAreMappedFilesTheSame" );
     pNtCreateSection = (void *)GetProcAddress( hntdll, "NtCreateSection" );
     pNtMapViewOfSection = (void *)GetProcAddress( hntdll, "NtMapViewOfSection" );
     pNtUnmapViewOfSection = (void *)GetProcAddress( hntdll, "NtUnmapViewOfSection" );
     pNtQuerySection = (void *)GetProcAddress( hntdll, "NtQuerySection" );
-    pRtlAddVectoredExceptionHandler = (void *)GetProcAddress( hntdll, "RtlAddVectoredExceptionHandler" );
-    pRtlRemoveVectoredExceptionHandler = (void *)GetProcAddress( hntdll, "RtlRemoveVectoredExceptionHandler" );
     pNtProtectVirtualMemory = (void *)GetProcAddress( hntdll, "NtProtectVirtualMemory" );
     pNtReadVirtualMemory = (void *)GetProcAddress( hntdll, "NtReadVirtualMemory" );
     pNtWriteVirtualMemory = (void *)GetProcAddress( hntdll, "NtWriteVirtualMemory" );
     pPrefetchVirtualMemory = (void *)GetProcAddress( hkernelbase, "PrefetchVirtualMemory" );
     pFlushProcessWriteBuffers = (void *)GetProcAddress( hkernel32, "FlushProcessWriteBuffers" );
+#ifdef __i386__
+    pGetProcessDEPPolicy = (void *)GetProcAddress( hkernel32, "GetProcessDEPPolicy" );
+    pRtlAddVectoredExceptionHandler = (void *)GetProcAddress( hntdll, "RtlAddVectoredExceptionHandler" );
+    pRtlRemoveVectoredExceptionHandler = (void *)GetProcAddress( hntdll, "RtlRemoveVectoredExceptionHandler" );
+#endif
 
     GetSystemInfo(&si);
     trace("system page size %#lx\n", si.dwPageSize);

@@ -332,6 +332,9 @@ Call ok(Lbound(arr2, 1) = 0, "Lbound(x) = " & Lbound(x))
 Call ok(Lbound(arr2, 2) = 0, "Lbound(x) = " & Lbound(x))
 
 sub testLBoundError()
+    Dim nothingObj : Set nothingObj = Nothing
+    Dim emptyObj   : Set emptyObj   = new EmptyClass
+    Dim dictObj    : Set dictObj    = CreateObject("Scripting.Dictionary")
     on error resume next
     call Err.clear()
     call LBound()
@@ -343,6 +346,27 @@ sub testLBoundError()
     call LBound(Null)
     call ok(Err.number = 13, "Err.number = " & Err.number)
     call Err.clear()
+    call LBound(42)
+    call ok(Err.number = 13, "LBound(int) Err.number = " & Err.number)
+    call Err.clear()
+    call LBound("str")
+    call ok(Err.number = 13, "LBound(string) Err.number = " & Err.number)
+    call Err.clear()
+    call LBound(True)
+    call ok(Err.number = 13, "LBound(bool) Err.number = " & Err.number)
+    call Err.clear()
+    call LBound(3.14)
+    call ok(Err.number = 13, "LBound(double) Err.number = " & Err.number)
+    call Err.clear()
+    call LBound(nothingObj)
+    call ok(Err.number = 91, "LBound(Nothing) Err.number = " & Err.number)
+    call Err.clear()
+    call LBound(emptyObj)
+    call ok(Err.number = 438, "LBound(no-default-object) Err.number = " & Err.number)
+    call Err.clear()
+    call LBound(dictObj)
+    call ok(Err.number = 450, "LBound(default-needs-arg) Err.number = " & Err.number)
+    call Err.clear()
     call LBound(arr, 1, 2)
     call ok(Err.number = 450, "Err.number = " & Err.number)
     if isEnglishLang then call ok(Err.description = "Wrong number of arguments or invalid property assignment", _
@@ -350,6 +374,9 @@ sub testLBoundError()
 end sub
 
 sub testUBoundError()
+    Dim nothingObj : Set nothingObj = Nothing
+    Dim emptyObj   : Set emptyObj   = new EmptyClass
+    Dim dictObj    : Set dictObj    = CreateObject("Scripting.Dictionary")
     on error resume next
     call Err.clear()
     call UBound()
@@ -361,6 +388,27 @@ sub testUBoundError()
     call UBound(Null)
     call ok(Err.number = 13, "Err.number = " & Err.number)
     call Err.clear()
+    call UBound(42)
+    call ok(Err.number = 13, "UBound(int) Err.number = " & Err.number)
+    call Err.clear()
+    call UBound("str")
+    call ok(Err.number = 13, "UBound(string) Err.number = " & Err.number)
+    call Err.clear()
+    call UBound(True)
+    call ok(Err.number = 13, "UBound(bool) Err.number = " & Err.number)
+    call Err.clear()
+    call UBound(3.14)
+    call ok(Err.number = 13, "UBound(double) Err.number = " & Err.number)
+    call Err.clear()
+    call UBound(nothingObj)
+    call ok(Err.number = 91, "UBound(Nothing) Err.number = " & Err.number)
+    call Err.clear()
+    call UBound(emptyObj)
+    call ok(Err.number = 438, "UBound(no-default-object) Err.number = " & Err.number)
+    call Err.clear()
+    call UBound(dictObj)
+    call ok(Err.number = 450, "UBound(default-needs-arg) Err.number = " & Err.number)
+    call Err.clear()
     call UBound(arr, 1, 2)
     call ok(Err.number = 450, "Err.number = " & Err.number)
     if isEnglishLang then call ok(Err.description = "Wrong number of arguments or invalid property assignment", _
@@ -369,6 +417,51 @@ end sub
 
 call testLBoundError()
 call testUBoundError()
+
+Class ArrayDefaultClass
+    Public Default Function GetArr
+        GetArr = Array(10, 20, 30)
+    End Function
+End Class
+
+Class ScalarDefaultClass
+    Public Default Function GetIt
+        GetIt = 42
+    End Function
+End Class
+
+sub testBoundDispatchDefault()
+    Dim arrObj    : Set arrObj    = new ArrayDefaultClass
+    Dim scalarObj : Set scalarObj = new ScalarDefaultClass
+
+    call ok(LBound(arrObj) = 0, "LBound(array-default) = " & LBound(arrObj))
+    call ok(UBound(arrObj) = 2, "UBound(array-default) = " & UBound(arrObj))
+
+    on error resume next
+    call LBound(scalarObj)
+    call ok(Err.number = 13, "LBound(scalar-default) Err.number = " & Err.number)
+    Err.Clear()
+    call UBound(scalarObj)
+    call ok(Err.number = 13, "UBound(scalar-default) Err.number = " & Err.number)
+end sub
+
+call testBoundDispatchDefault()
+
+sub testBoundUninitArray()
+    Dim u()
+    on error resume next
+    call Err.clear()
+    call UBound(u)
+    call ok(Err.number = 9, "UBound(uninit) Err.number = " & Err.number)
+    call Err.clear()
+    call LBound(u)
+    call ok(Err.number = 9, "LBound(uninit) Err.number = " & Err.number)
+    call Err.clear()
+    call UBound(u, 1)
+    call ok(Err.number = 9, "UBound(uninit,1) Err.number = " & Err.number)
+end sub
+
+call testBoundUninitArray()
 
 Dim newObject
 Set newObject = New ValClass
@@ -1711,6 +1804,20 @@ Dim regex
 set regex = new RegExp
 Call ok(TypeName(regex) = "IRegExp2", "TypeName(regex) = " & TypeName(regex))
 
+' TypeName for VBScript class instances
+Dim emptyClsObj
+Set emptyClsObj = New EmptyClass
+Call ok(TypeName(emptyClsObj) = "EmptyClass", "TypeName(EmptyClass) = " & TypeName(emptyClsObj))
+Call ok(getVT(TypeName(emptyClsObj)) = "VT_BSTR", "getVT(TypeName(EmptyClass)) = " & getVT(TypeName(emptyClsObj)))
+Dim valClsObj
+Set valClsObj = New ValClass
+Call ok(TypeName(valClsObj) = "ValClass", "TypeName(ValClass) = " & TypeName(valClsObj))
+Set emptyClsObj = Nothing
+Call ok(TypeName(emptyClsObj) = "Nothing", "TypeName after Set Nothing = " & TypeName(emptyClsObj))
+Dim ec
+set ec = new EmptyClass
+Call ok(TypeName(ec) = "EmptyClass", "TypeName(EmptyClass) = " & TypeName(ec))
+
 Call ok(VarType(Empty) = vbEmpty, "VarType(Empty) = " & VarType(Empty))
 Call ok(getVT(VarType(Empty)) = "VT_I2", "getVT(VarType(Empty)) = " & getVT(VarType(Empty)))
 Call ok(VarType(Null) = vbNull, "VarType(Null) = " & VarType(Null))
@@ -2078,6 +2185,13 @@ Call ok(Minute(2) = 0, "Minute(2) = " & Minute(2))
 Call ok(Minute(2.02083) = 30, "Minute(2.02083) = " & Minute(2.02083))
 Call ok(getVT(Second(now)) = "VT_I2", "getVT(Second(now)) = " & getVT(Second(now)))
 Call ok(Second(2) = 0, "Second(2) = " & Second(2))
+
+Call ok(getVT(Day(Null)) = "VT_NULL", "getVT(Day(Null)) = " & getVT(Day(Null)))
+Call ok(getVT(Month(Null)) = "VT_NULL", "getVT(Month(Null)) = " & getVT(Month(Null)))
+Call ok(getVT(Year(Null)) = "VT_NULL", "getVT(Year(Null)) = " & getVT(Year(Null)))
+Call ok(getVT(Hour(Null)) = "VT_NULL", "getVT(Hour(Null)) = " & getVT(Hour(Null)))
+Call ok(getVT(Minute(Null)) = "VT_NULL", "getVT(Minute(Null)) = " & getVT(Minute(Null)))
+Call ok(getVT(Second(Null)) = "VT_NULL", "getVT(Second(Null)) = " & getVT(Second(Null)))
 
 Sub testRGBError(arg1, arg2, arg3, error_num)
     on error resume next
@@ -2502,6 +2616,186 @@ end sub
 
 call testDatePartError()
 
+sub testDateDiff(interval, d1, d2, expected)
+    dim x
+    x = DateDiff(interval, d1, d2)
+    call ok(x = expected, "DateDiff(""" & interval & """, " & d1 & ", " & d2 & ") = " & x & " expected " & expected)
+    call ok(getVT(x) = "VT_I4*", "DateDiff getVT = " & getVT(x))
+end sub
+
+sub testDateDiffFdow(interval, d1, d2, fdow, expected)
+    dim x
+    x = DateDiff(interval, d1, d2, fdow)
+    call ok(x = expected, "DateDiff(""" & interval & """, " & d1 & ", " & d2 & ", " & fdow & ") = " & x & " expected " & expected)
+    call ok(getVT(x) = "VT_I4*", "DateDiff fdow getVT = " & getVT(x))
+end sub
+
+' yyyy (year)
+call testDateDiff("yyyy", DateSerial(2000, 1, 1), DateSerial(2001, 1, 1), 1)
+call testDateDiff("yyyy", DateSerial(2000, 12, 31), DateSerial(2001, 1, 1), 1)
+call testDateDiff("yyyy", DateSerial(2001, 1, 1), DateSerial(2000, 1, 1), -1)
+call testDateDiff("yyyy", DateSerial(2000, 1, 1), DateSerial(2000, 1, 1), 0)
+call testDateDiff("yyyy", DateSerial(2000, 6, 15), DateSerial(2005, 3, 15), 5)
+call testDateDiff("yyyy", DateSerial(2000, 1, 1), DateSerial(2000, 12, 31), 0)
+
+' Case insensitive
+call testDateDiff("YYYY", DateSerial(2000, 1, 1), DateSerial(2001, 1, 1), 1)
+call testDateDiff("Yyyy", DateSerial(2000, 1, 1), DateSerial(2001, 1, 1), 1)
+
+' q (quarter)
+call testDateDiff("q", DateSerial(2000, 1, 1), DateSerial(2000, 4, 1), 1)
+call testDateDiff("q", DateSerial(2000, 1, 1), DateSerial(2000, 3, 31), 0)
+call testDateDiff("q", DateSerial(2000, 1, 1), DateSerial(2000, 7, 1), 2)
+call testDateDiff("q", DateSerial(2000, 1, 1), DateSerial(2001, 1, 1), 4)
+call testDateDiff("q", DateSerial(2000, 3, 31), DateSerial(2000, 4, 1), 1)
+call testDateDiff("q", DateSerial(2000, 4, 1), DateSerial(2000, 1, 1), -1)
+call testDateDiff("q", DateSerial(2000, 1, 15), DateSerial(2001, 12, 15), 7)
+
+' m (month)
+call testDateDiff("m", DateSerial(2000, 1, 1), DateSerial(2000, 2, 1), 1)
+call testDateDiff("m", DateSerial(2000, 1, 31), DateSerial(2000, 2, 1), 1)
+call testDateDiff("m", DateSerial(2000, 1, 1), DateSerial(2000, 1, 31), 0)
+call testDateDiff("m", DateSerial(2000, 1, 1), DateSerial(2001, 1, 1), 12)
+call testDateDiff("m", DateSerial(2000, 2, 1), DateSerial(2000, 1, 1), -1)
+call testDateDiff("m", DateSerial(2000, 3, 15), DateSerial(2002, 6, 15), 27)
+
+' y (day of year) - same as d
+call testDateDiff("y", DateSerial(2000, 1, 1), DateSerial(2000, 1, 2), 1)
+call testDateDiff("y", DateSerial(2000, 1, 1), DateSerial(2001, 1, 1), 366)
+call testDateDiff("y", DateSerial(2000, 1, 2), DateSerial(2000, 1, 1), -1)
+
+' d (day)
+call testDateDiff("d", DateSerial(2000, 1, 1), DateSerial(2000, 1, 2), 1)
+call testDateDiff("d", DateSerial(2000, 1, 1), DateSerial(2001, 1, 1), 366)
+call testDateDiff("d", DateSerial(2000, 1, 2), DateSerial(2000, 1, 1), -1)
+call testDateDiff("d", DateSerial(2000, 1, 1), DateSerial(2000, 12, 31), 365)
+call testDateDiff("d", DateSerial(2000, 1, 1), DateSerial(2000, 1, 1), 0)
+
+' w (weekday) - integer division of day diff by 7
+call testDateDiff("w", DateSerial(2000, 1, 1), DateSerial(2000, 1, 8), 1)
+call testDateDiff("w", DateSerial(2000, 1, 1), DateSerial(2000, 1, 2), 0)
+call testDateDiff("w", DateSerial(2000, 1, 1), DateSerial(2000, 1, 7), 0)
+call testDateDiff("w", DateSerial(2000, 1, 1), DateSerial(2000, 1, 15), 2)
+call testDateDiff("w", DateSerial(2000, 1, 8), DateSerial(2000, 1, 1), -1)
+
+' ww (calendar week) with firstdayofweek
+' 1/1/2000 = Saturday, 1/3/2000 = Monday
+call testDateDiffFdow("ww", DateSerial(2000, 1, 1), DateSerial(2000, 1, 3), vbSunday, 1)
+call testDateDiffFdow("ww", DateSerial(2000, 1, 1), DateSerial(2000, 1, 3), vbMonday, 1)
+call testDateDiffFdow("ww", DateSerial(2000, 1, 1), DateSerial(2000, 1, 3), vbSaturday, 0)
+call testDateDiffFdow("ww", DateSerial(2000, 1, 1), DateSerial(2000, 1, 8), vbSunday, 1)
+call testDateDiffFdow("ww", DateSerial(2000, 1, 1), DateSerial(2000, 1, 15), vbSunday, 2)
+call testDateDiffFdow("ww", DateSerial(2000, 1, 8), DateSerial(2000, 1, 1), vbSunday, -1)
+' ww across pre-1899 (negative DATE) boundary:
+' 12/24/1899 = Sunday, 12/27/1899 = Wednesday, 12/31/1899 = Sunday, 1/3/1900 = Wednesday
+call testDateDiffFdow("ww", DateSerial(1899, 12, 24), DateSerial(1899, 12, 27), vbSunday, 0)
+call testDateDiffFdow("ww", DateSerial(1899, 12, 24), DateSerial(1899, 12, 31), vbSunday, 1)
+call testDateDiffFdow("ww", DateSerial(1899, 12, 27), DateSerial(1900, 1, 3), vbSunday, 1)
+call testDateDiffFdow("ww", DateSerial(1900, 1, 3), DateSerial(1899, 12, 27), vbSunday, -1)
+
+' h (hour)
+call testDateDiff("h", DateSerial(2000, 1, 1), DateSerial(2000, 1, 2), 24)
+call testDateDiff("h", DateSerial(2000, 1, 1), DateSerial(2001, 1, 1), 8784)
+
+' n (minute)
+call testDateDiff("n", DateSerial(2000, 1, 1), DateSerial(2000, 1, 2), 1440)
+
+' s (second)
+call testDateDiff("s", DateSerial(2000, 1, 1), DateSerial(2000, 1, 2), 86400)
+
+' Same date for all intervals
+call testDateDiff("yyyy", DateSerial(2000, 1, 1), DateSerial(2000, 1, 1), 0)
+call testDateDiff("q", DateSerial(2000, 1, 1), DateSerial(2000, 1, 1), 0)
+call testDateDiff("m", DateSerial(2000, 1, 1), DateSerial(2000, 1, 1), 0)
+call testDateDiff("d", DateSerial(2000, 1, 1), DateSerial(2000, 1, 1), 0)
+call testDateDiff("h", DateSerial(2000, 1, 1), DateSerial(2000, 1, 1), 0)
+call testDateDiff("n", DateSerial(2000, 1, 1), DateSerial(2000, 1, 1), 0)
+call testDateDiff("s", DateSerial(2000, 1, 1), DateSerial(2000, 1, 1), 0)
+
+' Non-zero fractional part
+call testDateDiff("h", DateSerial(2000, 1, 1), DateSerial(2000, 1, 1) + TimeSerial(6, 0, 0), 6)
+call testDateDiff("n", DateSerial(2000, 1, 1), DateSerial(2000, 1, 1) + TimeSerial(0, 30, 0), 30)
+call testDateDiff("s", DateSerial(2000, 1, 1), DateSerial(2000, 1, 1) + TimeSerial(0, 0, 45), 45)
+call testDateDiff("d", DateSerial(2000, 1, 1), DateSerial(2000, 1, 1) + TimeSerial(23, 0, 0), 0)
+call testDateDiff("d", DateSerial(2000, 1, 1) + TimeSerial(6, 0, 0), DateSerial(2000, 1, 2), 1)
+call testDateDiff("h", DateSerial(2000, 1, 1) + TimeSerial(23, 0, 0), DateSerial(2000, 1, 2) + TimeSerial(1, 0, 0), 2)
+call testDateDiff("h", DateSerial(2000, 1, 1) + TimeSerial(0, 30, 0), DateSerial(2000, 1, 1) + TimeSerial(1, 0, 0), 1)
+call testDateDiff("h", DateSerial(2000, 1, 1) + TimeSerial(12, 0, 0), DateSerial(2000, 1, 1) + TimeSerial(6, 0, 0), -6)
+call testDateDiff("yyyy", DateSerial(2000, 1, 1), DateSerial(2000, 1, 1) + TimeSerial(12, 0, 0), 0)
+
+' Negative DATE values (years before 1899-12-30)
+call testDateDiff("yyyy", DateSerial(1800, 1, 1), DateSerial(1801, 1, 1), 1)
+call testDateDiff("yyyy", DateSerial(1899, 1, 1), DateSerial(1900, 1, 1), 1)
+call testDateDiff("yyyy", DateSerial(1801, 1, 1), DateSerial(1800, 1, 1), -1)
+call testDateDiff("yyyy", DateSerial(1800, 1, 1), DateSerial(2000, 1, 1), 200)
+call testDateDiff("q", DateSerial(1800, 1, 1), DateSerial(1801, 1, 1), 4)
+call testDateDiff("m", DateSerial(1800, 6, 15), DateSerial(1801, 6, 15), 12)
+call testDateDiff("d", DateSerial(1899, 12, 29), DateSerial(1899, 12, 30), 1)
+call testDateDiff("d", DateSerial(1899, 12, 30), DateSerial(1899, 12, 31), 1)
+call testDateDiff("d", DateSerial(1899, 12, 29), DateSerial(1899, 12, 31), 2)
+call testDateDiff("d", DateSerial(2000, 1, 1), DateSerial(1800, 1, 1), -73048)
+call testDateDiff("w", DateSerial(1800, 1, 1), DateSerial(1800, 1, 15), 2)
+
+' Negative DATE crossing 1899-12-30 with fractional part
+call testDateDiff("h", DateSerial(1899, 12, 29) + TimeSerial(18, 0, 0), DateSerial(1899, 12, 30), -6)
+call testDateDiff("h", DateSerial(1899, 12, 30), DateSerial(1899, 12, 29) + TimeSerial(18, 0, 0), 6)
+call testDateDiff("d", DateSerial(1899, 12, 29) + TimeSerial(12, 0, 0), DateSerial(1899, 12, 30) + TimeSerial(12, 0, 0), 0)
+call testDateDiff("n", DateSerial(1899, 12, 29) + TimeSerial(23, 59, 30), DateSerial(1899, 12, 30) + TimeSerial(0, 0, 30), 0)
+
+sub testDateDiffError()
+    on error resume next
+    dim x
+
+    ' Null date1 returns Null
+    err.clear
+    x = DateDiff("d", null, DateSerial(2000, 1, 1))
+    call ok(getVT(x) = "VT_NULL*", "null date1 getVT = " & getVT(x))
+    call ok(err.number = 0, "null date1 err = " & err.number)
+
+    ' Null date2 returns Null
+    err.clear
+    x = DateDiff("d", DateSerial(2000, 1, 1), null)
+    call ok(getVT(x) = "VT_NULL*", "null date2 getVT = " & getVT(x))
+    call ok(err.number = 0, "null date2 err = " & err.number)
+
+    ' Null interval is error 94
+    err.clear
+    x = DateDiff(null, DateSerial(2000, 1, 1), DateSerial(2001, 1, 1))
+    call ok(err.number = 94, "null interval err = " & err.number)
+
+    ' Invalid interval is error 5
+    err.clear
+    x = DateDiff("k", DateSerial(2000, 1, 1), DateSerial(2001, 1, 1))
+    call ok(err.number = 5, "invalid interval err = " & err.number)
+
+    ' Empty interval is error 5
+    err.clear
+    x = DateDiff("", DateSerial(2000, 1, 1), DateSerial(2001, 1, 1))
+    call ok(err.number = 5, "empty interval err = " & err.number)
+
+    ' Invalid date is error 13
+    err.clear
+    x = DateDiff("d", "not a date", DateSerial(2001, 1, 1))
+    call ok(err.number = 13, "invalid date1 err = " & err.number)
+
+    ' String date conversion
+    err.clear
+    x = DateDiff("d", "1/1/2000", "1/2/2000")
+    call ok(err.number = 0, "string date err = " & err.number)
+
+    ' Null firstdayofweek is error 94
+    err.clear
+    x = DateDiff("d", DateSerial(2000, 1, 1), DateSerial(2000, 1, 2), null)
+    call ok(err.number = 94, "null fdow err = " & err.number)
+
+    ' Null firstweekofyear is error 94
+    err.clear
+    x = DateDiff("ww", DateSerial(2000, 1, 1), DateSerial(2000, 1, 8), vbSunday, null)
+    call ok(err.number = 94, "null fwoy err = " & err.number)
+end sub
+
+call testDateDiffError()
+
 sub testWeekday(d, firstday, wd)
     dim x, x2
     x = Weekday(d, firstday)
@@ -2901,6 +3195,26 @@ end sub
 
 call testFilterError()
 
+sub testLeftNull()
+    on error resume next
+    dim r
+
+    call Err.clear()
+    r = Left(Null, 3)
+    Call ok(Err.number = 0, "Left(Null, 3) Err.number = " & Err.number)
+    Call ok(IsNull(r),       "Left(Null, 3) should be Null")
+
+    call Err.clear()
+    r = Left("abcde", Null)
+    Call ok(Err.number = 94, "Left(""abcde"", Null) Err.number = " & Err.number)
+
+    call Err.clear()
+    r = Left("abcde", -1)
+    Call ok(Err.number = 5,  "Left(""abcde"", -1) Err.number = " & Err.number)
+end sub
+
+call testLeftNull()
+
 ' GetLocale/SetLocale tests
 Dim origLocale
 origLocale = GetLocale()
@@ -3033,5 +3347,112 @@ sub testByteCharErrors()
 end sub
 
 call testByteCharErrors()
+
+' DateValue tests
+Dim dv
+dv = DateValue("2026-03-30")
+Call ok(getVT(dv) = "VT_DATE*", "getVT(DateValue) = " & getVT(dv))
+Call ok(Year(dv) = 2026, "DateValue Year = " & Year(dv))
+Call ok(Month(dv) = 3, "DateValue Month = " & Month(dv))
+Call ok(Day(dv) = 30, "DateValue Day = " & Day(dv))
+
+' DateValue strips time component
+dv = DateValue("2026-03-30 14:30:00")
+Call ok(Hour(dv) = 0, "DateValue Hour should be 0, got " & Hour(dv))
+Call ok(Minute(dv) = 0, "DateValue Minute should be 0, got " & Minute(dv))
+Call ok(Second(dv) = 0, "DateValue Second should be 0, got " & Second(dv))
+Call ok(Year(dv) = 2026, "DateValue Year = " & Year(dv))
+
+' DateValue of time-only string gives date zero (Dec 30, 1899)
+dv = DateValue("14:30:00")
+Call ok(Year(dv) = 1899, "DateValue time-only Year = " & Year(dv))
+Call ok(Month(dv) = 12, "DateValue time-only Month = " & Month(dv))
+Call ok(Day(dv) = 30, "DateValue time-only Day = " & Day(dv))
+
+' DateValue accepts VT_DATE input
+dv = DateValue(CDate("2026-03-30 14:30:00"))
+Call ok(Hour(dv) = 0, "DateValue CDate Hour = " & Hour(dv))
+Call ok(Year(dv) = 2026, "DateValue CDate Year = " & Year(dv))
+
+' TimeValue tests
+Dim tv
+tv = TimeValue("14:30:45")
+Call ok(getVT(tv) = "VT_DATE*", "getVT(TimeValue) = " & getVT(tv))
+Call ok(Hour(tv) = 14, "TimeValue Hour = " & Hour(tv))
+Call ok(Minute(tv) = 30, "TimeValue Minute = " & Minute(tv))
+Call ok(Second(tv) = 45, "TimeValue Second = " & Second(tv))
+
+' TimeValue strips date component
+tv = TimeValue("2026-03-30 14:30:45")
+Call ok(Hour(tv) = 14, "TimeValue datetime Hour = " & Hour(tv))
+Call ok(Year(tv) = 1899, "TimeValue datetime Year = " & Year(tv))
+
+' TimeValue of date-only string gives midnight
+tv = TimeValue("2026-03-30")
+Call ok(Hour(tv) = 0, "TimeValue date-only Hour = " & Hour(tv))
+Call ok(Minute(tv) = 0, "TimeValue date-only Minute = " & Minute(tv))
+
+' TimeValue accepts VT_DATE input
+tv = TimeValue(CDate("2026-03-30 14:30:45"))
+Call ok(Hour(tv) = 14, "TimeValue CDate Hour = " & Hour(tv))
+Call ok(Year(tv) = 1899, "TimeValue CDate Year = " & Year(tv))
+
+sub testDateValueError()
+    on error resume next
+    dim r
+
+    call Err.clear()
+    r = DateValue(Null)
+    Call ok(Err.number = 94, "DateValue(Null) Err.number = " & Err.number)
+
+    call Err.clear()
+    r = DateValue("not a date")
+    Call ok(Err.number = 13, "DateValue(invalid) Err.number = " & Err.number)
+
+    call Err.clear()
+    r = DateValue("")
+    Call ok(Err.number = 13, "DateValue("""") Err.number = " & Err.number)
+
+    call Err.clear()
+    r = DateValue(44000)
+    Call ok(Err.number = 13, "DateValue(number) Err.number = " & Err.number)
+
+    call Err.clear()
+    r = TimeValue(Null)
+    Call ok(Err.number = 94, "TimeValue(Null) Err.number = " & Err.number)
+
+    call Err.clear()
+    r = TimeValue("not a time")
+    Call ok(Err.number = 13, "TimeValue(invalid) Err.number = " & Err.number)
+
+    call Err.clear()
+    r = TimeValue("")
+    Call ok(Err.number = 13, "TimeValue("""") Err.number = " & Err.number)
+end sub
+
+call testDateValueError()
+
+' Locale-sensitive date parsing: "3/4/2026" is ambiguous (March 4 vs April 3).
+' DateValue uses the script locale set by SetLocale.
+sub testDateValueLocale()
+    on error resume next
+    dim origLcid, ambigDate
+
+    origLcid = GetLocale()
+
+    SetLocale(1033)  ' en-US: month/day/year
+    ambigDate = DateValue("3/4/2026")
+    Call ok(Month(ambigDate) = 3, "DateValue en-US Month = " & Month(ambigDate))
+    Call ok(Day(ambigDate) = 4, "DateValue en-US Day = " & Day(ambigDate))
+
+    SetLocale(1036)  ' fr-FR: day/month/year
+    ambigDate = DateValue("3/4/2026")
+    Call ok(Month(ambigDate) = 4, "DateValue fr-FR Month = " & Month(ambigDate))
+    Call ok(Day(ambigDate) = 3, "DateValue fr-FR Day = " & Day(ambigDate))
+
+    if not IsEmpty(origLcid) then SetLocale(origLcid)
+end sub
+
+call testDateValueLocale()
 
 Call reportSuccess()

@@ -1756,7 +1756,8 @@ static NTSTATUS WINAPI harddisk_query_volume( DEVICE_OBJECT *device, IRP *irp )
             break;
         default:
             fsname = L"NTFS";
-            info->FileSystemAttributes = FILE_CASE_PRESERVED_NAMES | FILE_PERSISTENT_ACLS | FILE_SUPPORTS_REPARSE_POINTS;
+            info->FileSystemAttributes = FILE_CASE_PRESERVED_NAMES | FILE_PERSISTENT_ACLS |
+                                         FILE_SUPPORTS_REPARSE_POINTS | FILE_SUPPORTS_OPEN_BY_FILE_ID;
             info->MaximumComponentNameLength = 255;
             break;
         }
@@ -1994,6 +1995,7 @@ static BOOL create_port_device( DRIVER_OBJECT *driver, int n, const char *unix_p
     }
     else
     {
+        assert( driver == parallel_driver );
         dos_name_format = L"LPT%u";
         nt_name_format = L"\\Device\\Parallel%u";
         reg_value_format = L"\\DosDevices\\LPT%u";

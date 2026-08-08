@@ -65,11 +65,11 @@ static inline BOOL is_machine_64bit( WORD machine )
 #ifdef _WIN64
 typedef TEB32 WOW_TEB;
 typedef PEB32 WOW_PEB;
-static inline TEB64 *NtCurrentTeb64(void) { return NULL; }
+static inline TEB64 *get_teb64( TEB *teb ) { return NULL; }
 #else
 typedef TEB64 WOW_TEB;
 typedef PEB64 WOW_PEB;
-static inline TEB64 *NtCurrentTeb64(void) { return (TEB64 *)NtCurrentTeb()->GdiBatchCount; }
+static inline TEB64 *get_teb64( TEB *teb ) { return teb ? (TEB64 *)(ULONG_PTR)teb->GdiBatchCount : NULL; }
 #endif
 
 extern WOW_PEB *wow_peb;
@@ -109,6 +109,7 @@ struct thread_data
     int          alert_fd;          /* inproc sync fd for user apc alerts */
     DWORD        tid;               /* thread id */
     BOOL         allow_writes;      /* ThreadAllowWrites flags */
+    BOOL         suspend;           /* suspend on startup */
     pthread_t    pthread_id;        /* pthread thread id */
     void        *jmp_buf;           /* setjmp buffer for exception handling */
     void        *start;             /* thread entry point */
@@ -255,7 +256,7 @@ extern int wine_server_receive_fd( obj_handle_t *handle );
 extern void process_exit_wrapper( int status ) DECLSPEC_NORETURN;
 extern size_t server_init_process(void);
 extern void server_init_process_done(void);
-extern void server_init_thread( void *entry_point, BOOL *suspend );
+extern void server_init_thread( struct thread_data *data );
 extern int server_pipe( int fd[2] );
 
 extern void fpux_to_fpu( I386_FLOATING_SAVE_AREA *fpu, const XSAVE_FORMAT *fpux );
@@ -277,14 +278,15 @@ extern void copy_xstate( XSAVE_AREA_HEADER *dst, XSAVE_AREA_HEADER *src, UINT64 
 
 extern void set_process_instrumentation_callback( void *callback );
 
-extern void *get_cpu_area( USHORT machine );
+extern void *get_cpu_area( struct thread_data *data, USHORT machine );
 extern void set_thread_id( struct thread_data *data );
 extern NTSTATUS init_thread_stack( TEB *teb, ULONG_PTR limit, SIZE_T reserve_size, SIZE_T commit_size );
 extern void DECLSPEC_NORETURN abort_thread( int status );
 extern void DECLSPEC_NORETURN abort_process( int status );
 extern void DECLSPEC_NORETURN exit_process( int status );
 extern void wait_suspend( CONTEXT *context );
-extern NTSTATUS send_debug_event( EXCEPTION_RECORD *rec, CONTEXT *context, BOOL first_chance, BOOL exception );
+extern NTSTATUS send_debug_event( struct thread_data *data, EXCEPTION_RECORD *rec,
+                                  CONTEXT *context, BOOL first_chance, BOOL exception );
 extern NTSTATUS set_thread_context( HANDLE handle, const void *context, BOOL *self, USHORT machine );
 extern NTSTATUS get_thread_context( HANDLE handle, void *context, BOOL *self, USHORT machine );
 extern unsigned int alloc_object_attributes( const OBJECT_ATTRIBUTES *attr, struct object_attributes **ret,
@@ -295,6 +297,7 @@ extern void *anon_mmap_fixed( void *start, size_t size, int prot, int flags );
 extern void *anon_mmap_alloc( size_t size, int prot );
 extern void virtual_init(void);
 extern ULONG_PTR get_system_affinity_mask(void);
+extern UINT_PTR get_host_page_size(void);
 extern void virtual_get_system_info( SYSTEM_BASIC_INFORMATION *info, BOOL wow64 );
 extern NTSTATUS virtual_map_builtin_module( HANDLE mapping, void **module, SIZE_T *size,
                                             SECTION_IMAGE_INFORMATION *info, ULONG_PTR limit_low,
@@ -341,9 +344,8 @@ extern BOOL get_thread_times( int unix_pid, int unix_tid, LARGE_INTEGER *kernel_
 extern NTSTATUS signal_alloc_thread( TEB *teb );
 extern void signal_free_thread( TEB *teb );
 extern void signal_disable_syscall_dispatch(void);
-extern void signal_init_process(void);
-extern void DECLSPEC_NORETURN signal_start_thread( PRTL_THREAD_START_ROUTINE entry, void *arg,
-                                                   BOOL suspend, TEB *teb );
+extern void signal_init_process( TEB *teb );
+extern void DECLSPEC_NORETURN signal_start_thread( PRTL_THREAD_START_ROUTINE entry, void *arg, TEB *teb );
 extern SYSTEM_SERVICE_TABLE KeServiceDescriptorTable[4];
 extern void __wine_syscall_dispatcher(void);
 extern void __wine_syscall_dispatcher_return(void);
@@ -412,8 +414,9 @@ extern void close_inproc_sync( HANDLE handle );
 
 extern NTSTATUS call_user_apc_dispatcher( CONTEXT *context_ptr, unsigned int flags, ULONG_PTR arg1, ULONG_PTR arg2,
                                           ULONG_PTR arg3, PNTAPCFUNC func, NTSTATUS status );
-extern NTSTATUS call_user_exception_dispatcher( EXCEPTION_RECORD *rec, CONTEXT *context );
-extern void call_raise_user_exception_dispatcher(void);
+extern NTSTATUS call_user_exception_dispatcher( struct thread_data *data, EXCEPTION_RECORD *rec,
+                                                CONTEXT *context );
+extern void call_raise_user_exception_dispatcher( struct thread_data *data );
 
 #define IMAGE_DLLCHARACTERISTICS_PREFER_NATIVE 0x0010 /* Wine extension */
 
@@ -448,12 +451,12 @@ static inline void *get_kernel_stack( struct thread_data *data )
 
 static inline struct teb_data *get_teb_data( struct thread_data *data )
 {
-    return (struct teb_data *)&data->teb->GdiTebBatch;
+    return data->teb ? (struct teb_data *)&data->teb->GdiTebBatch : NULL;
 }
 
 static inline struct syscall_frame *get_syscall_frame( struct thread_data *data )
 {
-    return get_teb_data(data)->syscall_frame;
+    return data->teb ? get_teb_data(data)->syscall_frame : NULL;
 }
 
 static inline void alloc_syscall_frame( SIZE_T frame_size )
@@ -470,6 +473,7 @@ static inline BOOL is_inside_signal_stack( struct thread_data *data, void *ptr )
 
 static inline BOOL is_inside_syscall( struct thread_data *data, ULONG_PTR sp )
 {
+    if (!data->teb) return TRUE;
     return ((char *)sp >= (char *)get_kernel_stack( data ) &&
             (char *)sp <= (char *)get_syscall_frame( data ));
 }
@@ -479,6 +483,12 @@ static inline BOOL is_ec_code( ULONG_PTR ptr )
     const UINT64 *map = (const UINT64 *)peb->EcCodeBitMap;
     ULONG_PTR page = ptr / page_size;
     return (map[page / 64] >> (page & 63)) & 1;
+}
+
+static inline CLIENT_ID make_client_id( ULONG pid, ULONG tid )
+{
+    CLIENT_ID id = { .UniqueProcess = ULongToHandle(pid), .UniqueThread = ULongToHandle(tid) };
+    return id;
 }
 
 static inline void mutex_lock( pthread_mutex_t *mutex )

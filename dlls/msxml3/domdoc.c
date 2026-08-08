@@ -38,10 +38,12 @@
 #include "shlwapi.h"
 #include "ocidl.h"
 #include "objsafe.h"
+#include "asptlb.h"
 
 #include "wine/debug.h"
 
 #include "msxml_private.h"
+#include "xpath.h"
 
 WINE_DEFAULT_DEBUG_CHANNEL(msxml);
 
@@ -73,6 +75,31 @@ typedef enum {
     EVENTID_LAST
 } eventid_t;
 
+enum docstream_state
+{
+    DOCSTREAM_STATE_INITIAL = 0,
+    DOCSTREAM_STATE_READING,
+    DOCSTREAM_STATE_WRITING,
+};
+
+struct docstream
+{
+    IStream IStream_iface;
+    LONG refcount;
+
+    enum docstream_state state;
+    IStream *stream;
+    struct domdoc *doc;
+    GUID id;
+};
+
+static HRESULT create_docstream(struct domdoc *doc, REFIID riid, void **obj);
+
+static inline struct docstream *impl_from_IStream(IStream *iface)
+{
+    return CONTAINING_RECORD(iface, struct docstream, IStream_iface);
+}
+
 struct domdoc
 {
     DispatchEx dispex;
@@ -103,6 +130,8 @@ struct domdoc
 
     /* events */
     IDispatch *events[EVENTID_LAST];
+
+    GUID stream_id;
 
     IXMLDOMSchemaCollection2 *namespaces;
 };
@@ -138,29 +167,18 @@ static inline ConnectionPoint *impl_from_IConnectionPoint(IConnectionPoint *ifac
     return CONTAINING_RECORD(iface, ConnectionPoint, IConnectionPoint_iface);
 }
 
-int registerNamespaces(struct domnode *node, xmlXPathContextPtr ctxt)
+void domdoc_properties_clear_selection_namespaces(struct domdoc_properties *properties)
 {
-    struct domnode *doc = node->owner ? node->owner : node;
-    const select_ns_entry* ns = NULL;
-    int n = 0;
+    struct xpath_namespace *ns, *next;
 
-    LIST_FOR_EACH_ENTRY( ns, &doc->properties->selectNsList, select_ns_entry, entry )
+    LIST_FOR_EACH_ENTRY_SAFE(ns, next, &properties->namespaces.entries, struct xpath_namespace, entry)
     {
-        xmlXPathRegisterNs(ctxt, ns->prefix, ns->href);
-        ++n;
-    }
-
-    return n;
-}
-
-void domdoc_properties_clear_selection_namespaces(struct list *pNsList)
-{
-    select_ns_entry *ns, *ns2;
-    LIST_FOR_EACH_ENTRY_SAFE( ns, ns2, pNsList, select_ns_entry, entry )
-    {
+        free(ns->prefix);
+        free(ns->uri);
         free(ns);
     }
-    list_init(pNsList);
+
+    list_init(&properties->namespaces.entries);
 }
 
 static void release_namespaces(domdoc *doc)
@@ -310,7 +328,7 @@ static HRESULT WINAPI PersistStreamInit_Save(IPersistStreamInit *iface, IStream 
 
     TRACE("%p, %p, %d.\n", iface, stream, clr_dirty);
 
-    return node_save(doc->node, stream);
+    return node_save(doc->node, (ISequentialStream *)stream);
 }
 
 static HRESULT WINAPI PersistStreamInit_GetSizeMax(IPersistStreamInit *iface, ULARGE_INTEGER *size)
@@ -370,6 +388,10 @@ static HRESULT WINAPI domdoc_QueryInterface(IXMLDOMDocument3 *iface, REFIID riid
              IsEqualGUID(&IID_IPersistStreamInit, riid))
     {
         *obj = &doc->IPersistStreamInit_iface;
+    }
+    else if (IsEqualGUID(&IID_IStream, riid))
+    {
+        return create_docstream(doc, riid, obj);
     }
     else if (IsEqualGUID(&IID_IObjectWithSite, riid))
     {
@@ -840,19 +862,6 @@ static HRESULT WINAPI domdoc_get_implementation(IXMLDOMDocument3 *iface, IXMLDOM
     return create_dom_implementation(impl);
 }
 
-static struct domnode * domdoc_get_document_element(struct domdoc *doc)
-{
-    struct domnode *node;
-
-    LIST_FOR_EACH_ENTRY(node, &doc->node->children, struct domnode, entry)
-    {
-        if (node->type == NODE_ELEMENT)
-            return node;
-    }
-
-    return NULL;
-}
-
 static HRESULT WINAPI domdoc_get_documentElement(IXMLDOMDocument3 *iface, IXMLDOMElement **ret)
 {
     domdoc *doc = impl_from_IXMLDOMDocument3(iface);
@@ -867,7 +876,7 @@ static HRESULT WINAPI domdoc_get_documentElement(IXMLDOMDocument3 *iface, IXMLDO
 
     *ret = NULL;
 
-    if ((element = domdoc_get_document_element(doc)))
+    if ((element = domnode_get_root_element(doc->node)))
     {
         if (SUCCEEDED(hr = create_node(element, &node)))
         {
@@ -889,7 +898,7 @@ static HRESULT WINAPI domdoc_putref_documentElement(IXMLDOMDocument3 *iface, IXM
 
     TRACE("%p, %p.\n", iface, element);
 
-    if ((current = domdoc_get_document_element(doc)))
+    if ((current = domnode_get_root_element(doc->node)))
     {
         if (SUCCEEDED(hr = create_node(current, &node)))
         {
@@ -1540,7 +1549,9 @@ static HRESULT WINAPI domdoc_loadXML(IXMLDOMDocument3 *iface, BSTR data, VARIANT
 static HRESULT WINAPI domdoc_save(IXMLDOMDocument3 *iface, VARIANT dest)
 {
     domdoc *doc = impl_from_IXMLDOMDocument3(iface);
+    ISequentialStream *sequential_stream;
     IStream *stream;
+    IUnknown *unk;
     HRESULT hr;
 
     TRACE("%p, %s.\n", iface, debugstr_variant(&dest));
@@ -1548,58 +1559,63 @@ static HRESULT WINAPI domdoc_save(IXMLDOMDocument3 *iface, VARIANT dest)
     switch (V_VT(&dest))
     {
         case VT_UNKNOWN:
+            if (IUnknown_QueryInterface(V_UNKNOWN(&dest), &IID_IStream, (void **)&stream) == S_OK)
             {
-                IUnknown *unk = V_UNKNOWN(&dest);
-                IXMLDOMDocument3 *document;
-
-                hr = IUnknown_QueryInterface(unk, &IID_IXMLDOMDocument3, (void **)&document);
-                if (hr == S_OK)
-                {
-                    VARIANT_BOOL success;
-                    BSTR xml;
-
-                    hr = IXMLDOMDocument3_get_xml(iface, &xml);
-                    if (hr == S_OK)
-                    {
-                        hr = IXMLDOMDocument3_loadXML(document, xml, &success);
-                        SysFreeString(xml);
-                    }
-
-                    IXMLDOMDocument3_Release(document);
-                    return hr;
-                }
-
-                hr = IUnknown_QueryInterface(unk, &IID_IStream, (void **)&stream);
-                if (hr == S_OK)
-                {
-                    hr = node_save(doc->node, stream);
-                    IStream_Release(stream);
-                }
+                hr = node_save(doc->node, (ISequentialStream *)stream);
+                IStream_Release(stream);
+            }
+            else if (IUnknown_QueryInterface(V_UNKNOWN(&dest), &IID_ISequentialStream, (void **)&sequential_stream) == S_OK)
+            {
+                hr = node_save(doc->node, sequential_stream);
+                ISequentialStream_Release(sequential_stream);
+            }
+            else if (IUnknown_QueryInterface(V_UNKNOWN(&dest), &IID_IPersistStream, (void **)&unk) == S_OK)
+            {
+                FIXME("Saving to IPersistStream is not implemented.\n");
+                IUnknown_Release(unk);
+                hr = E_NOTIMPL;
+            }
+            else if (IUnknown_QueryInterface(V_UNKNOWN(&dest), &IID_IPersistStreamInit, (void **)&unk) == S_OK)
+            {
+                FIXME("Saving to IPersistStreamInit is not implemented.\n");
+                IUnknown_Release(unk);
+                hr = E_NOTIMPL;
+            }
+            else if (IUnknown_QueryInterface(V_UNKNOWN(&dest), &IID_IResponse, (void **)&unk) == S_OK)
+            {
+                FIXME("Saving to IResponse is not implemented.\n");
+                IUnknown_Release(unk);
+                hr = E_NOTIMPL;
+            }
+            else
+            {
+                WARN("Unsupported destination type.\n");
+                hr = E_INVALIDARG;
             }
             break;
 
-    case VT_BSTR:
-    case VT_BSTR | VT_BYREF:
-        {
-            const WCHAR *path;
-
-            path = V_VT(&dest) & VT_BYREF ? *V_BSTRREF(&dest) : V_BSTR(&dest);
-
-            hr = SHCreateStreamOnFileEx(path, STGM_CREATE | STGM_WRITE, FILE_ATTRIBUTE_NORMAL, TRUE, NULL, &stream);
-            if (FAILED(hr))
+        case VT_BSTR:
+        case VT_BSTR | VT_BYREF:
             {
-                WARN("Failed to create a file stream, hr %#lx.\n", hr);
-                return hr;
+                const WCHAR *path;
+
+                path = V_VT(&dest) & VT_BYREF ? *V_BSTRREF(&dest) : V_BSTR(&dest);
+
+                hr = SHCreateStreamOnFileEx(path, STGM_CREATE | STGM_WRITE, FILE_ATTRIBUTE_NORMAL, TRUE, NULL, &stream);
+                if (FAILED(hr))
+                {
+                    WARN("Failed to create a file stream, hr %#lx.\n", hr);
+                    return hr;
+                }
+
+                hr = node_save(doc->node, (ISequentialStream *)stream);
+                IStream_Release(stream);
             }
+            break;
 
-            hr = node_save(doc->node, stream);
-            IStream_Release(stream);
-        }
-        break;
-
-    default:
-        FIXME("Unhandled destination type %s.\n", debugstr_variant(&dest));
-        return S_FALSE;
+        default:
+            FIXME("Unhandled destination type %s.\n", debugstr_variant(&dest));
+            return S_FALSE;
     }
 
     return hr;
@@ -1857,131 +1873,19 @@ static HRESULT WINAPI domdoc_setProperty(IXMLDOMDocument3 *iface, BSTR p, VARIAN
         VariantClear(&varStr);
         return hr;
     }
-    else if (!wcsicmp(p, L"SelectionNamespaces"))
+
+    if (!wcscmp(p, L"SelectionNamespaces"))
     {
-        xmlChar *nsStr = (xmlChar *)properties->selectNsStr;
-        struct list *pNsList;
-        VARIANT varStr;
-        BSTR bstr;
-
-        V_VT(&varStr) = VT_EMPTY;
         if (V_VT(&value) != VT_BSTR)
-        {
-            if (FAILED(hr = VariantChangeType(&varStr, &value, 0, VT_BSTR)))
-                return hr;
-            bstr = V_BSTR(&varStr);
-        }
-        else
-            bstr = V_BSTR(&value);
+            return E_FAIL;
 
-        hr = S_OK;
-
-        pNsList = &properties->selectNsList;
-        domdoc_properties_clear_selection_namespaces(pNsList);
-        free(nsStr);
-        nsStr = xmlchar_from_wchar(bstr);
-
-        TRACE("property value: \"%s\"\n", debugstr_w(bstr));
-
-        properties->selectNsStr = nsStr;
-        properties->selectNsStr_len = xmlStrlen(nsStr);
-        if (bstr && *bstr)
-        {
-            xmlChar *pTokBegin, *pTokEnd, *pTokInner;
-            select_ns_entry* ns_entry = NULL;
-
-            pTokBegin = nsStr;
-
-            /* skip leading spaces */
-            while (*pTokBegin == ' '  || *pTokBegin == '\n' ||
-                   *pTokBegin == '\t' || *pTokBegin == '\r')
-                ++pTokBegin;
-
-            for (; *pTokBegin; pTokBegin = pTokEnd)
-            {
-                if (ns_entry)
-                    memset(ns_entry, 0, sizeof(select_ns_entry));
-                else
-                    ns_entry = calloc(1, sizeof(select_ns_entry));
-
-                while (*pTokBegin == ' ')
-                    ++pTokBegin;
-                pTokEnd = pTokBegin;
-                while (*pTokEnd != ' ' && *pTokEnd != 0)
-                    ++pTokEnd;
-
-                /* so it failed to advance which means we've got some trailing spaces */
-                if (pTokEnd == pTokBegin) break;
-
-                if (xmlStrncmp(pTokBegin, (xmlChar const*)"xmlns", 5) != 0)
-                {
-                    hr = E_FAIL;
-                    WARN("Syntax error in xmlns string: %s\n\tat token: %s\n",
-                          debugstr_w(bstr), debugstr_an((const char*)pTokBegin, pTokEnd-pTokBegin));
-                    continue;
-                }
-
-                pTokBegin += 5;
-                if (*pTokBegin == '=')
-                {
-                    /*valid for XSLPattern?*/
-                    FIXME("Setting default xmlns not supported - skipping.\n");
-                    continue;
-                }
-                else if (*pTokBegin == ':')
-                {
-                    ns_entry->prefix = ++pTokBegin;
-                    for (pTokInner = pTokBegin; pTokInner != pTokEnd && *pTokInner != '='; ++pTokInner)
-                        ;
-
-                    if (pTokInner == pTokEnd)
-                    {
-                        hr = E_FAIL;
-                        WARN("Syntax error in xmlns string: %s\n\tat token: %s\n",
-                              debugstr_w(bstr), debugstr_an((const char*)pTokBegin, pTokEnd-pTokBegin));
-                        continue;
-                    }
-
-                    ns_entry->prefix_end = *pTokInner;
-                    *pTokInner = 0;
-                    ++pTokInner;
-
-                    if (pTokEnd-pTokInner > 1 &&
-                        ((*pTokInner == '\'' && *(pTokEnd-1) == '\'') ||
-                         (*pTokInner == '"' && *(pTokEnd-1) == '"')))
-                    {
-                        ns_entry->href = ++pTokInner;
-                        ns_entry->href_end = *(pTokEnd-1);
-                        *(pTokEnd-1) = 0;
-                        list_add_tail(pNsList, &ns_entry->entry);
-
-                        ns_entry = NULL;
-                        continue;
-                    }
-                    else
-                    {
-                        WARN("Syntax error in xmlns string: %s\n\tat token: %s\n",
-                              debugstr_w(bstr), debugstr_an((const char*)pTokInner, pTokEnd-pTokInner));
-                        list_add_tail(pNsList, &ns_entry->entry);
-
-                        ns_entry = NULL;
-                        hr = E_FAIL;
-                        continue;
-                    }
-                }
-                else
-                {
-                    hr = E_FAIL;
-                    continue;
-                }
-            }
-            free(ns_entry);
-        }
-
-        VariantClear(&varStr);
-        return hr;
+        domdoc_properties_clear_selection_namespaces(properties);
+        SysFreeString(properties->namespaces.value);
+        properties->namespaces.value = SysAllocString(V_BSTR(&value));
+        return xpath_parse_selection_namespaces(properties->namespaces.value, properties);
     }
-    else if (wcsicmp(p, L"ValidateOnParse") == 0)
+
+    if (wcsicmp(p, L"ValidateOnParse") == 0)
     {
         if (properties->version < MSXML4)
             return E_FAIL;
@@ -2057,41 +1961,6 @@ static HRESULT WINAPI domdoc_getProperty(IXMLDOMDocument3 *iface, BSTR p, VARIAN
         V_BSTR(var) = SysAllocString(properties->XPath ? L"XPath" : L"XSLPattern");
         return V_BSTR(var) ? S_OK : E_OUTOFMEMORY;
     }
-    else if (!wcsicmp(p, L"SelectionNamespaces"))
-    {
-        int lenA, lenW;
-        BSTR rebuiltStr, cur;
-        const xmlChar *nsStr;
-        struct list *pNsList;
-        select_ns_entry* pNsEntry;
-
-        V_VT(var) = VT_BSTR;
-        nsStr = properties->selectNsStr;
-        pNsList = &properties->selectNsList;
-        lenA = properties->selectNsStr_len;
-        lenW = MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)nsStr, lenA+1, NULL, 0);
-        rebuiltStr = malloc(lenW * sizeof(WCHAR));
-        MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)nsStr, lenA+1, rebuiltStr, lenW);
-        cur = rebuiltStr;
-        /* this is fine because all of the chars that end tokens are ASCII*/
-        LIST_FOR_EACH_ENTRY(pNsEntry, pNsList, select_ns_entry, entry)
-        {
-            while (*cur != 0) ++cur;
-            if (pNsEntry->prefix_end)
-            {
-                *cur = pNsEntry->prefix_end;
-                while (*cur != 0) ++cur;
-            }
-
-            if (pNsEntry->href_end)
-            {
-                *cur = pNsEntry->href_end;
-            }
-        }
-        V_BSTR(var) = SysAllocString(rebuiltStr);
-        free(rebuiltStr);
-        return S_OK;
-    }
     else if (!wcsicmp(p, L"ValidateOnParse"))
     {
         if (properties->version < MSXML4)
@@ -2102,6 +1971,14 @@ static HRESULT WINAPI domdoc_getProperty(IXMLDOMDocument3 *iface, BSTR p, VARIAN
             V_BOOL(var) = properties->validating;
             return S_OK;
         }
+    }
+
+    if (!wcscmp(p, L"SelectionNamespaces"))
+    {
+        V_VT(var) = VT_BSTR;
+        V_BSTR(var) = SysAllocString(properties->namespaces.value ?
+                properties->namespaces.value : L"");
+        return V_BSTR(var) ? S_OK : E_OUTOFMEMORY;
     }
 
     if (!wcscmp(p, L"ProhibitDTD"))
@@ -2632,4 +2509,254 @@ HRESULT create_domdoc(struct domnode *node, IUnknown **obj)
     *obj = (IUnknown *)&object->IXMLDOMDocument3_iface;
 
     return S_OK;
+}
+
+static HRESULT WINAPI docstream_QueryInterface(IStream *iface, REFIID riid, void **obj)
+{
+    struct docstream *stream = impl_from_IStream(iface);
+
+    TRACE("%p, %s, %p.\n", iface, debugstr_guid(riid), obj);
+
+    *obj = NULL;
+
+    if (IsEqualGUID(riid, &IID_ISequentialStream) ||
+            IsEqualGUID(riid, &IID_IStream))
+    {
+        *obj = iface;
+    }
+    else if (IsEqualGUID(riid, &IID_IUnknown))
+    {
+        return IXMLDOMDocument3_QueryInterface(&stream->doc->IXMLDOMDocument3_iface, riid, obj);
+    }
+    else
+    {
+        TRACE("interface %s not implemented\n", debugstr_guid(riid));
+        return E_NOINTERFACE;
+    }
+
+    IUnknown_AddRef((IUnknown *)*obj);
+
+    return S_OK;
+}
+
+static ULONG WINAPI docstream_AddRef(IStream *iface)
+{
+    struct docstream *stream = impl_from_IStream(iface);
+    ULONG refcount = InterlockedIncrement(&stream->refcount);
+
+    TRACE("%p, refcount %ld.\n", iface, refcount);
+
+    return refcount;
+}
+
+static ULONG WINAPI docstream_Release(IStream *iface)
+{
+    struct docstream *stream = impl_from_IStream(iface);
+    ULONG refcount = InterlockedDecrement(&stream->refcount);
+    LARGE_INTEGER offset;
+    HRESULT hr;
+
+    TRACE("%p, refcount %ld.\n", iface, refcount);
+
+    if (!refcount)
+    {
+         if (stream->state == DOCSTREAM_STATE_WRITING && IsEqualGUID(&stream->id, &stream->doc->stream_id))
+         {
+             offset.QuadPart = 0;
+             IStream_Seek(stream->stream, offset, STREAM_SEEK_SET, NULL);
+             if (FAILED(hr = domdoc_load_from_stream(stream->doc, (ISequentialStream *)stream->stream)))
+                 WARN("Failed to parse stream, hr %#lx.\n", hr);
+         }
+
+         IXMLDOMDocument3_Release(&stream->doc->IXMLDOMDocument3_iface);
+         IStream_Release(stream->stream);
+         free(stream);
+    }
+
+    return refcount;
+}
+
+static HRESULT docstream_save(struct docstream *stream)
+{
+    LARGE_INTEGER offset;
+    HRESULT hr = S_OK;
+
+    /* Capture document contents once, and rewind. */
+    if (stream->state == DOCSTREAM_STATE_INITIAL
+            && !list_empty(&stream->doc->node->children))
+    {
+        hr = node_save(stream->doc->node, (ISequentialStream *)stream->stream);
+
+        offset.QuadPart = 0;
+        IStream_Seek(stream->stream, offset, STREAM_SEEK_SET, NULL);
+
+        stream->state = DOCSTREAM_STATE_READING;
+    }
+
+    return hr;
+}
+
+static HRESULT WINAPI docstream_Read(IStream *iface, void *buffer, ULONG size, ULONG *read_size)
+{
+    struct docstream *stream = impl_from_IStream(iface);
+    HRESULT hr;
+
+    TRACE("%p, %p, %lu, %p.\n", iface, buffer, size, read_size);
+
+    hr = docstream_save(stream);
+    if (hr == S_OK && stream->state == DOCSTREAM_STATE_READING)
+        return IStream_Read(stream->stream, buffer, size, read_size);
+
+    return E_FAIL;
+}
+
+static HRESULT WINAPI docstream_Write(IStream *iface, const void *data, ULONG size, ULONG *written)
+{
+    struct docstream *stream = impl_from_IStream(iface);
+
+    TRACE("%p, %p, %lu, %p.\n", iface, data, size, written);
+
+    if (stream->state == DOCSTREAM_STATE_INITIAL)
+    {
+        node_unlink_children(stream->doc->node);
+        stream->state = DOCSTREAM_STATE_WRITING;
+    }
+
+    if (stream->state == DOCSTREAM_STATE_WRITING)
+        return IStream_Write(stream->stream, data, size, written);
+
+    return S_OK;
+}
+
+static HRESULT WINAPI docstream_Seek(IStream *iface, LARGE_INTEGER offset, DWORD origin, ULARGE_INTEGER *pos)
+{
+    struct docstream *stream = impl_from_IStream(iface);
+
+    TRACE("%p, %s, %lu, %p.\n", iface, wine_dbgstr_longlong(offset.QuadPart), origin, pos);
+
+    if (stream->state == DOCSTREAM_STATE_WRITING)
+    {
+        if (offset.QuadPart && origin == STREAM_SEEK_SET)
+            return E_NOTIMPL;
+        return S_OK;
+    }
+
+    return IStream_Seek(stream->stream, offset, origin, pos);
+}
+
+static HRESULT WINAPI docstream_SetSize(IStream *iface, ULARGE_INTEGER size)
+{
+    TRACE("%p, %s.\n", iface, wine_dbgstr_longlong(size.QuadPart));
+
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI docstream_CopyTo(IStream *iface, IStream *dest, ULARGE_INTEGER size, ULARGE_INTEGER *count,
+        ULARGE_INTEGER *written)
+{
+    FIXME("%p, %p, %s, %p, %p stub\n", iface, dest, wine_dbgstr_longlong(size.QuadPart), count, written);
+
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI docstream_Commit(IStream *iface, DWORD flags)
+{
+    FIXME("%p, %#lx stub\n", iface, flags);
+
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI docstream_Revert(IStream *iface)
+{
+    FIXME("%p stub\n", iface);
+
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI docstream_LockRegion(IStream *iface, ULARGE_INTEGER offset, ULARGE_INTEGER size, DWORD lock_type)
+{
+    FIXME("%p, %s, %s, %#lx stub\n", iface, wine_dbgstr_longlong(offset.QuadPart),
+            wine_dbgstr_longlong(size.QuadPart), lock_type);
+
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI docstream_UnlockRegion(IStream *iface, ULARGE_INTEGER offset, ULARGE_INTEGER size, DWORD lock_type)
+{
+    FIXME("%p, %s, %s, %#lx stub\n", iface, wine_dbgstr_longlong(offset.QuadPart),
+            wine_dbgstr_longlong(size.QuadPart), lock_type);
+
+    return E_NOTIMPL;
+}
+
+static HRESULT WINAPI docstream_Stat(IStream *iface, STATSTG *stat, DWORD flags)
+{
+    struct docstream *stream = impl_from_IStream(iface);
+    HRESULT hr;
+
+    TRACE("%p, %p, %#lx.\n", iface, stat, flags);
+
+    if (!stat)
+        return STG_E_INVALIDPOINTER;
+
+    hr = docstream_save(stream);
+    if (hr == S_OK && stream->state == DOCSTREAM_STATE_READING)
+        return IStream_Stat(stream->stream, stat, flags);
+
+    memset(stat, 0, sizeof(*stat));
+    stat->type = STGTY_STREAM;
+    return hr;
+}
+
+static HRESULT WINAPI docstream_Clone(IStream *iface, IStream **ppstm)
+{
+    TRACE("%p, %p.\n", iface, ppstm);
+
+    return E_NOTIMPL;
+}
+
+static const IStreamVtbl docstream_vtbl =
+{
+    docstream_QueryInterface,
+    docstream_AddRef,
+    docstream_Release,
+    docstream_Read,
+    docstream_Write,
+    docstream_Seek,
+    docstream_SetSize,
+    docstream_CopyTo,
+    docstream_Commit,
+    docstream_Revert,
+    docstream_LockRegion,
+    docstream_UnlockRegion,
+    docstream_Stat,
+    docstream_Clone,
+};
+
+static HRESULT create_docstream(struct domdoc *doc, REFIID riid, void **obj)
+{
+    struct docstream *object;
+    HRESULT hr;
+
+    *obj = NULL;
+
+    if (!(object = calloc(1, sizeof(*object))))
+        return E_OUTOFMEMORY;
+
+    object->IStream_iface.lpVtbl = &docstream_vtbl;
+    object->refcount = 1;
+    if (FAILED(hr = CreateStreamOnHGlobal(NULL, TRUE, &object->stream)))
+    {
+        free(object);
+        return hr;
+    }
+    object->doc = doc;
+    IXMLDOMDocument3_AddRef(&doc->IXMLDOMDocument3_iface);
+    CoCreateGuid(&object->id);
+    doc->stream_id = object->id;
+
+    hr = IStream_QueryInterface(&object->IStream_iface, riid, obj);
+    IStream_Release(&object->IStream_iface);
+
+    return hr;
 }

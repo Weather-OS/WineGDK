@@ -531,6 +531,7 @@ static UINT64 xstate_extended_features;
 
 static inline struct x86_thread_data *x86_thread_data( struct thread_data *data )
 {
+    if (!data->teb) return NULL;
     return (struct x86_thread_data *)get_teb_data(data)->cpu_data;
 }
 
@@ -659,10 +660,11 @@ static void wine_sigacthandler( int signal, siginfo_t *siginfo, void *sigcontext
 
     __asm__ __volatile__("mov %ss,%ax; mov %ax,%ds; mov %ax,%es");
 
-    thread_data = x86_thread_data( get_current_thread_data() );
-    set_fs( thread_data->fs );
-    set_gs( thread_data->gs );
-
+    if ((thread_data = x86_thread_data( get_current_thread_data() )))
+    {
+        set_fs( thread_data->fs );
+        set_gs( thread_data->gs );
+    }
     libc_sigacthandler( signal, siginfo, sigcontext );
 }
 
@@ -699,16 +701,17 @@ __ASM_GLOBAL_FUNC( clear_alignment_flag,
 static inline struct thread_data *init_handler( const ucontext_t *sigcontext )
 {
     struct thread_data *data = get_current_thread_data();
+    struct x86_thread_data *x86_data;
 
     clear_alignment_flag();
 
-#ifndef __sun  /* see above for Solaris handling */
+    if ((x86_data = x86_thread_data( data )))
     {
-        struct x86_thread_data *thread_data = x86_thread_data( data );
-        set_fs( thread_data->fs );
-        set_gs( thread_data->gs );
-    }
+#ifndef __sun  /* see above for Solaris handling */
+        set_fs( x86_data->fs );
+        set_gs( x86_data->gs );
 #endif
+    }
     return data;
 }
 
@@ -785,12 +788,15 @@ static void save_context( struct thread_data *data, CONTEXT *context, const ucon
     context->SegFs        = LOWORD(FS_sig(sigcontext));
     context->SegGs        = LOWORD(GS_sig(sigcontext));
     context->SegSs        = LOWORD(SS_sig(sigcontext));
-    context->Dr0          = x86_data->dr0;
-    context->Dr1          = x86_data->dr1;
-    context->Dr2          = x86_data->dr2;
-    context->Dr3          = x86_data->dr3;
-    context->Dr6          = x86_data->dr6;
-    context->Dr7          = x86_data->dr7;
+    if (x86_data)
+    {
+        context->Dr0 = x86_data->dr0;
+        context->Dr1 = x86_data->dr1;
+        context->Dr2 = x86_data->dr2;
+        context->Dr3 = x86_data->dr3;
+        context->Dr6 = x86_data->dr6;
+        context->Dr7 = x86_data->dr7;
+    }
 
     if (fpu)
     {
@@ -874,12 +880,15 @@ static void restore_context( struct thread_data *data, const CONTEXT *context, u
     void *fpux = FPUX_sig(sigcontext);
     struct x86_thread_data *x86_data = x86_thread_data( data );
 
-    x86_data->dr0 = context->Dr0;
-    x86_data->dr1 = context->Dr1;
-    x86_data->dr2 = context->Dr2;
-    x86_data->dr3 = context->Dr3;
-    x86_data->dr6 = context->Dr6;
-    x86_data->dr7 = context->Dr7;
+    if (x86_data)
+    {
+        x86_data->dr0 = context->Dr0;
+        x86_data->dr1 = context->Dr1;
+        x86_data->dr2 = context->Dr2;
+        x86_data->dr3 = context->Dr3;
+        x86_data->dr6 = context->Dr6;
+        x86_data->dr7 = context->Dr7;
+    }
     EAX_sig(sigcontext) = context->Eax;
     EBX_sig(sigcontext) = context->Ebx;
     ECX_sig(sigcontext) = context->Ecx;
@@ -946,6 +955,8 @@ NTSTATUS WINAPI NtSetContextThread( HANDLE handle, const CONTEXT *context )
     struct x86_thread_data *x86_data = x86_thread_data( data );
     DWORD flags = context->ContextFlags & ~CONTEXT_i386;
     BOOL self = (handle == GetCurrentThread());
+
+    if (self && !frame) return STATUS_ACCESS_DENIED;
 
     if ((flags & CONTEXT_XSTATE) && xstate_extended_features)
     {
@@ -1061,6 +1072,8 @@ NTSTATUS WINAPI NtGetContextThread( HANDLE handle, CONTEXT *context )
     DWORD needed_flags = context->ContextFlags & ~CONTEXT_i386;
     BOOL self = (handle == GetCurrentThread());
     NTSTATUS ret;
+
+    if (self && !frame) return STATUS_ACCESS_DENIED;
 
     /* debug registers require a server call */
     if (needed_flags & CONTEXT_DEBUG_REGISTERS) self = FALSE;
@@ -1309,9 +1322,10 @@ static BOOL check_invalid_gs( struct thread_data *data, ucontext_t *sigcontext, 
 {
     unsigned int prefix_count = 0;
     const BYTE *instr = (BYTE *)context->Eip;
-    WORD system_gs = x86_thread_data(data)->gs;
+    struct x86_thread_data *x86_data = x86_thread_data( data );
 
-    if (context->SegGs == system_gs) return FALSE;
+    if (!x86_data) return FALSE;
+    if (context->SegGs == x86_data->gs) return FALSE;
     if (!ldt_is_system( context->SegCs )) return FALSE;
     /* only handle faults in system libraries */
     if (virtual_is_valid_code_address( instr, 1 )) return FALSE;
@@ -1333,8 +1347,8 @@ static BOOL check_invalid_gs( struct thread_data *data, ucontext_t *sigcontext, 
         instr++;
         continue;
     case 0x65:  /* %gs: */
-        TRACE( "%04x/%04x at %p, fixing up\n", context->SegGs, system_gs, instr );
-        GS_sig(sigcontext) = system_gs;
+        TRACE( "%04x/%04x at %p, fixing up\n", context->SegGs, x86_data->gs, instr );
+        GS_sig(sigcontext) = x86_data->gs;
         return TRUE;
     default:
         return FALSE;
@@ -1479,8 +1493,9 @@ static void setup_raise_exception( struct thread_data *data, ucontext_t *sigcont
     struct exc_stack_layout *stack;
     void *stack_ptr;
     size_t stack_size;
-    NTSTATUS status = send_debug_event( rec, context, TRUE, TRUE );
+    NTSTATUS status;
 
+    status = send_debug_event( data, rec, context, TRUE, TRUE );
     if (status == DBG_CONTINUE || status == DBG_EXCEPTION_HANDLED)
     {
         restore_context( data, context, sigcontext );
@@ -1563,26 +1578,24 @@ NTSTATUS call_user_apc_dispatcher( CONTEXT *context, unsigned int flags, ULONG_P
 /***********************************************************************
  *           call_raise_user_exception_dispatcher
  */
-void call_raise_user_exception_dispatcher(void)
+void call_raise_user_exception_dispatcher( struct thread_data *data )
 {
-    get_syscall_frame(get_thread_data())->eip = (DWORD)pKiRaiseUserExceptionDispatcher;
+    get_syscall_frame(data)->eip = (DWORD)pKiRaiseUserExceptionDispatcher;
 }
 
 
 /***********************************************************************
  *           call_user_exception_dispatcher
  */
-NTSTATUS call_user_exception_dispatcher( EXCEPTION_RECORD *rec, CONTEXT *context )
+NTSTATUS call_user_exception_dispatcher( struct thread_data *data, EXCEPTION_RECORD *rec, CONTEXT *context )
 {
-    struct thread_data *data = get_thread_data();
     struct syscall_frame *frame = get_syscall_frame( data );
-    ULONG esp = (frame->esp - sizeof(struct exc_stack_layout)) & ~3;
     struct exc_stack_layout *stack;
     XSAVE_AREA_HEADER *src_xs;
 
     if (rec->ExceptionCode == EXCEPTION_BREAKPOINT) context->Eip--;
 
-    stack = (struct exc_stack_layout *)((esp - sizeof(*stack) - xstate_size) & ~(ULONG_PTR)63);
+    stack = (struct exc_stack_layout *)((frame->esp - sizeof(*stack) - xstate_size) & ~(ULONG_PTR)63);
     stack->rec_ptr      = &stack->rec;
     stack->context_ptr  = &stack->context;
     stack->rec          = *rec;
@@ -1843,7 +1856,7 @@ static BOOL handle_interrupt( struct thread_data *data, unsigned int interrupt, 
 static BOOL handle_syscall_fault( struct thread_data *data, ucontext_t *sigcontext, void *stack_ptr,
                                   EXCEPTION_RECORD *rec, CONTEXT *context )
 {
-    struct syscall_frame *frame = get_syscall_frame( data );
+    struct syscall_frame *frame;
     UINT i, *stack;
 
     if (!is_inside_syscall( data, ESP_sig(sigcontext) )) return FALSE;
@@ -1870,15 +1883,17 @@ static BOOL handle_syscall_fault( struct thread_data *data, ucontext_t *sigconte
         ESP_sig(sigcontext) = (DWORD)stack;
         EIP_sig(sigcontext) = (DWORD)longjmp;
         data->jmp_buf = NULL;
+        return TRUE;
     }
-    else
+    if ((frame = get_syscall_frame( data )))
     {
         TRACE( "returning to user mode ip=%08x ret=%08x\n", frame->eip, rec->ExceptionCode );
         EAX_sig(sigcontext) = rec->ExceptionCode;
         EBP_sig(sigcontext) = (DWORD)&frame->ebp;
         EIP_sig(sigcontext) = (DWORD)__wine_syscall_dispatcher_return;
+        return TRUE;
     }
-    return TRUE;
+    return FALSE;
 }
 
 
@@ -1906,9 +1921,11 @@ static BOOL handle_syscall_trap( struct thread_data *data, ucontext_t *sigcontex
         EIP_sig( sigcontext ) = (ULONG)__wine_unix_call_dispatcher_prolog_end;
         fixup_frame_fpu_state( frame, sigcontext );
     }
-    else if (siginfo->si_code == 4 /* TRAP_HWBKPT */ && is_inside_syscall( data, ESP_sig(sigcontext) ))
+    else if (siginfo->si_code == 4 /* TRAP_HWBKPT */ &&
+             (is_inside_syscall( data, ESP_sig(sigcontext) ) ||
+              is_inside_signal_stack( data, (void *)ESP_sig(sigcontext) )))
     {
-        TRACE_(seh)( "ignoring HWBKPT in syscall eip=%p\n", (void *)EIP_sig(sigcontext) );
+        TRACE_(seh)( "ignoring HWBKPT eip=%p\n", (void *)EIP_sig(sigcontext) );
         return TRUE;
     }
     else return FALSE;
@@ -2175,7 +2192,11 @@ static void usr1_handler( int signal, siginfo_t *siginfo, void *_sigcontext )
     ucontext_t *sigcontext = _sigcontext;
     struct thread_data *data = init_handler( sigcontext );
 
-    if (is_inside_syscall( data, ESP_sig(sigcontext) ))
+    if (!data->teb)
+    {
+        server_select( NULL, 0, SELECT_INTERRUPTIBLE, 0, NULL, NULL );
+    }
+    else if (is_inside_syscall( data, ESP_sig(sigcontext) ))
     {
         struct syscall_frame *frame = get_syscall_frame( data );
         ULONG64 saved_compaction = 0;
@@ -2296,13 +2317,14 @@ NTSTATUS get_thread_ldt_entry( HANDLE handle, THREAD_DESCRIPTOR_INFORMATION *inf
 {
     THREAD_BASIC_INFORMATION tbi;
     NTSTATUS status = STATUS_SUCCESS;
-    TEB *teb = NtCurrentTeb();
 
     if (len != sizeof(*info)) return STATUS_INFO_LENGTH_MISMATCH;
     if (info->Selector >> 16) return STATUS_UNSUCCESSFUL;
 
     if (handle == GetCurrentThread())
     {
+        TEB *teb = NtCurrentTeb();
+        if (!teb) return STATUS_ACCESS_DENIED;
         tbi.TebBaseAddress = teb;
         tbi.ClientId = teb->ClientId;
     }
@@ -2360,7 +2382,7 @@ void signal_free_thread( TEB *teb )
 /**********************************************************************
  *		signal_init_process
  */
-void signal_init_process(void)
+void signal_init_process( TEB *teb )
 {
     struct sigaction sig_act;
 
@@ -2384,7 +2406,7 @@ void signal_init_process(void)
     if (!gdt_fs_sel && !is_gdt_sel( get_gs() )) memset( ldt_bitmap, 0xff, 512 / 8 );
 
     alloc_syscall_frame( (frame_size + 63) & ~63 );
-    signal_alloc_thread( NtCurrentTeb() );
+    signal_alloc_thread( teb );
 
     sig_act.sa_mask = server_block_set;
     sig_act.sa_flags = SA_SIGINFO | SA_RESTART | SA_ONSTACK;
@@ -2419,11 +2441,11 @@ void signal_init_process(void)
 /***********************************************************************
  *           init_syscall_frame
  */
-void init_syscall_frame( LPTHREAD_START_ROUTINE entry, void *arg, BOOL suspend, TEB *teb )
+void init_syscall_frame( LPTHREAD_START_ROUTINE entry, void *arg, TEB *teb )
 {
     struct thread_data *data = get_thread_data();
     struct syscall_frame *frame = get_syscall_frame( data );
-    struct x86_thread_data *thread_data = (struct x86_thread_data *)&teb->GdiTebBatch;
+    struct x86_thread_data *thread_data = x86_thread_data( data );
     CONTEXT *ctx, context = { CONTEXT_ALL };
     DWORD *stack;
 
@@ -2445,9 +2467,9 @@ void init_syscall_frame( LPTHREAD_START_ROUTINE entry, void *arg, BOOL suspend, 
     context.FloatSave.ControlWord = 0x27f;
     ((XSAVE_FORMAT *)context.ExtendedRegisters)->ControlWord = 0x27f;
     ((XSAVE_FORMAT *)context.ExtendedRegisters)->MxCsr = 0x1f80;
-    if ((ctx = get_cpu_area( IMAGE_FILE_MACHINE_I386 ))) *ctx = context;
+    if ((ctx = get_cpu_area( data, IMAGE_FILE_MACHINE_I386 ))) *ctx = context;
 
-    if (suspend)
+    if (data->suspend)
     {
         context.ContextFlags |= CONTEXT_EXCEPTION_REPORTING | CONTEXT_EXCEPTION_ACTIVE;
         wait_suspend( &context );
@@ -2491,7 +2513,7 @@ __ASM_GLOBAL_FUNC( signal_start_thread,
                    __ASM_CFI(".cfi_rel_offset %edi,-12\n\t")
                    "leal 8(%ebp),%edx\n\t"      /* syscall_cfa */
                    /* set syscall frame */
-                   "movl 20(%ebp),%ecx\n\t"     /* teb */
+                   "movl 16(%ebp),%ecx\n\t"     /* teb */
                    "movl 0x218(%ecx),%eax\n\t"  /* thread_data->syscall_frame */
                    "orl %eax,%eax\n\t"
                    "jnz 1f\n\t"
@@ -2504,9 +2526,8 @@ __ASM_GLOBAL_FUNC( signal_start_thread,
                    "movl $0,0x3c(%eax)\n\t"     /* frame->prev_frame */
                    "fnstcw 0x1f8(%ecx)\n\t"     /* thread_data->fpcw */
                    /* switch to kernel stack */
-                   "movl %eax,%esp\n\t"
+                   "leal -4(%eax),%esp\n\t"
                    "pushl %ecx\n\t"             /* teb */
-                   "pushl 16(%ebp)\n\t"         /* suspend */
                    "pushl 12(%ebp)\n\t"         /* arg */
                    "pushl 8(%ebp)\n\t"          /* entry */
                    "call " __ASM_NAME("init_syscall_frame") "\n\t"

@@ -251,6 +251,12 @@ struct property_data
     lparam_t       data;
 };
 
+struct ratio
+{
+    unsigned short num;
+    unsigned short den;
+};
+
 
 struct rectangle
 {
@@ -334,6 +340,7 @@ union hw_input
         unsigned int   flags;
         unsigned int   time;
         lparam_t       info;
+        unsigned int   raw_count;
     } mouse;
     struct
     {
@@ -891,7 +898,8 @@ struct monitor_info
     struct rectangle raw;
     struct rectangle virt;
     unsigned int     flags;
-    unsigned int     dpi;
+    struct ratio     dpi;
+    struct ratio     raw_dpi;
 };
 #define MONITOR_FLAG_PRIMARY  0x01
 #define MONITOR_FLAG_CLONE    0x02
@@ -1022,24 +1030,52 @@ typedef volatile struct
     unsigned __int64     keystate_serial;
 } input_shm_t;
 
-typedef volatile struct
+struct class_info
 {
     atom_t               atom;
     unsigned int         style;
     unsigned int         cls_extra;
     unsigned int         win_extra;
+    user_handle_t        cursor;
+    user_handle_t        background;
+    user_handle_t        icon;
+    user_handle_t        icon_small;
     mod_handle_t         instance;
+    client_ptr_t         wndproc;
+    client_ptr_t         menu_name;
+};
+
+typedef volatile struct
+{
     data_size_t          name_offset;
     data_size_t          name_len;
     WCHAR                name[MAX_ATOM_LEN];
-    unsigned short       __pad;
+    unsigned short       local;
+    struct class_info    info;
     char                 extra[];
 } class_shm_t;
+
+struct window_info
+{
+    lparam_t             id;
+    mod_handle_t         instance;
+    lparam_t             user_data;
+    client_ptr_t         wndproc;
+};
 
 typedef volatile struct
 {
     struct obj_locator   class;
     unsigned int         dpi_context;
+    unsigned int         fnid;
+    unsigned int         ansi;
+    int                  __pad;
+    struct ratio         dpi;
+    struct ratio         raw_dpi;
+    data_size_t          private_size;
+    data_size_t          extra_size;
+    struct window_info   info;
+    char                 extra[];
 } window_shm_t;
 
 typedef volatile union
@@ -1120,8 +1156,8 @@ struct new_thread_request
     unsigned int access;
     unsigned int flags;
     int          request_fd;
+    int          is_system;
     /* VARARG(objattr,object_attributes); */
-    char __pad_28[4];
 };
 struct new_thread_reply
 {
@@ -1141,10 +1177,11 @@ struct get_startup_info_reply
 {
     struct reply_header __header;
     data_size_t  info_size;
+    int          debugged;
     unsigned short machine;
     /* VARARG(info,startup_info,info_size); */
     /* VARARG(env,unicode_str); */
-    char __pad_14[2];
+    char __pad_18[6];
 };
 
 
@@ -1173,6 +1210,8 @@ struct init_first_thread_request
     int          debug_level;
     int          reply_fd;
     int          wait_fd;
+    unsigned int page_size;
+    char __pad_36[4];
 };
 struct init_first_thread_reply
 {
@@ -1614,8 +1653,9 @@ struct select_reply
     /* VARARG(call,apc_call); */
     /* VARARG(contexts,contexts); */
 };
-#define SELECT_ALERTABLE     1
-#define SELECT_INTERRUPTIBLE 2
+#define SELECT_ALERTABLE           1
+#define SELECT_INTERRUPTIBLE       2
+#define SELECT_COOPERATIVE_SUSPEND 4
 
 
 
@@ -3114,7 +3154,7 @@ struct send_hardware_message_request
     user_handle_t   win;
     union hw_input  input;
     unsigned int    flags;
-    /* VARARG(report,bytes); */
+    /* VARARG(extra,bytes); */
     char __pad_60[4];
 };
 struct send_hardware_message_reply
@@ -3128,6 +3168,7 @@ struct send_hardware_message_reply
     char __pad_28[4];
 };
 #define SEND_HWMSG_INJECTED    0x01
+#define SEND_HWMSG_RAWINPUT    0x02
 
 
 
@@ -3477,8 +3518,10 @@ struct create_window_request
     unsigned int   dpi_context;
     unsigned int   style;
     unsigned int   ex_style;
+    unsigned int   ansi;
+    struct ratio   dpi;
+    struct ratio   raw_dpi;
     /* VARARG(class,unicode_str); */
-    char __pad_52[4];
 };
 struct create_window_reply
 {
@@ -3486,7 +3529,7 @@ struct create_window_reply
     user_handle_t  handle;
     user_handle_t  parent;
     user_handle_t  owner;
-    int            extra;
+    char __pad_20[4];
     client_ptr_t   class_ptr;
 };
 
@@ -3545,7 +3588,7 @@ struct get_window_info_reply
 {
     struct reply_header __header;
     user_handle_t  last_active;
-    int            is_unicode;
+    char __pad_12[4];
     lparam_t       info;
 };
 
@@ -3557,8 +3600,6 @@ struct init_window_info_request
     user_handle_t  handle;
     unsigned int   style;
     unsigned int   ex_style;
-    short int      is_unicode;
-    char __pad_26[6];
 };
 struct init_window_info_reply
 {
@@ -3574,11 +3615,29 @@ struct set_window_info_request
     int            offset;
     data_size_t    size;
     lparam_t       new_info;
+    unsigned int   new_ansi;
+    unsigned int   internal;
 };
 struct set_window_info_reply
 {
     struct reply_header __header;
     lparam_t       old_info;
+    unsigned int   old_ansi;
+    char __pad_20[4];
+};
+
+
+
+struct set_window_fnid_request
+{
+    struct request_header __header;
+    user_handle_t  handle;
+    atom_t         atom;
+    char __pad_20[4];
+};
+struct set_window_fnid_reply
+{
+    struct reply_header __header;
 };
 
 
@@ -3657,7 +3716,7 @@ struct get_window_children_from_point_request
     user_handle_t  parent;
     int            x;
     int            y;
-    int            dpi;
+    struct ratio   dpi;
     char __pad_28[4];
 };
 struct get_window_children_from_point_reply
@@ -3694,13 +3753,11 @@ struct set_window_pos_request
     struct request_header __header;
     unsigned short swp_flags;
     unsigned short paint_flags;
-    unsigned int   monitor_dpi;
     user_handle_t  handle;
     user_handle_t  previous;
     struct rectangle window;
     struct rectangle client;
     /* VARARG(valid,rectangles); */
-    char __pad_60[4];
 };
 struct set_window_pos_reply
 {
@@ -3720,7 +3777,7 @@ struct get_window_rectangles_request
     struct request_header __header;
     user_handle_t  handle;
     int            relative;
-    int            dpi;
+    struct ratio   dpi;
 };
 struct get_window_rectangles_reply
 {
@@ -3771,7 +3828,7 @@ struct get_windows_offset_request
     struct request_header __header;
     user_handle_t  from;
     user_handle_t  to;
-    int            dpi;
+    struct ratio   dpi;
 };
 struct get_windows_offset_reply
 {
@@ -4500,15 +4557,14 @@ struct get_hook_info_reply
 struct create_class_request
 {
     struct request_header __header;
-    int            local;
     atom_t         atom;
-    unsigned int   style;
-    mod_handle_t   instance;
+    unsigned int   fnid;
+    unsigned int   ansi;
     client_ptr_t   client_ptr;
-    short int      cls_extra;
-    short int      win_extra;
     data_size_t    name_offset;
+    /* VARARG(info,class_info); */
     /* VARARG(name,unicode_str); */
+    char __pad_36[4];
 };
 struct create_class_reply
 {
@@ -4531,6 +4587,9 @@ struct destroy_class_reply
 {
     struct reply_header __header;
     client_ptr_t   client_ptr;
+    user_handle_t  background;
+    char __pad_20[4];
+    client_ptr_t   menu_name;
 };
 
 
@@ -4542,6 +4601,8 @@ struct set_class_info_request
     int            offset;
     data_size_t    size;
     lparam_t       new_info;
+    unsigned int   ansi;
+    char __pad_36[4];
 };
 struct set_class_info_reply
 {
@@ -6162,6 +6223,22 @@ struct d3dkmt_mutex_release_reply
 };
 
 
+
+struct alpc_create_port_request
+{
+    struct request_header __header;
+    unsigned int        flags;
+    mem_size_t          max_msg_len;
+    /* VARARG(obj_attr,object_attributes); */
+};
+struct alpc_create_port_reply
+{
+    struct reply_header __header;
+    obj_handle_t        handle;
+    char __pad_12[4];
+};
+
+
 enum request
 {
     REQ_new_process,
@@ -6313,6 +6390,7 @@ enum request
     REQ_get_window_info,
     REQ_init_window_info,
     REQ_set_window_info,
+    REQ_set_window_fnid,
     REQ_set_parent,
     REQ_get_window_parents,
     REQ_get_window_list,
@@ -6470,6 +6548,7 @@ enum request
     REQ_d3dkmt_object_open_name,
     REQ_d3dkmt_mutex_acquire,
     REQ_d3dkmt_mutex_release,
+    REQ_alpc_create_port,
     REQ_NB_REQUESTS
 };
 
@@ -6626,6 +6705,7 @@ union generic_request
     struct get_window_info_request get_window_info_request;
     struct init_window_info_request init_window_info_request;
     struct set_window_info_request set_window_info_request;
+    struct set_window_fnid_request set_window_fnid_request;
     struct set_parent_request set_parent_request;
     struct get_window_parents_request get_window_parents_request;
     struct get_window_list_request get_window_list_request;
@@ -6783,6 +6863,7 @@ union generic_request
     struct d3dkmt_object_open_name_request d3dkmt_object_open_name_request;
     struct d3dkmt_mutex_acquire_request d3dkmt_mutex_acquire_request;
     struct d3dkmt_mutex_release_request d3dkmt_mutex_release_request;
+    struct alpc_create_port_request alpc_create_port_request;
 };
 union generic_reply
 {
@@ -6937,6 +7018,7 @@ union generic_reply
     struct get_window_info_reply get_window_info_reply;
     struct init_window_info_reply init_window_info_reply;
     struct set_window_info_reply set_window_info_reply;
+    struct set_window_fnid_reply set_window_fnid_reply;
     struct set_parent_reply set_parent_reply;
     struct get_window_parents_reply get_window_parents_reply;
     struct get_window_list_reply get_window_list_reply;
@@ -7094,8 +7176,9 @@ union generic_reply
     struct d3dkmt_object_open_name_reply d3dkmt_object_open_name_reply;
     struct d3dkmt_mutex_acquire_reply d3dkmt_mutex_acquire_reply;
     struct d3dkmt_mutex_release_reply d3dkmt_mutex_release_reply;
+    struct alpc_create_port_reply alpc_create_port_reply;
 };
 
-#define SERVER_PROTOCOL_VERSION 931
+#define SERVER_PROTOCOL_VERSION 958
 
 #endif /* __WINE_WINE_SERVER_PROTOCOL_H */

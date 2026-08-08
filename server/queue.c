@@ -160,65 +160,25 @@ static void timer_callback( void *private );
 
 static const struct object_ops msg_queue_ops =
 {
-    sizeof(struct msg_queue),  /* size */
-    &no_type,                  /* type */
-    msg_queue_dump,            /* dump */
-    NULL,                      /* add_queue */
-    NULL,                      /* remove_queue */
-    NULL,                      /* signaled */
-    NULL,                      /* satisfied */
-    no_signal,                 /* signal */
-    no_get_fd,                 /* get_fd */
-    msg_queue_get_sync,        /* get_sync */
-    default_map_access,        /* map_access */
-    default_get_sd,            /* get_sd */
-    default_set_sd,            /* set_sd */
-    no_get_full_name,          /* get_full_name */
-    no_lookup_name,            /* lookup_name */
-    no_link_name,              /* link_name */
-    NULL,                      /* unlink_name */
-    no_open_file,              /* open_file */
-    no_kernel_obj_list,        /* get_kernel_obj_list */
-    no_close_handle,           /* close_handle */
-    msg_queue_destroy          /* destroy */
+    .size     = sizeof(struct msg_queue),
+    .type     = &no_type,
+    .dump     = msg_queue_dump,
+    .get_sync = msg_queue_get_sync,
+    .destroy  = msg_queue_destroy,
 };
 
 static const struct fd_ops msg_queue_fd_ops =
 {
-    NULL,                        /* get_poll_events */
-    msg_queue_poll_event,        /* poll_event */
-    NULL,                        /* flush */
-    NULL,                        /* get_fd_type */
-    NULL,                        /* ioctl */
-    NULL,                        /* queue_async */
-    NULL,                        /* reselect_async */
-    NULL                         /* cancel async */
+    .poll_event = msg_queue_poll_event,
 };
 
 
 static const struct object_ops thread_input_ops =
 {
-    sizeof(struct thread_input),  /* size */
-    &no_type,                     /* type */
-    thread_input_dump,            /* dump */
-    no_add_queue,                 /* add_queue */
-    NULL,                         /* remove_queue */
-    NULL,                         /* signaled */
-    NULL,                         /* satisfied */
-    no_signal,                    /* signal */
-    no_get_fd,                    /* get_fd */
-    default_get_sync,             /* get_sync */
-    default_map_access,           /* map_access */
-    default_get_sd,               /* get_sd */
-    default_set_sd,               /* set_sd */
-    no_get_full_name,             /* get_full_name */
-    no_lookup_name,               /* lookup_name */
-    no_link_name,                 /* link_name */
-    NULL,                         /* unlink_name */
-    no_open_file,                 /* open_file */
-    no_kernel_obj_list,           /* get_kernel_obj_list */
-    no_close_handle,              /* close_handle */
-    thread_input_destroy          /* destroy */
+    .size    = sizeof(struct thread_input),
+    .type    = &no_type,
+    .dump    = thread_input_dump,
+    .destroy = thread_input_destroy,
 };
 
 /* pointer to input structure of foreground thread */
@@ -590,7 +550,7 @@ static void set_cursor_pos( struct desktop *desktop, int x, int y )
         return;
     }
 
-    if (!(msg = alloc_hardware_message( 0, source, get_tick_count(), 0 ))) return;
+    if (!(msg = alloc_hardware_message( 0xff515700, source, get_tick_count(), 0 ))) return;
 
     msg->msg = WM_MOUSEMOVE;
     msg->x   = x;
@@ -2020,7 +1980,7 @@ static int is_current_process_foreground( struct desktop *desktop )
 #define WINE_MOUSE_HANDLE 1
 #define WINE_KEYBOARD_HANDLE 2
 
-static void rawmouse_init( struct rawinput *header, RAWMOUSE *rawmouse, int x, int y, unsigned int flags,
+static bool rawmouse_init( struct rawinput *header, RAWMOUSE *rawmouse, int x, int y, unsigned int flags,
                            unsigned int buttons, lparam_t info )
 {
     static const unsigned int button_flags[] =
@@ -2072,6 +2032,8 @@ static void rawmouse_init( struct rawinput *header, RAWMOUSE *rawmouse, int x, i
     rawmouse->lLastX             = x;
     rawmouse->lLastY             = y;
     rawmouse->ulExtraInformation = info;
+
+    return x || y || rawmouse->usButtonFlags;
 }
 
 static void rawkeyboard_init( struct rawinput *rawinput, RAWKEYBOARD *keyboard, unsigned short scan, unsigned short vkey,
@@ -2142,9 +2104,9 @@ struct rawinput_message
 };
 
 /* check if process is supposed to receive a WM_INPUT message and eventually queue it */
-static void queue_rawinput_message( struct desktop *desktop, struct process *process, void *args )
+static void queue_rawinput_message( struct desktop *desktop, struct process *process,
+                                    const struct rawinput_message *raw_msg )
 {
-    const struct rawinput_message *raw_msg = args;
     const struct rawinput_device *device;
     struct hardware_msg_data *msg_data;
     struct message *msg;
@@ -2201,7 +2163,7 @@ static void queue_rawinput_message( struct desktop *desktop, struct process *pro
     queue_hardware_message( desktop, msg, 1 );
 }
 
-static void dispatch_rawinput_message( struct desktop *desktop, struct rawinput_message *raw_msg )
+static void dispatch_rawinput_message( struct desktop *desktop, const struct rawinput_message *raw_msg )
 {
     struct process *process;
 
@@ -2211,8 +2173,10 @@ static void dispatch_rawinput_message( struct desktop *desktop, struct rawinput_
 
 /* queue a hardware message for a mouse event */
 static int queue_mouse_message( struct desktop *desktop, user_handle_t win, const union hw_input *input,
-                                unsigned int origin, struct msg_queue *sender )
+                                unsigned int origin, struct msg_queue *sender, bool rawinput )
 {
+    static const POINT empty_raw = {0};
+
     desktop_shm_t *desktop_shm = desktop->shared;
     struct hardware_msg_data *msg_data;
     struct rawinput_message raw_msg;
@@ -2221,6 +2185,7 @@ static int queue_mouse_message( struct desktop *desktop, user_handle_t win, cons
     unsigned int i, time = get_tick_count(), flags;
     struct hw_msg_source source = { IMDT_MOUSE, origin };
     lparam_t wparam = input->mouse.data << 16;
+    const POINT *raw = &empty_raw;
     int wait = 0, x, y;
 
     static const unsigned int messages[] =
@@ -2240,6 +2205,13 @@ static int queue_mouse_message( struct desktop *desktop, user_handle_t win, cons
         WM_MOUSEHWHEEL   /* 0x1000 = MOUSEEVENTF_HWHEEL */
     };
 
+    if (input->mouse.raw_count != get_req_data_size() / sizeof(*raw))
+    {
+        set_error( STATUS_INVALID_PARAMETER );
+        return 0;
+    }
+    if (input->mouse.raw_count) raw = get_req_data();
+
     SHARED_WRITE_BEGIN( desktop_shm, desktop_shm_t )
     {
         shared->cursor.last_change = time;
@@ -2249,6 +2221,16 @@ static int queue_mouse_message( struct desktop *desktop, user_handle_t win, cons
     flags = input->mouse.flags;
     time  = input->mouse.time;
     if (!time) time = desktop_shm->cursor.last_change;
+
+    if (win && origin == IMO_HARDWARE && flags == (MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE))
+    {
+        struct rectangle rect = { input->mouse.x, input->mouse.y, input->mouse.x + 1, input->mouse.y + 1 };
+        unsigned char state = (desktop_shm->keystate[VK_LBUTTON] | desktop_shm->keystate[VK_MBUTTON] |
+                               desktop_shm->keystate[VK_RBUTTON] | desktop_shm->keystate[VK_XBUTTON1] |
+                               desktop_shm->keystate[VK_XBUTTON2]) & 0x80;
+        input_shm_t *input_shm = sender && sender->input ? sender->input->shared : NULL;
+        if (!state && input_shm && !input_shm->capture) set_window_rect_visible( win, rect );
+    }
 
     if (flags & MOUSEEVENTF_MOVE)
     {
@@ -2279,10 +2261,19 @@ static int queue_mouse_message( struct desktop *desktop, user_handle_t win, cons
         raw_msg.time       = time;
         raw_msg.message    = WM_INPUT;
         raw_msg.flags      = flags;
-        rawmouse_init( &raw_msg.rawinput, &raw_msg.data.mouse, x - desktop_shm->cursor.x, y - desktop_shm->cursor.y,
-                       raw_msg.flags, input->mouse.data, input->mouse.info );
 
-        dispatch_rawinput_message( desktop, &raw_msg );
+        for (int i = 0, count = max( 1, input->mouse.raw_count ); i < count; i++)
+        {
+            int raw_x, raw_y;
+
+            raw_x = rawinput ? raw[i].x : x - desktop_shm->cursor.x;
+            raw_y = rawinput ? raw[i].y : y - desktop_shm->cursor.y;
+
+            if (rawmouse_init( &raw_msg.rawinput, &raw_msg.data.mouse, raw_x, raw_y,
+                               raw_msg.flags, input->mouse.data, input->mouse.info ))
+                dispatch_rawinput_message( desktop, &raw_msg );
+        }
+
         release_object( foreground );
     }
 
@@ -2419,24 +2410,24 @@ static int queue_keyboard_message( struct desktop *desktop, user_handle_t win, c
     }
 
     /* send numpad vkeys if NumLock is active */
-    if ((input->kbd.vkey & KBDNUMPAD) && (desktop->keystate[VK_NUMLOCK] & 0x01) &&
-        !(desktop->keystate[VK_SHIFT] & 0x80))
+    if ((input->kbd.vkey & KBDNUMPAD) && (desktop_shm->keystate[VK_NUMLOCK] & 0x01) &&
+        !(desktop_shm->keystate[VK_SHIFT] & 0x80))
     {
-       switch (vkey)
-       {
-       case VK_INSERT: hook_vkey = vkey = VK_NUMPAD0; break;
-       case VK_END:    hook_vkey = vkey = VK_NUMPAD1; break;
-       case VK_DOWN:   hook_vkey = vkey = VK_NUMPAD2; break;
-       case VK_NEXT:   hook_vkey = vkey = VK_NUMPAD3; break;
-       case VK_LEFT:   hook_vkey = vkey = VK_NUMPAD4; break;
-       case VK_CLEAR:  hook_vkey = vkey = VK_NUMPAD5; break;
-       case VK_RIGHT:  hook_vkey = vkey = VK_NUMPAD6; break;
-       case VK_HOME:   hook_vkey = vkey = VK_NUMPAD7; break;
-       case VK_UP:     hook_vkey = vkey = VK_NUMPAD8; break;
-       case VK_PRIOR:  hook_vkey = vkey = VK_NUMPAD9; break;
-       case VK_DELETE: hook_vkey = vkey = VK_DECIMAL; break;
-       default: break;
-       }
+        switch (vkey)
+        {
+        case VK_INSERT: hook_vkey = vkey = VK_NUMPAD0; break;
+        case VK_END:    hook_vkey = vkey = VK_NUMPAD1; break;
+        case VK_DOWN:   hook_vkey = vkey = VK_NUMPAD2; break;
+        case VK_NEXT:   hook_vkey = vkey = VK_NUMPAD3; break;
+        case VK_LEFT:   hook_vkey = vkey = VK_NUMPAD4; break;
+        case VK_CLEAR:  hook_vkey = vkey = VK_NUMPAD5; break;
+        case VK_RIGHT:  hook_vkey = vkey = VK_NUMPAD6; break;
+        case VK_HOME:   hook_vkey = vkey = VK_NUMPAD7; break;
+        case VK_UP:     hook_vkey = vkey = VK_NUMPAD8; break;
+        case VK_PRIOR:  hook_vkey = vkey = VK_NUMPAD9; break;
+        case VK_DELETE: hook_vkey = vkey = VK_DECIMAL; break;
+        default: break;
+        }
     }
 
     if (origin == IMO_HARDWARE)
@@ -3239,6 +3230,7 @@ DECL_HANDLER(send_hardware_message)
     struct desktop *desktop;
     unsigned int origin = (req->flags & SEND_HWMSG_INJECTED ? IMO_INJECTED : IMO_HARDWARE);
     struct msg_queue *sender = req->flags & SEND_HWMSG_INJECTED ? get_current_queue() : NULL;
+    bool rawinput = !!(req->flags & SEND_HWMSG_RAWINPUT);
     desktop_shm_t *desktop_shm;
     int wait = 0;
 
@@ -3258,7 +3250,7 @@ DECL_HANDLER(send_hardware_message)
     switch (req->input.type)
     {
     case INPUT_MOUSE:
-        wait = queue_mouse_message( desktop, req->win, &req->input, origin, sender );
+        wait = queue_mouse_message( desktop, req->win, &req->input, origin, sender, rawinput );
         break;
     case INPUT_KEYBOARD:
         wait = queue_keyboard_message( desktop, req->win, &req->input, origin, sender, 0 );

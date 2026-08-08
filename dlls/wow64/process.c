@@ -201,6 +201,20 @@ static PS_ATTRIBUTE_LIST *ps_attributes_32to64( PS_ATTRIBUTE_LIST **attr, const 
             ret->Attributes[i].Size     = sizeof(TEB *);
             ret->Attributes[i].ValuePtr = Wow64AllocateTemp( ret->Attributes[i].Size );
             break;
+        case PS_ATTRIBUTE_GROUP_AFFINITY:
+            {
+                GROUP_AFFINITY32 *aff32 = ret->Attributes[i].ValuePtr;
+                GROUP_AFFINITY *aff64;
+                ret->Attributes[i].Size     = sizeof(GROUP_AFFINITY);
+                ret->Attributes[i].ValuePtr = Wow64AllocateTemp( ret->Attributes[i].Size );
+                aff64 = ret->Attributes[i].ValuePtr;
+                aff64->Mask = aff32->Mask;
+                aff64->Group = aff32->Group;
+                aff64->Reserved[0] = aff32->Reserved[0];
+                aff64->Reserved[1] = aff32->Reserved[1];
+                aff64->Reserved[2] = aff32->Reserved[2];
+            }
+            break;
         }
     }
     *attr = ret;
@@ -927,12 +941,17 @@ NTSTATUS WINAPI wow64_NtSetInformationProcess( UINT *args )
     case ProcessPriorityClass:   /* PROCESS_PRIORITY_CLASS */
     case ProcessBasePriority:   /* ULONG */
     case ProcessPriorityBoost:  /* ULONG */
-    case ProcessExecuteFlags:   /* ULONG */
     case ProcessPagePriority:   /* MEMORY_PRIORITY_INFORMATION */
     case ProcessPowerThrottlingState:   /* PROCESS_POWER_THROTTLING_STATE */
     case ProcessLeapSecondInformation:   /* PROCESS_LEAP_SECOND_INFO */
     case ProcessWineGrantAdminToken:   /* NULL */
         return NtSetInformationProcess( handle, class, ptr, len );
+
+    case ProcessExecuteFlags:   /* ULONG */
+        status = NtSetInformationProcess( handle, class, ptr, len );
+        if (!status && pBTCpuNotifyProcessExecuteFlagsChange)
+            pBTCpuNotifyProcessExecuteFlagsChange(*(ULONG *)ptr);
+        return status;
 
     case ProcessAccessToken: /* PROCESS_ACCESS_TOKEN */
         if (len == sizeof(PROCESS_ACCESS_TOKEN32))

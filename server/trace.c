@@ -173,6 +173,11 @@ static void dump_rectangle( const char *prefix, const struct rectangle *rect )
              rect->left, rect->top, rect->right, rect->bottom );
 }
 
+static void dump_ratio( const char *prefix, const struct ratio *q )
+{
+    fprintf( stderr, "%s{%d:%d}", prefix, q->num, q->den );
+}
+
 static void dump_ioctl_code( const char *prefix, const ioctl_code_t *code )
 {
     switch(*code)
@@ -475,7 +480,7 @@ static void dump_hw_input( const char *prefix, const union hw_input *input )
                  prefix, input->mouse.x, input->mouse.y, input->mouse.data, input->mouse.flags,
                  input->mouse.time );
         dump_uint64( ",info=", &input->mouse.info );
-        fputc( '}', stderr );
+        fprintf( stderr, ",raw_count=%u}", input->mouse.raw_count );
         break;
     case INPUT_KEYBOARD:
         fprintf( stderr, "%s{type=KEYBOARD,vkey=%04hx,scan=%04hx,flags=%08x,time=%u",
@@ -1646,12 +1651,27 @@ static void dump_varargs_monitor_infos( const char *prefix, data_size_t size )
     {
         dump_rectangle( "{raw:", &monitor->virt );
         dump_rectangle( ",virt:", &monitor->virt );
-        fprintf( stderr, ",flags:%#x,dpi:%u", monitor->flags, monitor->dpi );
+        fprintf( stderr, ",flags:%#x", monitor->flags );
+        dump_ratio( ",dpi:", &monitor->dpi );
         fputc( '}', stderr );
         if (--len) fputc( ',', stderr );
     }
     fputc( '}', stderr );
     remove_data( size );
+}
+
+static void dump_varargs_class_info( const char *prefix, data_size_t size )
+{
+    const struct class_info *info = cur_data;
+
+    fprintf( stderr, "%s{atom=%#x,style=%#x,cls_extra=%u,win_extra=%u,cursor=%#x,background=%#x,icon=%#x,icon_small=%#x",
+             prefix, info->atom, info->style, info->cls_extra, info->win_extra, info->cursor,
+             info->background, info->icon, info->icon_small );
+    dump_uint64( ",instance=", &info->instance );
+    dump_uint64( ",wndproc=", &info->wndproc );
+    dump_uint64( ",menu_name=", &info->menu_name );
+    fputc( '}', stderr );
+    remove_data( sizeof(*info) );
 }
 
 void trace_request(void)

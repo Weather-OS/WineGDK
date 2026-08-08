@@ -174,6 +174,8 @@ ULONG CDECL wined3d_swapchain_decref(struct wined3d_swapchain *swapchain)
         if (swapchain->dc)
             wined3d_release_dc(swapchain->win_handle, swapchain->dc);
 
+        CloseHandle(swapchain->frame_latency_semaphore);
+
         swapchain->parent_ops->wined3d_object_destroyed(swapchain->parent);
         swapchain->device->adapter->adapter_ops->adapter_destroy_swapchain(swapchain);
 
@@ -224,6 +226,14 @@ HRESULT CDECL wined3d_swapchain_present(struct wined3d_swapchain *swapchain,
 
     if (flags)
         FIXME("Ignoring flags %#x.\n", flags);
+
+    if (!(swapchain->state.desc.flags & WINED3D_SWAPCHAIN_FRAME_LATENCY_WAITABLE_OBJECT))
+    {
+        /* Limit input latency by limiting the number of presents that we can
+         * get ahead of the worker thread. Avoid holding the D3D mutex across
+         * to not block other threads. */
+        WaitForSingleObject(swapchain->frame_latency_semaphore, INFINITE);
+    }
 
     wined3d_mutex_lock();
 
@@ -1404,10 +1414,56 @@ static void wined3d_swapchain_apply_sample_count_override(const struct wined3d_s
     *quality = 0;
 }
 
-void swapchain_set_max_frame_latency(struct wined3d_swapchain *swapchain, const struct wined3d_device *device)
+HRESULT CDECL wined3d_swapchain_set_max_frame_latency(struct wined3d_swapchain *swapchain, unsigned int latency)
 {
-    /* Subtract 1 for the implicit OpenGL latency. */
-    swapchain->max_frame_latency = device->max_frame_latency >= 2 ? device->max_frame_latency - 1 : 1;
+    TRACE("swapchain %p, latency %u.\n", swapchain, latency);
+
+    if (!(swapchain->state.desc.flags & WINED3D_SWAPCHAIN_FRAME_LATENCY_WAITABLE_OBJECT))
+        return WINED3DERR_INVALIDCALL;
+
+    if (!latency)
+        return WINED3DERR_INVALIDCALL;
+
+    if (latency > swapchain->max_frame_latency)
+    {
+        if (!ReleaseSemaphore(swapchain->frame_latency_semaphore, latency - swapchain->max_frame_latency, NULL))
+        {
+            ERR("Failed to release semaphore, error %lu.\n", GetLastError());
+            return HRESULT_FROM_WIN32(GetLastError());
+        }
+    }
+    swapchain->max_frame_latency = latency;
+    return WINED3D_OK;
+}
+
+HRESULT CDECL wined3d_swapchain_get_max_frame_latency(struct wined3d_swapchain *swapchain, unsigned int *latency)
+{
+    TRACE("swapchain %p, latency %p.\n", swapchain, latency);
+
+    if (!(swapchain->state.desc.flags & WINED3D_SWAPCHAIN_FRAME_LATENCY_WAITABLE_OBJECT))
+        return WINED3DERR_INVALIDCALL;
+
+    *latency = swapchain->max_frame_latency;
+    return WINED3D_OK;
+}
+
+HANDLE CDECL wined3d_swapchain_get_frame_latency_waitable_object(struct wined3d_swapchain *swapchain)
+{
+    HANDLE handle;
+
+    TRACE("swapchain %p.\n", swapchain);
+
+    if (!(swapchain->state.desc.flags & WINED3D_SWAPCHAIN_FRAME_LATENCY_WAITABLE_OBJECT))
+        return NULL;
+
+    if (!DuplicateHandle(GetCurrentProcess(), swapchain->frame_latency_semaphore, GetCurrentProcess(),
+            &handle, 0, FALSE, DUPLICATE_SAME_ACCESS))
+    {
+        ERR("Failed to duplicate handle, error %lu.\n", GetLastError());
+        return NULL;
+    }
+
+    return handle;
 }
 
 static enum wined3d_format_id adapter_format_from_backbuffer_format(const struct wined3d_adapter *adapter,
@@ -1506,7 +1562,7 @@ static HRESULT swapchain_create_texture(struct wined3d_swapchain *swapchain,
         texture_desc.access = WINED3D_RESOURCE_ACCESS_CPU;
     else
         texture_desc.access = WINED3D_RESOURCE_ACCESS_GPU;
-    if (!depth && (swapchain_desc->flags & WINED3D_SWAPCHAIN_LOCKABLE_BACKBUFFER))
+    if (!depth && (swapchain_desc->flags & WINED3D_SWAPCHAIN_LOCKABLE_BACKBUFFER) && !swapchain_desc->multisample_type)
         texture_desc.access |= WINED3D_RESOURCE_ACCESS_MAP_R | WINED3D_RESOURCE_ACCESS_MAP_W;
     texture_desc.width = swapchain_desc->backbuffer_width;
     texture_desc.height = swapchain_desc->backbuffer_height;
@@ -1536,6 +1592,16 @@ static HRESULT swapchain_create_texture(struct wined3d_swapchain *swapchain,
     return S_OK;
 }
 
+HRESULT wined3d_swapchain_desc_validate_flags(const struct wined3d_swapchain_desc *desc)
+{
+    /* d3d8 allows the lockable flag even though the backbuffer is not lockable. */
+    if ((desc->flags & WINED3D_SWAPCHAIN_LOCKABLE_BACKBUFFER) && desc->multisample_type
+            && !(desc->flags & WINED3D_SWAPCHAIN_ALLOW_MS_LOCKABLE_BACKBUFFER))
+        return WINED3DERR_INVALIDCALL;
+
+    return WINED3D_OK;
+}
+
 static HRESULT wined3d_swapchain_init(struct wined3d_swapchain *swapchain, struct wined3d_device *device,
         const struct wined3d_swapchain_desc *desc, struct wined3d_swapchain_state_parent *state_parent,
         void *parent, const struct wined3d_parent_ops *parent_ops,
@@ -1549,16 +1615,13 @@ static HRESULT wined3d_swapchain_init(struct wined3d_swapchain *swapchain, struc
 
     wined3d_mutex_lock();
 
-    if (desc->backbuffer_count > 1)
-    {
-        FIXME("The application requested more than one back buffer, this is not properly supported.\n"
-                "Please configure the application to use double buffering (1 back buffer) if possible.\n");
-    }
-
     if (desc->swap_effect != WINED3D_SWAP_EFFECT_DISCARD
             && desc->swap_effect != WINED3D_SWAP_EFFECT_SEQUENTIAL
             && desc->swap_effect != WINED3D_SWAP_EFFECT_COPY)
         FIXME("Unimplemented swap effect %#x.\n", desc->swap_effect);
+
+    if (FAILED(hr = wined3d_swapchain_desc_validate_flags(desc)))
+        return hr;
 
     window = desc->device_window ? desc->device_window : device->create_parms.focus_window;
     TRACE("Using target window %p.\n", window);
@@ -1577,7 +1640,16 @@ static HRESULT wined3d_swapchain_init(struct wined3d_swapchain *swapchain, struc
     swapchain->ref = 1;
     swapchain->win_handle = window;
     swapchain->swap_interval = WINED3D_SWAP_INTERVAL_DEFAULT;
-    swapchain_set_max_frame_latency(swapchain, device);
+    if (desc->flags & WINED3D_SWAPCHAIN_FRAME_LATENCY_WAITABLE_OBJECT)
+        swapchain->max_frame_latency = 1;
+    else
+        swapchain->max_frame_latency = device->max_frame_latency;
+
+    if (!(swapchain->frame_latency_semaphore = CreateSemaphoreW(NULL, swapchain->max_frame_latency, LONG_MAX, NULL)))
+    {
+        ERR("Failed to create frame latency semaphore, error %lu.\n", GetLastError());
+        return HRESULT_FROM_WIN32(GetLastError());
+    }
 
     if (!(swapchain->dc = GetDCEx(swapchain->win_handle, 0, DCX_USESTYLE | DCX_CACHE)))
         WARN("Failed to retrieve device context, trying swapchain backup.\n");
@@ -1714,6 +1786,8 @@ err:
 
     if (swapchain->dc)
         wined3d_release_dc(swapchain->win_handle, swapchain->dc);
+
+    CloseHandle(swapchain->frame_latency_semaphore);
 
     wined3d_swapchain_state_cleanup(&swapchain->state);
     wined3d_mutex_unlock();
@@ -1964,7 +2038,8 @@ void wined3d_swapchain_activate(struct wined3d_swapchain *swapchain, BOOL activa
 
 HRESULT CDECL wined3d_swapchain_resize_buffers(struct wined3d_swapchain *swapchain, unsigned int buffer_count,
         unsigned int width, unsigned int height, enum wined3d_format_id format_id,
-        enum wined3d_multisample_type multisample_type, unsigned int multisample_quality)
+        enum wined3d_multisample_type multisample_type, unsigned int multisample_quality,
+        unsigned int flags)
 {
     struct wined3d_swapchain_desc *desc = &swapchain->state.desc;
     bool recreate = false;
@@ -2028,6 +2103,13 @@ HRESULT CDECL wined3d_swapchain_resize_buffers(struct wined3d_swapchain *swapcha
         desc->multisample_type = multisample_type;
         desc->multisample_quality = multisample_quality;
         recreate = true;
+    }
+
+    if (flags)
+    {
+        if ((desc->flags ^ flags) & WINED3D_SWAPCHAIN_GDI_COMPATIBLE)
+            recreate = true;
+        desc->flags = flags;
     }
 
     if (recreate)

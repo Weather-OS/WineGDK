@@ -70,27 +70,10 @@ static void atom_table_destroy( struct object *obj );
 
 static const struct object_ops atom_table_ops =
 {
-    sizeof(struct atom_table),    /* size */
-    &no_type,                     /* type */
-    atom_table_dump,              /* dump */
-    no_add_queue,                 /* add_queue */
-    NULL,                         /* remove_queue */
-    NULL,                         /* signaled */
-    NULL,                         /* satisfied */
-    no_signal,                    /* signal */
-    no_get_fd,                    /* get_fd */
-    default_get_sync,             /* get_sync */
-    default_map_access,           /* map_access */
-    default_get_sd,               /* get_sd */
-    default_set_sd,               /* set_sd */
-    no_get_full_name,             /* get_full_name */
-    no_lookup_name,               /* lookup_name */
-    no_link_name,                 /* link_name */
-    NULL,                         /* unlink_name */
-    no_open_file,                 /* open_file */
-    no_kernel_obj_list,           /* get_kernel_obj_list */
-    no_close_handle,              /* close_handle */
-    atom_table_destroy            /* destroy */
+    .size    = sizeof(struct atom_table),
+    .type    = &no_type,
+    .dump    = atom_table_dump,
+    .destroy = atom_table_destroy,
 };
 
 static struct atom_table *global_table;
@@ -101,7 +84,7 @@ static void add_atom_asciiz( struct atom_table *table, const char *name )
     WCHAR buffer[MAX_ATOM_LEN + 1];
     struct unicode_str str = { buffer, strlen( name ) * sizeof(WCHAR) };
     for (int i = 0; i < str.len / sizeof(WCHAR); i++) buffer[i] = name[i];
-    add_atom( table, &str );
+    add_atom( table, str );
 }
 
 struct object *create_atom_table(void)
@@ -246,10 +229,10 @@ static void atom_table_destroy( struct object *obj )
     for (i = 0; i < table->count; i++) free( table->atoms[i] );
 }
 
-static atom_t get_int_atom_value( const struct unicode_str *name )
+static atom_t get_int_atom_value( struct unicode_str name )
 {
-    const WCHAR *ptr = name->str;
-    const WCHAR *end = ptr + name->len / sizeof(WCHAR);
+    const WCHAR *ptr = name.str;
+    const WCHAR *end = ptr + name.len / sizeof(WCHAR);
     unsigned int ret = 0;
 
     if (*ptr++ != '#') return 0;
@@ -263,45 +246,45 @@ static atom_t get_int_atom_value( const struct unicode_str *name )
 }
 
 /* find an atom entry in its hash list */
-static struct atom_entry *find_atom_entry( struct atom_table *table, const struct unicode_str *str,
+static struct atom_entry *find_atom_entry( struct atom_table *table, struct unicode_str str,
                                            unsigned short hash )
 {
     struct atom_entry *entry = table->entries[hash];
     while (entry)
     {
-        if (entry->len == str->len && !memicmp_strW( entry->str, str->str, str->len )) break;
+        if (entry->len == str.len && !memicmp_strW( entry->str, str.str, str.len )) break;
         entry = entry->next;
     }
     return entry;
 }
 
 /* add an atom to the table */
-atom_t add_atom( struct atom_table *table, const struct unicode_str *str )
+atom_t add_atom( struct atom_table *table, struct unicode_str str )
 {
     struct atom_entry *entry;
     unsigned short hash;
     atom_t atom = 0;
 
-    if (!str->len)
+    if (!str.len)
     {
         set_error( STATUS_OBJECT_NAME_INVALID );
         return 0;
     }
-    if (str->len > MAX_ATOM_LEN * sizeof(WCHAR))
+    if (str.len > MAX_ATOM_LEN * sizeof(WCHAR))
     {
         set_error( STATUS_INVALID_PARAMETER );
         return 0;
     }
     if ((atom = get_int_atom_value( str ))) return atom;
 
-    hash = hash_strW( str->str, str->len, ARRAY_SIZE(table->entries) );
+    hash = hash_strW( str.str, str.len, ARRAY_SIZE(table->entries) );
     if ((entry = find_atom_entry( table, str, hash )))  /* exists already */
     {
         entry->count++;
         return entry->atom;
     }
 
-    if ((entry = mem_alloc( FIELD_OFFSET( struct atom_entry, str[str->len / sizeof(WCHAR)] ) )))
+    if ((entry = mem_alloc( FIELD_OFFSET( struct atom_entry, str[str.len / sizeof(WCHAR)] ) )))
     {
         if ((atom = add_atom_entry( table, entry )))
         {
@@ -310,8 +293,8 @@ atom_t add_atom( struct atom_table *table, const struct unicode_str *str )
             table->entries[hash] = entry;
             entry->count  = 1;
             entry->hash   = hash;
-            entry->len    = str->len;
-            memcpy( entry->str, str->str, str->len );
+            entry->len    = str.len;
+            memcpy( entry->str, str.str, str.len );
         }
         else
         {
@@ -339,25 +322,25 @@ static void delete_atom( struct atom_table *table, atom_t atom, int if_pinned )
 }
 
 /* find an atom in the table */
-atom_t find_atom( struct atom_table *table, const struct unicode_str *str )
+atom_t find_atom( struct atom_table *table, struct unicode_str str )
 {
     struct atom_entry *entry;
     unsigned short hash;
     atom_t atom;
 
-    if (!str->len)
+    if (!str.len)
     {
         set_error( STATUS_OBJECT_NAME_INVALID );
         return 0;
     }
-    if (str->len > MAX_ATOM_LEN * sizeof(WCHAR))
+    if (str.len > MAX_ATOM_LEN * sizeof(WCHAR))
     {
         set_error( STATUS_INVALID_PARAMETER );
         return 0;
     }
     if ((atom = get_int_atom_value( str ))) return atom;
 
-    hash = hash_strW( str->str, str->len, ARRAY_SIZE(table->entries) );
+    hash = hash_strW( str.str, str.len, ARRAY_SIZE(table->entries) );
     if (!(entry = find_atom_entry( table, str, hash )))
     {
         set_error( STATUS_OBJECT_NAME_NOT_FOUND );
@@ -387,8 +370,7 @@ void release_atom( struct atom_table *table, atom_t atom )
 /* add a global atom */
 DECL_HANDLER(add_atom)
 {
-    struct unicode_str name = get_req_unicode_str();
-    reply->atom = add_atom( global_table, &name );
+    reply->atom = add_atom( global_table, get_req_unicode_str() );
 }
 
 /* delete a global atom */
@@ -400,8 +382,7 @@ DECL_HANDLER(delete_atom)
 /* find a global atom */
 DECL_HANDLER(find_atom)
 {
-    struct unicode_str name = get_req_unicode_str();
-    reply->atom = find_atom( global_table, &name );
+    reply->atom = find_atom( global_table, get_req_unicode_str() );
 }
 
 /* get global atom name */
@@ -422,8 +403,7 @@ DECL_HANDLER(get_atom_information)
 /* add a user atom */
 DECL_HANDLER(add_user_atom)
 {
-    struct unicode_str name = get_req_unicode_str();
-    reply->atom = add_atom( user_table, &name );
+    reply->atom = add_atom( user_table, get_req_unicode_str() );
 }
 
 /* get a user atom name */

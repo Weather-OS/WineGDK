@@ -259,7 +259,6 @@ static VkExternalMemoryHandleTypeFlagBits get_host_external_memory_type(void)
     struct vulkan_device_extensions extensions = {.has_VK_KHR_external_memory_win32 = 1};
     driver_funcs->p_map_device_extensions( &extensions );
     if (extensions.has_VK_KHR_external_memory_fd) return VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
-    if (extensions.has_VK_EXT_external_memory_dma_buf) return VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
     return 0;
 }
 
@@ -690,9 +689,6 @@ static VkResult convert_device_create_info( struct vulkan_physical_device *physi
     device->extensions.has_VK_KHR_external_fence_win32 = 0;
     device->extensions.has_VK_KHR_external_semaphore_win32 = 0;
 
-    if (device->extensions.has_VK_EXT_external_memory_dma_buf)
-        device->extensions.has_VK_KHR_external_memory_fd = 1;
-
     if (physical_device->map_placed_align)
     {
         VkPhysicalDeviceMapMemoryPlacedFeaturesEXT *map_placed_features;
@@ -992,7 +988,6 @@ static VkResult win32u_vkAllocateMemory( VkDevice client_device, const VkMemoryA
             switch ((get_fd_info.handleType = get_host_external_memory_type()))
             {
             case VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT:
-            case VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT:
                 if ((res = device->p_vkGetMemoryFdKHR( device->host.device, &get_fd_info, &fd ))) goto failed;
                 break;
             default:
@@ -1533,8 +1528,11 @@ static VkResult win32u_vkCreateWin32SurfaceKHR( VkInstance client_instance, cons
         surface->hwnd = dummy;
     }
 
-    if ((res = driver_funcs->p_vulkan_surface_create( surface->hwnd, instance, &host_surface, &surface->client )))
+    if (!(surface->client = user_driver->pCreateClientSurface( surface->hwnd, 0 ))) res = VK_ERROR_OUT_OF_HOST_MEMORY;
+    else res = driver_funcs->p_vulkan_surface_create( surface->client, instance, &host_surface );
+    if (res)
     {
+        if (surface->client) client_surface_release( surface->client );
         if (dummy) NtUserDestroyWindow( dummy );
         free( surface );
         return res;
@@ -1571,9 +1569,9 @@ static void win32u_vkDestroySurfaceKHR( VkInstance client_instance, VkSurfaceKHR
     free( surface );
 }
 
-static BOOL get_surface_rect( HWND hwnd, RECT *rect, UINT dpi )
+static BOOL get_surface_rect( HWND hwnd, RECT *rect, struct ratio dpi )
 {
-    if (!NtUserGetPresentRect( hwnd, rect, dpi ) && !NtUserGetClientRect( hwnd, rect, dpi )) return FALSE;
+    if (!get_present_rect( hwnd, rect, dpi ) && !get_client_rect( hwnd, rect, dpi )) return FALSE;
     OffsetRect( rect, -rect->left, -rect->top );
     return TRUE;
 }
@@ -1594,7 +1592,7 @@ static void adjust_surface_capabilities( struct vulkan_instance *instance, struc
 
     /* Update the image extents to match what the Win32 WSI would provide. */
     /* FIXME: handle DPI scaling, somehow */
-    get_surface_rect( surface->hwnd, &client_rect, NtUserGetDpiForWindow( surface->hwnd ) );
+    get_surface_rect( surface->hwnd, &client_rect, get_dpi_for_window( surface->hwnd ) );
     capabilities->minImageExtent.width = client_rect.right - client_rect.left;
     capabilities->minImageExtent.height = client_rect.bottom - client_rect.top;
     capabilities->maxImageExtent.width = client_rect.right - client_rect.left;
@@ -1822,6 +1820,7 @@ static VkResult win32u_vkCreateSwapchainKHR( VkDevice client_device, const VkSwa
     VkSwapchainCreateInfoKHR create_info_host = *create_info;
     VkSurfaceCapabilitiesKHR capabilities;
     VkSwapchainKHR host_swapchain;
+    struct ratio raw_dpi;
     RECT client_rect;
     VkResult res;
 
@@ -1845,7 +1844,8 @@ static VkResult win32u_vkCreateSwapchainKHR( VkDevice client_device, const VkSwa
      * display mode change emulation), MoltenVK's vkQueuePresentKHR returns VK_SUBOPTIMAL_KHR.
      * Create the swapchain with VkSwapchainPresentScalingCreateInfoEXT to avoid this.
      */
-    if (get_surface_rect( surface->hwnd, &client_rect, NtUserGetWinMonitorDpi( surface->hwnd, MDT_RAW_DPI ) ) &&
+    get_win_monitor_dpi( surface->hwnd, &raw_dpi );
+    if (get_surface_rect( surface->hwnd, &client_rect, raw_dpi ) &&
         !extents_equals( &create_info_host.imageExtent, &client_rect ) &&
         instance->extensions.has_VK_EXT_surface_maintenance1 &&
         physical_device->extensions.has_VK_KHR_swapchain_maintenance1)
@@ -1871,8 +1871,8 @@ static VkResult win32u_vkCreateSwapchainKHR( VkDevice client_device, const VkSwa
     return VK_SUCCESS;
 }
 
-void win32u_vkDestroySwapchainKHR( VkDevice client_device, VkSwapchainKHR client_swapchain,
-                                   const VkAllocationCallbacks *allocator )
+static void win32u_vkDestroySwapchainKHR( VkDevice client_device, VkSwapchainKHR client_swapchain,
+                                          const VkAllocationCallbacks *allocator )
 {
     struct vulkan_device *device = vulkan_device_from_handle( client_device );
     struct vulkan_instance *instance = device->physical_device->instance;
@@ -1904,7 +1904,7 @@ static VkResult win32u_vkAcquireNextImage2KHR( VkDevice client_device, const VkA
     acquire_info_host.fence = fence ? fence->host.fence : 0;
     res = device->p_vkAcquireNextImage2KHR( device->host.device, &acquire_info_host, image_index );
 
-    if (!res && get_surface_rect( surface->hwnd, &client_rect, NtUserGetDpiForWindow( surface->hwnd ) ) &&
+    if (!res && get_surface_rect( surface->hwnd, &client_rect, get_dpi_for_window( surface->hwnd ) ) &&
         !extents_equals( &swapchain->extents, &client_rect ))
     {
         WARN( "Swapchain size %dx%d does not match client rect %s, returning VK_SUBOPTIMAL_KHR\n",
@@ -1930,7 +1930,7 @@ static VkResult win32u_vkAcquireNextImageKHR( VkDevice client_device, VkSwapchai
                                               semaphore ? semaphore->host.semaphore : 0, fence ? fence->host.fence : 0,
                                               image_index );
 
-    if (!res && get_surface_rect( surface->hwnd, &client_rect, NtUserGetDpiForWindow( surface->hwnd ) ) &&
+    if (!res && get_surface_rect( surface->hwnd, &client_rect, get_dpi_for_window( surface->hwnd ) ) &&
         !extents_equals( &swapchain->extents, &client_rect ))
     {
         WARN( "Swapchain size %dx%d does not match client rect %s, returning VK_SUBOPTIMAL_KHR\n",
@@ -1991,7 +1991,7 @@ static VkResult win32u_vkQueuePresentKHR( VkQueue client_queue, const VkPresentI
         client_surface_present( surface->client );
 
         if (swapchain_res < VK_SUCCESS) continue;
-        if (!get_surface_rect( surface->hwnd, &client_rect, NtUserGetDpiForWindow( surface->hwnd ) ))
+        if (!get_surface_rect( surface->hwnd, &client_rect, get_dpi_for_window( surface->hwnd ) ))
         {
             WARN( "Swapchain window %p is invalid, returning VK_ERROR_OUT_OF_DATE_KHR\n", surface->hwnd );
             if (present_info->pResults) present_info->pResults[i] = VK_ERROR_OUT_OF_DATE_KHR;
@@ -2193,9 +2193,18 @@ static VkResult win32u_vkQueueSubmit( VkQueue client_queue, uint32_t count, cons
             switch ((*next)->sType)
             {
             case VK_STRUCTURE_TYPE_D3D12_FENCE_SUBMIT_INFO_KHR:
-                FIXME( "VK_STRUCTURE_TYPE_D3D12_FENCE_SUBMIT_INFO_KHR not implemented!\n" );
+            {
+                VkD3D12FenceSubmitInfoKHR *info = (VkD3D12FenceSubmitInfoKHR *)*next;
+
+                if (timeline->sType) ERR( "Duplicated timeline sync info.\n" );
+                timeline->sType = info->sType;
+                timeline->waitSemaphoreValueCount = info->waitSemaphoreValuesCount;
+                timeline->pWaitSemaphoreValues = info->pWaitSemaphoreValues;
+                timeline->signalSemaphoreValueCount = info->signalSemaphoreValuesCount;
+                timeline->pSignalSemaphoreValues = info->pSignalSemaphoreValues;
                 *next = (*next)->pNext; next = &prev;
                 break;
+            }
             case VK_STRUCTURE_TYPE_DEVICE_GROUP_SUBMIT_INFO:
                 device_group = (VkDeviceGroupSubmitInfo *)*next;
                 break;
@@ -2205,7 +2214,7 @@ static VkResult win32u_vkQueueSubmit( VkQueue client_queue, uint32_t count, cons
             case VK_STRUCTURE_TYPE_PERFORMANCE_QUERY_SUBMIT_INFO_KHR: break;
             case VK_STRUCTURE_TYPE_PROTECTED_SUBMIT_INFO: break;
             case VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO:
-                if (timeline->sType) ERR( "Duplicated timeline semaphore submit info!\n" );
+                if (timeline->sType) ERR( "Duplicated timeline sync info.\n" );
                 *timeline = *(VkTimelineSemaphoreSubmitInfo *)*next;
                 *next = (*next)->pNext; next = &prev; /* remove it from the chain, we'll add it back below */
                 break;
@@ -2547,6 +2556,7 @@ static VkResult win32u_vkImportSemaphoreWin32HandleKHR( VkDevice client_device, 
     VkImportSemaphoreFdInfoKHR fd_info = {.sType = VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_FD_INFO_KHR};
     struct vulkan_device *device = vulkan_device_from_handle( client_device );
     struct semaphore *semaphore = semaphore_from_handle( handle_info->semaphore );
+    struct vulkan_instance *instance = device->physical_device->instance;
     D3DKMT_HANDLE local, global = 0;
     VkResult res = VK_SUCCESS;
     HANDLE shared = NULL;
@@ -2579,7 +2589,35 @@ static VkResult win32u_vkImportSemaphoreWin32HandleKHR( VkDevice client_device, 
     }
 
     if ((fd_info.fd = d3dkmt_object_get_fd( local )) < 0) res = VK_ERROR_INVALID_EXTERNAL_HANDLE;
-    else
+    if (!res && handle_info->handleType == VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT)
+    {
+        /* Recreate semaphore to make sure it has timeline type. */
+        VkSemaphoreTypeCreateInfo type_info =
+        {
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+            .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
+        };
+        VkSemaphoreCreateInfo create_info =
+        {
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+            .pNext = &type_info,
+        };
+        VkSemaphore new_semaphore;
+
+        if ((res = device->p_vkCreateSemaphore( device->host.device, &create_info, NULL, &new_semaphore )))
+        {
+            ERR( "Failed to create timeline semaphore, vr %d.\n", res );
+        }
+        else
+        {
+            instance->p_remove_object( instance, &semaphore->obj.obj );
+            device->p_vkDestroySemaphore( device->host.device, semaphore->obj.host.semaphore, NULL );
+            vulkan_object_init( &semaphore->obj.obj, new_semaphore );
+            instance->p_insert_object( instance, &semaphore->obj.obj );
+        }
+    }
+
+    if (!res)
     {
         fd_info.handleType = get_host_external_semaphore_type();
         fd_info.semaphore = semaphore->obj.host.semaphore;
@@ -2924,20 +2962,10 @@ static struct vulkan_funcs vulkan_funcs =
     .p_vkUnmapMemory2KHR = win32u_vkUnmapMemory2KHR,
 };
 
-static VkResult nulldrv_vulkan_surface_create( HWND hwnd, const struct vulkan_instance *instance, VkSurfaceKHR *surface,
-                                               struct client_surface **client )
+static VkResult nulldrv_vulkan_surface_create( struct client_surface *client, const struct vulkan_instance *instance, VkSurfaceKHR *surface )
 {
     VkHeadlessSurfaceCreateInfoEXT create_info = {.sType = VK_STRUCTURE_TYPE_HEADLESS_SURFACE_CREATE_INFO_EXT};
-    VkResult res;
-
-    if (!(*client = nulldrv_client_surface_create( hwnd ))) return VK_ERROR_OUT_OF_HOST_MEMORY;
-    if ((res = instance->p_vkCreateHeadlessSurfaceEXT( instance->host.instance, &create_info, NULL, surface )))
-    {
-        client_surface_release(*client);
-        *client = NULL;
-    }
-
-    return res;
+    return instance->p_vkCreateHeadlessSurfaceEXT( instance->host.instance, &create_info, NULL, surface );
 }
 
 static VkBool32 nulldrv_get_physical_device_presentation_support( struct vulkan_physical_device *physical_device, uint32_t queue )
@@ -2989,11 +3017,10 @@ static void vulkan_driver_load(void)
     pthread_once( &init_once, vulkan_driver_init );
 }
 
-static VkResult lazydrv_vulkan_surface_create( HWND hwnd, const struct vulkan_instance *instance, VkSurfaceKHR *surface,
-                                               struct client_surface **client )
+static VkResult lazydrv_vulkan_surface_create( struct client_surface *client, const struct vulkan_instance *instance, VkSurfaceKHR *surface )
 {
     vulkan_driver_load();
-    return driver_funcs->p_vulkan_surface_create( hwnd, instance, surface, client );
+    return driver_funcs->p_vulkan_surface_create( client, instance, surface );
 }
 
 static VkBool32 lazydrv_get_physical_device_presentation_support( struct vulkan_physical_device *physical_device, uint32_t queue )

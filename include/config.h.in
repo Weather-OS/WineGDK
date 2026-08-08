@@ -12,6 +12,9 @@
 /* Define to 1 if you have the <arpa/nameser.h> header file. */
 #undef HAVE_ARPA_NAMESER_H
 
+/* Define to 1 if you have the <asm/hwcap.h> header file. */
+#undef HAVE_ASM_HWCAP_H
+
 /* Define to 1 if you have the <asm/termbits.h> header file. */
 #undef HAVE_ASM_TERMBITS_H
 
@@ -41,6 +44,9 @@
 
 /* Define to 1 if you have the <cups/ppd.h> header file. */
 #undef HAVE_CUPS_PPD_H
+
+/* Define to 1 if you have the <dev/evdev/input.h> header file. */
+#undef HAVE_DEV_EVDEV_INPUT_H
 
 /* Define to 1 if you have the 'dladdr1' function. */
 #undef HAVE_DLADDR1
@@ -92,9 +98,6 @@
 
 /* Define to 1 if you have the <gettext-po.h> header file. */
 #undef HAVE_GETTEXT_PO_H
-
-/* Define to 1 if you have the 'gnutls_cipher_init' function. */
-#undef HAVE_GNUTLS_CIPHER_INIT
 
 /* Define if we have the libgphoto2_port development environment */
 #undef HAVE_GPHOTO2_PORT
@@ -161,6 +164,9 @@
 
 /* Define to 1 if you have the <linux/cdrom.h> header file. */
 #undef HAVE_LINUX_CDROM_H
+
+/* Define to 1 if you have the <linux/errqueue.h> header file. */
+#undef HAVE_LINUX_ERRQUEUE_H
 
 /* Define to 1 if you have the <linux/filter.h> header file. */
 #undef HAVE_LINUX_FILTER_H

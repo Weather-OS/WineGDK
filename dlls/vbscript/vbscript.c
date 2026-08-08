@@ -140,7 +140,17 @@ HRESULT exec_global_code(script_ctx_t *ctx, vbscode_t *code, VARIANT *res, BOOL 
 
     for (i = 0; i < code->main_code.var_cnt; i++)
     {
-        if (script_disp_find_var(obj, code->main_code.vars[i].name))
+        scriptdisp_entry_t *existing = script_disp_find_member(obj, code->main_code.vars[i].name);
+
+        /* Dim is permissive: it keeps an existing variable or function of the
+           same name. A const from a previous compile unit is the exception: it
+           is shadowed by a fresh variable that name lookups resolve to from now
+           on, while the defining compile unit keeps using the inlined value. A
+           cached host property is likewise shadowed by the fresh variable, which
+           outranks the host dispatch in the named item scope. */
+        if (existing && existing->type == SCRIPTDISP_FUNC)
+            continue;
+        if (existing && existing->type == SCRIPTDISP_VAR && !existing->u.var->is_const)
             continue;
 
         if (!(var = heap_pool_alloc(&obj->heap, sizeof(*var))))
@@ -153,31 +163,26 @@ HRESULT exec_global_code(script_ctx_t *ctx, vbscode_t *code, VARIANT *res, BOOL 
         var->is_const = FALSE;
         var->array = NULL;
         var->index = obj->global_vars_cnt;
-        rb_put(&obj->var_tree, var->name, &var->entry);
+        if (!script_disp_add_var(obj, var))
+            return E_OUTOFMEMORY;
 
         obj->global_vars[obj->global_vars_cnt++] = var;
     }
 
     for (func_iter = code->funcs; func_iter; func_iter = func_iter->next)
     {
-        struct rb_entry *entry = rb_get(&obj->func_tree, func_iter->name);
+        scriptdisp_entry_t *existing = script_disp_find_member(obj, func_iter->name);
 
-        if (entry)
-        {
-            function_t *old_func = RB_ENTRY_VALUE(entry, function_t, entry);
-            size_t old_index = old_func->index;
-            /* global function already exists, replace it */
-            rb_remove(&obj->func_tree, &old_func->entry);
-            func_iter->index = old_index;
-            obj->global_funcs[old_index] = func_iter;
-            rb_put(&obj->func_tree, func_iter->name, &func_iter->entry);
-        }
+        if (existing && existing->type == SCRIPTDISP_FUNC)
+            /* global function already exists, replace it in its slot */
+            func_iter->index = existing->u.func->index;
         else
-        {
-            func_iter->index = obj->global_funcs_cnt;
-            obj->global_funcs[obj->global_funcs_cnt++] = func_iter;
-            rb_put(&obj->func_tree, func_iter->name, &func_iter->entry);
-        }
+            /* a new function, or one re-declaring a variable of the same name */
+            func_iter->index = obj->global_funcs_cnt++;
+
+        obj->global_funcs[func_iter->index] = func_iter;
+        if (!script_disp_add_func(obj, func_iter))
+            return E_OUTOFMEMORY;
     }
 
     if (code->classes)
@@ -237,13 +242,64 @@ static HRESULT retrieve_named_item_disp(IActiveScriptSite *site, named_item_t *i
     return S_OK;
 }
 
+typedef struct {
+    struct rb_entry entry;
+    struct list items;
+} named_item_bucket_t;
+
+static int named_item_bucket_cmp(const void *key, const struct rb_entry *entry)
+{
+    named_item_bucket_t *bucket = RB_ENTRY_VALUE(entry, named_item_bucket_t, entry);
+    named_item_t *item = LIST_ENTRY(list_head(&bucket->items), named_item_t, bucket_entry);
+    return vbs_wcsicmp(key, item->name);
+}
+
+static HRESULT insert_named_item(script_ctx_t *ctx, named_item_t *item)
+{
+    struct rb_entry *entry = rb_get(&ctx->named_item_tree, item->name);
+    named_item_bucket_t *bucket;
+
+    if(entry) {
+        bucket = RB_ENTRY_VALUE(entry, named_item_bucket_t, entry);
+        list_add_tail(&bucket->items, &item->bucket_entry);
+    }else {
+        if(!(bucket = malloc(sizeof(*bucket))))
+            return E_OUTOFMEMORY;
+        list_init(&bucket->items);
+        list_add_tail(&bucket->items, &item->bucket_entry);
+        rb_put(&ctx->named_item_tree, item->name, &bucket->entry);
+    }
+
+    list_add_tail(&ctx->named_items, &item->entry);
+    return S_OK;
+}
+
+static void unlink_named_item(script_ctx_t *ctx, named_item_t *item)
+{
+    struct rb_entry *entry = rb_get(&ctx->named_item_tree, item->name);
+    named_item_bucket_t *bucket = RB_ENTRY_VALUE(entry, named_item_bucket_t, entry);
+
+    list_remove(&item->bucket_entry);
+    if(list_empty(&bucket->items)) {
+        rb_remove(&ctx->named_item_tree, &bucket->entry);
+        free(bucket);
+    }
+    list_remove(&item->entry);
+}
+
 named_item_t *lookup_named_item(script_ctx_t *ctx, const WCHAR *name, unsigned flags)
 {
+    struct rb_entry *entry = rb_get(&ctx->named_item_tree, name);
+    named_item_bucket_t *bucket;
     named_item_t *item;
     HRESULT hres;
 
-    LIST_FOR_EACH_ENTRY(item, &ctx->named_items, named_item_t, entry) {
-        if((item->flags & flags) == flags && !vbs_wcsicmp(item->name, name)) {
+    if(!entry)
+        return NULL;
+
+    bucket = RB_ENTRY_VALUE(entry, named_item_bucket_t, entry);
+    LIST_FOR_EACH_ENTRY(item, &bucket->items, named_item_t, bucket_entry) {
+        if((item->flags & flags) == flags) {
             if(!item->script_obj && !(item->flags & SCRIPTITEM_GLOBALMEMBERS)) {
                 hres = create_script_disp(ctx, &item->script_obj);
                 if(FAILED(hres)) return NULL;
@@ -284,7 +340,7 @@ static void release_script(script_ctx_t *ctx)
     vbscode_t *code, *code_next;
 
     collect_objects(ctx);
-    clear_ei(&ctx->ei);
+    clear_error(ctx);
 
     LIST_FOR_EACH_ENTRY_SAFE(code, code_next, &ctx->code_list, vbscode_t, entry)
     {
@@ -311,7 +367,7 @@ static void release_script(script_ctx_t *ctx)
         release_named_item_script_obj(item);
         if(!(item->flags & SCRIPTITEM_ISPERSISTENT))
         {
-            list_remove(&item->entry);
+            unlink_named_item(ctx, item);
             release_named_item(item);
         }
     }
@@ -349,7 +405,7 @@ static void release_named_item_list(script_ctx_t *ctx)
 {
     while(!list_empty(&ctx->named_items)) {
         named_item_t *iter = LIST_ENTRY(list_head(&ctx->named_items), named_item_t, entry);
-        list_remove(&iter->entry);
+        unlink_named_item(ctx, iter);
         release_named_item(iter);
     }
 }
@@ -606,11 +662,36 @@ HRESULT report_script_error(script_ctx_t *ctx, vbscode_t *code, unsigned loc, BO
     memset(&ctx->ei, 0, sizeof(ctx->ei));
     result = error->ei.scode;
 
+    /* The description passed to the host names the offending identifier,
+       while the Err object exposes only the bare error text. */
+    if(ctx->ei_identifier) {
+        if(error->ei.bstrDescription) {
+            unsigned desc_len = SysStringLen(error->ei.bstrDescription);
+            unsigned ident_len = SysStringLen(ctx->ei_identifier);
+            BSTR new_desc = SysAllocStringLen(NULL, desc_len + 3 + ident_len + 1);
+            if(new_desc) {
+                memcpy(new_desc, error->ei.bstrDescription, desc_len * sizeof(WCHAR));
+                new_desc[desc_len] = ':';
+                new_desc[desc_len + 1] = ' ';
+                new_desc[desc_len + 2] = '\'';
+                memcpy(new_desc + desc_len + 3, ctx->ei_identifier, ident_len * sizeof(WCHAR));
+                new_desc[desc_len + 3 + ident_len] = '\'';
+                SysFreeString(error->ei.bstrDescription);
+                error->ei.bstrDescription = new_desc;
+            }
+        }
+        SysFreeString(ctx->ei_identifier);
+        ctx->ei_identifier = NULL;
+    }
+
     p = code->source;
     error->cookie = code->cookie;
     error->line = code->start_line;
     for(nl = p = code->source; p < code->source + loc; p++) {
-        if(*p != '\n') continue;
+        /* A bare '\r' (classic Mac line ending) starts a new line just like
+           '\n'; a '\r\n' pair counts as a single line, tallied on the '\n'. */
+        if(*p != '\n' && (*p != '\r' || p[1] == '\n'))
+            continue;
         error->line++;
         nl = p + 1;
     }
@@ -877,7 +958,14 @@ static HRESULT WINAPI VBScript_AddNamedItem(IActiveScript *iface, LPCOLESTR pstr
         return E_OUTOFMEMORY;
     }
 
-    list_add_tail(&This->ctx->named_items, &item->entry);
+    hres = insert_named_item(This->ctx, item);
+    if(FAILED(hres)) {
+        if(disp)
+            IDispatch_Release(disp);
+        free(item->name);
+        free(item);
+        return hres;
+    }
     return S_OK;
 }
 
@@ -1296,6 +1384,7 @@ HRESULT WINAPI VBScriptFactory_CreateInstance(IClassFactory *iface, IUnknown *pU
     list_init(&ctx->objects);
     list_init(&ctx->code_list);
     list_init(&ctx->named_items);
+    rb_init(&ctx->named_item_tree, named_item_bucket_cmp);
 
     hres = init_global(ctx);
     if(FAILED(hres)) {

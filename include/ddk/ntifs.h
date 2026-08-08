@@ -21,6 +21,23 @@
 
 #include "ntddk.h"
 
+#ifndef FlagOn
+#define FlagOn(flag, setflag)        ((flag) & (setflag))
+#endif
+
+#ifndef BooleanFlagOn
+#define BooleanFlagOn(flag,setflag)   ((BOOLEAN)(((flag) & (setflag)) != 0))
+#endif
+
+#ifndef SetFlag
+#define SetFlag(flag,setflag)       ((flag) |= (setflag))
+#endif
+
+#ifndef ClearFlag
+#define ClearFlag(flag,setflag)     ((flag) &= ~(setflag))
+#endif
+
+
 #define PHCM_ERROR_INVALID_PARAMETER    ((char)-1)
 #define PHCM_ERROR_NO_TEB               ((char)-2)
 #define PHCM_ERROR_NO_PEB               ((char)-3)
@@ -207,6 +224,8 @@ NTSTATUS WINAPI FsRtlGetFileSize(PFILE_OBJECT, PLARGE_INTEGER);
 BOOLEAN WINAPI FsRtlIsNameInExpression(PUNICODE_STRING, PUNICODE_STRING, BOOLEAN, PWCH);
 DEVICE_OBJECT * WINAPI IoGetAttachedDevice(DEVICE_OBJECT*);
 PEPROCESS WINAPI IoGetRequestorProcess(IRP*);
+ULONG WINAPI IoGetRequestorProcessId(IRP*);
+PEPROCESS WINAPI IoThreadToProcess(PETHREAD);
 void WINAPI KeStackAttachProcess(KPROCESS*,KAPC_STATE*);
 void WINAPI KeUnstackDetachProcess(KAPC_STATE*);
 NTSTATUS WINAPI ObOpenObjectByPointer(void*,ULONG,PACCESS_STATE,ACCESS_MASK,POBJECT_TYPE,KPROCESSOR_MODE,HANDLE*);

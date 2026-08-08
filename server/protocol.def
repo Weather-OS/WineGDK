@@ -267,6 +267,12 @@ struct property_data
     lparam_t       data;     /* data stored in property */
 };
 
+struct ratio
+{
+    unsigned short num;
+    unsigned short den;
+};
+
 /* structure to specify window rectangles */
 struct rectangle
 {
@@ -350,6 +356,7 @@ union hw_input
         unsigned int   flags;   /* event flags */
         unsigned int   time;    /* event time */
         lparam_t       info;    /* extra info */
+        unsigned int   raw_count; /* number of rawinput POINT in varargs */
     } mouse;
     struct
     {
@@ -906,8 +913,9 @@ struct monitor_info
 {
     struct rectangle raw;     /* host / physical position of the monitor rect */
     struct rectangle virt;    /* client / virtual position of the monitor rect */
-    unsigned int     flags;  /* MONITOR_FLAG_* flags for the monitor */
-    unsigned int     dpi;    /* physical DPI for the monitor */
+    unsigned int     flags;   /* MONITOR_FLAG_* flags for the monitor */
+    struct ratio     dpi;     /* effective DPI for the monitor */
+    struct ratio     raw_dpi; /* raw DPI for the monitor */
 };
 #define MONITOR_FLAG_PRIMARY  0x01
 #define MONITOR_FLAG_CLONE    0x02
@@ -1038,24 +1046,52 @@ typedef volatile struct
     unsigned __int64     keystate_serial;  /* keystate update counter at last sync */
 } input_shm_t;
 
-typedef volatile struct
+struct class_info
 {
     atom_t               atom;               /* class atom */
     unsigned int         style;              /* class style */
     unsigned int         cls_extra;          /* number of class extra bytes */
     unsigned int         win_extra;          /* number of window extra bytes */
+    user_handle_t        cursor;             /* default cursor */
+    user_handle_t        background;         /* default background */
+    user_handle_t        icon;               /* default icon */
+    user_handle_t        icon_small;         /* default cursor (small) */
     mod_handle_t         instance;           /* module instance */
+    client_ptr_t         wndproc;            /* class window proc */
+    client_ptr_t         menu_name;          /* pointer to menu name in client address space */
+};
+
+typedef volatile struct
+{
     data_size_t          name_offset;        /* offset in WCHAR of the unversioned class name, constant */
     data_size_t          name_len;           /* len in bytes of the class name, constant */
     WCHAR                name[MAX_ATOM_LEN]; /* class name, constant */
-    unsigned short       __pad;
+    unsigned short       local;              /* class is local, constant */
+    struct class_info    info;               /* class info (GCLP_*) */
     char                 extra[];            /* extra bytes storage */
 } class_shm_t;
+
+struct window_info
+{
+    lparam_t             id;               /* window id */
+    mod_handle_t         instance;         /* creator instance */
+    lparam_t             user_data;        /* user-specific data */
+    client_ptr_t         wndproc;          /* window proc */
+};
 
 typedef volatile struct
 {
     struct obj_locator   class;            /* object locator for the window class shared object */
     unsigned int         dpi_context;      /* DPI awareness context */
+    unsigned int         fnid;             /* builtin class FNID, or 0 */
+    unsigned int         ansi;             /* window wndproc is ansi */
+    int                  __pad;
+    struct ratio         dpi;              /* effective DPI of the window monitor */
+    struct ratio         raw_dpi;          /* raw DPI of the window monitor */
+    data_size_t          private_size;     /* length of private extra bytes range */
+    data_size_t          extra_size;       /* size of the extra info */
+    struct window_info   info;             /* window info (GWLP_*) */
+    char                 extra[];          /* extra bytes storage */
 } window_shm_t;
 
 typedef volatile union
@@ -1121,6 +1157,7 @@ typedef volatile struct
     unsigned int access;       /* wanted access rights */
     unsigned int flags;        /* thread creation flags */
     int          request_fd;   /* fd for request pipe */
+    int          is_system;    /* system thread (kernel mode only) */
     VARARG(objattr,object_attributes); /* object attributes */
 @REPLY
     thread_id_t  tid;          /* thread id */
@@ -1132,6 +1169,7 @@ typedef volatile struct
 @REQ(get_startup_info)
 @REPLY
     data_size_t  info_size;    /* size of startup info */
+    int          debugged;     /* being debugged? */
     unsigned short machine;    /* architecture for the new process */
     VARARG(info,startup_info,info_size); /* startup information */
     VARARG(env,unicode_str);   /* environment */
@@ -1154,6 +1192,7 @@ typedef volatile struct
     int          debug_level;  /* new debug level */
     int          reply_fd;     /* fd for reply pipe */
     int          wait_fd;      /* fd for blocking calls pipe */
+    unsigned int page_size;    /* client page size */
 @REPLY
     process_id_t pid;          /* process id of the new thread's process */
     thread_id_t  tid;          /* thread id of the new thread */
@@ -1446,8 +1485,9 @@ typedef volatile struct
     VARARG(call,apc_call);     /* APC call arguments */
     VARARG(contexts,contexts); /* suspend context(s) */
 @END
-#define SELECT_ALERTABLE     1
-#define SELECT_INTERRUPTIBLE 2
+#define SELECT_ALERTABLE           1
+#define SELECT_INTERRUPTIBLE       2
+#define SELECT_COOPERATIVE_SUSPEND 4
 
 
 /* Create an event */
@@ -2379,7 +2419,7 @@ enum message_type
     user_handle_t   win;       /* window handle */
     union hw_input  input;     /* input data */
     unsigned int    flags;     /* flags (see below) */
-    VARARG(report,bytes);      /* HID report data */
+    VARARG(extra,bytes);       /* HID report data / raw input data */
 @REPLY
     int             wait;      /* do we need to wait for a reply? */
     int             prev_x;    /* previous cursor position */
@@ -2387,7 +2427,8 @@ enum message_type
     int             new_x;     /* new cursor position */
     int             new_y;
 @END
-#define SEND_HWMSG_INJECTED    0x01
+#define SEND_HWMSG_INJECTED    0x01  /* message is injected from application */
+#define SEND_HWMSG_RAWINPUT    0x02  /* don't generate WM_INPUT x / y updates */
 
 
 /* Get a message from the current queue */
@@ -2611,12 +2652,14 @@ enum message_type
     unsigned int   dpi_context; /* thread DPI context */
     unsigned int   style;       /* window style */
     unsigned int   ex_style;    /* window extended style */
+    unsigned int   ansi;        /* window created as ansi */
+    struct ratio   dpi;         /* initial monitor DPI */
+    struct ratio   raw_dpi;     /* initial monitor raw DPI */
     VARARG(class,unicode_str);  /* class name */
 @REPLY
     user_handle_t  handle;      /* created window */
     user_handle_t  parent;      /* full handle of parent */
     user_handle_t  owner;       /* full handle of owner */
-    int            extra;       /* number of extra bytes */
     client_ptr_t   class_ptr;   /* pointer to class in client address space */
 @END
 
@@ -2653,7 +2696,6 @@ enum message_type
     data_size_t    size;        /* size of the info value to read */
 @REPLY
     user_handle_t  last_active; /* last active popup */
-    int            is_unicode;  /* ANSI or unicode */
     lparam_t       info;        /* current window info value */
 @END
 
@@ -2663,7 +2705,6 @@ enum message_type
     user_handle_t  handle;        /* handle to the window */
     unsigned int   style;         /* window style */
     unsigned int   ex_style;      /* window extended style */
-    short int      is_unicode;    /* ANSI or unicode */
 @REPLY
 @END
 
@@ -2674,8 +2715,18 @@ enum message_type
     int            offset;        /* offset of the info */
     data_size_t    size;          /* size of the info value to write */
     lparam_t       new_info;      /* new window info value */
+    unsigned int   new_ansi;      /* new window info is ansi */
+    unsigned int   internal;      /* set internal control info */
 @REPLY
     lparam_t       old_info;      /* previous window info value */
+    unsigned int   old_ansi;      /* previous window info is ansi */
+@END
+
+
+/* Set the window builtin class FNID */
+@REQ(set_window_fnid)
+    user_handle_t  handle;        /* handle to the window */
+    atom_t         atom;          /* class atom */
 @END
 
 
@@ -2727,7 +2778,7 @@ enum message_type
     user_handle_t  parent;        /* parent window */
     int            x;             /* point in parent coordinates */
     int            y;
-    int            dpi;           /* dpi for the point coordinates */
+    struct ratio   dpi;           /* dpi for the point coordinates */
 @REPLY
     int            count;         /* total count of children */
     VARARG(children,user_handles); /* children handles */
@@ -2752,7 +2803,6 @@ enum message_type
 @REQ(set_window_pos)
     unsigned short swp_flags;     /* SWP_* flags */
     unsigned short paint_flags;   /* paint flags (see below) */
-    unsigned int   monitor_dpi;   /* DPI of the window's monitor */
     user_handle_t  handle;        /* handle to the window */
     user_handle_t  previous;      /* previous window in Z order */
     struct rectangle window;      /* window rectangle (in parent coords) */
@@ -2771,7 +2821,7 @@ enum message_type
 @REQ(get_window_rectangles)
     user_handle_t  handle;        /* handle to the window */
     int            relative;      /* coords relative to (see below) */
-    int            dpi;           /* DPI to map to, or zero for per-monitor DPI */
+    struct ratio   dpi;           /* DPI to map to, or zero for per-monitor DPI */
 @REPLY
     struct rectangle window;      /* window rectangle */
     struct rectangle client;      /* client rectangle */
@@ -2805,7 +2855,7 @@ enum coords_relative
 @REQ(get_windows_offset)
     user_handle_t  from;          /* handle to the first window */
     user_handle_t  to;            /* handle to the second window */
-    int            dpi;           /* DPI to map to, or zero for per-monitor DPI */
+    struct ratio   dpi;           /* DPI to map to, or zero for per-monitor DPI */
 @REPLY
     int            x;             /* x coordinate offset */
     int            y;             /* y coordinate offset */
@@ -3263,14 +3313,12 @@ enum caret_state
 
 /* Create a window class */
 @REQ(create_class)
-    int            local;          /* is it a local class? */
     atom_t         atom;           /* class atom */
-    unsigned int   style;          /* class style */
-    mod_handle_t   instance;       /* module instance */
+    unsigned int   fnid;           /* FNID for builtin classes, or 0 */
+    unsigned int   ansi;           /* class wndproc is ansi */
     client_ptr_t   client_ptr;     /* pointer to class in client address space */
-    short int      cls_extra;      /* number of extra class bytes */
-    short int      win_extra;      /* number of window extra bytes */
     data_size_t    name_offset;    /* base class name offset for specified atom */
+    VARARG(info,class_info);       /* class info */
     VARARG(name,unicode_str);      /* class name */
 @REPLY
     struct obj_locator locator;    /* locator for the shared class object */
@@ -3285,6 +3333,8 @@ enum caret_state
     VARARG(name,unicode_str);      /* class name */
 @REPLY
     client_ptr_t   client_ptr;     /* pointer to class in client address space */
+    user_handle_t  background;     /* class default background */
+    client_ptr_t   menu_name;      /* pointer to menu name in client address space */
 @END
 
 
@@ -3294,6 +3344,7 @@ enum caret_state
     int            offset;        /* offset of the info */
     data_size_t    size;          /* size of the info value to write */
     lparam_t       new_info;      /* new class info value */
+    unsigned int   ansi;          /* new class info is ansi */
 @REPLY
     lparam_t       old_info;      /* previous class info value */
 @END
@@ -4273,4 +4324,14 @@ enum inproc_sync_type
     unsigned __int64    fence_value;    /* semaphore fence value */
     data_size_t         runtime_size;   /* size of client runtime data */
     VARARG(runtime,bytes);              /* client runtime data */
+@END
+
+
+/* Create a new ALPC object */
+@REQ(alpc_create_port)
+    unsigned int        flags;          /* flags in port attributes */
+    mem_size_t          max_msg_len;    /* max message length in port attributes */
+    VARARG(obj_attr,object_attributes); /* object attributes */
+@REPLY
+    obj_handle_t        handle;         /* handle to the ALPC port */
 @END

@@ -3303,7 +3303,7 @@ GpStatus WINGDIPAPI GdipDrawImagePointsRect(GpGraphics *graphics, GpImage *image
             RECT dst_area;
             GpRectF graphics_bounds;
             GpRect src_area;
-            int i, x, y, src_stride, dst_stride;
+            int i, x, y, src_stride, dst_stride, dst_width, dst_height;
             LPBYTE src_data, dst_data, dst_dyn_data=NULL;
             BitmapData lockeddata;
             InterpolationMode interpolation = graphics->interpolation;
@@ -3350,6 +3350,10 @@ GpStatus WINGDIPAPI GdipDrawImagePointsRect(GpGraphics *graphics, GpImage *image
             }
 
             TRACE("src_area: %d x %d\n", src_area.Width, src_area.Height);
+
+            if (src_area.Width <= 0 || src_area.Height <= 0 ||
+                src_area.Width > INT_MAX / src_area.Height)
+                return InvalidParameter;
 
             src_data = calloc(src_area.Width * src_area.Height, sizeof(ARGB));
             if (!src_data)
@@ -3413,7 +3417,15 @@ GpStatus WINGDIPAPI GdipDrawImagePointsRect(GpGraphics *graphics, GpImage *image
                 y_dy = dst_to_src.matrix[3];
 
                 /* Transform the bits as needed to the destination. */
-                dst_data = dst_dyn_data = calloc((dst_area.right - dst_area.left) * (dst_area.bottom - dst_area.top), sizeof(ARGB));
+                dst_width = dst_area.right - dst_area.left;
+                dst_height = dst_area.bottom - dst_area.top;
+                if (dst_width <= 0 || dst_height <= 0 ||
+                    dst_width > INT_MAX / dst_height)
+                {
+                    free(src_data);
+                    return InvalidParameter;
+                }
+                dst_data = dst_dyn_data = calloc(dst_width * dst_height, sizeof(ARGB));
                 if (!dst_data)
                 {
                     free(src_data);
@@ -5803,11 +5815,35 @@ GpStatus gdip_format_string(GpGraphics *graphics, HDC hdc,
                break;
             }
 
-            if(*(stringdup + sum + lret) == '\r' && lret + 1 < fit
+            if(*(stringdup + sum + lret) == '\r' && sum + lret + 1 < length
                && *(stringdup + sum + lret + 1) == '\n')
             {
                unixstyle_newline = FALSE;
                break;
+            }
+        }
+
+        /* If no newline found within fit, check position fit for \n or \r\n.
+         * Wine's GetTextExtentExPointW may assign non-zero advance width to
+         * newline characters (rendering them as missing-glyph boxes), causing
+         * them to be excluded from the fit count. When this happens, the
+         * newline is invisible to the scan above, leading to incorrect line
+         * breaking under StringFormatFlagsNoWrap. */
+        if (lret == fit && sum + fit < length)
+        {
+            if (*(stringdup + sum + fit) == '\n')
+            {
+                unixstyle_newline = TRUE;
+                fitcpy = fit + 1;
+                fit++;
+            }
+            else if (sum + fit + 1 < length &&
+                     *(stringdup + sum + fit) == '\r' &&
+                     *(stringdup + sum + fit + 1) == '\n')
+            {
+                unixstyle_newline = FALSE;
+                fitcpy = fit + 2;
+                fit += 2;
             }
         }
 

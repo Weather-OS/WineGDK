@@ -1117,7 +1117,10 @@ int CDECL _commit(int fd)
     TRACE(":fd (%d) handle (%p)\n", fd, info->handle);
 
     if (info->handle == INVALID_HANDLE_VALUE)
+    {
+        *_errno() = EBADF;
         ret = -1;
+    }
     else if (!FlushFileBuffers(info->handle))
     {
         if (GetLastError() == ERROR_INVALID_HANDLE)
@@ -2482,7 +2485,7 @@ int CDECL _wsopen_dispatch( const wchar_t* path, int oflags, int shflags, int pm
   sa.lpSecurityDescriptor = NULL;
   sa.bInheritHandle       = !(oflags & _O_NOINHERIT);
 
-  if ((oflags & (_O_WTEXT | _O_U16TEXT | _O_U8TEXT))
+  if (!(oflags & _O_BINARY) && (oflags & (_O_WTEXT | _O_U16TEXT | _O_U8TEXT))
           && (creation==OPEN_ALWAYS || creation==OPEN_EXISTING)
           && !(access&GENERIC_READ))
   {
@@ -2502,7 +2505,7 @@ int CDECL _wsopen_dispatch( const wchar_t* path, int oflags, int shflags, int pm
     return *_errno();
   }
 
-  if (oflags & (_O_WTEXT | _O_U16TEXT | _O_U8TEXT))
+  if (!(oflags & _O_BINARY) && oflags & (_O_WTEXT | _O_U16TEXT | _O_U8TEXT))
   {
       LARGE_INTEGER size = {{0}};
 
@@ -2558,13 +2561,16 @@ int CDECL _wsopen_dispatch( const wchar_t* path, int oflags, int shflags, int pm
   if (*fd == -1)
       return *_errno();
 
-  if (oflags & _O_WTEXT)
-      ioinfo_set_unicode(get_ioinfo_nolock(*fd), TRUE);
+  if (!(oflags & _O_BINARY))
+  {
+      if (oflags & _O_WTEXT)
+          ioinfo_set_unicode(get_ioinfo_nolock(*fd), TRUE);
 
-  if (oflags & _O_U16TEXT)
-      ioinfo_set_textmode(get_ioinfo_nolock(*fd), TEXTMODE_UTF16LE);
-  else if (oflags & _O_U8TEXT)
-      ioinfo_set_textmode(get_ioinfo_nolock(*fd), TEXTMODE_UTF8);
+      if (oflags & _O_U16TEXT)
+          ioinfo_set_textmode(get_ioinfo_nolock(*fd), TEXTMODE_UTF16LE);
+      else if (oflags & _O_U8TEXT)
+          ioinfo_set_textmode(get_ioinfo_nolock(*fd), TEXTMODE_UTF8);
+  }
 
   TRACE(":fd (%d) handle (%p)\n", *fd, hand);
   return 0;

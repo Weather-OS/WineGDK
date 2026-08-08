@@ -1842,12 +1842,17 @@ static HRESULT WINAPI StorageBaseImpl_RenameElement(
   StorageBaseImpl *This = impl_from_IStorage(iface);
   DirEntry          currentEntry;
   DirRef            currentEntryRef;
+  size_t size;
 
   TRACE("(%p, %s, %s)\n",
 	iface, debugstr_w(pwcsOldName), debugstr_w(pwcsNewName));
 
   if (This->reverted)
     return STG_E_REVERTED;
+
+  size = (lstrlenW(pwcsNewName) + 1) * sizeof(WCHAR);
+  if (size > DIRENTRY_NAME_BUFFER_LEN)
+    return STG_E_INVALIDNAME;
 
   currentEntryRef = findElement(This,
                                    This->storageDirEntry,
@@ -1885,6 +1890,7 @@ static HRESULT WINAPI StorageBaseImpl_RenameElement(
 
     /* Change the name of the element */
     lstrcpyW(currentEntry.name, pwcsNewName);
+    currentEntry.sizeOfNameString = size;
 
     /* Delete any sibling links */
     currentEntry.leftChild = DIRENTRY_NULL;
@@ -2363,16 +2369,73 @@ static HRESULT WINAPI StorageBaseImpl_CopyTo(
 /*************************************************************************
  * MoveElementTo (IStorage)
  */
-static HRESULT WINAPI StorageBaseImpl_MoveElementTo(
-  IStorage*     iface,
-  const OLECHAR *pwcsName,   /* [string][in] */
-  IStorage      *pstgDest,   /* [unique][in] */
-  const OLECHAR *pwcsNewName,/* [string][in] */
-  DWORD           grfFlags)    /* [in] */
+static HRESULT WINAPI StorageBaseImpl_MoveElementTo(IStorage *iface,
+        const OLECHAR *name, IStorage *dest, const OLECHAR *new_name, DWORD mode)
 {
-  FIXME("%p, %s, %p, %s, %#lx: stub\n", iface, debugstr_w(pwcsName), pstgDest,
-      debugstr_w(pwcsNewName), grfFlags);
-  return E_NOTIMPL;
+    IStream *src, *dst;
+    HRESULT hr;
+    DWORD create_mode;
+
+    TRACE("%p, %s, %p, %s, %#lx\n", iface, debugstr_w(name), dest, debugstr_w(new_name), mode);
+
+    if (mode != STGMOVE_COPY && mode != STGMOVE_MOVE)
+        return STG_E_INVALIDFLAG;
+
+    if (!name || !new_name)
+        return STG_E_INVALIDNAME;
+
+    if (!dest)
+        return STG_E_INVALIDPOINTER;
+
+    if (iface == dest) /* FIXME */
+        return STG_E_ACCESSDENIED;
+
+    create_mode = STGM_WRITE | STGM_SHARE_EXCLUSIVE;
+    create_mode |= (mode == STGMOVE_MOVE) ? STGM_FAILIFTHERE : STGM_CREATE;
+
+    hr = IStorage_OpenStream(iface, name, NULL, STGM_READ | STGM_SHARE_EXCLUSIVE, 0, &src);
+    if (hr == S_OK)
+    {
+        STATSTG stat;
+
+        hr = IStream_Stat(src, &stat, STATFLAG_NONAME);
+        if (hr != S_OK)
+        {
+            IStream_Release(src);
+            return hr;
+        }
+
+        hr = IStorage_CreateStream(dest, new_name, create_mode, 0, 0, &dst);
+        if (hr == S_OK)
+        {
+            hr = IStream_CopyTo(src, dst, stat.cbSize, NULL, NULL);
+            IStream_Release(dst);
+        }
+
+        IStream_Release(src);
+    }
+    else if (hr == STG_E_FILENOTFOUND)
+    {
+        IStorage *src_stg, *dst_stg;
+
+        hr = IStorage_OpenStorage(iface, name, NULL, STGM_READ | STGM_SHARE_EXCLUSIVE, NULL, 0, &src_stg);
+        if (hr == S_OK)
+        {
+            hr = IStorage_CreateStorage(dest, new_name, create_mode, 0, 0, &dst_stg);
+            if (hr == S_OK)
+            {
+                hr = IStorage_CopyTo(src_stg, 0, NULL, NULL, dst_stg);
+                IStorage_Release(dst_stg);
+            }
+
+            IStorage_Release(src_stg);
+        }
+    }
+
+    if (hr == S_OK && mode == STGMOVE_MOVE)
+        hr = IStorage_DestroyElement(iface, name);
+
+    return hr;
 }
 
 /*************************************************************************

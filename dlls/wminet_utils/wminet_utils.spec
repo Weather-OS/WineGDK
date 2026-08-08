@@ -1,5 +1,5 @@
 @ stub BeginEnumeration
-@ stub BeginMethodEnumeration
+@ stdcall BeginMethodEnumeration(long ptr long)
 @ stub BlessIWbemServices
 @ stub BlessIWbemServicesObject
 @ stub Clone
@@ -15,28 +15,28 @@
 @ stub DllRegisterServer
 @ stub DllUnregisterServer
 @ stub EndEnumeration
-@ stub EndMethodEnumeration
+@ stdcall EndMethodEnumeration(long ptr)
 @ stub ExecNotificationQueryWmi
 @ stdcall ExecQueryWmi(wstr wstr long ptr ptr long long ptr wstr wstr wstr)
 @ stdcall Get(long ptr wstr long ptr ptr ptr)
 @ stdcall GetCurrentApartmentType(long ptr ptr)
 @ stub GetDemultiplexedStub
-@ stub GetErrorInfo
-@ stub GetMethod
+@ stdcall GetErrorInfo() wminet_utils_GetErrorInfo
+@ stdcall GetMethod(long ptr wstr long ptr ptr)
 @ stub GetMethodOrigin
-@ stub GetMethodQualifierSet
-@ stub GetNames
+@ stdcall GetMethodQualifierSet(long ptr wstr ptr)
+@ stdcall GetNames(long ptr wstr long ptr ptr)
 @ stub GetObjectText
 @ stub GetPropertyHandle
 @ stub GetPropertyInfoByHandle
 @ stub GetPropertyOrigin
-@ stub GetPropertyQualifierSet
+@ stdcall GetPropertyQualifierSet(long ptr wstr ptr)
 @ stub GetQualifierSet
 @ stub InheritsFrom
 @ stdcall Initialize(long)
 @ stub Lock
 @ stub Next
-@ stub NextMethod
+@ stdcall NextMethod(long ptr long ptr ptr ptr)
 @ stub Put
 @ stub PutClassWmi
 @ stub PutInstanceWmi
@@ -44,7 +44,7 @@
 @ stub QualifierSet_BeginEnumeration
 @ stub QualifierSet_Delete
 @ stub QualifierSet_EndEnumeration
-@ stub QualifierSet_Get
+@ stdcall QualifierSet_Get(long ptr wstr long ptr ptr)
 @ stub QualifierSet_GetNames
 @ stub QualifierSet_Next
 @ stub QualifierSet_Put

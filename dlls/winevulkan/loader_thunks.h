@@ -4,7 +4,6 @@
  * by the following copyright and permission notice:
  *
  * Copyright 2015-2026 The Khronos Group Inc.
- *
  * SPDX-License-Identifier: Apache-2.0 OR MIT
  *
  * and from Vulkan video.xml file covered
@@ -50,6 +49,8 @@ enum unix_call
     unix_vkCmdBeginConditionalRenderingEXT,
     unix_vkCmdBeginCustomResolveEXT,
     unix_vkCmdBeginDebugUtilsLabelEXT,
+    unix_vkCmdBeginGpaSampleAMD,
+    unix_vkCmdBeginGpaSessionAMD,
     unix_vkCmdBeginPerTileExecutionQCOM,
     unix_vkCmdBeginQuery,
     unix_vkCmdBeginQueryIndexedEXT,
@@ -109,6 +110,7 @@ enum unix_call
     unix_vkCmdCopyBufferToImage,
     unix_vkCmdCopyBufferToImage2,
     unix_vkCmdCopyBufferToImage2KHR,
+    unix_vkCmdCopyGpaSessionResultsAMD,
     unix_vkCmdCopyImage,
     unix_vkCmdCopyImage2,
     unix_vkCmdCopyImage2KHR,
@@ -176,6 +178,8 @@ enum unix_call
     unix_vkCmdEncodeVideoKHR,
     unix_vkCmdEndConditionalRenderingEXT,
     unix_vkCmdEndDebugUtilsLabelEXT,
+    unix_vkCmdEndGpaSampleAMD,
+    unix_vkCmdEndGpaSessionAMD,
     unix_vkCmdEndPerTileExecutionQCOM,
     unix_vkCmdEndQuery,
     unix_vkCmdEndQueryIndexedEXT,
@@ -269,6 +273,7 @@ enum unix_call
     unix_vkCmdSetDiscardRectangleEXT,
     unix_vkCmdSetDiscardRectangleEnableEXT,
     unix_vkCmdSetDiscardRectangleModeEXT,
+    unix_vkCmdSetDispatchParametersARM,
     unix_vkCmdSetEvent,
     unix_vkCmdSetEvent2,
     unix_vkCmdSetEvent2KHR,
@@ -294,6 +299,7 @@ enum unix_call
     unix_vkCmdSetPolygonModeEXT,
     unix_vkCmdSetPrimitiveRestartEnable,
     unix_vkCmdSetPrimitiveRestartEnableEXT,
+    unix_vkCmdSetPrimitiveRestartIndexEXT,
     unix_vkCmdSetPrimitiveTopology,
     unix_vkCmdSetPrimitiveTopologyEXT,
     unix_vkCmdSetProvokingVertexModeEXT,
@@ -386,6 +392,7 @@ enum unix_call
     unix_vkCreateEvent,
     unix_vkCreateFence,
     unix_vkCreateFramebuffer,
+    unix_vkCreateGpaSessionAMD,
     unix_vkCreateGraphicsPipelines,
     unix_vkCreateImage,
     unix_vkCreateImageView,
@@ -443,6 +450,7 @@ enum unix_call
     unix_vkDestroyEvent,
     unix_vkDestroyFence,
     unix_vkDestroyFramebuffer,
+    unix_vkDestroyGpaSessionAMD,
     unix_vkDestroyImage,
     unix_vkDestroyImageView,
     unix_vkDestroyIndirectCommandsLayoutEXT,
@@ -552,6 +560,9 @@ enum unix_call
     unix_vkGetFramebufferTilePropertiesQCOM,
     unix_vkGetGeneratedCommandsMemoryRequirementsEXT,
     unix_vkGetGeneratedCommandsMemoryRequirementsNV,
+    unix_vkGetGpaDeviceClockInfoAMD,
+    unix_vkGetGpaSessionResultsAMD,
+    unix_vkGetGpaSessionStatusAMD,
     unix_vkGetImageMemoryRequirements,
     unix_vkGetImageMemoryRequirements2,
     unix_vkGetImageMemoryRequirements2KHR,
@@ -568,6 +579,7 @@ enum unix_call
     unix_vkGetImageViewHandle64NVX,
     unix_vkGetImageViewHandleNVX,
     unix_vkGetImageViewOpaqueCaptureDescriptorDataEXT,
+    unix_vkGetLatencyTimingsLegacyNV,
     unix_vkGetLatencyTimingsNV,
     unix_vkGetMemoryHostPointerPropertiesEXT,
     unix_vkGetMemoryWin32HandleKHR,
@@ -609,6 +621,8 @@ enum unix_call
     unix_vkGetPhysicalDeviceProperties,
     unix_vkGetPhysicalDeviceProperties2,
     unix_vkGetPhysicalDeviceProperties2KHR,
+    unix_vkGetPhysicalDeviceQueueFamilyDataGraphEngineOperationPropertiesARM,
+    unix_vkGetPhysicalDeviceQueueFamilyDataGraphOpticalFlowImageFormatsARM,
     unix_vkGetPhysicalDeviceQueueFamilyDataGraphProcessingEnginePropertiesARM,
     unix_vkGetPhysicalDeviceQueueFamilyDataGraphPropertiesARM,
     unix_vkGetPhysicalDeviceQueueFamilyPerformanceQueryPassesKHR,
@@ -661,6 +675,7 @@ enum unix_call
     unix_vkGetShaderInstrumentationValuesARM,
     unix_vkGetShaderModuleCreateInfoIdentifierEXT,
     unix_vkGetShaderModuleIdentifierEXT,
+    unix_vkGetSleepStatusLegacyNV,
     unix_vkGetSwapchainImagesKHR,
     unix_vkGetSwapchainTimeDomainPropertiesEXT,
     unix_vkGetSwapchainTimingPropertiesEXT,
@@ -674,6 +689,7 @@ enum unix_call
     unix_vkImportSemaphoreWin32HandleKHR,
     unix_vkInitializePerformanceApiINTEL,
     unix_vkInvalidateMappedMemoryRanges,
+    unix_vkLatencySleepLegacyNV,
     unix_vkLatencySleepNV,
     unix_vkMapMemory,
     unix_vkMapMemory2,
@@ -684,8 +700,10 @@ enum unix_call
     unix_vkQueueBindSparse,
     unix_vkQueueEndDebugUtilsLabelEXT,
     unix_vkQueueInsertDebugUtilsLabelEXT,
+    unix_vkQueueNotifyOutOfBandLegacyNV,
     unix_vkQueueNotifyOutOfBandNV,
     unix_vkQueuePresentKHR,
+    unix_vkQueueSetPerfHintQCOM,
     unix_vkQueueSetPerformanceConfigurationINTEL,
     unix_vkQueueSubmit,
     unix_vkQueueSubmit2,
@@ -702,18 +720,23 @@ enum unix_call
     unix_vkResetDescriptorPool,
     unix_vkResetEvent,
     unix_vkResetFences,
+    unix_vkResetGpaSessionAMD,
     unix_vkResetQueryPool,
     unix_vkResetQueryPoolEXT,
     unix_vkSetDebugUtilsObjectNameEXT,
     unix_vkSetDebugUtilsObjectTagEXT,
     unix_vkSetDeviceMemoryPriorityEXT,
     unix_vkSetEvent,
+    unix_vkSetGpaDeviceClockModeAMD,
     unix_vkSetHdrMetadataEXT,
+    unix_vkSetLatencyMarkerLegacyNV,
     unix_vkSetLatencyMarkerNV,
+    unix_vkSetLatencySleepModeLegacyNV,
     unix_vkSetLatencySleepModeNV,
     unix_vkSetPrivateData,
     unix_vkSetPrivateDataEXT,
     unix_vkSetSwapchainPresentTimingQueueSizeEXT,
+    unix_vkShutdownLatencyDeviceLegacyNV,
     unix_vkSignalSemaphore,
     unix_vkSignalSemaphoreKHR,
     unix_vkSubmitDebugUtilsMessageEXT,
@@ -956,6 +979,22 @@ struct vkCmdBeginDebugUtilsLabelEXT_params
 {
     VkCommandBuffer commandBuffer;
     const VkDebugUtilsLabelEXT *pLabelInfo;
+};
+
+struct vkCmdBeginGpaSampleAMD_params
+{
+    VkCommandBuffer commandBuffer;
+    VkGpaSessionAMD DECLSPEC_ALIGN(8) gpaSession;
+    const VkGpaSampleBeginInfoAMD *pGpaSampleBeginInfo;
+    uint32_t *pSampleID;
+    VkResult result;
+};
+
+struct vkCmdBeginGpaSessionAMD_params
+{
+    VkCommandBuffer commandBuffer;
+    VkGpaSessionAMD DECLSPEC_ALIGN(8) gpaSession;
+    VkResult result;
 };
 
 struct vkCmdBeginPerTileExecutionQCOM_params
@@ -1409,6 +1448,12 @@ struct vkCmdCopyBufferToImage2KHR_params
 {
     VkCommandBuffer commandBuffer;
     const VkCopyBufferToImageInfo2 *pCopyBufferToImageInfo;
+};
+
+struct vkCmdCopyGpaSessionResultsAMD_params
+{
+    VkCommandBuffer commandBuffer;
+    VkGpaSessionAMD DECLSPEC_ALIGN(8) gpaSession;
 };
 
 struct vkCmdCopyImage_params
@@ -1939,6 +1984,20 @@ struct vkCmdEndConditionalRenderingEXT_params
 struct vkCmdEndDebugUtilsLabelEXT_params
 {
     VkCommandBuffer commandBuffer;
+};
+
+struct vkCmdEndGpaSampleAMD_params
+{
+    VkCommandBuffer commandBuffer;
+    VkGpaSessionAMD DECLSPEC_ALIGN(8) gpaSession;
+    uint32_t sampleID;
+};
+
+struct vkCmdEndGpaSessionAMD_params
+{
+    VkCommandBuffer commandBuffer;
+    VkGpaSessionAMD DECLSPEC_ALIGN(8) gpaSession;
+    VkResult result;
 };
 
 struct vkCmdEndPerTileExecutionQCOM_params
@@ -2574,6 +2633,12 @@ struct vkCmdSetDiscardRectangleModeEXT_params
     VkDiscardRectangleModeEXT discardRectangleMode;
 };
 
+struct vkCmdSetDispatchParametersARM_params
+{
+    VkCommandBuffer commandBuffer;
+    const VkDispatchParametersARM *pDispatchParameters;
+};
+
 struct vkCmdSetEvent_params
 {
     VkCommandBuffer commandBuffer;
@@ -2737,6 +2802,12 @@ struct vkCmdSetPrimitiveRestartEnableEXT_params
 {
     VkCommandBuffer commandBuffer;
     VkBool32 primitiveRestartEnable;
+};
+
+struct vkCmdSetPrimitiveRestartIndexEXT_params
+{
+    VkCommandBuffer commandBuffer;
+    uint32_t primitiveRestartIndex;
 };
 
 struct vkCmdSetPrimitiveTopology_params
@@ -3477,6 +3548,15 @@ struct vkCreateFramebuffer_params
     VkResult result;
 };
 
+struct vkCreateGpaSessionAMD_params
+{
+    VkDevice device;
+    const VkGpaSessionCreateInfoAMD *pCreateInfo;
+    const VkAllocationCallbacks *pAllocator;
+    VkGpaSessionAMD *pGpaSession;
+    VkResult result;
+};
+
 struct vkCreateGraphicsPipelines_params
 {
     VkDevice device;
@@ -3955,6 +4035,13 @@ struct vkDestroyFramebuffer_params
     const VkAllocationCallbacks *pAllocator;
 };
 
+struct vkDestroyGpaSessionAMD_params
+{
+    VkDevice device;
+    VkGpaSessionAMD DECLSPEC_ALIGN(8) gpaSession;
+    const VkAllocationCallbacks *pAllocator;
+};
+
 struct vkDestroyImage_params
 {
     VkDevice device;
@@ -4320,7 +4407,7 @@ struct vkGetAccelerationStructureMemoryRequirementsNV_params
 {
     VkDevice device;
     const VkAccelerationStructureMemoryRequirementsInfoNV *pInfo;
-    VkMemoryRequirements2KHR *pMemoryRequirements;
+    VkMemoryRequirements2 *pMemoryRequirements;
 };
 
 struct vkGetAccelerationStructureOpaqueCaptureDescriptorDataEXT_params
@@ -4772,6 +4859,30 @@ struct vkGetGeneratedCommandsMemoryRequirementsNV_params
     VkMemoryRequirements2 *pMemoryRequirements;
 };
 
+struct vkGetGpaDeviceClockInfoAMD_params
+{
+    VkDevice device;
+    VkGpaDeviceGetClockInfoAMD *pInfo;
+    VkResult result;
+};
+
+struct vkGetGpaSessionResultsAMD_params
+{
+    VkDevice device;
+    VkGpaSessionAMD DECLSPEC_ALIGN(8) gpaSession;
+    uint32_t sampleID;
+    size_t *pSizeInBytes;
+    void *pData;
+    VkResult result;
+};
+
+struct vkGetGpaSessionStatusAMD_params
+{
+    VkDevice device;
+    VkGpaSessionAMD DECLSPEC_ALIGN(8) gpaSession;
+    VkResult result;
+};
+
 struct vkGetImageMemoryRequirements_params
 {
     VkDevice device;
@@ -4894,6 +5005,12 @@ struct vkGetImageViewOpaqueCaptureDescriptorDataEXT_params
     const VkImageViewCaptureDescriptorDataInfoEXT *pInfo;
     void *pData;
     VkResult result;
+};
+
+struct vkGetLatencyTimingsLegacyNV_params
+{
+    VkDevice device;
+    void *pTimings;
 };
 
 struct vkGetLatencyTimingsNV_params
@@ -5200,6 +5317,26 @@ struct vkGetPhysicalDeviceProperties2KHR_params
     VkPhysicalDeviceProperties2 *pProperties;
 };
 
+struct vkGetPhysicalDeviceQueueFamilyDataGraphEngineOperationPropertiesARM_params
+{
+    VkPhysicalDevice physicalDevice;
+    uint32_t queueFamilyIndex;
+    const VkQueueFamilyDataGraphPropertiesARM *pQueueFamilyDataGraphProperties;
+    VkBaseOutStructure *pProperties;
+    VkResult result;
+};
+
+struct vkGetPhysicalDeviceQueueFamilyDataGraphOpticalFlowImageFormatsARM_params
+{
+    VkPhysicalDevice physicalDevice;
+    uint32_t queueFamilyIndex;
+    const VkQueueFamilyDataGraphPropertiesARM *pQueueFamilyDataGraphProperties;
+    const VkDataGraphOpticalFlowImageFormatInfoARM *pOpticalFlowImageFormatInfo;
+    uint32_t *pFormatCount;
+    VkDataGraphOpticalFlowImageFormatPropertiesARM *pImageFormatProperties;
+    VkResult result;
+};
+
 struct vkGetPhysicalDeviceQueueFamilyDataGraphProcessingEnginePropertiesARM_params
 {
     VkPhysicalDevice physicalDevice;
@@ -5451,7 +5588,7 @@ struct vkGetPipelineKeyKHR_params
 struct vkGetPipelinePropertiesEXT_params
 {
     VkDevice device;
-    const VkPipelineInfoEXT *pPipelineInfo;
+    const VkPipelineInfoKHR *pPipelineInfo;
     VkBaseOutStructure *pPipelineProperties;
     VkResult result;
 };
@@ -5640,6 +5777,12 @@ struct vkGetShaderModuleIdentifierEXT_params
     VkShaderModuleIdentifierEXT *pIdentifier;
 };
 
+struct vkGetSleepStatusLegacyNV_params
+{
+    VkDevice device;
+    VkBool32 *pLowLatencyMode;
+};
+
 struct vkGetSwapchainImagesKHR_params
 {
     VkDevice device;
@@ -5746,6 +5889,13 @@ struct vkInvalidateMappedMemoryRanges_params
     VkResult result;
 };
 
+struct vkLatencySleepLegacyNV_params
+{
+    VkDevice device;
+    VkSemaphore DECLSPEC_ALIGN(8) signalSemaphore;
+    uint64_t DECLSPEC_ALIGN(8) value;
+};
+
 struct vkLatencySleepNV_params
 {
     VkDevice device;
@@ -5825,6 +5975,12 @@ struct vkQueueInsertDebugUtilsLabelEXT_params
     const VkDebugUtilsLabelEXT *pLabelInfo;
 };
 
+struct vkQueueNotifyOutOfBandLegacyNV_params
+{
+    VkQueue queue;
+    uint32_t queueType;
+};
+
 struct vkQueueNotifyOutOfBandNV_params
 {
     VkQueue queue;
@@ -5835,6 +5991,13 @@ struct vkQueuePresentKHR_params
 {
     VkQueue queue;
     const VkPresentInfoKHR *pPresentInfo;
+    VkResult result;
+};
+
+struct vkQueueSetPerfHintQCOM_params
+{
+    VkQueue queue;
+    const VkPerfHintInfoQCOM *pPerfHintInfo;
     VkResult result;
 };
 
@@ -5959,6 +6122,13 @@ struct vkResetFences_params
     VkResult result;
 };
 
+struct vkResetGpaSessionAMD_params
+{
+    VkDevice device;
+    VkGpaSessionAMD DECLSPEC_ALIGN(8) gpaSession;
+    VkResult result;
+};
+
 struct vkResetQueryPool_params
 {
     VkDevice device;
@@ -6003,6 +6173,13 @@ struct vkSetEvent_params
     VkResult result;
 };
 
+struct vkSetGpaDeviceClockModeAMD_params
+{
+    VkDevice device;
+    VkGpaDeviceClockModeInfoAMD *pInfo;
+    VkResult result;
+};
+
 struct vkSetHdrMetadataEXT_params
 {
     VkDevice device;
@@ -6011,11 +6188,26 @@ struct vkSetHdrMetadataEXT_params
     const VkHdrMetadataEXT *pMetadata;
 };
 
+struct vkSetLatencyMarkerLegacyNV_params
+{
+    VkDevice device;
+    uint64_t DECLSPEC_ALIGN(8) frameID;
+    uint32_t marker;
+};
+
 struct vkSetLatencyMarkerNV_params
 {
     VkDevice device;
     VkSwapchainKHR DECLSPEC_ALIGN(8) swapchain;
     const VkSetLatencyMarkerInfoNV *pLatencyMarkerInfo;
+};
+
+struct vkSetLatencySleepModeLegacyNV_params
+{
+    VkDevice device;
+    VkBool32 lowLatencyMode;
+    VkBool32 lowLatencyBoost;
+    uint32_t minimumIntervalUs;
 };
 
 struct vkSetLatencySleepModeNV_params
@@ -6052,6 +6244,11 @@ struct vkSetSwapchainPresentTimingQueueSizeEXT_params
     VkSwapchainKHR DECLSPEC_ALIGN(8) swapchain;
     uint32_t size;
     VkResult result;
+};
+
+struct vkShutdownLatencyDeviceLegacyNV_params
+{
+    VkDevice device;
 };
 
 struct vkSignalSemaphore_params

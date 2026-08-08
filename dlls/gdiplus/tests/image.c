@@ -2028,6 +2028,25 @@ static const unsigned char wmfimage[180] = {
 0x00,0x00,0xf0,0x01,0x00,0x00,0x04,0x00,0x00,0x00,0xf0,0x01,0x01,0x00,0x03,0x00,
 0x00,0x00,0x00,0x00
 };
+/* 16x16 raw WMF with no drawing records, only used to verify background color. */
+static const unsigned char empty_wmf[44] = {
+0x01,0x00,0x09,0x00,0x00,0x03,0x16,0x00,0x00,0x00,0x00,0x00,0x05,0x00,0x00,0x00,
+0x00,0x00,0x05,0x00,0x00,0x00,0x0b,0x02,0x00,0x00,0x00,0x00,0x05,0x00,0x00,0x00,
+0x0c,0x02,0x10,0x00,0x10,0x00,0x03,0x00,0x00,0x00,0x00,0x00
+};
+/* 158-byte raw WMF (same content as wmfimage, but without the placeable header) */
+static const unsigned char raw_wmfimage[158] = {
+0x01,0x00,0x09,0x00,0x00,0x03,0x4f,0x00,0x00,0x00,0x0f,0x00,0x08,0x00,0x00,0x00,
+0x00,0x00,0x05,0x00,0x00,0x00,0x0b,0x02,0x00,0x00,0x00,0x00,0x05,0x00,0x00,0x00,
+0x0c,0x02,0x40,0x01,0x40,0x01,0x04,0x00,0x00,0x00,0x02,0x01,0x01,0x00,0x04,0x00,
+0x00,0x00,0x04,0x01,0x0d,0x00,0x08,0x00,0x00,0x00,0xfa,0x02,0x05,0x00,0x00,0x00,
+0x00,0x00,0x00,0x00,0x00,0x00,0x04,0x00,0x00,0x00,0x2d,0x01,0x00,0x00,0x07,0x00,
+0x00,0x00,0xfc,0x02,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x04,0x00,0x00,0x00,
+0x2d,0x01,0x01,0x00,0x07,0x00,0x00,0x00,0xfc,0x02,0x00,0x00,0x00,0x00,0x00,0x00,
+0x00,0x00,0x04,0x00,0x00,0x00,0x2d,0x01,0x02,0x00,0x07,0x00,0x00,0x00,0x1b,0x04,
+0x40,0x01,0x40,0x01,0x00,0x00,0x00,0x00,0x04,0x00,0x00,0x00,0xf0,0x01,0x00,0x00,
+0x04,0x00,0x00,0x00,0xf0,0x01,0x01,0x00,0x03,0x00,0x00,0x00,0x00,0x00
+};
 static void test_getrawformat(void)
 {
     test_bufferrawformat((void*)pngimage, sizeof(pngimage), &ImageFormatPNG,  __LINE__, FALSE);
@@ -2180,6 +2199,358 @@ static void test_createfromwmf_noplaceable(void)
     stat = GdipCreateMetafileFromWmf(hwmf, TRUE, NULL, (GpMetafile**)&img);
     expect(Ok, stat);
 
+    GdipDisposeImage(img);
+}
+
+static void test_loadwmf_noplaceable(void)
+{
+    LPSTREAM stream;
+    HGLOBAL hglob;
+    LPBYTE data;
+    HRESULT hres;
+    GpStatus stat;
+    GpImage *img;
+    GUID format;
+
+    hglob = GlobalAlloc(0, sizeof(raw_wmfimage));
+    data = GlobalLock(hglob);
+    memcpy(data, raw_wmfimage, sizeof(raw_wmfimage));
+    GlobalUnlock(hglob);
+    data = NULL;
+
+    hres = CreateStreamOnHGlobal(hglob, TRUE, &stream);
+    ok(hres == S_OK, "Failed to create a stream\n");
+    if (hres != S_OK) return;
+
+    stat = GdipLoadImageFromStream(stream, &img);
+    ok(stat == Ok, "GdipLoadImageFromStream failed, status %d\n", stat);
+    IStream_Release(stream);
+    if (stat != Ok) return;
+
+    stat = GdipGetImageRawFormat(img, &format);
+    expect(Ok, stat);
+    if (stat == Ok)
+    {
+        /* Windows reports raw (non-placeable) WMF streams as EMF. */
+        ok(IsEqualGUID(&format, &ImageFormatEMF), "Expected EMF format\n");
+    }
+
+    GdipDisposeImage(img);
+}
+
+static void test_drawwmf(void)
+{
+    LPSTREAM stream;
+    HGLOBAL hglob;
+    LPBYTE data;
+    HRESULT hres;
+    GpStatus stat;
+    GpImage *img;
+    GpBitmap *bitmap;
+    GpGraphics *graphics;
+
+    hglob = GlobalAlloc(0, sizeof(raw_wmfimage));
+    data = GlobalLock(hglob);
+    memcpy(data, raw_wmfimage, sizeof(raw_wmfimage));
+    GlobalUnlock(hglob);
+    data = NULL;
+
+    hres = CreateStreamOnHGlobal(hglob, TRUE, &stream);
+    ok(hres == S_OK, "Failed to create a stream\n");
+    if (hres != S_OK) return;
+
+    stat = GdipLoadImageFromStream(stream, &img);
+    IStream_Release(stream);
+    ok(stat == Ok, "GdipLoadImageFromStream failed, status %d\n", stat);
+    if (stat != Ok) return;
+
+    stat = GdipCreateBitmapFromScan0(64, 64, 0, PixelFormat32bppARGB, NULL, &bitmap);
+    expect(Ok, stat);
+    if (stat == Ok)
+    {
+        stat = GdipGetImageGraphicsContext((GpImage*)bitmap, &graphics);
+        expect(Ok, stat);
+        if (stat == Ok)
+        {
+            stat = GdipDrawImageRect(graphics, img, 0.0, 0.0, 64.0, 64.0);
+            expect(Ok, stat);
+            GdipDeleteGraphics(graphics);
+        }
+        GdipDisposeImage((GpImage*)bitmap);
+    }
+
+    GdipDisposeImage(img);
+}
+
+struct enumwmf_state
+{
+    GpMetafile *metafile;
+    unsigned int count;
+    unsigned int wmf_records;
+};
+
+static BOOL CALLBACK enumwmf_callback(EmfPlusRecordType record_type, unsigned int flags,
+    unsigned int dataSize, const unsigned char *pStr, void *userdata)
+{
+    struct enumwmf_state *state = (struct enumwmf_state*)userdata;
+    GpStatus stat;
+
+    state->count++;
+
+    if (record_type & GDIP_WMF_RECORD_BASE)
+        state->wmf_records++;
+
+    stat = GdipPlayMetafileRecord(state->metafile, record_type, flags, dataSize, pStr);
+    ok(stat == Ok, "record %u: GdipPlayMetafileRecord failed with stat %d (type 0x%x)\n",
+        state->count, stat, record_type);
+
+    return TRUE;
+}
+
+static void test_enumwmf(void)
+{
+    LPSTREAM stream;
+    HGLOBAL hglob;
+    LPBYTE data;
+    HRESULT hres;
+    GpStatus stat;
+    GpImage *img;
+    GpBitmap *bitmap;
+    GpGraphics *graphics;
+    GpPointF dst_points[3] = {{0.0, 0.0}, {64.0, 0.0}, {0.0, 64.0}};
+    GpRectF src_rect = {0.0, 0.0, 64.0, 64.0};
+    struct enumwmf_state state = {0};
+
+    hglob = GlobalAlloc(0, sizeof(raw_wmfimage));
+    data = GlobalLock(hglob);
+    memcpy(data, raw_wmfimage, sizeof(raw_wmfimage));
+    GlobalUnlock(hglob);
+
+    hres = CreateStreamOnHGlobal(hglob, TRUE, &stream);
+    ok(hres == S_OK, "Failed to create a stream\n");
+    if (hres != S_OK) return;
+
+    stat = GdipLoadImageFromStream(stream, &img);
+    IStream_Release(stream);
+    ok(stat == Ok, "GdipLoadImageFromStream failed, status %d\n", stat);
+    if (stat != Ok) return;
+
+    stat = GdipCreateBitmapFromScan0(64, 64, 0, PixelFormat32bppARGB, NULL, &bitmap);
+    expect(Ok, stat);
+    if (stat == Ok)
+    {
+        stat = GdipGetImageGraphicsContext((GpImage*)bitmap, &graphics);
+        expect(Ok, stat);
+        if (stat == Ok)
+        {
+            state.metafile = (GpMetafile*)img;
+
+            stat = GdipEnumerateMetafileSrcRectDestPoints(graphics, (GpMetafile*)img,
+                dst_points, 3, &src_rect, UnitPixel, enumwmf_callback, &state, NULL);
+            expect(Ok, stat);
+
+            /* Although the EmfPlusRecordType enum reserves a range of values
+             * for WMF record types (the GDIP_WMF_RECORD_BASE bit), Windows
+             * internally converts WMF metafiles to EMF before enumeration and
+             * reports every record using plain EMF record types. */
+            ok(state.count > 0, "Expected callback to be invoked at least once\n");
+            ok(state.wmf_records == 0,
+                "Expected no WMF-typed records, got %u of %u\n",
+                state.wmf_records, state.count);
+
+            GdipDeleteGraphics(graphics);
+        }
+        GdipDisposeImage((GpImage*)bitmap);
+    }
+
+    GdipDisposeImage(img);
+}
+
+static void test_savemetafile(void)
+{
+    static const CLSID CLSID_PngEncoder =
+        { 0x557cf406, 0x1a04, 0x11d3, { 0x9a, 0x73, 0x00, 0x00, 0xf8, 0x1e, 0xf3, 0x2e } };
+    LPSTREAM stream, out_stream;
+    HGLOBAL hglob;
+    LPBYTE data;
+    HRESULT hres;
+    GpStatus stat;
+    GpImage *img;
+    STATSTG statstg;
+
+    hglob = GlobalAlloc(0, sizeof(raw_wmfimage));
+    data = GlobalLock(hglob);
+    memcpy(data, raw_wmfimage, sizeof(raw_wmfimage));
+    GlobalUnlock(hglob);
+    data = NULL;
+
+    hres = CreateStreamOnHGlobal(hglob, TRUE, &stream);
+    ok(hres == S_OK, "Failed to create a stream\n");
+    if (hres != S_OK) return;
+
+    stat = GdipLoadImageFromStream(stream, &img);
+    IStream_Release(stream);
+    ok(stat == Ok, "GdipLoadImageFromStream failed, status %d\n", stat);
+    if (stat != Ok) return;
+
+    hres = CreateStreamOnHGlobal(NULL, TRUE, &out_stream);
+    ok(hres == S_OK, "Failed to create output stream\n");
+    if (hres != S_OK)
+    {
+        GdipDisposeImage(img);
+        return;
+    }
+
+    stat = GdipSaveImageToStream(img, out_stream, &CLSID_PngEncoder, NULL);
+    ok(stat == Ok, "GdipSaveImageToStream failed, status %d\n", stat);
+
+    if (stat == Ok)
+    {
+        GpImage *loaded;
+        LARGE_INTEGER zero = {{0}};
+
+        memset(&statstg, 0, sizeof(statstg));
+        hres = IStream_Stat(out_stream, &statstg, STATFLAG_NONAME);
+        ok(hres == S_OK, "IStream_Stat failed\n");
+        ok(statstg.cbSize.QuadPart > 0, "saved PNG is empty\n");
+
+        /* Load the saved PNG back and inspect the result. */
+        IStream_Seek(out_stream, zero, STREAM_SEEK_SET, NULL);
+        stat = GdipLoadImageFromStream(out_stream, &loaded);
+        ok(stat == Ok, "Failed to load saved PNG, status %d\n", stat);
+
+        if (stat == Ok)
+        {
+            GUID format_guid;
+            PixelFormat pixel_format;
+            UINT width = 0, height = 0;
+            ARGB pixel = 0;
+
+            stat = GdipGetImageRawFormat(loaded, &format_guid);
+            expect(Ok, stat);
+            ok(IsEqualGUID(&format_guid, &ImageFormatPNG),
+                "Expected PNG format for the saved image\n");
+
+            stat = GdipGetImagePixelFormat(loaded, &pixel_format);
+            expect(Ok, stat);
+            ok(pixel_format == PixelFormat32bppARGB,
+                "Expected PixelFormat32bppARGB for the saved PNG, got %#x\n", pixel_format);
+
+            stat = GdipGetImageWidth(loaded, &width);
+            expect(Ok, stat);
+            stat = GdipGetImageHeight(loaded, &height);
+            expect(Ok, stat);
+            ok(width > 0 && height > 0,
+                "Saved PNG has invalid dimensions %ux%u\n", width, height);
+
+            /* The raw_wmfimage WMF draws a single solid black rectangle covering
+             * its entire window, so every pixel of the rasterized image should be
+             * opaque black. This both verifies that the metafile actually played
+             * back during the save (a pure-white pixel would indicate the WMF
+             * was never drawn over the rasterizer's implicit white background)
+             * and that the rasterizer doesn't lose opacity along the way. */
+            if (width > 0 && height > 0)
+            {
+                stat = GdipBitmapGetPixel((GpBitmap*)loaded, width / 2, height / 2, &pixel);
+                expect(Ok, stat);
+                ok(pixel == 0xff000000,
+                    "Expected opaque black at center, got %.8lx\n", pixel);
+            }
+
+            GdipDisposeImage(loaded);
+        }
+    }
+
+    IStream_Release(out_stream);
+    GdipDisposeImage(img);
+}
+
+static void test_savemetafile_background(void)
+{
+    static const CLSID CLSID_PngEncoder =
+        { 0x557cf406, 0x1a04, 0x11d3, { 0x9a, 0x73, 0x00, 0x00, 0xf8, 0x1e, 0xf3, 0x2e } };
+    LPSTREAM stream, out_stream;
+    HGLOBAL hglob;
+    LPBYTE data;
+    HRESULT hres;
+    GpStatus stat;
+    GpImage *img, *loaded;
+    LARGE_INTEGER zero = {{0}};
+    PixelFormat pixel_format;
+    UINT width = 0, height = 0, x, y;
+    ARGB pixel;
+
+    hglob = GlobalAlloc(0, sizeof(empty_wmf));
+    data = GlobalLock(hglob);
+    memcpy(data, empty_wmf, sizeof(empty_wmf));
+    GlobalUnlock(hglob);
+
+    hres = CreateStreamOnHGlobal(hglob, TRUE, &stream);
+    ok(hres == S_OK, "Failed to create a stream\n");
+    if (hres != S_OK) return;
+
+    stat = GdipLoadImageFromStream(stream, &img);
+    IStream_Release(stream);
+    ok(stat == Ok, "GdipLoadImageFromStream failed, status %d\n", stat);
+    if (stat != Ok) return;
+
+    hres = CreateStreamOnHGlobal(NULL, TRUE, &out_stream);
+    ok(hres == S_OK, "Failed to create output stream\n");
+    if (hres != S_OK)
+    {
+        GdipDisposeImage(img);
+        return;
+    }
+
+    stat = GdipSaveImageToStream(img, out_stream, &CLSID_PngEncoder, NULL);
+    ok(stat == Ok, "GdipSaveImageToStream failed, status %d\n", stat);
+    if (stat != Ok)
+    {
+        IStream_Release(out_stream);
+        GdipDisposeImage(img);
+        return;
+    }
+
+    /* Load the saved PNG back. */
+    IStream_Seek(out_stream, zero, STREAM_SEEK_SET, NULL);
+    stat = GdipLoadImageFromStream(out_stream, &loaded);
+    ok(stat == Ok, "Failed to load saved PNG, status %d\n", stat);
+
+    if (stat == Ok)
+    {
+        stat = GdipGetImagePixelFormat(loaded, &pixel_format);
+        expect(Ok, stat);
+        ok(pixel_format == PixelFormat32bppARGB,
+            "Expected PixelFormat32bppARGB for the saved PNG, got %#x\n", pixel_format);
+
+        stat = GdipGetImageWidth(loaded, &width);
+        expect(Ok, stat);
+        stat = GdipGetImageHeight(loaded, &height);
+        expect(Ok, stat);
+        ok(width > 0 && height > 0,
+            "Saved PNG has invalid dimensions %ux%u\n", width, height);
+
+        /* The empty WMF performs no drawing, so every pixel of the rasterized
+         * output should be the rasterizer's implicit background color, which
+         * native gdiplus leaves as the zero-initialized transparent black. */
+        for (y = 0; y < height; y++)
+        {
+            for (x = 0; x < width; x++)
+            {
+                pixel = 0xdeadbeef;
+                stat = GdipBitmapGetPixel((GpBitmap*)loaded, x, y, &pixel);
+                expect(Ok, stat);
+                ok(pixel == 0x00000000,
+                    "Expected transparent background at (%u,%u), got %.8lx\n",
+                    x, y, pixel);
+                if (pixel != 0x00000000) goto done;
+            }
+        }
+done:
+        GdipDisposeImage(loaded);
+    }
+
+    IStream_Release(out_stream);
     GdipDisposeImage(img);
 }
 
@@ -3703,6 +4074,141 @@ static void test_rotateflip(void)
     expect(0xff, bits[2]);
 
     GdipDisposeImage(bitmap);
+}
+
+static BYTE get_index(const BitmapData *data, PixelFormat format, UINT x, UINT y)
+{
+    const BYTE *row = (const BYTE *)data->Scan0 + data->Stride * y;
+
+    if (format == PixelFormat1bppIndexed)
+        return (row[x/8] >> (7 - x%8)) & 1;
+    if (format == PixelFormat4bppIndexed)
+        return (x & 1) ? (row[x/2] & 0xf) : (row[x/2] >> 4);
+    return row[x];
+}
+
+static void set_index(BitmapData *data, PixelFormat format, UINT x, UINT y, BYTE index)
+{
+    BYTE *row = (BYTE *)data->Scan0 + data->Stride * y;
+
+    if (format == PixelFormat1bppIndexed)
+        row[x/8] = (row[x/8] & ~(1<<(7-x%8))) | ((index & 1)<<(7-x%8));
+    else if (format == PixelFormat4bppIndexed)
+        row[x/2] = (x & 1) ? ((row[x/2] & 0xf0) | (index & 0xf))
+                           : ((row[x/2] & 0x0f) | ((index & 0xf)<<4));
+    else
+        row[x] = index;
+}
+
+static GpBitmap *make_indexed_bitmap(PixelFormat format, const BYTE *indices, UINT width, UINT height)
+{
+    GpBitmap *bitmap = NULL;
+    BitmapData data;
+    GpStatus stat;
+    UINT x, y;
+
+    stat = GdipCreateBitmapFromScan0(width, height, 0, format, NULL, &bitmap);
+    expect(Ok, stat);
+    if (stat != Ok) return NULL;
+
+    stat = GdipBitmapLockBits(bitmap, NULL, ImageLockModeWrite, format, &data);
+    expect(Ok, stat);
+    for (y = 0; y < height; y++)
+        for (x = 0; x < width; x++)
+            set_index(&data, format, x, y, indices[y*width + x]);
+    GdipBitmapUnlockBits(bitmap, &data);
+
+    return bitmap;
+}
+
+static void test_rotateflip_indexed(void)
+{
+    static const BYTE indices_1bpp[] = { 1,1,0,1,
+                                         0,1,0,0 };
+    static const BYTE indices_4bpp[] = { 1,2,3,4,
+                                         5,6,7,8 };
+    static const BYTE expect_1bpp_rotate90[] = { 0,1,
+                                                 1,1,
+                                                 0,0,
+                                                 0,1 };
+    static const struct
+    {
+        PixelFormat format;
+        const BYTE *indices;
+    }
+    tests[] =
+    {
+        { PixelFormat1bppIndexed, indices_1bpp },
+        { PixelFormat4bppIndexed, indices_4bpp },
+    };
+    static const UINT src_width = 4, src_height = 2;
+    unsigned int i;
+    RotateFlipType type;
+
+    for (i = 0; i < ARRAY_SIZE(tests); i++)
+    {
+        PixelFormat format = tests[i].format;
+
+        for (type = RotateNoneFlipNone; type <= Rotate270FlipX; type++)
+        {
+            UINT width, height, got_width, got_height, x, y;
+            GpBitmap *bitmap, *reference;
+            BitmapData data, ref_data;
+            GpStatus stat;
+
+            bitmap = make_indexed_bitmap(format, tests[i].indices, src_width, src_height);
+            reference = make_indexed_bitmap(PixelFormat8bppIndexed, tests[i].indices, src_width, src_height);
+            if (!bitmap || !reference)
+            {
+                if (bitmap) GdipDisposeImage((GpImage *)bitmap);
+                if (reference) GdipDisposeImage((GpImage *)reference);
+                continue;
+            }
+
+            stat = GdipImageRotateFlip((GpImage *)bitmap, type);
+            ok(stat == Ok, "format %#x, type %d: GdipImageRotateFlip returned %d\n", format, type, stat);
+            stat = GdipImageRotateFlip((GpImage *)reference, type);
+            expect(Ok, stat);
+
+            width = (type & 1) ? src_height : src_width;
+            height = (type & 1) ? src_width : src_height;
+
+            stat = GdipGetImageWidth((GpImage *)bitmap, &got_width);
+            expect(Ok, stat);
+            ok(got_width == width, "format %#x, type %d: width %u, expected %u\n",
+               format, type, got_width, width);
+            stat = GdipGetImageHeight((GpImage *)bitmap, &got_height);
+            expect(Ok, stat);
+            ok(got_height == height, "format %#x, type %d: height %u, expected %u\n",
+               format, type, got_height, height);
+
+            stat = GdipBitmapLockBits(bitmap, NULL, ImageLockModeRead, format, &data);
+            expect(Ok, stat);
+            stat = GdipBitmapLockBits(reference, NULL, ImageLockModeRead, PixelFormat8bppIndexed, &ref_data);
+            expect(Ok, stat);
+
+            for (y = 0; y < height; y++)
+                for (x = 0; x < width; x++)
+                {
+                    BYTE got = get_index(&data, format, x, y);
+                    BYTE expected = get_index(&ref_data, PixelFormat8bppIndexed, x, y);
+
+                    ok(got == expected, "format %#x, type %d, pixel (%u,%u): index %u, expected %u\n",
+                       format, type, x, y, got, expected);
+
+                    if (format == PixelFormat1bppIndexed && type == Rotate90FlipNone)
+                        ok(got == expect_1bpp_rotate90[y*width + x],
+                           "type %d, pixel (%u,%u): index %u, expected %u\n",
+                           type, x, y, got, expect_1bpp_rotate90[y*width + x]);
+                }
+
+            GdipBitmapUnlockBits(reference, &ref_data);
+            GdipBitmapUnlockBits(bitmap, &data);
+
+            GdipDisposeImage((GpImage *)reference);
+            GdipDisposeImage((GpImage *)bitmap);
+        }
+    }
 }
 
 static void test_remaptable(void)
@@ -5576,6 +6082,64 @@ static void test_CloneBitmapArea(void)
     }
 }
 
+static void test_CloneBitmapAreaSameFormat(void)
+{
+    static const PixelFormat formats[] = { PixelFormat1bppIndexed, PixelFormat4bppIndexed };
+    static const UINT height = 4;
+    unsigned int f;
+    UINT w;
+
+    for (f = 0; f < ARRAY_SIZE(formats); f++)
+    {
+        PixelFormat format = formats[f];
+        UINT bpp = GetPixelFormatSize(format);
+
+        for (w = 1; w <= 16; w++)
+        {
+            GpStatus status;
+            GpBitmap *bitmap, *clone;
+            BitmapData src_data, dst_data;
+            UINT row_bytes = (bpp * w + 7) / 8;
+            UINT y;
+            BOOL match = TRUE;
+
+            status = GdipCreateBitmapFromScan0(w, height, 0, format, NULL, &bitmap);
+            expect(Ok, status);
+
+            status = GdipBitmapLockBits(bitmap, NULL, ImageLockModeWrite, format, &src_data);
+            expect(Ok, status);
+            for (y = 0; y < height; y++)
+                memset((BYTE *)src_data.Scan0 + y * src_data.Stride, 0xaa, abs(src_data.Stride));
+            status = GdipBitmapUnlockBits(bitmap, &src_data);
+            expect(Ok, status);
+
+            status = GdipCloneBitmapAreaI(0, 0, w, height, format, bitmap, &clone);
+            expect(Ok, status);
+
+            status = GdipBitmapLockBits(bitmap, NULL, ImageLockModeRead, format, &src_data);
+            expect(Ok, status);
+            status = GdipBitmapLockBits(clone, NULL, ImageLockModeRead, format, &dst_data);
+            expect(Ok, status);
+
+            for (y = 0; y < height; y++)
+            {
+                BYTE *src_row = (BYTE *)src_data.Scan0 + y * src_data.Stride;
+                BYTE *dst_row = (BYTE *)dst_data.Scan0 + y * dst_data.Stride;
+                if (memcmp(src_row, dst_row, row_bytes) != 0)
+                    match = FALSE;
+            }
+            ok(match, "format %#x, width %u: clone dropped bytes from a row (bpp=%u, row_bytes=%u)\n",
+               format, w, bpp, row_bytes);
+
+            GdipBitmapUnlockBits(clone, &dst_data);
+            GdipBitmapUnlockBits(bitmap, &src_data);
+
+            GdipDisposeImage((GpImage *)clone);
+            GdipDisposeImage((GpImage *)bitmap);
+        }
+    }
+}
+
 static void test_supported_encoders(void)
 {
     static const struct test_data
@@ -6407,6 +6971,7 @@ static void test_png_histogram_property(void)
 
 static void test_GdipLoadImageFromStream(void)
 {
+    ULARGE_INTEGER li = { 0 };
     IStream *stream;
     GpStatus status;
     GpImage *image;
@@ -6421,6 +6986,17 @@ static void test_GdipLoadImageFromStream(void)
     status = GdipLoadImageFromStream(NULL, &image);
     ok(status == InvalidParameter, "Unexpected return value %d.\n", status);
     ok(image == (void *)0xdeadbeef, "Unexpected image pointer.\n");
+
+    hglob = GlobalAlloc(0, 0);
+    hr = CreateStreamOnHGlobal(hglob, TRUE, &stream);
+    ok(hr == S_OK, "Failed to create a stream.\n");
+    hr = IStream_SetSize(stream, li);
+    ok(hr == S_OK, "SetSize failed\n");
+
+    status = GdipLoadImageFromStream(stream, &image);
+    ok(status == InvalidParameter, "Unexpected return value %d.\n", status);
+
+    IStream_Release(stream);
 
     hglob = GlobalAlloc(0, sizeof(pngimage));
     data = GlobalLock (hglob);
@@ -6861,6 +7437,7 @@ START_TEST(image)
     test_png_histogram_property();
     test_supported_encoders();
     test_CloneBitmapArea();
+    test_CloneBitmapAreaSameFormat();
     test_ARGB_conversion();
     test_PARGB_conversion();
     test_DrawImage_scale();
@@ -6893,6 +7470,11 @@ START_TEST(image)
     test_loadwmf();
     test_createfromwmf();
     test_createfromwmf_noplaceable();
+    test_loadwmf_noplaceable();
+    test_drawwmf();
+    test_enumwmf();
+    test_savemetafile();
+    test_savemetafile_background();
     test_resolution();
     test_createhbitmap();
     test_getthumbnail();
@@ -6902,6 +7484,7 @@ START_TEST(image)
     test_gamma();
     test_multiframegif();
     test_rotateflip();
+    test_rotateflip_indexed();
     test_remaptable();
     test_colorkey();
     test_dispose();

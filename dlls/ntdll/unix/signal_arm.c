@@ -409,6 +409,8 @@ NTSTATUS WINAPI NtSetContextThread( HANDLE handle, const CONTEXT *context )
         ret = set_thread_context( handle, context, &self, IMAGE_FILE_MACHINE_ARMNT );
         if (ret || !self) return ret;
     }
+    else if (!frame) return STATUS_ACCESS_DENIED;
+
     if (flags & CONTEXT_INTEGER)
     {
         frame->r0  = context->R0;
@@ -459,6 +461,7 @@ NTSTATUS WINAPI NtGetContextThread( HANDLE handle, CONTEXT *context )
         NTSTATUS ret = get_thread_context( handle, context, &self, IMAGE_FILE_MACHINE_ARMNT );
         if (ret || !self) return ret;
     }
+    else if (!frame) return STATUS_ACCESS_DENIED;
 
     if (needed_flags & CONTEXT_INTEGER)
     {
@@ -524,7 +527,7 @@ static void setup_raise_exception( struct thread_data *data, ucontext_t *sigcont
     void *stack_ptr = (void *)(SP_sig(sigcontext) & ~7);
     NTSTATUS status;
 
-    status = send_debug_event( rec, context, TRUE, TRUE );
+    status = send_debug_event( data, rec, context, TRUE, TRUE );
     if (status == DBG_CONTINUE || status == DBG_EXCEPTION_HANDLED)
     {
         restore_context( context, sigcontext );
@@ -588,9 +591,9 @@ NTSTATUS call_user_apc_dispatcher( CONTEXT *context, unsigned int flags, ULONG_P
 /***********************************************************************
  *           call_raise_user_exception_dispatcher
  */
-void call_raise_user_exception_dispatcher(void)
+void call_raise_user_exception_dispatcher( struct thread_data *data )
 {
-    struct syscall_frame *frame = get_syscall_frame( get_thread_data() );
+    struct syscall_frame *frame = get_syscall_frame( data );
 
     frame->sp += 16;
     frame->pc = (DWORD)pKiRaiseUserExceptionDispatcher;
@@ -600,10 +603,9 @@ void call_raise_user_exception_dispatcher(void)
 /***********************************************************************
  *           call_user_exception_dispatcher
  */
-NTSTATUS call_user_exception_dispatcher( EXCEPTION_RECORD *rec, CONTEXT *context )
+NTSTATUS call_user_exception_dispatcher( struct thread_data *data, EXCEPTION_RECORD *rec, CONTEXT *context )
 {
     struct exc_stack_layout *stack;
-    struct thread_data *data = get_thread_data();
     struct syscall_frame *frame = get_syscall_frame( data );
     NTSTATUS status = NtSetContextThread( GetCurrentThread(), context );
 
@@ -762,7 +764,7 @@ NTSTATUS WINAPI NtCallbackReturn( void *ret_ptr, ULONG ret_len, NTSTATUS status 
  */
 static BOOL handle_syscall_fault( struct thread_data *data, ucontext_t *context, EXCEPTION_RECORD *rec )
 {
-    struct syscall_frame *frame = get_syscall_frame( data );
+    struct syscall_frame *frame;
     UINT i;
 
     if (!is_inside_syscall( data, SP_sig(context) )) return FALSE;
@@ -790,7 +792,7 @@ static BOOL handle_syscall_fault( struct thread_data *data, ucontext_t *context,
         PC_sig(context)      = (DWORD)longjmp;
         data->jmp_buf = NULL;
     }
-    else
+    else if ((frame = get_syscall_frame( data )))
     {
         TRACE( "returning to user mode ip=%08x ret=%08x\n", frame->pc, rec->ExceptionCode );
         REGn_sig(0, context) = rec->ExceptionCode;
@@ -798,6 +800,8 @@ static BOOL handle_syscall_fault( struct thread_data *data, ucontext_t *context,
         REGn_sig(8, context) = (DWORD)frame;
         PC_sig(context)      = (DWORD)__wine_syscall_dispatcher_return;
     }
+    else return FALSE;
+
     if (PC_sig(context) & 1) CPSR_sig(context) |= 0x20;
     else CPSR_sig(context) &= ~0x20;
     return TRUE;
@@ -1019,7 +1023,11 @@ static void usr1_handler( int signal, siginfo_t *siginfo, void *_sigcontext )
     struct thread_data *data = get_thread_data();
     CONTEXT context;
 
-    if (is_inside_syscall( data, SP_sig(sigcontext) ))
+    if (!data->teb)
+    {
+        server_select( NULL, 0, SELECT_INTERRUPTIBLE, 0, NULL, NULL );
+    }
+    else if (is_inside_syscall( data, SP_sig(sigcontext) ))
     {
         context.ContextFlags = CONTEXT_FULL | CONTEXT_EXCEPTION_REQUEST;
         NtGetContextThread( GetCurrentThread(), &context );
@@ -1066,12 +1074,12 @@ void signal_free_thread( TEB *teb )
 /**********************************************************************
  *		signal_init_process
  */
-void signal_init_process(void)
+void signal_init_process( TEB *teb )
 {
     struct sigaction sig_act;
 
     alloc_syscall_frame( sizeof(struct syscall_frame) );
-    signal_alloc_thread( NtCurrentTeb() );
+    signal_alloc_thread( teb );
 
     sig_act.sa_mask = server_block_set;
     sig_act.sa_flags = SA_RESTART | SA_SIGINFO | SA_ONSTACK;
@@ -1103,7 +1111,7 @@ void signal_init_process(void)
 /***********************************************************************
  *           init_syscall_frame
  */
-void init_syscall_frame( LPTHREAD_START_ROUTINE entry, void *arg, BOOL suspend, TEB *teb )
+void init_syscall_frame( LPTHREAD_START_ROUTINE entry, void *arg, TEB *teb )
 {
     struct thread_data *data = get_thread_data();
     struct syscall_frame *frame = get_syscall_frame( data );
@@ -1114,9 +1122,9 @@ void init_syscall_frame( LPTHREAD_START_ROUTINE entry, void *arg, BOOL suspend, 
     context.Sp = (DWORD)teb->Tib.StackBase;
     context.Pc = (DWORD)pRtlUserThreadStart;
     if (context.Pc & 1) context.Cpsr |= 0x20; /* thumb mode */
-    if ((ctx = get_cpu_area( IMAGE_FILE_MACHINE_ARMNT ))) *ctx = context;
+    if ((ctx = get_cpu_area( data, IMAGE_FILE_MACHINE_ARMNT ))) *ctx = context;
 
-    if (suspend)
+    if (data->suspend)
     {
         context.ContextFlags |= CONTEXT_EXCEPTION_REPORTING | CONTEXT_EXCEPTION_ACTIVE;
         wait_suspend( &context );
@@ -1142,12 +1150,12 @@ __ASM_GLOBAL_FUNC( signal_start_thread,
                    __ASM_EHABI(".cantunwind\n\t")
                    "push {r4-r12,lr}\n\t"
                    "add r7, sp, #0x28\n\t"    /* syscall_cfa */
-                   "mcr p15, 0, r3, c13, c0, 2\n\t" /* set teb register */
+                   "mcr p15, 0, r2, c13, c0, 2\n\t" /* set teb register */
                    /* set syscall frame */
-                   "ldr r6, [r3, #0x218]\n\t" /* thread_data->syscall_frame */
+                   "ldr r6, [r2, #0x218]\n\t" /* thread_data->syscall_frame */
                    "cbnz r6, 1f\n\t"
                    "sub r6, sp, #0x160\n\t"   /* sizeof(struct syscall_frame) */
-                   "str r6, [r3, #0x218]\n\t" /* thread_data->syscall_frame */
+                   "str r6, [r2, #0x218]\n\t" /* thread_data->syscall_frame */
                    "1:\tmov r4, #0\n\t"
                    "str r4, [r6, #0x44]\n\t"  /* frame->restore_flags */
                    "str r4, [r6, #0x4c]\n\t"  /* frame->prev_frame */

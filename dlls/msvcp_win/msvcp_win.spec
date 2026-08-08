@@ -3633,20 +3633,20 @@
 @ cdecl _Cnd_unregister_at_thread_exit(ptr) msvcp140._Cnd_unregister_at_thread_exit
 @ cdecl _Cnd_wait(ptr ptr) msvcp140._Cnd_wait
 @ cdecl _Copy_file(wstr wstr) msvcp140._Copy_file
-@ stub _Cosh
+@ cdecl _Cosh(double double) msvcp140._Cosh
 @ cdecl _Current_get(ptr) msvcp140._Current_get
 @ cdecl _Current_set(wstr) msvcp140._Current_set
 @ extern _Denorm msvcp140._Denorm
 @ cdecl _Dtest(ptr) msvcp140._Dtest
 @ cdecl _Equivalent(wstr wstr) msvcp140._Equivalent
 @ cdecl _Exp(ptr double long) msvcp140._Exp
-@ stub _FCosh
+@ cdecl _FCosh(float float) msvcp140._FCosh
 @ extern _FDenorm msvcp140._FDenorm
 @ cdecl _FDtest(ptr) msvcp140._FDtest
 @ cdecl _FExp(ptr float long) msvcp140._FExp
 @ extern _FInf msvcp140._FInf
 @ extern _FNan msvcp140._FNan
-@ stub _FSinh
+@ cdecl _FSinh(float float) msvcp140._FSinh
 @ extern _FSnan msvcp140._FSnan
 @ cdecl _File_size(wstr) msvcp140._File_size
 @ cdecl -norelay _Getcoll() msvcp140._Getcoll
@@ -3658,13 +3658,13 @@
 @ stub _Hard_links
 @ extern _Hugeval msvcp140._Hugeval
 @ extern _Inf msvcp140._Inf
-@ stub _LCosh
+@ cdecl _LCosh(double double) msvcp140._LCosh
 @ extern _LDenorm msvcp140._LDenorm
 @ cdecl _LDtest(ptr) msvcp140._LDtest
 @ stub _LExp
 @ extern _LInf msvcp140._LInf
 @ extern _LNan msvcp140._LNan
-@ stub _LSinh
+@ cdecl _LSinh(double double) msvcp140._LSinh
 @ extern _LSnan msvcp140._LSnan
 @ cdecl _Last_write_time(int64) msvcp140._Last_write_time
 @ cdecl _Link(wstr wstr) msvcp140._Link
@@ -3697,7 +3697,7 @@
 @ cdecl _Rename(wstr wstr) msvcp140._Rename
 @ cdecl _Resize(wstr int64) msvcp140._Resize
 @ cdecl _Set_last_write_time(wstr int64) msvcp140._Set_last_write_time
-@ stub _Sinh
+@ cdecl _Sinh(double double) msvcp140._Sinh
 @ extern _Snan msvcp140._Snan
 @ cdecl _Stat(wstr ptr) msvcp140._Stat
 @ stub _Statvfs

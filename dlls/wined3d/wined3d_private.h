@@ -2149,6 +2149,7 @@ enum wined3d_pci_device
     CARD_AMD_RADEON_RX_NAVI_10      = 0x731f,
     CARD_AMD_RADEON_RX_NAVI_14      = 0x7340,
     CARD_AMD_RADEON_RX_NAVI_21      = 0x73bf,
+    CARD_AMD_RADEON_680M            = 0x1681,
     CARD_AMD_RADEON_RX_NAVI_44      = 0x7590,
     CARD_AMD_RADEON_PRO_V620        = 0x73a1,
     CARD_AMD_RADEON_PRO_V620_VF     = 0x73ae,
@@ -2409,7 +2410,8 @@ enum wined3d_pci_device
     CARD_INTEL_IPP580_1             = 0x193a,
     CARD_INTEL_IPP580_2             = 0x193d,
     CARD_INTEL_UHD617               = 0x87c0,
-    CARD_INTEL_UHD620               = 0x3ea0,
+    CARD_INTEL_UHD620_1             = 0x3ea0,
+    CARD_INTEL_UHD620_2             = 0x5917,
     CARD_INTEL_HD615                = 0x591e,
     CARD_INTEL_HD620                = 0x5916,
     CARD_INTEL_HD630_1              = 0x5912,
@@ -3697,10 +3699,8 @@ struct wined3d_cs
     struct list query_poll_list;
     BOOL queries_flushed;
 
-    HANDLE event, present_event;
+    HANDLE event;
     LONG waiting_for_event;
-    LONG waiting_for_present;
-    LONG pending_presents;
 };
 
 static inline void wined3d_device_context_lock(struct wined3d_device_context *context)
@@ -4062,6 +4062,8 @@ struct wined3d_decoder_output_view
 
 void wined3d_decoder_output_view_cleanup(struct wined3d_decoder_output_view *view);
 
+HRESULT wined3d_swapchain_desc_validate_flags(const struct wined3d_swapchain_desc *desc);
+
 struct wined3d_swapchain_state
 {
     struct wined3d *wined3d;
@@ -4108,6 +4110,7 @@ struct wined3d_swapchain
     RECT front_buffer_update;
     unsigned int swap_interval;
     unsigned int max_frame_latency;
+    HANDLE frame_latency_semaphore;
 
     /* Performance tracking */
     LARGE_INTEGER last_present_time;
@@ -4602,7 +4605,7 @@ struct wined3d_format
     UINT block_height;
     UINT block_byte_count;
 
-    enum wined3d_format_id plane_formats[2];
+    struct wined3d_format *plane_formats[2];
     unsigned int uv_width, uv_height;
 
     enum wined3d_ffp_emit_idx emit_idx;

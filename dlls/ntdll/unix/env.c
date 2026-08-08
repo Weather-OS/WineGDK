@@ -1706,7 +1706,7 @@ static ULONG get_dword_option( HANDLE key, const WCHAR *name, ULONG defval )
 /*************************************************************************
  *		load_global_options
  */
-static void load_global_options( const UNICODE_STRING *image )
+static void load_global_options( const UNICODE_STRING *image, BOOL debugged )
 {
     static const WCHAR optionsW[] = {'\\','R','e','g','i','s','t','r','y','\\',
         'M','a','c','h','i','n','e','\\','S','o','f','t','w','a','r','e','\\',
@@ -1740,6 +1740,12 @@ static void load_global_options( const UNICODE_STRING *image )
         peb->HeapDeCommitFreeBlockThreshold = get_dword_option( key, heapdecommitblockW, 0x1000 );
         NtClose( key );
     }
+
+    if (debugged) peb->NtGlobalFlag |= FLG_HEAP_ENABLE_TAIL_CHECK |
+                                       FLG_HEAP_ENABLE_FREE_CHECK |
+                                       FLG_HEAP_VALIDATE_PARAMETERS;
+    else peb->ProcessParameters->Flags |= PROCESS_PARAMS_IMAGE_KEY_MISSING;
+
     init_unicode_string( &nameW, optionsW );
     if (!NtOpenKey( &key, KEY_QUERY_VALUE, &attr ))
     {
@@ -1750,6 +1756,7 @@ static void load_global_options( const UNICODE_STRING *image )
         if (!NtOpenKey( &key, KEY_QUERY_VALUE, &attr ))
         {
             peb->NtGlobalFlag = get_dword_option( key, globalflagW, peb->NtGlobalFlag );
+            peb->ProcessParameters->Flags &= ~PROCESS_PARAMS_IMAGE_KEY_MISSING;
             NtClose( key );
         }
         NtClose( attr.RootDirectory );
@@ -1824,7 +1831,7 @@ static void *build_wow64_parameters( const RTL_USER_PROCESS_PARAMETERS *params )
 /*************************************************************************
  *		init_peb
  */
-static void init_peb( RTL_USER_PROCESS_PARAMETERS *params, void *module )
+static void init_peb( RTL_USER_PROCESS_PARAMETERS *params, void *module, BOOL debugged )
 {
     peb->ImageBaseAddress           = module;
     peb->ProcessParameters          = params;
@@ -1839,15 +1846,16 @@ static void init_peb( RTL_USER_PROCESS_PARAMETERS *params, void *module )
 #ifdef _WIN64
     if (!is_machine_64bit( main_image_info.Machine ))
     {
-        NtCurrentTeb()->WowTebOffset = teb_offset;
-        NtCurrentTeb()->Tib.ExceptionList = (void *)((char *)NtCurrentTeb() + teb_offset);
+        struct thread_data *data = get_thread_data();
+        data->teb->WowTebOffset = teb_offset;
+        data->teb->Tib.ExceptionList = (void *)((char *)data->teb + teb_offset);
         wow_peb = (PEB32 *)((char *)peb + page_size);
-        set_thread_id( get_thread_data() );
+        set_thread_id( data );
     }
 #endif
 
     virtual_set_large_address_space();
-    load_global_options( &params->ImagePathName );
+    load_global_options( &params->ImagePathName, debugged );
 
     if (wow_peb)
     {
@@ -1890,8 +1898,9 @@ static RTL_USER_PROCESS_PARAMETERS *build_initial_params( void **module )
     WCHAR *curdir = get_initial_directory();
     UNICODE_STRING nt_name;
     NTSTATUS status;
+    TEB64 *teb64 = get_teb64( NtCurrentTeb() );
 
-    if (NtCurrentTeb64()) NtCurrentTeb64()->TlsSlots[WOW64_TLS_FILESYSREDIR] = TRUE;
+    if (teb64) teb64->TlsSlots[WOW64_TLS_FILESYSREDIR] = TRUE;
 
     /* store the initial PATH value */
     path = get_env_var( env, env_pos, pathW, 4 );
@@ -1946,7 +1955,7 @@ static RTL_USER_PROCESS_PARAMETERS *build_initial_params( void **module )
     else
     {
         rebuild_argv();
-        if (NtCurrentTeb64()) NtCurrentTeb64()->TlsSlots[WOW64_TLS_FILESYSREDIR] = FALSE;
+        if (teb64) teb64->TlsSlots[WOW64_TLS_FILESYSREDIR] = FALSE;
     }
 
     main_wargv = build_wargv( get_dos_path( nt_name.Buffer ));
@@ -2008,11 +2017,12 @@ void init_startup_info(void)
     struct startup_info_data *info;
     UNICODE_STRING nt_name;
     USHORT machine;
+    BOOL debugged;
 
     if (!startup_info_size)
     {
         params = build_initial_params( &module );
-        init_peb( params, module );
+        init_peb( params, module, FALSE );
         return;
     }
 
@@ -2023,6 +2033,7 @@ void init_startup_info(void)
         wine_server_set_reply( req, info, startup_info_size );
         status = wine_server_call( req );
         machine = reply->machine;
+        debugged = reply->debugged;
         info_size = reply->info_size;
         env_size = (wine_server_reply_size( reply ) - info_size) / sizeof(WCHAR);
     }
@@ -2111,7 +2122,7 @@ void init_startup_info(void)
     rebuild_argv();
     main_wargv = build_wargv( params->ImagePathName.Buffer );
     free( nt_name.Buffer );
-    init_peb( params, module );
+    init_peb( params, module, debugged );
 }
 
 
@@ -2402,8 +2413,9 @@ void WINAPI RtlInitUnicodeString( UNICODE_STRING *str, const WCHAR *data )
  */
 ULONG WINAPI RtlNtStatusToDosError( NTSTATUS status )
 {
-    NtCurrentTeb()->LastStatusValue = status;
+    TEB *teb = NtCurrentTeb();
 
+    if (teb) teb->LastStatusValue = status;
     if (!status || (status & 0x20000000)) return status;
     if ((status & 0xf0000000) == 0xd0000000) status &= ~0x10000000;
 
@@ -2420,11 +2432,16 @@ ULONG WINAPI RtlNtStatusToDosError( NTSTATUS status )
 DWORD WINAPI RtlGetLastWin32Error(void)
 {
     TEB *teb = NtCurrentTeb();
+
+    if (teb)
+    {
 #ifdef _WIN64
-    WOW_TEB *wow_teb = get_wow_teb( teb );
-    if (wow_teb) return wow_teb->LastErrorValue;
+        WOW_TEB *wow_teb = get_wow_teb( teb );
+        if (wow_teb) return wow_teb->LastErrorValue;
 #endif
-    return teb->LastErrorValue;
+        return teb->LastErrorValue;
+    }
+    else return 0;
 }
 
 /**********************************************************************
@@ -2433,11 +2450,15 @@ DWORD WINAPI RtlGetLastWin32Error(void)
 void WINAPI RtlSetLastWin32Error( DWORD err )
 {
     TEB *teb = NtCurrentTeb();
+
+    if (teb)
+    {
 #ifdef _WIN64
-    WOW_TEB *wow_teb = get_wow_teb( teb );
-    if (wow_teb) wow_teb->LastErrorValue = err;
+        WOW_TEB *wow_teb = get_wow_teb( teb );
+        if (wow_teb) wow_teb->LastErrorValue = err;
 #endif
-    teb->LastErrorValue = err;
+        teb->LastErrorValue = err;
+    }
 }
 
 /**********************************************************************

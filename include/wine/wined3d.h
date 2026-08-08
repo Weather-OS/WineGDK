@@ -920,6 +920,9 @@ enum wined3d_memory_segment_group
 #define WINED3D_SWAPCHAIN_NO_WINDOW_CHANGES                     0x00040000u
 #define WINED3D_SWAPCHAIN_RESTORE_WINDOW_STATE                  0x00080000u
 #define WINED3D_SWAPCHAIN_REGISTER_TOPMOST_TIMER                0x00100000u
+/* Allow the swapchain flag, but not actual locking */
+#define WINED3D_SWAPCHAIN_ALLOW_MS_LOCKABLE_BACKBUFFER          0x00200000u
+#define WINED3D_SWAPCHAIN_FRAME_LATENCY_WAITABLE_OBJECT         0x00400000u
 
 #define WINED3DDP_MAXTEXCOORD                                   8
 
@@ -2901,6 +2904,7 @@ struct wined3d_texture * __cdecl wined3d_swapchain_get_back_buffer(const struct 
 struct wined3d_device * __cdecl wined3d_swapchain_get_device(const struct wined3d_swapchain *swapchain);
 HRESULT __cdecl wined3d_swapchain_get_display_mode(const struct wined3d_swapchain *swapchain,
         struct wined3d_display_mode *mode, enum wined3d_display_rotation *rotation);
+HANDLE __cdecl wined3d_swapchain_get_frame_latency_waitable_object(struct wined3d_swapchain *swapchain);
 struct wined3d_texture * __cdecl wined3d_swapchain_get_front_buffer(const struct wined3d_swapchain *swapchain);
 HRESULT __cdecl wined3d_swapchain_get_front_buffer_data(const struct wined3d_swapchain *swapchain,
         struct wined3d_texture *dst_texture, unsigned int sub_resource_idx);
@@ -2909,6 +2913,7 @@ HRESULT __cdecl wined3d_swapchain_get_gamma_ramp(const struct wined3d_swapchain 
 void * __cdecl wined3d_swapchain_get_parent(const struct wined3d_swapchain *swapchain);
 void __cdecl wined3d_swapchain_get_desc(const struct wined3d_swapchain *swapchain,
         struct wined3d_swapchain_desc *desc);
+HRESULT __cdecl wined3d_swapchain_get_max_frame_latency(struct wined3d_swapchain *swapchain, unsigned int *latency);
 HRESULT __cdecl wined3d_swapchain_get_raster_status(const struct wined3d_swapchain *swapchain,
         struct wined3d_raster_status *raster_status);
 struct wined3d_swapchain_state * __cdecl wined3d_swapchain_get_state(struct wined3d_swapchain *swapchain);
@@ -2917,9 +2922,11 @@ HRESULT __cdecl wined3d_swapchain_present(struct wined3d_swapchain *swapchain, c
         const RECT *dst_rect, HWND dst_window_override, unsigned int swap_interval, uint32_t flags);
 HRESULT __cdecl wined3d_swapchain_resize_buffers(struct wined3d_swapchain *swapchain, unsigned int buffer_count,
         unsigned int width, unsigned int height, enum wined3d_format_id format_id,
-        enum wined3d_multisample_type multisample_type, unsigned int multisample_quality);
+        enum wined3d_multisample_type multisample_type, unsigned int multisample_quality,
+        unsigned int flags);
 HRESULT __cdecl wined3d_swapchain_set_gamma_ramp(const struct wined3d_swapchain *swapchain,
         uint32_t flags, const struct wined3d_gamma_ramp *ramp);
+HRESULT __cdecl wined3d_swapchain_set_max_frame_latency(struct wined3d_swapchain *swapchain, unsigned int latency);
 void __cdecl wined3d_swapchain_set_palette(struct wined3d_swapchain *swapchain, struct wined3d_palette *palette);
 void __cdecl wined3d_swapchain_set_window(struct wined3d_swapchain *swapchain, HWND window);
 

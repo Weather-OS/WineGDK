@@ -1188,7 +1188,7 @@ static HRESULT domelem_set_named_item(struct domnode *node, IXMLDOMNode *newItem
 {
     TRACE("%p, %p, %p.\n", node, newItem, namedItem );
 
-    return node_set_attribute(node, newItem, namedItem);
+    return node_set_named_attribute(node, newItem, namedItem);
 }
 
 static HRESULT domelem_remove_qualified_item(struct domnode *node, BSTR name, BSTR uri, IXMLDOMNode **item)
@@ -1218,11 +1218,7 @@ static HRESULT domelem_get_length(struct domnode *node, LONG *length)
 {
     TRACE("%p, %p.\n", node, length);
 
-    if (!length)
-        return E_INVALIDARG;
-
-    *length = list_count(&node->attributes);
-    return S_OK;
+    return node_get_attribute_count(node, length);
 }
 
 static HRESULT domelem_next_node(const struct domnode *node, LONG *iter, IXMLDOMNode **nextNode)

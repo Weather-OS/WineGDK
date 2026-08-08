@@ -58,15 +58,6 @@ static NTSTATUS wgl_wglSetPixelFormat( void *args )
     return STATUS_SUCCESS;
 }
 
-static NTSTATUS wgl_wglShareLists( void *args )
-{
-    struct wglShareLists_params *params = args;
-    const struct opengl_funcs *funcs = get_context_funcs( params->hrcSrvShare );
-    if (!funcs || !funcs->p_wglShareLists) return STATUS_NOT_IMPLEMENTED;
-    params->ret = wrap_wglShareLists( params->teb, params->hrcSrvShare, params->hrcSrvSource );
-    return STATUS_SUCCESS;
-}
-
 static NTSTATUS wgl_wglSwapBuffers( void *args )
 {
     struct wglSwapBuffers_params *params = args;
@@ -4823,16 +4814,6 @@ static NTSTATUS ext_glBufferStorage( void *args )
     const struct opengl_funcs *funcs = params->teb->glTable;
     if (!funcs->p_glBufferStorage) return STATUS_NOT_IMPLEMENTED;
     funcs->p_glBufferStorage( params->target, params->size, params->data, params->flags );
-    set_context_attribute( params->teb, -1 /* unsupported */, NULL, 0 );
-    return STATUS_SUCCESS;
-}
-
-static NTSTATUS ext_glBufferStorageExternalEXT( void *args )
-{
-    struct glBufferStorageExternalEXT_params *params = args;
-    const struct opengl_funcs *funcs = params->teb->glTable;
-    if (!funcs->p_glBufferStorageExternalEXT) return STATUS_NOT_IMPLEMENTED;
-    funcs->p_glBufferStorageExternalEXT( params->target, params->offset, params->size, params->clientBuffer, params->flags );
     set_context_attribute( params->teb, -1 /* unsupported */, NULL, 0 );
     return STATUS_SUCCESS;
 }
@@ -17636,16 +17617,6 @@ static NTSTATUS ext_glNamedBufferStorageEXT( void *args )
     return STATUS_SUCCESS;
 }
 
-static NTSTATUS ext_glNamedBufferStorageExternalEXT( void *args )
-{
-    struct glNamedBufferStorageExternalEXT_params *params = args;
-    const struct opengl_funcs *funcs = params->teb->glTable;
-    if (!funcs->p_glNamedBufferStorageExternalEXT) return STATUS_NOT_IMPLEMENTED;
-    funcs->p_glNamedBufferStorageExternalEXT( params->buffer, params->offset, params->size, params->clientBuffer, params->flags );
-    set_context_attribute( params->teb, -1 /* unsupported */, NULL, 0 );
-    return STATUS_SUCCESS;
-}
-
 static NTSTATUS ext_glNamedBufferStorageMemEXT( void *args )
 {
     struct glNamedBufferStorageMemEXT_params *params = args;
@@ -30376,15 +30347,6 @@ static NTSTATUS ext_wglBindTexImageARB( void *args )
     return STATUS_SUCCESS;
 }
 
-static NTSTATUS ext_wglChoosePixelFormatARB( void *args )
-{
-    struct wglChoosePixelFormatARB_params *params = args;
-    const struct opengl_funcs *funcs = get_dc_funcs( params->hdc );
-    if (!funcs || !funcs->p_wglChoosePixelFormatARB) return STATUS_NOT_IMPLEMENTED;
-    params->ret = funcs->p_wglChoosePixelFormatARB( params->hdc, params->piAttribIList, params->pfAttribFList, params->nMaxFormats, params->piFormats, params->nNumFormats );
-    return STATUS_SUCCESS;
-}
-
 static NTSTATUS ext_wglCreateContextAttribsARB( void *args )
 {
     struct wglCreateContextAttribsARB_params *params = args;
@@ -30427,24 +30389,6 @@ static NTSTATUS ext_wglGetPbufferDCARB( void *args )
     const struct opengl_funcs *funcs = get_pbuffer_funcs( params->hPbuffer );
     if (!funcs || !funcs->p_wglGetPbufferDCARB) return STATUS_NOT_IMPLEMENTED;
     params->ret = funcs->p_wglGetPbufferDCARB( params->hPbuffer );
-    return STATUS_SUCCESS;
-}
-
-static NTSTATUS ext_wglGetPixelFormatAttribfvARB( void *args )
-{
-    struct wglGetPixelFormatAttribfvARB_params *params = args;
-    const struct opengl_funcs *funcs = get_dc_funcs( params->hdc );
-    if (!funcs || !funcs->p_wglGetPixelFormatAttribfvARB) return STATUS_NOT_IMPLEMENTED;
-    params->ret = funcs->p_wglGetPixelFormatAttribfvARB( params->hdc, params->iPixelFormat, params->iLayerPlane, params->nAttributes, params->piAttributes, params->pfValues );
-    return STATUS_SUCCESS;
-}
-
-static NTSTATUS ext_wglGetPixelFormatAttribivARB( void *args )
-{
-    struct wglGetPixelFormatAttribivARB_params *params = args;
-    const struct opengl_funcs *funcs = get_dc_funcs( params->hdc );
-    if (!funcs || !funcs->p_wglGetPixelFormatAttribivARB) return STATUS_NOT_IMPLEMENTED;
-    params->ret = funcs->p_wglGetPixelFormatAttribivARB( params->hdc, params->iPixelFormat, params->iLayerPlane, params->nAttributes, params->piAttributes, params->piValues );
     return STATUS_SUCCESS;
 }
 
@@ -30564,7 +30508,6 @@ const unixlib_entry_t __wine_unix_call_funcs[] =
     wgl_wglDeleteContext,
     wgl_wglGetPixelFormat,
     wgl_wglSetPixelFormat,
-    wgl_wglShareLists,
     wgl_wglSwapBuffers,
     gl_glAccum,
     gl_glAlphaFunc,
@@ -31043,7 +30986,6 @@ const unixlib_entry_t __wine_unix_call_funcs[] =
     ext_glBufferParameteriAPPLE,
     ext_glBufferRegionEnabled,
     ext_glBufferStorage,
-    ext_glBufferStorageExternalEXT,
     ext_glBufferStorageMemEXT,
     ext_glBufferSubData,
     ext_glBufferSubDataARB,
@@ -32364,7 +32306,6 @@ const unixlib_entry_t __wine_unix_call_funcs[] =
     ext_glNamedBufferPageCommitmentMemNV,
     ext_glNamedBufferStorage,
     ext_glNamedBufferStorageEXT,
-    ext_glNamedBufferStorageExternalEXT,
     ext_glNamedBufferStorageMemEXT,
     ext_glNamedBufferSubData,
     ext_glNamedBufferSubDataEXT,
@@ -33637,14 +33578,11 @@ const unixlib_entry_t __wine_unix_call_funcs[] =
     ext_glWriteMaskEXT,
     ext_wglAllocateMemoryNV,
     ext_wglBindTexImageARB,
-    ext_wglChoosePixelFormatARB,
     ext_wglCreateContextAttribsARB,
     ext_wglCreatePbufferARB,
     ext_wglDestroyPbufferARB,
     ext_wglFreeMemoryNV,
     ext_wglGetPbufferDCARB,
-    ext_wglGetPixelFormatAttribfvARB,
-    ext_wglGetPixelFormatAttribivARB,
     ext_wglGetSwapIntervalEXT,
     ext_wglMakeContextCurrentARB,
     ext_wglQueryCurrentRendererIntegerWINE,
@@ -33726,22 +33664,6 @@ static NTSTATUS wow64_wgl_wglSetPixelFormat( void *args )
     const struct opengl_funcs *funcs = get_dc_funcs( ULongToPtr(params->hdc) );
     if (!funcs || !funcs->p_wglSetPixelFormat) return STATUS_NOT_IMPLEMENTED;
     params->ret = funcs->p_wglSetPixelFormat( ULongToPtr(params->hdc), params->ipfd, ULongToPtr(params->ppfd) );
-    return STATUS_SUCCESS;
-}
-
-static NTSTATUS wow64_wgl_wglShareLists( void *args )
-{
-    struct
-    {
-        PTR32 teb;
-        PTR32 hrcSrvShare;
-        PTR32 hrcSrvSource;
-        BOOL ret;
-    } *params = args;
-    TEB *teb = get_teb64( params->teb );
-    const struct opengl_funcs *funcs = get_context_funcs( ULongToPtr(params->hrcSrvShare) );
-    if (!funcs || !funcs->p_wglShareLists) return STATUS_NOT_IMPLEMENTED;
-    params->ret = wrap_wglShareLists( teb, ULongToPtr(params->hrcSrvShare), ULongToPtr(params->hrcSrvSource) );
     return STATUS_SUCCESS;
 }
 
@@ -41554,15 +41476,10 @@ static NTSTATUS wow64_ext_glBufferAttachMemoryNV( void *args )
         GLuint64 offset;
     } *params = args;
     TEB *teb = get_teb64( params->teb );
-    struct buffer *buffer;
     const struct opengl_funcs *funcs = teb->glTable;
     if (!funcs->p_glBufferAttachMemoryNV) return STATUS_NOT_IMPLEMENTED;
-    pthread_mutex_lock( &wgl_lock );
-    buffer = invalidate_buffer_target( teb, params->target );
-    funcs->p_glBufferAttachMemoryNV( params->target, params->memory, params->offset );
-    pthread_mutex_unlock( &wgl_lock );
+    wow64_glBufferAttachMemoryNV( teb, params->target, params->memory, params->offset, funcs->p_glBufferAttachMemoryNV );
     set_context_attribute( teb, -1 /* unsupported */, NULL, 0 );
-    if (buffer) free_buffer( funcs, buffer );
     return STATUS_SUCCESS;
 }
 
@@ -41577,15 +41494,10 @@ static NTSTATUS wow64_ext_glBufferData( void *args )
         GLenum usage;
     } *params = args;
     TEB *teb = get_teb64( params->teb );
-    struct buffer *buffer;
     const struct opengl_funcs *funcs = teb->glTable;
     if (!funcs->p_glBufferData) return STATUS_NOT_IMPLEMENTED;
-    pthread_mutex_lock( &wgl_lock );
-    buffer = invalidate_buffer_target( teb, params->target );
-    funcs->p_glBufferData( params->target, (GLsizeiptr)ULongToPtr(params->size), ULongToPtr(params->data), params->usage );
-    pthread_mutex_unlock( &wgl_lock );
+    wow64_glBufferData( teb, params->target, (GLsizeiptr)ULongToPtr(params->size), ULongToPtr(params->data), params->usage, funcs->p_glBufferData );
     set_context_attribute( teb, -1 /* unsupported */, NULL, 0 );
-    if (buffer) free_buffer( funcs, buffer );
     return STATUS_SUCCESS;
 }
 
@@ -41600,15 +41512,10 @@ static NTSTATUS wow64_ext_glBufferDataARB( void *args )
         GLenum usage;
     } *params = args;
     TEB *teb = get_teb64( params->teb );
-    struct buffer *buffer;
     const struct opengl_funcs *funcs = teb->glTable;
     if (!funcs->p_glBufferDataARB) return STATUS_NOT_IMPLEMENTED;
-    pthread_mutex_lock( &wgl_lock );
-    buffer = invalidate_buffer_target( teb, params->target );
-    funcs->p_glBufferDataARB( params->target, (GLsizeiptrARB)ULongToPtr(params->size), ULongToPtr(params->data), params->usage );
-    pthread_mutex_unlock( &wgl_lock );
+    wow64_glBufferData( teb, params->target, (GLsizeiptrARB)ULongToPtr(params->size), ULongToPtr(params->data), params->usage, funcs->p_glBufferDataARB );
     set_context_attribute( teb, -1 /* unsupported */, NULL, 0 );
-    if (buffer) free_buffer( funcs, buffer );
     return STATUS_SUCCESS;
 }
 
@@ -41693,39 +41600,10 @@ static NTSTATUS wow64_ext_glBufferStorage( void *args )
         GLbitfield flags;
     } *params = args;
     TEB *teb = get_teb64( params->teb );
-    struct buffer *buffer;
     const struct opengl_funcs *funcs = teb->glTable;
     if (!funcs->p_glBufferStorage) return STATUS_NOT_IMPLEMENTED;
-    pthread_mutex_lock( &wgl_lock );
-    buffer = invalidate_buffer_target( teb, params->target );
     wow64_glBufferStorage( teb, params->target, (GLsizeiptr)ULongToPtr(params->size), ULongToPtr(params->data), params->flags, funcs->p_glBufferStorage );
-    pthread_mutex_unlock( &wgl_lock );
     set_context_attribute( teb, -1 /* unsupported */, NULL, 0 );
-    if (buffer) free_buffer( funcs, buffer );
-    return STATUS_SUCCESS;
-}
-
-static NTSTATUS wow64_ext_glBufferStorageExternalEXT( void *args )
-{
-    struct
-    {
-        PTR32 teb;
-        GLenum target;
-        PTR32 offset;
-        PTR32 size;
-        PTR32 clientBuffer;
-        GLbitfield flags;
-    } *params = args;
-    TEB *teb = get_teb64( params->teb );
-    struct buffer *buffer;
-    const struct opengl_funcs *funcs = teb->glTable;
-    if (!funcs->p_glBufferStorageExternalEXT) return STATUS_NOT_IMPLEMENTED;
-    pthread_mutex_lock( &wgl_lock );
-    buffer = invalidate_buffer_target( teb, params->target );
-    funcs->p_glBufferStorageExternalEXT( params->target, (GLintptr)ULongToPtr(params->offset), (GLsizeiptr)ULongToPtr(params->size), ULongToPtr(params->clientBuffer), params->flags );
-    pthread_mutex_unlock( &wgl_lock );
-    set_context_attribute( teb, -1 /* unsupported */, NULL, 0 );
-    if (buffer) free_buffer( funcs, buffer );
     return STATUS_SUCCESS;
 }
 
@@ -41740,15 +41618,10 @@ static NTSTATUS wow64_ext_glBufferStorageMemEXT( void *args )
         GLuint64 offset;
     } *params = args;
     TEB *teb = get_teb64( params->teb );
-    struct buffer *buffer;
     const struct opengl_funcs *funcs = teb->glTable;
     if (!funcs->p_glBufferStorageMemEXT) return STATUS_NOT_IMPLEMENTED;
-    pthread_mutex_lock( &wgl_lock );
-    buffer = invalidate_buffer_target( teb, params->target );
-    funcs->p_glBufferStorageMemEXT( params->target, (GLsizeiptr)ULongToPtr(params->size), params->memory, params->offset );
-    pthread_mutex_unlock( &wgl_lock );
+    wow64_glBufferStorageMemEXT( teb, params->target, (GLsizeiptr)ULongToPtr(params->size), params->memory, params->offset, funcs->p_glBufferStorageMemEXT );
     set_context_attribute( teb, -1 /* unsupported */, NULL, 0 );
-    if (buffer) free_buffer( funcs, buffer );
     return STATUS_SUCCESS;
 }
 
@@ -64249,15 +64122,10 @@ static NTSTATUS wow64_ext_glNamedBufferAttachMemoryNV( void *args )
         GLuint64 offset;
     } *params = args;
     TEB *teb = get_teb64( params->teb );
-    struct buffer *buffer;
     const struct opengl_funcs *funcs = teb->glTable;
     if (!funcs->p_glNamedBufferAttachMemoryNV) return STATUS_NOT_IMPLEMENTED;
-    pthread_mutex_lock( &wgl_lock );
-    buffer = invalidate_buffer_name( teb, params->buffer );
-    funcs->p_glNamedBufferAttachMemoryNV( params->buffer, params->memory, params->offset );
-    pthread_mutex_unlock( &wgl_lock );
+    wow64_glNamedBufferAttachMemoryNV( teb, params->buffer, params->memory, params->offset, funcs->p_glNamedBufferAttachMemoryNV );
     set_context_attribute( teb, -1 /* unsupported */, NULL, 0 );
-    if (buffer) free_buffer( funcs, buffer );
     return STATUS_SUCCESS;
 }
 
@@ -64272,15 +64140,10 @@ static NTSTATUS wow64_ext_glNamedBufferData( void *args )
         GLenum usage;
     } *params = args;
     TEB *teb = get_teb64( params->teb );
-    struct buffer *buffer;
     const struct opengl_funcs *funcs = teb->glTable;
     if (!funcs->p_glNamedBufferData) return STATUS_NOT_IMPLEMENTED;
-    pthread_mutex_lock( &wgl_lock );
-    buffer = invalidate_buffer_name( teb, params->buffer );
-    funcs->p_glNamedBufferData( params->buffer, (GLsizeiptr)ULongToPtr(params->size), ULongToPtr(params->data), params->usage );
-    pthread_mutex_unlock( &wgl_lock );
+    wow64_glNamedBufferData( teb, params->buffer, (GLsizeiptr)ULongToPtr(params->size), ULongToPtr(params->data), params->usage, funcs->p_glNamedBufferData );
     set_context_attribute( teb, -1 /* unsupported */, NULL, 0 );
-    if (buffer) free_buffer( funcs, buffer );
     return STATUS_SUCCESS;
 }
 
@@ -64295,15 +64158,10 @@ static NTSTATUS wow64_ext_glNamedBufferDataEXT( void *args )
         GLenum usage;
     } *params = args;
     TEB *teb = get_teb64( params->teb );
-    struct buffer *buffer;
     const struct opengl_funcs *funcs = teb->glTable;
     if (!funcs->p_glNamedBufferDataEXT) return STATUS_NOT_IMPLEMENTED;
-    pthread_mutex_lock( &wgl_lock );
-    buffer = invalidate_buffer_name( teb, params->buffer );
-    funcs->p_glNamedBufferDataEXT( params->buffer, (GLsizeiptr)ULongToPtr(params->size), ULongToPtr(params->data), params->usage );
-    pthread_mutex_unlock( &wgl_lock );
+    wow64_glNamedBufferData( teb, params->buffer, (GLsizeiptr)ULongToPtr(params->size), ULongToPtr(params->data), params->usage, funcs->p_glNamedBufferDataEXT );
     set_context_attribute( teb, -1 /* unsupported */, NULL, 0 );
-    if (buffer) free_buffer( funcs, buffer );
     return STATUS_SUCCESS;
 }
 
@@ -64374,15 +64232,10 @@ static NTSTATUS wow64_ext_glNamedBufferStorage( void *args )
         GLbitfield flags;
     } *params = args;
     TEB *teb = get_teb64( params->teb );
-    struct buffer *buffer;
     const struct opengl_funcs *funcs = teb->glTable;
     if (!funcs->p_glNamedBufferStorage) return STATUS_NOT_IMPLEMENTED;
-    pthread_mutex_lock( &wgl_lock );
-    buffer = invalidate_buffer_name( teb, params->buffer );
     wow64_glNamedBufferStorage( teb, params->buffer, (GLsizeiptr)ULongToPtr(params->size), ULongToPtr(params->data), params->flags, funcs->p_glNamedBufferStorage );
-    pthread_mutex_unlock( &wgl_lock );
     set_context_attribute( teb, -1 /* unsupported */, NULL, 0 );
-    if (buffer) free_buffer( funcs, buffer );
     return STATUS_SUCCESS;
 }
 
@@ -64397,39 +64250,10 @@ static NTSTATUS wow64_ext_glNamedBufferStorageEXT( void *args )
         GLbitfield flags;
     } *params = args;
     TEB *teb = get_teb64( params->teb );
-    struct buffer *buffer;
     const struct opengl_funcs *funcs = teb->glTable;
     if (!funcs->p_glNamedBufferStorageEXT) return STATUS_NOT_IMPLEMENTED;
-    pthread_mutex_lock( &wgl_lock );
-    buffer = invalidate_buffer_name( teb, params->buffer );
     wow64_glNamedBufferStorage( teb, params->buffer, (GLsizeiptr)ULongToPtr(params->size), ULongToPtr(params->data), params->flags, funcs->p_glNamedBufferStorageEXT );
-    pthread_mutex_unlock( &wgl_lock );
     set_context_attribute( teb, -1 /* unsupported */, NULL, 0 );
-    if (buffer) free_buffer( funcs, buffer );
-    return STATUS_SUCCESS;
-}
-
-static NTSTATUS wow64_ext_glNamedBufferStorageExternalEXT( void *args )
-{
-    struct
-    {
-        PTR32 teb;
-        GLuint buffer;
-        PTR32 offset;
-        PTR32 size;
-        PTR32 clientBuffer;
-        GLbitfield flags;
-    } *params = args;
-    TEB *teb = get_teb64( params->teb );
-    struct buffer *buffer;
-    const struct opengl_funcs *funcs = teb->glTable;
-    if (!funcs->p_glNamedBufferStorageExternalEXT) return STATUS_NOT_IMPLEMENTED;
-    pthread_mutex_lock( &wgl_lock );
-    buffer = invalidate_buffer_name( teb, params->buffer );
-    funcs->p_glNamedBufferStorageExternalEXT( params->buffer, (GLintptr)ULongToPtr(params->offset), (GLsizeiptr)ULongToPtr(params->size), ULongToPtr(params->clientBuffer), params->flags );
-    pthread_mutex_unlock( &wgl_lock );
-    set_context_attribute( teb, -1 /* unsupported */, NULL, 0 );
-    if (buffer) free_buffer( funcs, buffer );
     return STATUS_SUCCESS;
 }
 
@@ -64444,15 +64268,10 @@ static NTSTATUS wow64_ext_glNamedBufferStorageMemEXT( void *args )
         GLuint64 offset;
     } *params = args;
     TEB *teb = get_teb64( params->teb );
-    struct buffer *buffer;
     const struct opengl_funcs *funcs = teb->glTable;
     if (!funcs->p_glNamedBufferStorageMemEXT) return STATUS_NOT_IMPLEMENTED;
-    pthread_mutex_lock( &wgl_lock );
-    buffer = invalidate_buffer_name( teb, params->buffer );
-    funcs->p_glNamedBufferStorageMemEXT( params->buffer, (GLsizeiptr)ULongToPtr(params->size), params->memory, params->offset );
-    pthread_mutex_unlock( &wgl_lock );
+    wow64_glNamedBufferStorageMemEXT( teb, params->buffer, (GLsizeiptr)ULongToPtr(params->size), params->memory, params->offset, funcs->p_glNamedBufferStorageMemEXT );
     set_context_attribute( teb, -1 /* unsupported */, NULL, 0 );
-    if (buffer) free_buffer( funcs, buffer );
     return STATUS_SUCCESS;
 }
 
@@ -86625,25 +86444,6 @@ static NTSTATUS wow64_ext_wglBindTexImageARB( void *args )
     return STATUS_SUCCESS;
 }
 
-static NTSTATUS wow64_ext_wglChoosePixelFormatARB( void *args )
-{
-    struct
-    {
-        PTR32 teb;
-        PTR32 hdc;
-        PTR32 piAttribIList;
-        PTR32 pfAttribFList;
-        UINT nMaxFormats;
-        PTR32 piFormats;
-        PTR32 nNumFormats;
-        BOOL ret;
-    } *params = args;
-    const struct opengl_funcs *funcs = get_dc_funcs( ULongToPtr(params->hdc) );
-    if (!funcs || !funcs->p_wglChoosePixelFormatARB) return STATUS_NOT_IMPLEMENTED;
-    params->ret = funcs->p_wglChoosePixelFormatARB( ULongToPtr(params->hdc), ULongToPtr(params->piAttribIList), ULongToPtr(params->pfAttribFList), params->nMaxFormats, ULongToPtr(params->piFormats), ULongToPtr(params->nNumFormats) );
-    return STATUS_SUCCESS;
-}
-
 static NTSTATUS wow64_ext_wglCreateContextAttribsARB( void *args )
 {
     struct
@@ -86719,44 +86519,6 @@ static NTSTATUS wow64_ext_wglGetPbufferDCARB( void *args )
     const struct opengl_funcs *funcs = get_pbuffer_funcs( ULongToPtr(params->hPbuffer) );
     if (!funcs || !funcs->p_wglGetPbufferDCARB) return STATUS_NOT_IMPLEMENTED;
     params->ret = (UINT_PTR)funcs->p_wglGetPbufferDCARB( ULongToPtr(params->hPbuffer) );
-    return STATUS_SUCCESS;
-}
-
-static NTSTATUS wow64_ext_wglGetPixelFormatAttribfvARB( void *args )
-{
-    struct
-    {
-        PTR32 teb;
-        PTR32 hdc;
-        int iPixelFormat;
-        int iLayerPlane;
-        UINT nAttributes;
-        PTR32 piAttributes;
-        PTR32 pfValues;
-        BOOL ret;
-    } *params = args;
-    const struct opengl_funcs *funcs = get_dc_funcs( ULongToPtr(params->hdc) );
-    if (!funcs || !funcs->p_wglGetPixelFormatAttribfvARB) return STATUS_NOT_IMPLEMENTED;
-    params->ret = funcs->p_wglGetPixelFormatAttribfvARB( ULongToPtr(params->hdc), params->iPixelFormat, params->iLayerPlane, params->nAttributes, ULongToPtr(params->piAttributes), ULongToPtr(params->pfValues) );
-    return STATUS_SUCCESS;
-}
-
-static NTSTATUS wow64_ext_wglGetPixelFormatAttribivARB( void *args )
-{
-    struct
-    {
-        PTR32 teb;
-        PTR32 hdc;
-        int iPixelFormat;
-        int iLayerPlane;
-        UINT nAttributes;
-        PTR32 piAttributes;
-        PTR32 piValues;
-        BOOL ret;
-    } *params = args;
-    const struct opengl_funcs *funcs = get_dc_funcs( ULongToPtr(params->hdc) );
-    if (!funcs || !funcs->p_wglGetPixelFormatAttribivARB) return STATUS_NOT_IMPLEMENTED;
-    params->ret = funcs->p_wglGetPixelFormatAttribivARB( ULongToPtr(params->hdc), params->iPixelFormat, params->iLayerPlane, params->nAttributes, ULongToPtr(params->piAttributes), ULongToPtr(params->piValues) );
     return STATUS_SUCCESS;
 }
 
@@ -86957,7 +86719,6 @@ const unixlib_entry_t __wine_unix_call_wow64_funcs[] =
     wow64_wgl_wglDeleteContext,
     wow64_wgl_wglGetPixelFormat,
     wow64_wgl_wglSetPixelFormat,
-    wow64_wgl_wglShareLists,
     wow64_wgl_wglSwapBuffers,
     wow64_gl_glAccum,
     wow64_gl_glAlphaFunc,
@@ -87436,7 +87197,6 @@ const unixlib_entry_t __wine_unix_call_wow64_funcs[] =
     wow64_ext_glBufferParameteriAPPLE,
     wow64_ext_glBufferRegionEnabled,
     wow64_ext_glBufferStorage,
-    wow64_ext_glBufferStorageExternalEXT,
     wow64_ext_glBufferStorageMemEXT,
     wow64_ext_glBufferSubData,
     wow64_ext_glBufferSubDataARB,
@@ -88757,7 +88517,6 @@ const unixlib_entry_t __wine_unix_call_wow64_funcs[] =
     wow64_ext_glNamedBufferPageCommitmentMemNV,
     wow64_ext_glNamedBufferStorage,
     wow64_ext_glNamedBufferStorageEXT,
-    wow64_ext_glNamedBufferStorageExternalEXT,
     wow64_ext_glNamedBufferStorageMemEXT,
     wow64_ext_glNamedBufferSubData,
     wow64_ext_glNamedBufferSubDataEXT,
@@ -90030,14 +89789,11 @@ const unixlib_entry_t __wine_unix_call_wow64_funcs[] =
     wow64_ext_glWriteMaskEXT,
     wow64_ext_wglAllocateMemoryNV,
     wow64_ext_wglBindTexImageARB,
-    wow64_ext_wglChoosePixelFormatARB,
     wow64_ext_wglCreateContextAttribsARB,
     wow64_ext_wglCreatePbufferARB,
     wow64_ext_wglDestroyPbufferARB,
     wow64_ext_wglFreeMemoryNV,
     wow64_ext_wglGetPbufferDCARB,
-    wow64_ext_wglGetPixelFormatAttribfvARB,
-    wow64_ext_wglGetPixelFormatAttribivARB,
     wow64_ext_wglGetSwapIntervalEXT,
     wow64_ext_wglMakeContextCurrentARB,
     wow64_ext_wglQueryCurrentRendererIntegerWINE,
@@ -90073,11 +89829,6 @@ static int null_wglGetPixelFormat( HDC hdc )
     return 0;
 }
 static BOOL null_wglSetPixelFormat( HDC hdc, int ipfd, const PIXELFORMATDESCRIPTOR *ppfd )
-{
-    WARN( "unsupported\n" );
-    return 0;
-}
-static BOOL null_wglShareLists( HGLRC hrcSrvShare, HGLRC hrcSrvSource )
 {
     WARN( "unsupported\n" );
     return 0;
@@ -91446,7 +91197,6 @@ struct opengl_funcs null_opengl_funcs =
     .p_wglDeleteContext = null_wglDeleteContext,
     .p_wglGetPixelFormat = null_wglGetPixelFormat,
     .p_wglSetPixelFormat = null_wglSetPixelFormat,
-    .p_wglShareLists = null_wglShareLists,
     .p_wglSwapBuffers = null_wglSwapBuffers,
     .p_glAccum = null_glAccum,
     .p_glAlphaFunc = null_glAlphaFunc,

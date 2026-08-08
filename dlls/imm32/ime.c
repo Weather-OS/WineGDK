@@ -419,7 +419,7 @@ static UINT ime_set_comp_string( HIMC himc, LPARAM lparam )
 
 static LRESULT ime_ui_notify( HIMC himc, HWND hwnd, WPARAM wparam, LPARAM lparam )
 {
-    TRACE( "himc %p, hwnd %p, wparam %s, lparam %#Ix\n", hwnd, himc, debugstr_imn(wparam), lparam );
+    TRACE( "himc %p, hwnd %p, wparam %s, lparam %#Ix\n", himc, hwnd, debugstr_imn(wparam), lparam );
 
     switch (wparam)
     {
@@ -534,7 +534,19 @@ BOOL WINAPI ImeSelect( HIMC himc, BOOL select )
 
 BOOL WINAPI ImeSetActiveContext( HIMC himc, BOOL flag )
 {
+    INPUTCONTEXT *ctx;
+    UINT msg;
+
     TRACE( "himc %p, flag %#x stub!\n", himc, flag );
+    if (!flag && (msg = ime_set_composition_status( himc, FALSE )))
+    {
+        if ((ctx = ImmLockIMC( himc )))
+        {
+            input_context_set_comp_str( ctx, NULL, 0 );
+            ImmUnlockIMC( himc );
+        }
+        ime_send_message( himc, msg, 0, 0 );
+    }
     return TRUE;
 }
 
@@ -683,8 +695,11 @@ BOOL WINAPI ImeSetCompositionString( HIMC himc, DWORD index, const void *comp, D
     {
         UINT msg, flags = GCS_COMPSTR | GCS_COMPCLAUSE | GCS_COMPATTR | GCS_DELTASTART | GCS_CURSORPOS;
         WCHAR wparam = comp && comp_len >= sizeof(WCHAR) ? *(WCHAR *)comp : 0;
-        input_context_set_comp_str( ctx, comp, comp_len / sizeof(WCHAR) );
-        if ((msg = ime_set_composition_status( himc, TRUE ))) ime_send_message( himc, msg, 0, 0 );
+        DWORD len = comp_len / sizeof(WCHAR);
+
+        while (len && comp && !((WCHAR *)comp)[len - 1]) --len;
+        input_context_set_comp_str( ctx, comp, len );
+        if ((msg = ime_set_composition_status( himc, !!len ))) ime_send_message( himc, msg, 0, 0 );
         ime_send_message( himc, WM_IME_COMPOSITION, wparam, flags );
     }
 

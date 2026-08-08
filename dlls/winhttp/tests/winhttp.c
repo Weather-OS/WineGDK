@@ -27,6 +27,7 @@
 #include <schannel.h>
 #include <winhttp.h>
 #include <wincrypt.h>
+#include <sspi.h>
 #include <winreg.h>
 #include <initguid.h>
 #include <httprequest.h>
@@ -1099,7 +1100,12 @@ static void test_secure_connection(void)
     CERT_CONTEXT *cert;
     WINHTTP_CERTIFICATE_INFO info;
     WINHTTP_SECURITY_INFO secinfo;
+    PCCERT_CHAIN_CONTEXT chain;
+    CERT_CHAIN_POLICY_PARA chain_policy = { .cbSize = sizeof(chain_policy) };
+    CERT_CHAIN_POLICY_STATUS policy_status = { .cbSize = sizeof(policy_status) };
+    SecPkgContext_Bindings *cbt;
     char buffer[32];
+    const char *ptr;
 
     ses = WinHttpOpen(L"winetest", 0, NULL, NULL, 0);
     ok(ses != NULL, "failed to open session %lu\n", GetLastError());
@@ -1152,8 +1158,24 @@ static void test_secure_connection(void)
 
     WinHttpCloseHandle(req);
 
+    size = sizeof(chain);
+    chain = (void *)0xdeadbeef;
+    SetLastError(0xdeadbeef);
+    ret = WinHttpQueryOption(ses, WINHTTP_OPTION_SERVER_CERT_CHAIN_CONTEXT, &chain, &size);
+    ok(!ret, "unexpected success.\n");
+    todo_wine ok(GetLastError() == ERROR_WINHTTP_INCORRECT_HANDLE_TYPE, "got error %lu.\n", GetLastError());
+    ok(chain == (void *)0xdeadbeef, "got %p.\n", chain);
+
     req = WinHttpOpenRequest(con, NULL, NULL, NULL, NULL, NULL, WINHTTP_FLAG_SECURE);
     ok(req != NULL, "failed to open a request %lu\n", GetLastError());
+
+    size = sizeof(chain);
+    chain = (void *)0xdeadbeef;
+    SetLastError(0xdeadbeef);
+    ret = WinHttpQueryOption(req, WINHTTP_OPTION_SERVER_CERT_CHAIN_CONTEXT, &chain, &size);
+    ok(!ret, "unexpected success.\n");
+    ok(GetLastError() == ERROR_WINHTTP_INCORRECT_HANDLE_STATE, "got error %lu.\n", GetLastError());
+    ok(!chain, "got %p.\n", chain);
 
     flags = 0xdeadbeef;
     size = sizeof(flags);
@@ -1198,6 +1220,18 @@ static void test_secure_connection(void)
     }
     ok(ret, "failed to send request %lu\n", GetLastError());
 
+    size = sizeof(chain);
+    chain = (void *)0xdeadbeef;
+    SetLastError(0xdeadbeef);
+    ret = WinHttpQueryOption(req, WINHTTP_OPTION_SERVER_CERT_CHAIN_CONTEXT, &chain, &size);
+    ok(ret, "got error %lu.\n", GetLastError());
+    ok(chain && chain != (void *)0xdeadbeef, "got %p.\n", chain);
+    ret = CertVerifyCertificateChainPolicy(CERT_CHAIN_POLICY_SSL, chain, &chain_policy, &policy_status);
+    ok(ret, "got error %lu.\n", GetLastError());
+    ok(!chain->TrustStatus.dwErrorStatus, "got %#lx.\n", chain->TrustStatus.dwErrorStatus);
+    ok(!policy_status.dwError, "got %#lx.\n", policy_status.dwError);
+    CertFreeCertificateChain(chain);
+
     size = sizeof(cert);
     ret = WinHttpQueryOption(req, WINHTTP_OPTION_SERVER_CERT_CONTEXT, &cert, &size );
     ok(ret, "failed to retrieve certificate context %lu\n", GetLastError());
@@ -1231,6 +1265,29 @@ static void test_secure_connection(void)
         ok(secinfo.ConnectionInfo.dwProtocol == SP_PROT_TLS1_2_CLIENT, "got %lu\n", secinfo.ConnectionInfo.dwProtocol);
         ok(secinfo.ConnectionInfo.dwCipherStrength == info.dwKeySize, "got %lu\n", secinfo.ConnectionInfo.dwCipherStrength);
     }
+
+    size = 0;
+    ret = WinHttpQueryOption(req, WINHTTP_OPTION_SERVER_CBT, NULL, &size);
+    ok(!ret && GetLastError() == ERROR_INSUFFICIENT_BUFFER, "got %d %lu\n", ret, GetLastError());
+
+    cbt = calloc( 1, size );
+    ret = WinHttpQueryOption(req, WINHTTP_OPTION_SERVER_CBT, cbt, &size);
+    ok(ret, "got %lu\n", GetLastError());
+    ok(cbt->BindingsLength > sizeof(*cbt->Bindings) + sizeof("tls-server-end-point:"), "got %lu\n", cbt->BindingsLength);
+    ok(!!cbt->Bindings, "bindings not set\n");
+    ok(!cbt->Bindings->dwInitiatorAddrType, "got %lu\n", cbt->Bindings->dwInitiatorAddrType);
+    ok(!cbt->Bindings->cbInitiatorLength, "got %lu\n", cbt->Bindings->cbInitiatorLength);
+    ok(!cbt->Bindings->dwInitiatorOffset, "got %lu\n", cbt->Bindings->dwInitiatorOffset);
+    ok(!cbt->Bindings->dwAcceptorAddrType, "got %lu\n", cbt->Bindings->dwAcceptorAddrType);
+    ok(!cbt->Bindings->cbAcceptorLength, "got %lu\n", cbt->Bindings->cbAcceptorLength);
+    ok(!cbt->Bindings->dwAcceptorOffset, "got %lu\n", cbt->Bindings->dwAcceptorOffset);
+    ok(cbt->Bindings->cbApplicationDataLength > sizeof("tls-server-end-point:"), "got %lu\n",
+       cbt->Bindings->cbApplicationDataLength);
+    ok(cbt->Bindings->dwApplicationDataOffset, "data offset not set\n");
+    ptr = (const char *)cbt->Bindings + cbt->Bindings->dwApplicationDataOffset;
+    ok(!memcmp(ptr, "tls-server-end-point:", sizeof("tls-server-end-point:") - 1),
+       "got %s\n", wine_dbgstr_an(ptr, cbt->Bindings->cbApplicationDataLength));
+    free( cbt );
 
     ret = WinHttpReceiveResponse(req, NULL);
     if (!ret && GetLastError() == ERROR_WINHTTP_CONNECTION_ERROR)
@@ -5819,8 +5876,9 @@ static void test_WinHttpGetProxyForUrl(int port)
 static void test_chunked_read(void)
 {
     WCHAR header[32];
-    DWORD len, err;
+    DWORD len, err, bytes_read;
     HINTERNET ses, con = NULL, req = NULL;
+    char *buf;
     BOOL ret;
 
     trace( "starting chunked read test\n" );
@@ -5865,33 +5923,31 @@ static void test_chunked_read(void)
     ok( !ret, "unexpected CONTENT_LENGTH header %s\n", wine_dbgstr_w(header) );
     ok( GetLastError() == ERROR_WINHTTP_HEADER_NOT_FOUND, "wrong error %lu\n", GetLastError() );
 
-    trace( "entering query loop\n" );
-    for (;;)
-    {
-        len = 0xdeadbeef;
-        ret = WinHttpQueryDataAvailable( req, &len );
-        ok( ret, "WinHttpQueryDataAvailable failed with error %lu\n", GetLastError() );
-        if (ret) ok( len != 0xdeadbeef, "WinHttpQueryDataAvailable return wrong length\n" );
-        trace( "got %lu available\n", len );
-        if (len)
-        {
-            DWORD bytes_read;
-            char *buf = HeapAlloc( GetProcessHeap(), 0, len + 1 );
+    len = 0xdeadbeef;
+    ret = WinHttpQueryDataAvailable( req, &len );
+    ok( ret, "got %lu\n", GetLastError() );
+    ok( len == 70, "got %lu\n", len );
 
-            ret = WinHttpReadData( req, buf, len, &bytes_read );
-            ok(ret, "WinHttpReadData failed: %lu\n", GetLastError());
+    buf = HeapAlloc( GetProcessHeap(), 0, len + 1 );
+    ret = WinHttpReadData( req, buf, len, &bytes_read );
+    ok(ret, "got %lu\n", GetLastError());
+    buf[bytes_read] = 0;
+    ok( len == bytes_read, "only got %lu of %lu available\n", bytes_read, len );
+    ok( buf[bytes_read - 1] == '\n', "received partial line '%s'\n", buf );
+    HeapFree( GetProcessHeap(), 0, buf );
 
-            buf[bytes_read] = 0;
-            trace( "WinHttpReadData -> %d %lu\n", ret, bytes_read );
-            ok( len == bytes_read, "only got %lu of %lu available\n", bytes_read, len );
-            ok( buf[bytes_read - 1] == '\n', "received partial line '%s'\n", buf );
+    len = 0xdeadbeef;
+    ret = WinHttpQueryDataAvailable( req, &len );
+    ok( ret, "got %lu\n", GetLastError() );
+    ok( len == 5, "got %lu\n", len );
 
-            HeapFree( GetProcessHeap(), 0, buf );
-            if (!bytes_read) break;
-        }
-        if (!len) break;
-    }
-    trace( "done\n" );
+    buf = HeapAlloc( GetProcessHeap(), 0, len + 1 );
+    ret = WinHttpReadData( req, buf, len, &bytes_read );
+    ok(ret, "got %lu\n", GetLastError());
+    buf[bytes_read] = 0;
+    ok( len == bytes_read, "only got %lu of %lu available\n", bytes_read, len );
+    ok( buf[bytes_read - 1] == '\n', "received partial line '%s'\n", buf );
+    HeapFree( GetProcessHeap(), 0, buf );
 
 done:
     if (req) WinHttpCloseHandle( req );

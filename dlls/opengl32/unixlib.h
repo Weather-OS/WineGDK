@@ -53,14 +53,6 @@ struct wglSetPixelFormat_params
     BOOL ret;
 };
 
-struct wglShareLists_params
-{
-    TEB *teb;
-    HGLRC hrcSrvShare;
-    HGLRC hrcSrvSource;
-    BOOL ret;
-};
-
 struct wglSwapBuffers_params
 {
     TEB *teb;
@@ -3704,16 +3696,6 @@ struct glBufferStorage_params
     GLenum target;
     GLsizeiptr size;
     const void *data;
-    GLbitfield flags;
-};
-
-struct glBufferStorageExternalEXT_params
-{
-    TEB *teb;
-    GLenum target;
-    GLintptr offset;
-    GLsizeiptr size;
-    GLeglClientBufferEXT clientBuffer;
     GLbitfield flags;
 };
 
@@ -14906,16 +14888,6 @@ struct glNamedBufferStorageEXT_params
     GLbitfield flags;
 };
 
-struct glNamedBufferStorageExternalEXT_params
-{
-    TEB *teb;
-    GLuint buffer;
-    GLintptr offset;
-    GLsizeiptr size;
-    GLeglClientBufferEXT clientBuffer;
-    GLbitfield flags;
-};
-
 struct glNamedBufferStorageMemEXT_params
 {
     TEB *teb;
@@ -25666,18 +25638,6 @@ struct wglBindTexImageARB_params
     BOOL ret;
 };
 
-struct wglChoosePixelFormatARB_params
-{
-    TEB *teb;
-    HDC hdc;
-    const int *piAttribIList;
-    const FLOAT *pfAttribFList;
-    UINT nMaxFormats;
-    int *piFormats;
-    UINT *nNumFormats;
-    BOOL ret;
-};
-
 struct wglCreateContextAttribsARB_params
 {
     TEB *teb;
@@ -25716,30 +25676,6 @@ struct wglGetPbufferDCARB_params
     TEB *teb;
     HPBUFFERARB hPbuffer;
     HDC ret;
-};
-
-struct wglGetPixelFormatAttribfvARB_params
-{
-    TEB *teb;
-    HDC hdc;
-    int iPixelFormat;
-    int iLayerPlane;
-    UINT nAttributes;
-    const int *piAttributes;
-    FLOAT *pfValues;
-    BOOL ret;
-};
-
-struct wglGetPixelFormatAttribivARB_params
-{
-    TEB *teb;
-    HDC hdc;
-    int iPixelFormat;
-    int iLayerPlane;
-    UINT nAttributes;
-    const int *piAttributes;
-    int *piValues;
-    BOOL ret;
 };
 
 struct wglGetSwapIntervalEXT_params
@@ -25859,7 +25795,6 @@ enum unix_funcs
     unix_wglDeleteContext,
     unix_wglGetPixelFormat,
     unix_wglSetPixelFormat,
-    unix_wglShareLists,
     unix_wglSwapBuffers,
     unix_glAccum,
     unix_glAlphaFunc,
@@ -26338,7 +26273,6 @@ enum unix_funcs
     unix_glBufferParameteriAPPLE,
     unix_glBufferRegionEnabled,
     unix_glBufferStorage,
-    unix_glBufferStorageExternalEXT,
     unix_glBufferStorageMemEXT,
     unix_glBufferSubData,
     unix_glBufferSubDataARB,
@@ -27659,7 +27593,6 @@ enum unix_funcs
     unix_glNamedBufferPageCommitmentMemNV,
     unix_glNamedBufferStorage,
     unix_glNamedBufferStorageEXT,
-    unix_glNamedBufferStorageExternalEXT,
     unix_glNamedBufferStorageMemEXT,
     unix_glNamedBufferSubData,
     unix_glNamedBufferSubDataEXT,
@@ -28932,14 +28865,11 @@ enum unix_funcs
     unix_glWriteMaskEXT,
     unix_wglAllocateMemoryNV,
     unix_wglBindTexImageARB,
-    unix_wglChoosePixelFormatARB,
     unix_wglCreateContextAttribsARB,
     unix_wglCreatePbufferARB,
     unix_wglDestroyPbufferARB,
     unix_wglFreeMemoryNV,
     unix_wglGetPbufferDCARB,
-    unix_wglGetPixelFormatAttribfvARB,
-    unix_wglGetPixelFormatAttribivARB,
     unix_wglGetSwapIntervalEXT,
     unix_wglMakeContextCurrentARB,
     unix_wglQueryCurrentRendererIntegerWINE,

@@ -43,6 +43,10 @@
 61 stdcall OpenThemeDataEx(ptr wstr long)
 62 stub -noname ServerClearStockObjects
 63 stub -noname MarkSelection
+95 stdcall GetImmersiveColorFromColorSetEx(long long long long)
+96 stdcall -noname GetImmersiveColorTypeFromName(wstr)
+98 stdcall GetImmersiveUserColorSetPreference(long long)
+100 stdcall -noname GetImmersiveColorNamedTypeByIndex(long)
 104 stdcall -noname RefreshImmersiveColorPolicyState()
 132 stdcall -noname ShouldAppsUseDarkMode()
 133 stdcall -noname AllowDarkModeForWindow(ptr long)

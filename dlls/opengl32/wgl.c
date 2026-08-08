@@ -101,6 +101,28 @@ static void cleanup_wow64_strings(void)
 
 #endif
 
+static const char *debugstr_object_type( enum object_type type )
+{
+    switch (type)
+    {
+    case OBJ_TYPE_BUFFER: return "buffer";
+    case OBJ_TYPE_DISPLAY_LIST: return "display list";
+    case OBJ_TYPE_FRAMEBUFFER: return "framebuffer";
+    case OBJ_TYPE_MEMORY: return "memory";
+    case OBJ_TYPE_PATH: return "path";
+    case OBJ_TYPE_PROGRAM: return "program";
+    case OBJ_TYPE_RENDERBUFFER: return "renderbuffer";
+    case OBJ_TYPE_SEMAPHORE: return "semaphore";
+    case OBJ_TYPE_SHADER: return "shader";
+    case OBJ_TYPE_SAMPLER: return "sampler";
+    case OBJ_TYPE_SHADER_ATI: return "fragment shader";
+    case OBJ_TYPE_SHADER_EXT: return "vertex shader";
+    case OBJ_TYPE_TEXTURE: return "texture";
+    case OBJ_TYPE_COUNT: break;
+    }
+    return wine_dbg_sprintf( "object (type %u)", type );
+}
+
 static void init_wgl_extensions( const BOOLEAN extensions[GL_EXTENSION_COUNT] )
 {
     UINT pos = 0, len = 0, ext;
@@ -132,6 +154,7 @@ struct handle_entry
 
 struct handle_table
 {
+    SRWLOCK              lock;
     struct handle_entry  handles[1024];
     struct handle_entry *next_free;
     UINT                 count;
@@ -145,6 +168,7 @@ static struct handle_entry *alloc_handle( struct handle_table *table, void *user
     struct handle_entry *ptr = NULL;
     WORD generation;
 
+    AcquireSRWLockExclusive( &table->lock );
     if ((ptr = table->next_free)) table->next_free = ptr->next_free;
     else if (table->count < ARRAY_SIZE(table->handles)) ptr = table->handles + table->count++;
     else ptr = NULL;
@@ -157,42 +181,50 @@ static struct handle_entry *alloc_handle( struct handle_table *table, void *user
     }
 
     if (!ptr) RtlSetLastWin32Error( ERROR_NOT_ENOUGH_MEMORY );
+    ReleaseSRWLockExclusive( &table->lock );
     return ptr;
 }
 
 static void free_handle( struct handle_table *table, struct handle_entry *ptr )
 {
+    AcquireSRWLockExclusive( &table->lock );
     ptr->handle |= 0xffff;
     ptr->next_free = table->next_free;
     table->next_free = ptr;
+    ReleaseSRWLockExclusive( &table->lock );
 }
 
 static struct handle_entry *get_handle_ptr( struct handle_table *table, HANDLE handle )
 {
-    WORD index = LOWORD( handle ) - 1;
-    struct handle_entry *ptr = table->handles + index;
-
-    if (index < table->count && ULongToHandle( ptr->handle ) == handle) return ptr;
-    RtlSetLastWin32Error( ERROR_INVALID_HANDLE );
-    return NULL;
-}
-
-static struct opengl_client_pbuffer *pbuffer_from_handle( HPBUFFERARB handle )
-{
+    UINT index = ((UINT_PTR)handle & 0xffff) - 1;
     struct handle_entry *ptr;
 
-    EnterCriticalSection( &wgl_cs );
-    ptr = get_handle_ptr( &pbuffers, handle );
-    LeaveCriticalSection( &wgl_cs );
+    if (index >= ARRAY_SIZE(table->handles)) return NULL;
+    ptr = table->handles + index;
 
-    return ptr ? ptr->pbuffer : NULL;
+    AcquireSRWLockShared( &table->lock );
+    if (index >= table->count || ULongToHandle( ptr->handle ) != handle)
+    {
+        RtlSetLastWin32Error( ERROR_INVALID_HANDLE );
+        ptr = NULL;
+    }
+    ReleaseSRWLockShared( &table->lock );
+
+    return ptr;
 }
 
 BOOL get_pbuffer_from_handle( HPBUFFERARB handle, HPBUFFERARB *obj )
 {
-    struct opengl_client_pbuffer *pbuffer = pbuffer_from_handle( handle );
-    *obj = pbuffer ? &pbuffer->obj : NULL;
-    return pbuffer || !handle;
+    struct handle_entry *ptr;
+
+    if (!(ptr = get_handle_ptr( &pbuffers, handle )))
+    {
+        SetLastError( ERROR_INVALID_HANDLE );
+        return FALSE;
+    }
+
+    *obj = &ptr->pbuffer->obj;
+    return TRUE;
 }
 
 static struct handle_entry *alloc_client_pbuffer(void)
@@ -201,21 +233,14 @@ static struct handle_entry *alloc_client_pbuffer(void)
     struct handle_entry *ptr;
 
     if (!(pbuffer = calloc( 1, sizeof(*pbuffer) ))) return NULL;
-
-    EnterCriticalSection( &wgl_cs );
-    ptr = alloc_handle( &pbuffers, pbuffer );
-    LeaveCriticalSection( &wgl_cs );
-
-    if (!ptr) free( pbuffer );
+    if (!(ptr = alloc_handle( &pbuffers, pbuffer ))) free( pbuffer );
     return ptr;
 }
 
 static void free_client_pbuffer( struct handle_entry *ptr )
 {
     struct opengl_client_pbuffer *pbuffer = ptr->pbuffer;
-    EnterCriticalSection( &wgl_cs );
     free_handle( &pbuffers, ptr );
-    LeaveCriticalSection( &wgl_cs );
     free( pbuffer );
 }
 
@@ -246,11 +271,11 @@ BOOL WINAPI wglDestroyPbufferARB( HPBUFFERARB handle )
 
     TRACE( "handle %p\n", handle );
 
-    EnterCriticalSection( &wgl_cs );
-    ptr = get_handle_ptr( &pbuffers, handle );
-    LeaveCriticalSection( &wgl_cs );
-
-    if (!ptr) return FALSE;
+    if (!(ptr = get_handle_ptr( &pbuffers, handle )))
+    {
+        SetLastError( ERROR_INVALID_HANDLE );
+        return FALSE;
+    }
     args.hPbuffer = &ptr->pbuffer->obj;
 
     if ((status = UNIX_CALL( wglDestroyPbufferARB, &args ))) WARN( "wglDestroyPbufferARB returned %#lx\n", status );
@@ -259,10 +284,251 @@ BOOL WINAPI wglDestroyPbufferARB( HPBUFFERARB handle )
     return args.ret;
 }
 
+#define L1_COUNT   0x80
+#define L2_COUNT  0x400
+#define L3_COUNT 0x8000
+
+struct object_table
+{
+    enum object_type    type;                   /* object type of the id table */
+    SRWLOCK             lock;                   /* lock for accessing the table */
+    GLuint            **host_ids[L1_COUNT];     /* client -> host id mapping sparse array */
+    GLuint            **client_ids[L1_COUNT];   /* host -> client id mapping sparse array */
+    GLuint              min_free;               /* id to start looking for a free slot */
+    BOOL                implicit;               /* table allows implicit allocation */
+};
+
+static GLuint *find_object_id( GLuint **ids[L1_COUNT], GLuint client_id )
+{
+    GLuint i = client_id / L3_COUNT / L2_COUNT, j = (client_id / L3_COUNT) % L2_COUNT, k = client_id % L3_COUNT;
+    return ids[i] ? ids[i][j] ? ids[i][j] + k : NULL : NULL;
+}
+
+static GLuint *alloc_object_ids( GLuint **ids[L1_COUNT], GLuint client_id )
+{
+    GLuint i = client_id / L3_COUNT / L2_COUNT, j = (client_id / L3_COUNT) % L2_COUNT;
+    GLuint **ptr;
+
+    if (!(ptr = ids[i]) && !(ptr = ids[i] = calloc( L2_COUNT, sizeof(*ptr) ))) return NULL;
+    if (!ptr[j] && !(ptr[j] = calloc( L3_COUNT, sizeof(*ptr[j]) ))) return NULL;
+    return ptr[j];
+}
+
+static void free_object_ids( struct object_table *table, GLuint **ids[L1_COUNT],
+                             void (*callback)(struct object_table *, GLuint, GLuint) )
+{
+    GLuint id, **l1_block, *l2_block;
+
+    for (int i = 0; i < L1_COUNT; i++)
+    {
+        if (!(l1_block = ids[i])) continue;
+        for (int j = 0; j < L2_COUNT; j++)
+        {
+            if (!(l2_block = l1_block[j])) continue;
+            for (int k = 0; callback && k < L3_COUNT; k++)
+            {
+                if (!(id = l2_block[k])) continue;
+                callback( table, id, (i * L2_COUNT + j) * L3_COUNT + k );
+            }
+            free( l2_block );
+        }
+        free( l1_block );
+    }
+}
+
+static GLuint alloc_client_id( struct object_table *table, GLuint host_id, UINT range )
+{
+    /* if we don't need implicit allocations, use the host allocated ids directly */
+    if (!table->implicit) return host_id;
+
+    /* otherwise we need to allocate client id ourselves, lookup for a free id */
+    for (GLuint id = table->min_free + 1, n = range, *ids; id != 0; id++)
+    {
+        if (!(ids = alloc_object_ids( table->host_ids, id ))) return 0;
+        if (ids[id % L3_COUNT]) n = range;
+        else if (!n--) return table->min_free = id - range;
+    }
+
+    return 0;
+}
+
+static GLuint set_object( struct object_table *table, GLuint client_id, GLuint host_id )
+{
+    GLuint *ids;
+
+    if (!(ids = alloc_object_ids( table->host_ids, client_id ))) goto failed;
+    ids[client_id % L3_COUNT] = host_id;
+
+    if (table->implicit || table->type == OBJ_TYPE_SHADER /* for destruction check */)
+    {
+        if (!(ids = alloc_object_ids( table->client_ids, host_id ))) goto failed;
+        ids[host_id % L3_COUNT] = client_id;
+    }
+
+    TRACE( "Inserted %s client %#x, host %#x\n", debugstr_object_type(table->type), client_id, host_id );
+    return client_id;
+
+failed:
+    ERR( "Failed to allocate object id block\n" );
+    return -1;
+}
+
+static GLuint del_object( struct object_table *table, GLuint client_id )
+{
+    GLuint *object, host_id = 0;
+
+    if (!client_id || !(object = find_object_id( table->host_ids, client_id ))) return -1;
+    table->min_free = min( table->min_free, client_id - 1 );
+    host_id = *object;
+    if (table->type != OBJ_TYPE_SHADER) *object = 0; /* shader objects may outlive their deletion */
+    if (host_id && (object = find_object_id( table->client_ids, host_id ))) *object = 0;
+
+    TRACE( "Deleting %s client %#x, host %#x\n", debugstr_object_type( table->type ), client_id, host_id );
+    return host_id ? host_id : -1;
+}
+
+static GLuint get_object( struct object_table *table, GLuint client_id, BOOL check )
+{
+    const GLuint *object = find_object_id( table->host_ids, client_id );
+    GLuint host_id = object ? *object : 0;
+
+    TRACE( "Found %s client %#x, host %#x\n", debugstr_object_type( table->type ), client_id, host_id );
+    return check || host_id ? host_id : -1;
+}
+
+#define MAKE_OBJECT_CALL( func, ... )                                                              \
+    struct func##_params args = { .teb = NtCurrentTeb(), __VA_ARGS__ };                            \
+    UNIX_CALL( func, &args )
+
+static GLuint create_object( enum object_type type )
+{
+    GLuint object;
+
+    switch (type)
+    {
+    case OBJ_TYPE_BUFFER: { MAKE_OBJECT_CALL( glGenBuffers, .n = 1, .buffers = &object ); return object; }
+    case OBJ_TYPE_DISPLAY_LIST: { MAKE_OBJECT_CALL( glGenLists, .range = 1 ); return args.ret; }
+    case OBJ_TYPE_FRAMEBUFFER: { MAKE_OBJECT_CALL( glGenFramebuffers, .n = 1, .framebuffers = &object ); return object; }
+    case OBJ_TYPE_MEMORY: assert( 0 ); return 0;
+    case OBJ_TYPE_PATH: { MAKE_OBJECT_CALL( glGenPathsNV, .range = 1 ); return args.ret; }
+    case OBJ_TYPE_PROGRAM: { MAKE_OBJECT_CALL( glGenProgramsARB, .n = 1, .programs = &object ); return object; }
+    case OBJ_TYPE_RENDERBUFFER: { MAKE_OBJECT_CALL( glGenRenderbuffers, .n = 1, .renderbuffers = &object ); return object; }
+    case OBJ_TYPE_SAMPLER: { MAKE_OBJECT_CALL( glGenSamplers, .count = 1, .samplers = &object ); return object; }
+    case OBJ_TYPE_SEMAPHORE: { MAKE_OBJECT_CALL( glGenSemaphoresEXT, .n = 1, .semaphores = &object ); return object; }
+    case OBJ_TYPE_SHADER: assert( 0 ); return 0;
+    case OBJ_TYPE_SHADER_ATI: { MAKE_OBJECT_CALL( glGenFragmentShadersATI, .range = 1 ); return args.ret; }
+    case OBJ_TYPE_SHADER_EXT: { MAKE_OBJECT_CALL( glGenVertexShadersEXT, .range = 1 ); return args.ret; }
+    case OBJ_TYPE_TEXTURE: { MAKE_OBJECT_CALL( glGenTextures, .n = 1, .textures = &object ); return object; }
+    case OBJ_TYPE_COUNT: break;
+    }
+
+    return 0;
+}
+
+static void destroy_object( enum object_type type, GLuint object )
+{
+    switch (type)
+    {
+    case OBJ_TYPE_BUFFER: { MAKE_OBJECT_CALL( glDeleteBuffers, .n = 1, .buffers = &object ); return; }
+    case OBJ_TYPE_DISPLAY_LIST: { MAKE_OBJECT_CALL( glDeleteLists, .range = 1, .list = object ); return; }
+    case OBJ_TYPE_FRAMEBUFFER: { MAKE_OBJECT_CALL( glDeleteFramebuffers, .n = 1, .framebuffers = &object ); return; }
+    case OBJ_TYPE_MEMORY: { MAKE_OBJECT_CALL( glDeleteMemoryObjectsEXT, .n = 1, .memoryObjects = &object ); return; }
+    case OBJ_TYPE_PATH: { MAKE_OBJECT_CALL( glDeletePathsNV, .range = 1, .path = object ); return; }
+    case OBJ_TYPE_PROGRAM: { MAKE_OBJECT_CALL( glDeleteProgramsARB, .n = 1, .programs = &object ); return; }
+    case OBJ_TYPE_RENDERBUFFER: { MAKE_OBJECT_CALL( glDeleteRenderbuffers, .n = 1, .renderbuffers = &object ); return; }
+    case OBJ_TYPE_SAMPLER: { MAKE_OBJECT_CALL( glDeleteSamplers, .count = 1, .samplers = &object ); return; }
+    case OBJ_TYPE_SEMAPHORE: { MAKE_OBJECT_CALL( glDeleteSemaphoresEXT, .n = 1, .semaphores = &object ); return; }
+    case OBJ_TYPE_SHADER: { MAKE_OBJECT_CALL( glDeleteObjectARB, .obj = object ); return; }
+    case OBJ_TYPE_SHADER_ATI: { MAKE_OBJECT_CALL( glDeleteFragmentShaderATI, .id = object ); return; }
+    case OBJ_TYPE_SHADER_EXT: { MAKE_OBJECT_CALL( glDeleteVertexShaderEXT, .id = object ); return; }
+    case OBJ_TYPE_TEXTURE: { MAKE_OBJECT_CALL( glDeleteTextures, .n = 1, .textures = &object ); return; }
+    case OBJ_TYPE_COUNT: return;
+    }
+}
+
+#undef MAKE_OBJECT_CALL
+
+static void destroy_host_object( struct object_table *table, GLuint host_id, GLuint client_id )
+{
+    WARN( "Destroying %s client %#x, host %#x\n", debugstr_object_type( table->type ), client_id, host_id );
+    destroy_object( table->type, host_id );
+}
+
+static void destroy_host_shader( struct object_table *table, GLuint host_id, GLuint client_id )
+{
+    GLuint *object;
+    if (!(object = find_object_id( table->client_ids, host_id )) || !(client_id = *object)) return;
+    WARN( "Destroying %s client %#x, host %#x\n", debugstr_object_type( table->type ), client_id, host_id );
+    destroy_object( table->type, host_id );
+}
+
+static void free_object_table( struct object_table *table, BOOL destroy )
+{
+    if (table->type == OBJ_TYPE_SHADER) free_object_ids( table, table->host_ids, destroy ? destroy_host_shader : NULL );
+    else free_object_ids( table, table->host_ids, destroy ? destroy_host_object : NULL );
+    free_object_ids( table, table->client_ids, NULL );
+}
+
+static void init_object_table( struct object_table *table, enum object_type type )
+{
+    InitializeSRWLock( &table->lock );
+    table->type = type;
+}
+
+struct display_lists
+{
+    LONG                refcount;
+    LONG                modified;
+    struct object_table tables[OBJ_TYPE_COUNT];
+    struct handle_table syncs;
+};
+
+static struct display_lists *display_lists_create(void)
+{
+    struct display_lists *lists;
+
+    if (!(lists = calloc( 1, sizeof(*lists) ))) return NULL;
+    lists->refcount = 1;
+
+    for (UINT i = 0; i < OBJ_TYPE_COUNT; i++)
+        init_object_table( lists->tables + i, i );
+    InitializeSRWLock( &lists->syncs.lock );
+
+    return lists;
+}
+
+static struct display_lists *display_lists_acquire( struct display_lists *lists )
+{
+    InterlockedIncrement( &lists->refcount );
+    return lists;
+}
+
+static void display_lists_release( struct display_lists *lists, BOOL destroy )
+{
+    struct glDeleteSync_params delete_sync = { .teb = NtCurrentTeb() };
+
+    if (InterlockedDecrement( &lists->refcount )) return;
+
+    for (UINT i = 0; i < OBJ_TYPE_COUNT; i++)
+        free_object_table( lists->tables + i, destroy );
+
+    for (int i = 0; i < lists->syncs.count; i++)
+    {
+        struct handle_entry *entry = lists->syncs.handles + i;
+        if (LOWORD(entry->handle) == 0xffff) continue;
+        WARN( "Leaking sync client %#x, host %p\n", entry->handle, entry->user_data );
+        delete_sync.sync = entry->user_data;
+        if (destroy) UNIX_CALL( glDeleteSync, &delete_sync );
+        free( entry->user_data );
+    }
+
+    free( lists );
+}
+
 struct context
 {
     struct opengl_client_context base;
-    struct handle_table syncs;
+    struct display_lists *lists;
 };
 
 static struct context *context_from_opengl_client_context( struct opengl_client_context *base )
@@ -273,12 +539,8 @@ static struct context *context_from_opengl_client_context( struct opengl_client_
 static struct opengl_client_context *opengl_client_context_from_handle( HGLRC handle )
 {
     struct handle_entry *ptr;
-
-    EnterCriticalSection( &wgl_cs );
-    ptr = get_handle_ptr( &contexts, handle );
-    LeaveCriticalSection( &wgl_cs );
-
-    return ptr ? ptr->context : NULL;
+    if (!(ptr = get_handle_ptr( &contexts, handle ))) return NULL;
+    return ptr->context;
 }
 
 static struct context *context_from_handle( HGLRC handle )
@@ -293,36 +555,35 @@ BOOL get_context_from_handle( HGLRC handle, HGLRC *obj )
     return context || !handle;
 }
 
-static struct handle_entry *alloc_client_context(void)
+static struct handle_entry *alloc_client_context( struct context *share )
 {
     struct context *context;
     struct handle_entry *ptr;
 
     if (!(context = calloc( 1, sizeof(*context) ))) return NULL;
+    if (!(context->lists = share ? display_lists_acquire( share->lists ) : display_lists_create())) goto failed;
+    if ((ptr = alloc_handle( &contexts, context ))) return ptr;
 
-    EnterCriticalSection( &wgl_cs );
-    ptr = alloc_handle( &contexts, context );
-    LeaveCriticalSection( &wgl_cs );
-
-    if (!ptr) free( context );
-    return ptr;
+    display_lists_release( context->lists, share ? !share->base.broken_sharing : TRUE );
+failed:
+    free( context );
+    return NULL;
 }
 
 static void free_client_context( struct handle_entry *ptr )
 {
     struct context *context = context_from_opengl_client_context( ptr->context );
 
-    for (int i = 0; i < context->syncs.count; i++)
-    {
-        struct handle_entry *entry = context->syncs.handles + i;
-        if (LOWORD(entry->handle) == 0xffff) continue;
-        free( entry->user_data );
-    }
+    display_lists_release( context->lists, !context->base.broken_sharing );
 
-    EnterCriticalSection( &wgl_cs );
     free_handle( &contexts, ptr );
-    LeaveCriticalSection( &wgl_cs );
     free( context );
+}
+
+static struct context *get_current_context(void)
+{
+    HGLRC current = NtCurrentTeb()->glCurrentRC;
+    return current ? context_from_handle( current ) : NULL;
 }
 
 void set_gl_error( GLenum error )
@@ -330,6 +591,319 @@ void set_gl_error( GLenum error )
     struct opengl_client_context *context;
     if (!(context = opengl_client_context_from_handle( NtCurrentTeb()->glCurrentRC ))) return;
     if (!context->last_error && !(context->last_error = glGetError())) context->last_error = error;
+}
+
+static struct object_table *get_object_table( struct context *ctx, enum object_type type, BOOL write )
+{
+    if (write) InterlockedExchange( &ctx->lists->modified, 1 );
+    return type < OBJ_TYPE_COUNT ? ctx->lists->tables + type : NULL;
+}
+
+void put_context_objects( enum object_type type, UINT n, GLuint *handles )
+{
+    struct object_table *table;
+    struct context *ctx;
+
+    if (!(ctx = get_current_context())) return;
+    if (!(table = get_object_table( ctx, type, TRUE ))) return;
+
+    AcquireSRWLockExclusive( &table->lock );
+    for (UINT i = 0; i < n; i++) handles[i] = handles[i] ? set_object( table, alloc_client_id( table, handles[i], 0 ), handles[i] ) : 0;
+    ReleaseSRWLockExclusive( &table->lock );
+}
+
+GLuint put_context_object_range( enum object_type type, UINT range, GLuint base )
+{
+    struct object_table *table;
+    struct context *ctx;
+    GLuint first;
+
+    if (!(ctx = get_current_context())) return base;
+    if (!(table = get_object_table( ctx, type, TRUE ))) return base;
+
+    AcquireSRWLockExclusive( &table->lock );
+    first = alloc_client_id( table, base, range );
+    for (UINT i = 0; i < range; i++) set_object( table, first + i, base + i );
+    ReleaseSRWLockExclusive( &table->lock );
+
+    return first;
+}
+
+static void alloc_client_objects( struct context *ctx, enum object_type type, UINT n, const GLuint *handles )
+{
+    struct object_table *table;
+
+    if (!(table = get_object_table( ctx, type, TRUE ))) return;
+
+    AcquireSRWLockExclusive( &table->lock );
+    for (UINT i = 0; i < n; i++)
+    {
+        if (!handles[i] || get_object( table, handles[i], TRUE )) continue;
+        WARN( "Creating implicit %s client %#x\n", debugstr_object_type( type ), handles[i] );
+        set_object( table, handles[i], create_object( table->type ) );
+        table->implicit = TRUE; /* from now on we cannot rely on host-allocated ids */
+    }
+    ReleaseSRWLockExclusive( &table->lock );
+}
+
+static BOOL is_core_context( struct opengl_client_context *ctx )
+{
+    if (ctx->major_version < 3) return FALSE;
+    if (ctx->major_version > 3) return !!(ctx->profile_mask & WGL_CONTEXT_CORE_PROFILE_BIT_ARB);
+    if (ctx->minor_version > 1) return !!(ctx->profile_mask & WGL_CONTEXT_CORE_PROFILE_BIT_ARB);
+    if (ctx->minor_version == 1) return !ctx->extensions[GL_ARB_compatibility];
+    return !!(ctx->context_flags & GL_CONTEXT_FLAG_FORWARD_COMPATIBLE_BIT);
+}
+
+BOOL alloc_context_objects( enum object_type type, UINT n, const GLuint *handles, BOOL extension )
+{
+    BOOL alloc_client, needs_client = FALSE;
+    struct object_table *table;
+    struct context *ctx;
+
+    if (!handles || !(ctx = get_current_context())) return TRUE;
+    if (!(table = get_object_table( ctx, type, FALSE ))) return TRUE;
+
+    /* only allow explicit allocation in some cases, use host allocated ids directly in that case */
+    switch (type)
+    {
+    case OBJ_TYPE_DISPLAY_LIST:
+        if (is_core_context( &ctx->base )) return FALSE;
+        alloc_client = TRUE;
+        break;
+    case OBJ_TYPE_FRAMEBUFFER:
+    case OBJ_TYPE_RENDERBUFFER:
+    case OBJ_TYPE_PROGRAM:
+    case OBJ_TYPE_SHADER_EXT:
+    case OBJ_TYPE_SHADER_ATI:
+    case OBJ_TYPE_SEMAPHORE:
+    case OBJ_TYPE_PATH:
+        alloc_client = extension;
+        break;
+    case OBJ_TYPE_SAMPLER:
+    case OBJ_TYPE_MEMORY:
+    case OBJ_TYPE_SHADER:
+        alloc_client = FALSE;
+        break;
+    default:
+        alloc_client = !is_core_context( &ctx->base );
+        break;
+    }
+
+    AcquireSRWLockShared( &table->lock );
+    for (UINT i = 0; i < n && !needs_client; i++)
+        needs_client = handles[i] && !get_object( table, handles[i], TRUE );
+    ReleaseSRWLockShared( &table->lock );
+    if (!needs_client) return TRUE;
+
+    if (alloc_client) alloc_client_objects( ctx, type, n, handles );
+    else set_gl_error( GL_INVALID_OPERATION );
+
+    return alloc_client;
+}
+
+GLuint *del_context_objects( enum object_type type, UINT n, GLuint *handles )
+{
+    struct object_table *table;
+    struct context *ctx;
+
+    if (!handles || !(ctx = get_current_context())) return handles;
+    if (!(table = get_object_table( ctx, type, FALSE ))) return handles;
+
+    AcquireSRWLockExclusive( &table->lock );
+    for (UINT i = 0; i < n; i++) handles[i] = del_object( table, handles[i] );
+    ReleaseSRWLockExclusive( &table->lock );
+
+    return handles;
+}
+
+GLuint *map_context_objects( enum object_type type, UINT n, GLuint *handles )
+{
+    struct object_table *table;
+    struct context *ctx;
+
+    if (!handles || !(ctx = get_current_context())) return handles;
+    if (!(table = get_object_table( ctx, type, FALSE ))) return handles;
+
+    AcquireSRWLockShared( &table->lock );
+    while (n--) handles[n] = handles[n] ? get_object( table, handles[n], FALSE ) : 0;
+    ReleaseSRWLockShared( &table->lock );
+
+    return handles;
+}
+
+static GLuint get_pname_object_type( GLenum pname )
+{
+    switch (pname)
+    {
+    case GL_ARRAY_BUFFER_BINDING:
+    case GL_ATOMIC_COUNTER_BUFFER_BINDING:
+    case GL_COLOR_ARRAY_BUFFER_BINDING:
+    case GL_COPY_READ_BUFFER_BINDING:
+    case GL_COPY_WRITE_BUFFER_BINDING:
+    case GL_DISPATCH_INDIRECT_BUFFER_BINDING:
+    case GL_DRAW_INDIRECT_BUFFER_BINDING:
+    case GL_EDGE_FLAG_ARRAY_BUFFER_BINDING:
+    case GL_ELEMENT_ARRAY_BUFFER_BINDING:
+    case GL_FOG_COORD_ARRAY_BUFFER_BINDING:
+    case GL_INDEX_ARRAY_BUFFER_BINDING:
+    case GL_NORMAL_ARRAY_BUFFER_BINDING:
+    case GL_PARAMETER_BUFFER_BINDING:
+    case GL_PIXEL_PACK_BUFFER_BINDING:
+    case GL_PIXEL_UNPACK_BUFFER_BINDING:
+    case GL_POINT_SIZE_ARRAY_BUFFER_BINDING_OES:
+    case GL_QUERY_BUFFER_BINDING:
+    case GL_SECONDARY_COLOR_ARRAY_BUFFER_BINDING:
+    case GL_SHADER_STORAGE_BUFFER_BINDING:
+    case GL_TEXTURE_BUFFER_DATA_STORE_BINDING:
+    case GL_TEXTURE_COORD_ARRAY_BUFFER_BINDING:
+    case GL_TRANSFORM_FEEDBACK_BUFFER_BINDING:
+    case GL_UNIFORM_BLOCK_BINDING:
+    case GL_UNIFORM_BUFFER_BINDING:
+    case GL_UNIFORM_BUFFER_BINDING_EXT:
+    case GL_VERTEX_ARRAY_BUFFER_BINDING:
+    case GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING:
+    case GL_VERTEX_BINDING_BUFFER:
+    case GL_VIDEO_BUFFER_BINDING_NV:
+    case GL_WEIGHT_ARRAY_BUFFER_BINDING:
+    case GL_MATRIX_INDEX_ARRAY_BUFFER_BINDING_OES:
+        return OBJ_TYPE_BUFFER;
+    case GL_READ_FRAMEBUFFER_BINDING:
+    case GL_DRAW_FRAMEBUFFER_BINDING:
+        return OBJ_TYPE_FRAMEBUFFER;
+    case GL_RENDERBUFFER_BINDING:
+    case GL_TEXTURE_RENDERBUFFER_DATA_STORE_BINDING_NV:
+        return OBJ_TYPE_RENDERBUFFER;
+    case GL_TEXTURE_BINDING_1D:
+    case GL_TEXTURE_BINDING_1D_ARRAY:
+    case GL_TEXTURE_BINDING_2D:
+    case GL_TEXTURE_BINDING_2D_ARRAY:
+    case GL_TEXTURE_BINDING_2D_MULTISAMPLE:
+    case GL_TEXTURE_BINDING_2D_MULTISAMPLE_ARRAY:
+    case GL_TEXTURE_BINDING_3D:
+    case GL_TEXTURE_BINDING_BUFFER:
+    case GL_TEXTURE_BINDING_CUBE_MAP:
+    case GL_TEXTURE_BINDING_CUBE_MAP_ARRAY:
+    case GL_TEXTURE_BINDING_EXTERNAL_OES:
+    case GL_TEXTURE_BINDING_RECTANGLE:
+    case GL_TEXTURE_BUFFER_BINDING:
+    case GL_TEXTURE_BINDING_RENDERBUFFER_NV:
+    case GL_TEXTURE_1D_STACK_BINDING_MESAX:
+    case GL_TEXTURE_2D_STACK_BINDING_MESAX:
+    case GL_TEXTURE_4D_BINDING_SGIS:
+    case GL_DETAIL_TEXTURE_2D_BINDING_SGIS:
+    case GL_SHADING_RATE_IMAGE_BINDING_NV:
+    case GL_IMAGE_BINDING_NAME:
+        return OBJ_TYPE_TEXTURE;
+    case GL_SAMPLER_BINDING:
+        return OBJ_TYPE_SAMPLER;
+    case GL_LIST_INDEX:
+        return OBJ_TYPE_DISPLAY_LIST;
+    case GL_PROGRAM_BINDING_ARB:
+    case GL_VERTEX_PROGRAM_BINDING_NV:
+    case GL_FRAGMENT_PROGRAM_BINDING_NV:
+        return OBJ_TYPE_PROGRAM;
+    case GL_COMPUTE_SHADER:
+    case GL_CURRENT_PROGRAM:
+    case GL_FRAGMENT_SHADER:
+    case GL_GEOMETRY_SHADER:
+    case GL_TESS_CONTROL_SHADER:
+    case GL_TESS_EVALUATION_SHADER:
+    case GL_VERTEX_SHADER:
+    case GL_ACTIVE_PROGRAM:
+        return OBJ_TYPE_SHADER;
+    case GL_VERTEX_SHADER_BINDING_EXT:
+        return OBJ_TYPE_SHADER_EXT;
+    }
+
+    return OBJ_TYPE_COUNT;
+}
+
+static BOOL map_client_objects( enum object_type type, GLuint host_id, GLuint *ret )
+{
+    GLuint *object, client_id = host_id;
+    struct object_table *table;
+    struct context *ctx;
+
+    if (!host_id || type == OBJ_TYPE_COUNT) return FALSE;
+    if (!(ctx = get_current_context())) return FALSE;
+    if (!(table = get_object_table( ctx, type, FALSE ))) return FALSE;
+
+    AcquireSRWLockShared( &table->lock );
+    if ((object = find_object_id( table->client_ids, host_id ))) client_id = *object;
+    ReleaseSRWLockShared( &table->lock );
+
+    *ret = client_id;
+    return TRUE;
+}
+
+static void map_framebuffer_attachment_param( GLenum target, GLenum attachment, GLenum pname, GLint *params )
+{
+    GLint type, value;
+
+    if (pname != GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME) return;
+    glGetFramebufferAttachmentParameteriv( target, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, &type );
+    if (type == GL_RENDERBUFFER && map_client_objects( OBJ_TYPE_RENDERBUFFER, *params, (GLuint *)&value )) *params = value;
+    if (type == GL_TEXTURE && map_client_objects( OBJ_TYPE_TEXTURE, *params, (GLuint *)&value )) *params = value;
+}
+
+void WINAPI glGetFramebufferAttachmentParameteriv( GLenum target, GLenum attachment, GLenum pname, GLint *params )
+{
+    struct glGetFramebufferAttachmentParameteriv_params args = { .teb = NtCurrentTeb(), .target = target, .attachment = attachment, .pname = pname, .params = params };
+    NTSTATUS status;
+
+    TRACE( "target %d, attachment %d, pname %d, params %p\n", target, attachment, pname, params );
+
+    if ((status = UNIX_CALL( glGetFramebufferAttachmentParameteriv, &args ))) WARN( "glGetFramebufferAttachmentParameteriv returned %#lx\n", status );
+    map_framebuffer_attachment_param( target, attachment, pname, params );
+}
+
+void WINAPI glGetFramebufferAttachmentParameterivEXT( GLenum target, GLenum attachment, GLenum pname, GLint *params )
+{
+    struct glGetFramebufferAttachmentParameterivEXT_params args = { .teb = NtCurrentTeb(), .target = target, .attachment = attachment, .pname = pname, .params = params };
+    NTSTATUS status;
+
+    TRACE( "target %d, attachment %d, pname %d, params %p\n", target, attachment, pname, params );
+
+    if ((status = UNIX_CALL( glGetFramebufferAttachmentParameterivEXT, &args ))) WARN( "glGetFramebufferAttachmentParameterivEXT returned %#lx\n", status );
+    map_framebuffer_attachment_param( target, attachment, pname, params );
+}
+
+static void map_named_framebuffer_attachment_param( GLuint framebuffer, GLenum attachment, GLenum pname, GLint *params )
+{
+    GLint type, value;
+
+    if (pname != GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME) return;
+    glGetNamedFramebufferAttachmentParameteriv( framebuffer, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, &type );
+    if (type == GL_RENDERBUFFER && map_client_objects( OBJ_TYPE_RENDERBUFFER, *params, (GLuint *)&value )) *params = value;
+    if (type == GL_TEXTURE && map_client_objects( OBJ_TYPE_TEXTURE, *params, (GLuint *)&value )) *params = value;
+}
+
+void WINAPI glGetNamedFramebufferAttachmentParameteriv( GLuint framebuffer, GLenum attachment, GLenum pname, GLint *params )
+{
+    struct glGetNamedFramebufferAttachmentParameteriv_params args = { .teb = NtCurrentTeb(), .attachment = attachment, .pname = pname, .params = params };
+    GLuint host_framebuffer = framebuffer;
+    NTSTATUS status;
+
+    TRACE( "framebuffer %d, attachment %d, pname %d, params %p\n", framebuffer, attachment, pname, params );
+
+    args.framebuffer = *map_context_objects( OBJ_TYPE_FRAMEBUFFER, 1, &host_framebuffer );
+    if ((status = UNIX_CALL( glGetNamedFramebufferAttachmentParameteriv, &args ))) WARN( "glGetNamedFramebufferAttachmentParameteriv returned %#lx\n", status );
+    map_named_framebuffer_attachment_param( framebuffer, attachment, pname, params );
+}
+
+void WINAPI glGetNamedFramebufferAttachmentParameterivEXT( GLuint framebuffer, GLenum attachment, GLenum pname, GLint *params )
+{
+    struct glGetNamedFramebufferAttachmentParameterivEXT_params args = { .teb = NtCurrentTeb(), .attachment = attachment, .pname = pname, .params = params };
+    GLuint host_framebuffer = framebuffer;
+    NTSTATUS status;
+
+    TRACE( "framebuffer %d, attachment %d, pname %d, params %p\n", framebuffer, attachment, pname, params );
+
+    if (!alloc_context_objects( OBJ_TYPE_FRAMEBUFFER, 1, &host_framebuffer, TRUE )) return;
+    args.framebuffer = *map_context_objects( OBJ_TYPE_FRAMEBUFFER, 1, &host_framebuffer );
+    if ((status = UNIX_CALL( glGetNamedFramebufferAttachmentParameterivEXT, &args ))) WARN( "glGetNamedFramebufferAttachmentParameterivEXT returned %#lx\n", status );
+    map_named_framebuffer_attachment_param( framebuffer, attachment, pname, params );
 }
 
 HGLRC WINAPI wglCreateContext( HDC hdc )
@@ -342,17 +916,25 @@ HGLRC WINAPI wglCreateContext( HDC hdc )
 HGLRC WINAPI wglCreateContextAttribsARB( HDC hdc, HGLRC share, const int *attribs )
 {
     struct wglCreateContextAttribsARB_params args = { .teb = NtCurrentTeb(), .hDC = hdc, .attribList = attribs };
+    struct context *share_context = NULL;
     struct handle_entry *ptr;
     NTSTATUS status;
 
     TRACE( "hdc %p, share %p, attribs %p\n", hdc, share, attribs );
 
-    if (!get_context_from_handle( share, &args.hShareContext ))
+    if (share && !(share_context = context_from_handle( share )))
     {
         SetLastError( ERROR_INVALID_OPERATION );
         return NULL;
     }
-    if (!(ptr = alloc_client_context())) return NULL;
+    if (share_context && share_context->base.broken_sharing)
+    {
+        ERR( "Shared context %p has broken display list sharing\n", share );
+        share = NULL;
+    }
+    if (share) args.hShareContext = &share_context->base.obj;
+
+    if (!(ptr = alloc_client_context( share ? share_context : NULL ))) return NULL;
     args.ret = &ptr->context->obj;
 
     if ((status = UNIX_CALL( wglCreateContextAttribsARB, &args ))) WARN( "wglCreateContextAttribsARB returned %#lx\n", status );
@@ -372,11 +954,11 @@ BOOL WINAPI wglDeleteContext( HGLRC handle )
 
     TRACE( "handle %p\n", handle );
 
-    EnterCriticalSection( &wgl_cs );
-    ptr = get_handle_ptr( &contexts, handle );
-    LeaveCriticalSection( &wgl_cs );
-
-    if (!ptr) return FALSE;
+    if (!(ptr = get_handle_ptr( &contexts, handle )))
+    {
+        SetLastError( ERROR_INVALID_HANDLE );
+        return FALSE;
+    }
     args.oldContext = &ptr->context->obj;
 
     if (handle == teb->glCurrentRC) wglMakeCurrent( NULL, NULL );
@@ -389,6 +971,8 @@ BOOL WINAPI wglDeleteContext( HGLRC handle )
     if ((status = UNIX_CALL( wglDeleteContext, &args ))) WARN( "wglDeleteContext returned %#lx\n", status );
     if (status || !args.ret) return FALSE;
 
+    /* make sure there's a (dummy) context before releasing and destroying display list objects */
+    if (!teb->glCurrentRC) wglMakeContextCurrentARB( NULL, NULL, NULL );
     free_client_context( ptr );
     return TRUE;
 }
@@ -429,6 +1013,33 @@ BOOL WINAPI wglMakeContextCurrentARB( HDC draw_hdc, HDC read_hdc, HGLRC handle )
     teb->glCurrentRC = handle;
     teb->glReserved1[0] = draw_hdc;
     teb->glReserved1[1] = read_hdc;
+    return TRUE;
+}
+
+/***********************************************************************
+ *      wglShareLists
+ */
+BOOL WINAPI wglShareLists( HGLRC src_handle, HGLRC dst_handle )
+{
+    struct context *src_context, *dst_context;
+    struct display_lists *lists;
+
+    TRACE( "src_handle %p, dst_handle %p\n", src_handle, dst_handle );
+
+    if (!(src_context = context_from_handle( src_handle ))) return FALSE;
+    if (!(dst_context = context_from_handle( dst_handle ))) return FALSE;
+    if (ReadNoFence( &dst_context->lists->modified )) return FALSE;
+
+    if (src_context->base.broken_sharing || dst_context->base.broken_sharing)
+    {
+        ERR( "Either source or destination context has broken sharing\n" );
+        return FALSE;
+    }
+
+    lists = display_lists_acquire( src_context->lists );
+    lists = InterlockedExchangePointer( (void *)&dst_context->lists, lists );
+    display_lists_release( lists, TRUE );
+
     return TRUE;
 }
 
@@ -1088,28 +1699,6 @@ BOOL WINAPI wglChoosePixelFormatARB( HDC hdc, const int *attribs_int, const FLOA
 
     wgl_formats = get_pixel_formats( hdc, &num_wgl_formats, &num_wgl_onscreen_formats );
 
-    /* If the driver doesn't yet provide ARB attrib information in
-     * wgl_pixel_format, fall back to an explicit call. */
-    if (num_wgl_formats && !wgl_formats[0].pixel_type)
-    {
-        struct wglChoosePixelFormatARB_params args =
-        {
-            .teb = NtCurrentTeb(),
-            .hdc = hdc,
-            .piAttribIList = attribs_int,
-            .pfAttribFList = attribs_float,
-            .nMaxFormats = max_formats,
-            .piFormats = formats,
-            .nNumFormats = num_formats
-        };
-        NTSTATUS status;
-
-        if ((status = UNIX_CALL( wglChoosePixelFormatARB, &args )))
-            WARN( "wglChoosePixelFormatARB returned %#lx\n", status );
-
-        return args.ret;
-    }
-
     /* Gather, validate and deduplicate all attributes */
     for (i = 0; attribs_int && attribs_int[i]; i += 2)
     {
@@ -1191,28 +1780,6 @@ BOOL WINAPI wglGetPixelFormatAttribivARB( HDC hdc, int index, int plane, UINT co
            hdc, index, plane, count, attributes, values );
 
     formats = get_pixel_formats( hdc, &num_formats, &num_onscreen_formats );
-
-    /* If the driver doesn't yet provide ARB attrib information in
-     * wgl_pixel_format, fall back to an explicit call. */
-    if (num_formats && !formats[0].pixel_type)
-    {
-        struct wglGetPixelFormatAttribivARB_params args =
-        {
-            .teb = NtCurrentTeb(),
-            .hdc = hdc,
-            .iPixelFormat = index,
-            .iLayerPlane = plane,
-            .nAttributes = count,
-            .piAttributes = attributes,
-            .piValues = values
-        };
-        NTSTATUS status;
-
-        if ((status = UNIX_CALL( wglGetPixelFormatAttribivARB, &args )))
-            WARN( "wglGetPixelFormatAttribivARB returned %#lx\n", status );
-
-        return args.ret;
-    }
 
     if (!count) return TRUE;
     if (count == 1 && attributes[0] == WGL_NUMBER_PIXEL_FORMATS_ARB)
@@ -1367,7 +1934,7 @@ PROC WINAPI wglGetProcAddress( LPCSTR name )
     const enum opengl_extension *ext;
     struct context *ctx;
 
-    if (!(ctx = context_from_handle( NtCurrentTeb()->glCurrentRC ))) return NULL;
+    if (!(ctx = get_current_context())) return NULL;
 
     if (!(func = get_function_entry( name )))
     {
@@ -1909,6 +2476,79 @@ BOOL WINAPI wglUseFontOutlinesW(HDC hdc,
     return wglUseFontOutlines_common(hdc, first, count, listBase, deviation, extrusion, format, lpgmf, TRUE);
 }
 
+GLhandleARB WINAPI glGetHandleARB( GLenum pname )
+{
+    struct glGetHandleARB_params args = { .teb = NtCurrentTeb(), .pname = pname };
+    GLuint *object, client_id = 0;
+    struct object_table *table;
+    struct context *ctx;
+    NTSTATUS status;
+
+    TRACE( "pname %d\n", pname );
+
+    if ((status = UNIX_CALL( glGetHandleARB, &args ))) WARN( "glGetHandleARB returned %#lx\n", status );
+    if (!args.ret) return args.ret;
+
+    if (!(ctx = context_from_handle( args.teb->glCurrentRC ))) return 0;
+    if (!(table = get_object_table( ctx, OBJ_TYPE_SHADER, FALSE ))) return 0;
+
+    AcquireSRWLockShared( &table->lock );
+    if ((object = find_object_id( table->client_ids, args.ret ))) client_id = *object;
+    ReleaseSRWLockShared( &table->lock );
+
+    return client_id;
+}
+
+void WINAPI glGetAttachedObjectsARB( GLhandleARB container, GLsizei max_count, GLsizei *count, GLhandleARB *obj )
+{
+    struct glGetAttachedObjectsARB_params args = { .teb = NtCurrentTeb(), .maxCount = max_count, .count = count };
+    struct object_table *table;
+    struct context *ctx;
+    NTSTATUS status;
+    GLuint *object;
+
+    TRACE( "container %d, max_count %d, count %p, obj %p\n", container, max_count, count, obj );
+
+    args.containerObj = *map_context_objects( OBJ_TYPE_SHADER, 1, &container );
+    if ((status = UNIX_CALL( glGetAttachedObjectsARB, &args ))) WARN( "glGetAttachedObjectsARB returned %#lx\n", status );
+
+    if (!(ctx = context_from_handle( args.teb->glCurrentRC ))) return;
+    if (!(table = get_object_table( ctx, OBJ_TYPE_SHADER, FALSE ))) return;
+
+    AcquireSRWLockShared( &table->lock );
+    for (UINT i = 0; i < max_count; ++i)
+    {
+        if (!obj[i] || !(object = find_object_id( table->client_ids, obj[i] ))) continue;
+        obj[i] = *object;
+    }
+    ReleaseSRWLockShared( &table->lock );
+}
+
+void WINAPI glGetAttachedShaders( GLuint program, GLsizei max_count, GLsizei *count, GLuint *shaders )
+{
+    struct glGetAttachedShaders_params args = { .teb = NtCurrentTeb(), .maxCount = max_count, .count = count };
+    struct object_table *table;
+    struct context *ctx;
+    NTSTATUS status;
+    GLuint *object;
+
+    TRACE( "program %d, max_count %d, count %p, shaders %p\n", program, max_count, count, shaders );
+
+    args.program = *map_context_objects( OBJ_TYPE_SHADER, 1, &program );
+    if ((status = UNIX_CALL( glGetAttachedShaders, &args ))) WARN( "glGetAttachedShaders returned %#lx\n", status );
+
+    if (!(ctx = context_from_handle( args.teb->glCurrentRC ))) return;
+    if (!(table = get_object_table( ctx, OBJ_TYPE_SHADER, FALSE ))) return;
+
+    AcquireSRWLockShared( &table->lock );
+    for (UINT i = 0; i < max_count; ++i)
+    {
+        if (!shaders[i] || !(object = find_object_id( table->client_ids, shaders[i] ))) continue;
+        shaders[i] = *object;
+    }
+    ReleaseSRWLockShared( &table->lock );
+}
+
 /***********************************************************************
  *              glDebugEntry (OPENGL32.@)
  */
@@ -1922,8 +2562,8 @@ static GLsync sync_from_handle( GLsync handle )
     struct handle_entry *ptr;
     struct context *ctx;
 
-    if (!(ctx = context_from_handle( NtCurrentTeb()->glCurrentRC ))) return NULL;
-    if (!(ptr = get_handle_ptr( &ctx->syncs, handle ))) return NULL;
+    if (!(ctx = get_current_context())) return NULL;
+    if (!(ptr = get_handle_ptr( &ctx->lists->syncs, handle ))) return NULL;
     return ptr->user_data;
 }
 
@@ -1939,19 +2579,16 @@ static struct handle_entry *alloc_client_sync( struct context *ctx )
     GLsync sync;
 
     if (!(sync = calloc( 1, sizeof(*sync) ))) return NULL;
-    if (!(ptr = alloc_handle( &ctx->syncs, sync )))
-    {
-        free( sync );
-        return NULL;
-    }
-
+    if (!(ptr = alloc_handle( &ctx->lists->syncs, sync ))) free( sync );
+    else InterlockedExchange( &ctx->lists->modified, 1 );
     return ptr;
 }
 
 static void free_client_sync( struct context *ctx, struct handle_entry *ptr )
 {
     GLsync sync = ptr->user_data;
-    free_handle( &ctx->syncs, ptr );
+    InterlockedExchange( &ctx->lists->modified, 1 );
+    free_handle( &ctx->lists->syncs, ptr );
     free( sync );
 }
 
@@ -1988,7 +2625,7 @@ void WINAPI glDeleteSync( GLsync sync )
     TRACE( "sync %p\n", sync );
 
     if (!(ctx = context_from_handle( teb->glCurrentRC ))) return;
-    if (!(ptr = get_handle_ptr( &ctx->syncs, sync ))) return set_gl_error( GL_INVALID_VALUE );
+    if (!(ptr = get_handle_ptr( &ctx->lists->syncs, sync ))) return set_gl_error( GL_INVALID_VALUE );
     args.sync = ptr->user_data;
 
     if ((status = UNIX_CALL( glDeleteSync, &args ))) WARN( "glDeleteSync returned %#lx\n", status );
@@ -2039,14 +2676,20 @@ GLsync WINAPI glImportSyncEXT( GLenum external_sync_type, GLintptr external_sync
     return NULL;
 }
 
-BOOL get_integer( GLenum name, GLint *data )
+BOOL get_integer( GLenum name, GLuint index, GLint value, GLint *data )
 {
     struct context *ctx;
 
-    if (!(ctx = context_from_handle( NtCurrentTeb()->glCurrentRC ))) return FALSE;
+    if (!(ctx = get_current_context())) return FALSE;
 
     switch (name)
     {
+    case GL_CONTEXT_FLAGS:
+        *data = ctx->base.context_flags;
+        return TRUE;
+    case GL_CONTEXT_PROFILE_MASK:
+        *data = ctx->base.profile_mask;
+        return TRUE;
     case GL_MAJOR_VERSION:
         *data = ctx->base.major_version;
         return TRUE;
@@ -2058,7 +2701,7 @@ BOOL get_integer( GLenum name, GLint *data )
         return TRUE;
     }
 
-    return FALSE;
+    return map_client_objects( get_pname_object_type( name ), value, (GLuint *)data );
 }
 
 const GLubyte * WINAPI glGetStringi( GLenum name, GLuint index )
@@ -2077,7 +2720,7 @@ const GLubyte * WINAPI glGetStringi( GLenum name, GLuint index )
 
     TRACE( "name %d, index %d\n", name, index );
 
-    if (!(ctx = context_from_handle( NtCurrentTeb()->glCurrentRC ))) return NULL;
+    if (!(ctx = get_current_context())) return NULL;
 
     switch (name)
     {
@@ -2204,6 +2847,7 @@ BOOL WINAPI DllMain( HINSTANCE hinst, DWORD reason, LPVOID reserved )
     {
         .call_gl_debug_message_callback = (UINT_PTR)call_gl_debug_message_callback,
     };
+    struct context *context;
     NTSTATUS status;
 
     switch(reason)
@@ -2233,6 +2877,7 @@ BOOL WINAPI DllMain( HINSTANCE hinst, DWORD reason, LPVOID reserved )
 #endif
         /* fallthrough */
     case DLL_THREAD_DETACH:
+        if ((context = get_current_context())) context->base.current_tid = 0;
         free( NtCurrentTeb()->glReserved1[WINE_GL_RESERVED_FORMATS_PTR] );
         return TRUE;
     }

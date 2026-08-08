@@ -755,9 +755,7 @@ static void wined3d_cs_exec_present(struct wined3d_cs *cs, const void *data)
         }
     }
 
-    InterlockedDecrement(&cs->pending_presents);
-    if (InterlockedCompareExchange(&cs->waiting_for_present, FALSE, TRUE))
-        SetEvent(cs->present_event);
+    ReleaseSemaphore(swapchain->frame_latency_semaphore, 1, NULL);
 }
 
 void wined3d_cs_emit_present(struct wined3d_cs *cs, struct wined3d_swapchain *swapchain,
@@ -766,7 +764,6 @@ void wined3d_cs_emit_present(struct wined3d_cs *cs, struct wined3d_swapchain *sw
 {
     struct wined3d_cs_present *op;
     unsigned int i;
-    LONG pending;
 
     wined3d_not_from_cs(cs);
 
@@ -779,8 +776,6 @@ void wined3d_cs_emit_present(struct wined3d_cs *cs, struct wined3d_swapchain *sw
     op->swap_interval = swap_interval;
     op->flags = flags;
 
-    pending = InterlockedIncrement(&cs->pending_presents);
-
     wined3d_resource_reference(&swapchain->front_buffer->resource);
     for (i = 0; i < swapchain->state.desc.backbuffer_count; ++i)
     {
@@ -788,23 +783,6 @@ void wined3d_cs_emit_present(struct wined3d_cs *cs, struct wined3d_swapchain *sw
     }
 
     wined3d_device_context_submit(&cs->c, WINED3D_CS_QUEUE_DEFAULT);
-
-    /* Limit input latency by limiting the number of presents that we can get
-     * ahead of the worker thread. */
-    while (pending >= swapchain->max_frame_latency)
-    {
-        InterlockedExchange(&cs->waiting_for_present, TRUE);
-
-        pending = InterlockedCompareExchange(&cs->pending_presents, 0, 0);
-        if (pending >= swapchain->max_frame_latency || !InterlockedCompareExchange(&cs->waiting_for_present, FALSE, TRUE))
-        {
-            TRACE_(d3d_perf)("Reached latency limit (%u frames), blocking to wait.\n", swapchain->max_frame_latency);
-            wined3d_mutex_unlock();
-            WaitForSingleObject(cs->present_event, INFINITE);
-            wined3d_mutex_lock();
-            TRACE_(d3d_perf)("Woken up from the wait.\n");
-        }
-    }
 }
 
 static void wined3d_cs_exec_clear(struct wined3d_cs *cs, const void *data)
@@ -2799,13 +2777,12 @@ void wined3d_device_context_emit_update_sub_resource(struct wined3d_device_conte
         {
             unsigned int uv_height = format->uv_height;
             unsigned int uv_width = format->uv_width;
-            const struct wined3d_format *plane_format;
 
-            plane_format = wined3d_get_format(context->device->adapter, format->plane_formats[0], 0);
-            wined3d_format_copy_data(plane_format, data, row_pitch, slice_pitch, map_desc.data, map_desc.row_pitch,
-                    map_desc.slice_pitch, box->right - box->left, box->bottom - box->top, box->back - box->front);
-            plane_format = wined3d_get_format(context->device->adapter, format->plane_formats[1], 0);
-            wined3d_format_copy_data(plane_format, (const uint8_t *)data + (row_pitch * (box->bottom - box->top)),
+            wined3d_format_copy_data(format->plane_formats[0], data, row_pitch, slice_pitch,
+                    map_desc.data, map_desc.row_pitch, map_desc.slice_pitch,
+                    box->right - box->left, box->bottom - box->top, box->back - box->front);
+            wined3d_format_copy_data(format->plane_formats[1],
+                    (const uint8_t *)data + (row_pitch * (box->bottom - box->top)),
                     row_pitch * 2 / uv_width, slice_pitch * 2 / uv_width / uv_height,
                     (uint8_t *)map_desc.data + map_desc.slice_pitch,
                     map_desc.row_pitch * 2 / uv_width, map_desc.slice_pitch * 2 / uv_width / uv_height,
@@ -3694,18 +3671,11 @@ struct wined3d_cs *wined3d_cs_create(struct wined3d_device *device,
             free(cs->data);
             goto fail;
         }
-        if (!(cs->present_event = CreateEventW(NULL, FALSE, FALSE, NULL)))
-        {
-            ERR("Failed to create command stream present event.\n");
-            free(cs->data);
-            goto fail;
-        }
 
         if (!(GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,
                 (const WCHAR *)wined3d_cs_run, &cs->wined3d_module)))
         {
             ERR("Failed to get wined3d module handle.\n");
-            CloseHandle(cs->present_event);
             if (cs->event)
                 CloseHandle(cs->event);
             free(cs->data);
@@ -3716,7 +3686,6 @@ struct wined3d_cs *wined3d_cs_create(struct wined3d_device *device,
         {
             ERR("Failed to create wined3d command stream thread.\n");
             FreeLibrary(cs->wined3d_module);
-            CloseHandle(cs->present_event);
             if (cs->event)
                 CloseHandle(cs->event);
             free(cs->data);
@@ -3740,8 +3709,6 @@ void wined3d_cs_destroy(struct wined3d_cs *cs)
     {
         wined3d_cs_emit_stop(cs);
         CloseHandle(cs->thread);
-        if (!CloseHandle(cs->present_event))
-            ERR("Closing present event failed.\n");
         if (cs->event && !CloseHandle(cs->event))
             ERR("Closing event failed.\n");
     }

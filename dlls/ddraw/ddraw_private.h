@@ -191,6 +191,7 @@ struct ddraw_surface
     struct ddraw_surface *next_attached;
     struct ddraw_surface *first_attached;
     IUnknown                *attached_iface;
+    DWORD attach_saved_caps;
 
     /* Complex surfaces are organized in a tree, although the tree is degenerated to a list in most cases.
      * In mipmap and primary surfaces each level has only one attachment, which is the next surface level.
@@ -199,10 +200,8 @@ struct ddraw_surface
      */
 #define MAX_COMPLEX_ATTACHED 6
     struct ddraw_surface *complex_array[MAX_COMPLEX_ATTACHED];
-    /* You can't traverse the tree upwards. Only a flag for Surface::Release because it's needed there,
-     * but no pointer to prevent temptations to traverse it in the wrong direction.
-     */
-    unsigned int is_root : 1;
+    unsigned int is_implicit : 1;
+    unsigned int is_flip_chain_start : 1;
     unsigned int is_lost : 1;
     unsigned int sysmem_fallback : 1;
 

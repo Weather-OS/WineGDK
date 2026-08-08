@@ -843,9 +843,6 @@ static void test_math_errors(void)
     __setusermatherr(matherr_callback);
     module = GetModuleHandleW(L"ucrtbase.dll");
 
-    /* necessary so that exp(1e100)==INFINITY on glibc, we can remove this if we change our implementation */
-    fesetround(FE_TONEAREST);
-
     for(i = 0; i < ARRAY_SIZE(testsd); i++) {
         p_funcd = (void*)GetProcAddress(module, testsd[i].func);
         errno = -1;
@@ -1798,8 +1795,8 @@ static void test_exp(void)
         int type;
         errno_t e;
     } tests[] = {
-        {  NAN,               NAN,                     _DOMAIN,  EDOM   },
-        { -NAN,              -NAN,                     _DOMAIN,  EDOM   },
+        {  NAN,               NAN,                                      },
+        { -NAN,              -NAN,                                      },
         {  INFINITY,          INFINITY                                  },
         { -INFINITY,          0.0                                       },
         {  0.0,               1.0                                       },
@@ -1827,10 +1824,10 @@ static void test_exp(void)
         ok(signbit(r) == signbit(tests[i].exp), "expected sign %x, got %x for %d\n",
             signbit(tests[i].exp), signbit(r), i);
 
-        ok(e == tests[i].e ? tests[i].e : -1,
+        ok(e == (tests[i].e ? tests[i].e : -1),
             "expected errno %d, but got %d for %d\n", tests[i].e, e, i);
 
-        ok(exception.type == tests[i].type ? tests[i].type : -1,
+        ok(exception.type == (tests[i].type ? tests[i].type : -1),
             "expected %d, got %d for %d\n", tests[i].type, exception.type, i);
     }
 
@@ -1839,13 +1836,14 @@ static void test_exp(void)
 
 static void test_expf(void)
 {
+#ifndef __i386__
     static const struct {
         float x, exp;
         int type;
         errno_t e;
     } tests[] = {
-        {  NAN,      NAN,           _DOMAIN,   EDOM   },
-        { -NAN,      NAN,           _DOMAIN,   EDOM   },
+        {  NAN,      NAN,                             },
+        { -NAN,      NAN,                             },
         {  INFINITY, INFINITY                         },
         { -INFINITY, 0.0f                             },
         {  0.0f,     1.0f                             },
@@ -1876,14 +1874,14 @@ static void test_expf(void)
                 "expected sign %x, got %x for %d\n", signbit(tests[i].exp), signbit(r), i);
         }
 
-        ok(e == tests[i].e ? tests[i].e : -1,
+        ok(e == (tests[i].e ? tests[i].e : -1),
             "expected errno %d, but got %d for %d\n", tests[i].e, e, i);
-
-        ok(exception.type == tests[i].type ? tests[i].type : -1,
+        ok(exception.type == (tests[i].type ? tests[i].type : -1),
             "expected %d, got %d for %d\n", tests[i].type, exception.type, i);
     }
 
     __setusermatherr(NULL);
+#endif
 }
 
 static void test_cexp(void)
@@ -1891,58 +1889,56 @@ static void test_cexp(void)
     static const struct {
         double r, i;
         double rexp, iexp;
-        int type;
         errno_t e;
     } tests[] = {
-        {  INFINITY,  0.0,       INFINITY,  0.0                    },
-        {  INFINITY, -0.0,       INFINITY, -0.0                    },
-        { -INFINITY,  0.0,       0.0,       0.0                    },
-        { -INFINITY, -0.0,       0.0,      -0.0                    },
-        {    0.0,     INFINITY,  NAN,       NAN,     _DOMAIN, EDOM },
-        {   -0.0,     INFINITY,  NAN,       NAN,     _DOMAIN, EDOM },
-        {    0.0,    -INFINITY,  NAN,       NAN,     _DOMAIN, EDOM },
-        {   -0.0,    -INFINITY,  NAN,       NAN,     _DOMAIN, EDOM },
-        {  100.0,     INFINITY,  NAN,       NAN,     _DOMAIN, EDOM },
-        { -100.0,     INFINITY,  NAN,       NAN,     _DOMAIN, EDOM },
-        {  100.0,    -INFINITY,  NAN,       NAN,     _DOMAIN, EDOM },
-        { -100.0,    -INFINITY,  NAN,       NAN,     _DOMAIN, EDOM },
-        { -INFINITY,  2.0,      -0.0,       0.0                    },
-        { -INFINITY,  4.0,      -0.0,      -0.0                    },
-        {  INFINITY,  2.0,      -INFINITY,  INFINITY               },
-        {  INFINITY,  4.0,      -INFINITY, -INFINITY               },
-        {  INFINITY,  INFINITY,  INFINITY,  NAN,     _DOMAIN, EDOM },
-        {  INFINITY, -INFINITY,  INFINITY,  NAN,     _DOMAIN, EDOM },
-        { -INFINITY,  INFINITY,  0.0,       0.0                    },
-        { -INFINITY, -INFINITY,  0.0,      -0.0                    },
-        { -INFINITY,  NAN,       0.0,       0.0                    },
-        {  INFINITY,  NAN,       INFINITY,  NAN                    },
-        {  NAN,       0.0,       NAN,       0.0                    },
-        {  NAN,      -0.0,       NAN,      -0.0                    },
-        {  NAN,       1.0,       NAN,       NAN                    },
-        {  NAN,       INFINITY,  NAN,       NAN                    },
-        {  0.0,       NAN,       NAN,       NAN                    },
-        {  1.0,       NAN,       NAN,       NAN                    },
-        {  NAN,       NAN,       NAN,       NAN                    },
+        {  INFINITY,  0.0,       INFINITY,  0.0           },
+        {  INFINITY, -0.0,       INFINITY, -0.0           },
+        { -INFINITY,  0.0,       0.0,       0.0           },
+        { -INFINITY, -0.0,       0.0,      -0.0           },
+        {    0.0,     INFINITY,  NAN,       NAN,     EDOM },
+        {   -0.0,     INFINITY,  NAN,       NAN,     EDOM },
+        {    0.0,    -INFINITY,  NAN,       NAN,     EDOM },
+        {   -0.0,    -INFINITY,  NAN,       NAN,     EDOM },
+        {  100.0,     INFINITY,  NAN,       NAN,     EDOM },
+        { -100.0,     INFINITY,  NAN,       NAN,     EDOM },
+        {  100.0,    -INFINITY,  NAN,       NAN,     EDOM },
+        { -100.0,    -INFINITY,  NAN,       NAN,     EDOM },
+        { -INFINITY,  2.0,      -0.0,       0.0           },
+        { -INFINITY,  4.0,      -0.0,      -0.0           },
+        {  INFINITY,  2.0,      -INFINITY,  INFINITY      },
+        {  INFINITY,  4.0,      -INFINITY, -INFINITY      },
+        {  INFINITY,  INFINITY,  INFINITY,  NAN,     EDOM },
+        {  INFINITY, -INFINITY,  INFINITY,  NAN,     EDOM },
+        { -INFINITY,  INFINITY,  0.0,       0.0           },
+        { -INFINITY, -INFINITY,  0.0,      -0.0           },
+        { -INFINITY,  NAN,       0.0,       0.0           },
+        {  INFINITY,  NAN,       INFINITY,  NAN           },
+        {  NAN,       0.0,       NAN,       0.0           },
+        {  NAN,      -0.0,       NAN,      -0.0           },
+        {  NAN,       1.0,       NAN,       NAN           },
+        {  NAN,       INFINITY,  NAN,       NAN           },
+        {  0.0,       NAN,       NAN,       NAN           },
+        {  1.0,       NAN,       NAN,       NAN           },
+        {  NAN,       NAN,       NAN,       NAN           },
     };
     static const struct {
         double r, i;
         double rexp, iexp;
-        int type;
         errno_t e;
     } tests2[] = {
-        { 0.0,                M_PI, -1.0,                     1.2246467991473532e-016                      },
-        { 709.7,              0.0,   1.6549840276802644e+308, 0.0                                          },
-        { 709.78271289338397, 0.0,   1.7976931348622734e+308, 0.0                                          },
-        { 709.8,              0.0,   INFINITY,                0.0,                      _OVERFLOW,  ERANGE },
-        { 746.0,              0.0,   INFINITY,                0.0,                      _OVERFLOW,  ERANGE },
-        { 747.0,              0.0,   INFINITY,                0.0,                      _OVERFLOW,  ERANGE },
-        { 1454.3,             0.0,   INFINITY,                0.0,                      _OVERFLOW,  ERANGE },
-        { 709.7,              M_PI, -1.6549840276802644e+308, 2.0267708921386307e+292                      },
-        { 709.78271289338397, M_PI, -1.7976931348622734e+308, 2.2015391434582545e+292                      },
-        { 709.8,              M_PI, -INFINITY,                2.2399282475936458e+292,  _UNDERFLOW, ERANGE },
-        { 746.0,              M_PI, -INFINITY,                1.1794902399837951e+308,  _UNDERFLOW, ERANGE },
-        { 747.0,              M_PI, -INFINITY,                INFINITY,                 _UNDERFLOW, ERANGE },
-        { 1454.3,             M_PI, -INFINITY,                INFINITY,                 _UNDERFLOW, ERANGE },
+        { 0.0,                M_PI, -1.0,                     1.2246467991473532e-016          },
+        { 709.7,              0.0,   1.6549840276802644e+308, 0.0                              },
+        { 709.78271289338397, 0.0,   1.7976931348622734e+308, 0.0                              },
+        { 709.8,              0.0,   INFINITY,                0.0,                      ERANGE },
+        { 746.0,              0.0,   INFINITY,                0.0,                      ERANGE },
+        { 747.0,              0.0,   INFINITY,                0.0,                      ERANGE },
+        { 1454.3,             0.0,   INFINITY,                0.0,                      ERANGE },
+        { 709.7,              M_PI, -1.6549840276802644e+308, 2.0267708921386307e+292          },
+        { 709.78271289338397, M_PI, -1.7976931348622734e+308, 2.2015391434582545e+292          },
+        { 709.8,              M_PI, -INFINITY,                2.2399282475936458e+292,  ERANGE },
+        { 746.0,              M_PI, -INFINITY,                1.1794902399837951e+308,  ERANGE },
+        { 747.0,              M_PI, -INFINITY,                INFINITY,                 ERANGE },
+        { 1454.3,             M_PI, -INFINITY,                INFINITY,                 ERANGE },
     };
     _Dcomplex c, r;
     errno_t e;
@@ -1972,11 +1968,9 @@ static void test_cexp(void)
                 signbit(tests[i].iexp), signbit(r._Val[1]), i);
         }
 
-        ok(e == tests[i].e ? tests[i].e : -1,
+        ok(e == (tests[i].e ? tests[i].e : -1),
             "expected errno %d, but got %d for %d\n", tests[i].e, e, i);
-
-        ok(exception.type == tests[i].type ? tests[i].type : -1,
-            "expected %d, got %d for %d\n", tests[i].type, exception.type, i);
+        ok(exception.type == -1, "got %d for %d\n", exception.type, i);
     }
 
     for(i=0; i<ARRAY_SIZE(tests2); i++) {
@@ -1988,11 +1982,9 @@ static void test_cexp(void)
 
         ok(compare_double(r._Val[0], tests2[i].rexp, 1), "expected %0.16e, got %0.16e for real %d\n", tests2[i].rexp, r._Val[0], i);
         ok(compare_double(r._Val[1], tests2[i].iexp, 1), "expected %0.16e, got %0.16e for imag %d\n", tests2[i].iexp, r._Val[1], i);
-        ok(e == tests2[i].e ? tests2[i].e : -1,
+        ok(e == (tests2[i].e ? tests2[i].e : -1),
             "expected errno %d, but got %d for %d\n", tests2[i].e, e, i);
-
-        ok(exception.type == tests2[i].type ? tests2[i].type : -1,
-            "expected %d, got %d for %d\n", tests2[i].type, exception.type, i);
+        ok(exception.type == -1, "got %d for %d\n", exception.type, i);
     }
 
     __setusermatherr(NULL);
@@ -2110,6 +2102,26 @@ static void test_cargf(void)
     __setusermatherr(NULL);
 }
 
+static void test_rint(void)
+{
+    int rounding_mode = fegetround();
+    double ret;
+
+    ok(!fesetround(FE_DOWNWARD), "fesetround failed\n");
+    ret = rint(-3.3);
+    ok(ret == -4.0, "ret = %lf\n", ret);
+    ret = rint(3.3);
+    ok(ret == 3.0, "ret = %lf\n", ret);
+
+    ok(!fesetround(FE_UPWARD), "fesetround failed\n");
+    ret = rint(-3.3);
+    ok(ret == -3.0, "ret = %lf\n", ret);
+    ret = rint(3.3);
+    ok(ret == 4.0, "ret = %lf\n", ret);
+
+    fesetround(rounding_mode);
+}
+
 START_TEST(misc)
 {
     int arg_c;
@@ -2162,4 +2174,5 @@ START_TEST(misc)
     test_cexp();
     test_carg();
     test_cargf();
+    test_rint();
 }

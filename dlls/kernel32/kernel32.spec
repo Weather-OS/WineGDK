@@ -505,7 +505,7 @@
 @ stdcall -import FindFirstVolumeW(ptr long)
 @ stdcall -import FindNextChangeNotification(long)
 @ stdcall -import FindNextFileA(long ptr)
-# @ stub FindNextFileNameW
+@ stdcall -import FindNextFileNameW(ptr ptr ptr)
 @ stdcall -import FindNextFileW(long ptr)
 @ stdcall -import FindNextStreamW(long ptr)
 @ stdcall FindNextVolumeA(long ptr long)
@@ -1190,6 +1190,9 @@
 @ stdcall Process32Next (ptr ptr)
 @ stdcall Process32NextW (ptr ptr)
 @ stdcall -import ProcessIdToSessionId(long ptr)
+@ stdcall -import PssCaptureSnapshot(ptr long long ptr)
+@ stdcall -import PssFreeSnapshot(ptr ptr)
+@ stdcall -import PssQuerySnapshot(ptr long ptr long)
 @ stdcall -import PulseEvent(long)
 @ stdcall -import PurgeComm(long long)
 @ stdcall -i386 -private -norelay QT_Thunk() krnl386.exe16.QT_Thunk

@@ -536,7 +536,7 @@ static void test_remote_cert(PCCERT_CONTEXT remote_cert)
         cert_cnt++;
     }
 
-    ok(cert_cnt == 2, "cert_cnt = %u\n", cert_cnt);
+    ok(cert_cnt == 4, "cert_cnt = %u\n", cert_cnt);
     ok(incl_remote, "context does not contain cert itself\n");
 }
 
@@ -1040,9 +1040,7 @@ static void test_communication(void)
     status = InitializeSecurityContextA(&cred_handle, &context, (SEC_CHAR *)"localhost",
             ISC_REQ_CONFIDENTIALITY|ISC_REQ_STREAM,
             0, 0, &buffers[1], 0, NULL, &buffers[0], &attrs, NULL);
-    todo_wine
     ok(status == SEC_E_INVALID_TOKEN, "Expected SEC_E_INVALID_TOKEN, got %08lx\n", status);
-    todo_wine
     ok(buffers[0].pBuffers[0].cbBuffer == 0, "Output buffer size was not set to 0.\n");
 
     buffers[1].cBuffers = 1;
@@ -1204,7 +1202,6 @@ static void test_communication(void)
         test_remote_cert(cert);
 
         status = QueryContextAttributesA(&context, SECPKG_ATTR_ENDPOINT_BINDINGS, &bindings);
-        todo_wine
         ok(status == SEC_E_OK, "QueryContextAttributesW(SECPKG_ATTR_ENDPOINT_BINDINGS) failed: %08lx\n", status);
         if (status == SEC_E_OK)
         {

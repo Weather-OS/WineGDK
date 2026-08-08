@@ -113,10 +113,13 @@ if test -s conftest.err; then
      cat conftest.err >&AS_MESSAGE_LOG_FD
 fi
 rm -f conftest.err
-AS_IF([test -n "$ac_cflags$ac_libs"],[ac_save_CPPFLAGS=$CPPFLAGS
+AS_IF([test -n "$ac_cflags$ac_libs"],[ac_save_pkg_CPPFLAGS=$CPPFLAGS
+ac_save_pkg_LIBS=$LIBS
 CPPFLAGS="$CPPFLAGS $ac_cflags"
+LIBS="$ac_libs $LIBS"
 $6
-CPPFLAGS=$ac_save_CPPFLAGS])
+CPPFLAGS=$ac_save_pkg_CPPFLAGS
+LIBS=$ac_save_pkg_LIBS])
 AS_VAR_POPDEF([ac_libs])dnl
 AS_VAR_POPDEF([ac_cflags])])dnl
 
@@ -135,10 +138,13 @@ AS_VAR_IF([ac_libs],[],
       [AS_VAR_SET_IF([MINGW_PKG_CONFIG],
       [ac_libs=`$MINGW_PKG_CONFIG --libs [$2] 2>/dev/null`])])
 m4_ifval([$3],[ac_libs=[$]{ac_libs:-"$3"}])
-AS_IF([test -n "$ac_cflags$ac_libs"],[ac_save_CPPFLAGS=$CPPFLAGS
+AS_IF([test -n "$ac_cflags$ac_libs"],[ac_save_pkg_CPPFLAGS=$CPPFLAGS
+ac_save_pkg_LIBS=$LIBS
 CPPFLAGS="$CPPFLAGS $ac_cflags"
+LIBS="$ac_libs $LIBS"
 $4
-CPPFLAGS=$ac_save_CPPFLAGS])
+CPPFLAGS=$ac_save_pkg_CPPFLAGS
+LIBS=$ac_save_pkg_LIBS])
 AS_VAR_POPDEF([ac_libs])dnl
 AS_VAR_POPDEF([ac_cflags])])dnl
 
@@ -236,24 +242,21 @@ ac_exeext=$ac_wine_check_headers_saved_exeext])
 AS_VAR_IF([ac_var],[yes],[$2],[$3])dnl
 AS_VAR_POPDEF([ac_var])])
 
-dnl **** Check whether the given MinGW library is available ****
+dnl **** Check whether the given MinGW library function is available ****
 dnl
-dnl Usage: WINE_CHECK_MINGW_LIB(library,function,[action-if-found],[action-if-not-found],[other-libraries])
+dnl Usage: WINE_CHECK_MINGW_FUNC(library,function,[action-if-found],[action-if-not-found])
 dnl
-AC_DEFUN([WINE_CHECK_MINGW_LIB],
-[AS_VAR_PUSHDEF([ac_var],[ac_cv_mingw_lib_$1])dnl
-AC_CACHE_CHECK([for $2 in MinGW -l$1], ac_var,
+AC_DEFUN([WINE_CHECK_MINGW_FUNC],
+[AS_VAR_PUSHDEF([ac_var],[ac_cv_mingw_func_$1])dnl
+AC_CACHE_CHECK([for $1 in PE library], ac_var,
 [ac_wine_check_headers_saved_cc=$CC
 ac_wine_check_headers_saved_exeext=$ac_exeext
-ac_wine_check_headers_saved_libs=$LIBS
 AS_VAR_COPY([CC],[${wine_arch}_CC])
 ac_exeext=".exe"
-LIBS="-l$1 $5 $LIBS"
-AC_LINK_IFELSE([AC_LANG_CALL([], [$2])],[AS_VAR_SET([ac_var],[yes])],[AS_VAR_SET([ac_var],[no])])
+AC_LINK_IFELSE([AC_LANG_CALL([], [$1])],[AS_VAR_SET([ac_var],[yes])],[AS_VAR_SET([ac_var],[no])])
 CC=$ac_wine_check_headers_saved_cc
-ac_exeext=$ac_wine_check_headers_saved_exeext
-LIBS=$ac_wine_check_headers_saved_libs])
-AS_VAR_IF([ac_var],[yes],[$3],[$4])dnl
+ac_exeext=$ac_wine_check_headers_saved_exeext])
+AS_VAR_IF([ac_var],[yes],[$2],[$3])dnl
 AS_VAR_POPDEF([ac_var])])
 
 dnl **** Check whether we need to define a symbol on the compiler command line ****
@@ -329,7 +332,9 @@ AC_DEFUN([WINE_CONFIG_MAKEFILE],[AC_REQUIRE([WINE_CONFIG_HELPERS])dnl
 AS_VAR_PUSHDEF([ac_enable],[enable_]m4_bpatsubst(m4_bpatsubst([$1],[.*/\([^/]*\)$],[\1]),[.*\.\(.*16\|vxd\)$],[win16]))dnl
 m4_append_uniq([_AC_USER_OPTS],ac_enable,[
 ])dnl
-m4_if(m4_bregexp([$1],[^tools]),[-1],[],[test "x$enable_tools" = xno || ])wine_fn_config_makefile [$1] ac_enable[]dnl
+m4_if(m4_bregexp([$1],[^tools]),[-1],[],
+      m4_if([$1],[tools/wine],[],[test "x$enable_tools" = xno || ]))dnl
+wine_fn_config_makefile [$1] ac_enable[]dnl
 AS_VAR_POPDEF([ac_enable])])
 
 dnl **** Append a file to the .gitignore list ****

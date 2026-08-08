@@ -46,27 +46,11 @@ static void async_cancel_destroy( struct object *obj );
 
 static const struct object_ops async_cancel_ops =
 {
-    sizeof(struct async_cancel), /* size */
-    &no_type,                    /* type */
-    async_cancel_dump,           /* dump */
-    NULL,                        /* add_queue */
-    NULL,                        /* remove_queue */
-    NULL,                        /* signaled */
-    NULL,                        /* satisfied */
-    no_signal,                   /* signal */
-    no_get_fd,                   /* get_fd */
-    async_cancel_get_sync,       /* get_sync */
-    default_map_access,          /* map_access */
-    default_get_sd,              /* get_sd */
-    default_set_sd,              /* set_sd */
-    no_get_full_name,            /* get_full_name */
-    no_lookup_name,              /* lookup_name */
-    no_link_name,                /* link_name */
-    NULL,                        /* unlink_name */
-    no_open_file,                /* open_file */
-    no_kernel_obj_list,          /* get_kernel_obj_list */
-    no_close_handle,             /* close_handle */
-    async_cancel_destroy         /* destroy */
+    .size     = sizeof(struct async_cancel),
+    .type     = &no_type,
+    .dump     = async_cancel_dump,
+    .get_sync = async_cancel_get_sync,
+    .destroy  = async_cancel_destroy,
 };
 
 static void async_cancel_dump( struct object *obj, int verbose )
@@ -147,27 +131,14 @@ static void async_destroy( struct object *obj );
 
 static const struct object_ops async_ops =
 {
-    sizeof(struct async),      /* size */
-    &no_type,                  /* type */
-    async_dump,                /* dump */
-    add_queue,                 /* add_queue */
-    remove_queue,              /* remove_queue */
-    async_signaled,            /* signaled */
-    async_satisfied,           /* satisfied */
-    no_signal,                 /* signal */
-    no_get_fd,                 /* get_fd */
-    default_get_sync,          /* get_sync */
-    default_map_access,        /* map_access */
-    default_get_sd,            /* get_sd */
-    default_set_sd,            /* set_sd */
-    no_get_full_name,          /* get_full_name */
-    no_lookup_name,            /* lookup_name */
-    no_link_name,              /* link_name */
-    NULL,                      /* unlink_name */
-    no_open_file,              /* open_file */
-    no_kernel_obj_list,        /* get_kernel_obj_list */
-    no_close_handle,           /* close_handle */
-    async_destroy              /* destroy */
+    .size         = sizeof(struct async),
+    .type         = &no_type,
+    .dump         = async_dump,
+    .add_queue    = add_queue,
+    .remove_queue = remove_queue,
+    .signaled     = async_signaled,
+    .satisfied    = async_satisfied,
+    .destroy      = async_destroy,
 };
 
 static inline void async_reselect( struct async *async )
@@ -821,27 +792,10 @@ static void iosb_destroy( struct object *obj );
 
 static const struct object_ops iosb_ops =
 {
-    sizeof(struct iosb),      /* size */
-    &no_type,                 /* type */
-    iosb_dump,                /* dump */
-    no_add_queue,             /* add_queue */
-    NULL,                     /* remove_queue */
-    NULL,                     /* signaled */
-    NULL,                     /* satisfied */
-    no_signal,                /* signal */
-    no_get_fd,                /* get_fd */
-    default_get_sync,         /* get_sync */
-    default_map_access,       /* map_access */
-    default_get_sd,           /* get_sd */
-    default_set_sd,           /* set_sd */
-    no_get_full_name,         /* get_full_name */
-    no_lookup_name,           /* lookup_name */
-    no_link_name,             /* link_name */
-    NULL,                     /* unlink_name */
-    no_open_file,             /* open_file */
-    no_kernel_obj_list,       /* get_kernel_obj_list */
-    no_close_handle,          /* close_handle */
-    iosb_destroy              /* destroy */
+    .size    = sizeof(struct iosb),
+    .type    = &no_type,
+    .dump    = iosb_dump,
+    .destroy = iosb_destroy,
 };
 
 static void iosb_dump( struct object *obj, int verbose )

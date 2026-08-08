@@ -540,13 +540,19 @@ unsigned int dxgi_swapchain_flags_from_wined3d(unsigned int wined3d_flags)
         flags |= DXGI_SWAP_CHAIN_FLAG_GDI_COMPATIBLE;
     }
 
+    if (wined3d_flags & WINED3D_SWAPCHAIN_FRAME_LATENCY_WAITABLE_OBJECT)
+    {
+        wined3d_flags &= ~WINED3D_SWAPCHAIN_FRAME_LATENCY_WAITABLE_OBJECT;
+        flags |= DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
+    }
+
     if (wined3d_flags)
         FIXME("Unhandled flags %#x.\n", flags);
 
     return flags;
 }
 
-static unsigned int wined3d_swapchain_flags_from_dxgi(unsigned int flags)
+unsigned int wined3d_swapchain_flags_from_dxgi(unsigned int flags)
 {
     unsigned int wined3d_flags = DXGI_WINED3D_SWAPCHAIN_FLAGS; /* WINED3D_SWAPCHAIN_DISCARD_DEPTHSTENCIL? */
 
@@ -560,6 +566,12 @@ static unsigned int wined3d_swapchain_flags_from_dxgi(unsigned int flags)
     {
         flags &= ~DXGI_SWAP_CHAIN_FLAG_GDI_COMPATIBLE;
         wined3d_flags |= WINED3D_SWAPCHAIN_GDI_COMPATIBLE;
+    }
+
+    if (flags & DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT)
+    {
+        flags &= ~DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
+        wined3d_flags |= WINED3D_SWAPCHAIN_FRAME_LATENCY_WAITABLE_OBJECT;
     }
 
     if (flags)

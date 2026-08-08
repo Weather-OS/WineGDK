@@ -355,6 +355,21 @@ static BOOL session_set_option( struct object_header *hdr, DWORD option, void *b
         FIXME( "WINHTTP_OPTION_IPV6_FAST_FALLBACK: %d\n", *(BOOL *)buffer );
         return TRUE;
 
+    case WINHTTP_OPTION_ASSURED_NON_BLOCKING_CALLBACKS:
+        if (buflen != sizeof(BOOL))
+        {
+            SetLastError( ERROR_INSUFFICIENT_BUFFER );
+            return FALSE;
+        }
+        FIXME( "WINHTTP_OPTION_ASSURED_NON_BLOCKING_CALLBACKS: %d\n", *(BOOL *)buffer );
+        return TRUE;
+
+    case WINHTTP_OPTION_ENABLE_HTTP2_PLUS_CLIENT_CERT:
+    {
+        FIXME( "WINHTTP_OPTION_ENABLE_HTTP2_PLUS_CLIENT_CERT: %d\n", *(BOOL *)buffer );
+        return TRUE;
+    }
+
     default:
         FIXME( "unimplemented option %lu\n", option );
         SetLastError( ERROR_WINHTTP_INVALID_OPTION );
@@ -912,22 +927,18 @@ static BOOL request_query_option( struct object_header *hdr, DWORD option, void 
     }
     case WINHTTP_OPTION_SERVER_CERT_CHAIN_CONTEXT:
     {
-        const CERT_CHAIN_CONTEXT *cert_chain;
+        const CERT_CHAIN_CONTEXT *chain;
 
-        char oid_server_auth[] = szOID_PKIX_KP_SERVER_AUTH;
-        char *server_auth[] = { oid_server_auth };
-
-        CERT_CHAIN_PARA chainPara = { sizeof(chainPara), { 0 } };
-
-        chainPara.RequestedUsage.Usage.cUsageIdentifier = 1;
-        chainPara.RequestedUsage.Usage.rgpszUsageIdentifier = server_auth;
-
-        if (!validate_buffer( buffer, buflen, sizeof(cert_chain) )) return FALSE;
-        if (!CertGetCertificateChain(NULL, request->server_cert, NULL, NULL, &chainPara, 0, NULL, &cert_chain)) return FALSE;
-
-        *(CERT_CHAIN_CONTEXT **)buffer = (CERT_CHAIN_CONTEXT *)cert_chain;
-        *buflen = sizeof(cert_chain);
-
+        if (!validate_buffer( buffer, buflen, sizeof(chain) )) return FALSE;
+        if (!request->netconn || !request->netconn->chain)
+        {
+            SetLastError( ERROR_WINHTTP_INCORRECT_HANDLE_STATE );
+            *(CERT_CHAIN_CONTEXT **)buffer = NULL;
+            return FALSE;
+        }
+        if (!(chain = CertDuplicateCertificateChain( request->netconn->chain ))) return FALSE;
+        *(const CERT_CHAIN_CONTEXT **)buffer = chain;
+        *buflen = sizeof(chain);
         return TRUE;
     }
     case WINHTTP_OPTION_SECURITY_CERTIFICATE_STRUCT:
@@ -982,6 +993,28 @@ static BOOL request_query_option( struct object_header *hdr, DWORD option, void 
         if (!copy_sockaddr( &local, &info->LocalAddress )) return FALSE;
         if (!copy_sockaddr( remote, &info->RemoteAddress )) return FALSE;
         info->cbSize = sizeof(*info);
+        return TRUE;
+    }
+    case WINHTTP_OPTION_SERVER_CBT:
+    {
+        SecPkgContext_Bindings cbt;
+        SECURITY_STATUS status;
+        DWORD size;
+
+        status = QueryContextAttributesW( &request->netconn->ssl_ctx, SECPKG_ATTR_ENDPOINT_BINDINGS, (void *)&cbt );
+        if (status != SEC_E_OK) return FALSE;
+
+        size = sizeof(cbt) + cbt.BindingsLength;
+        if (!validate_buffer( buffer, buflen, size ))
+        {
+            FreeContextBuffer( cbt.Bindings );
+            return FALSE;
+        }
+        memcpy( buffer, &cbt, sizeof(cbt) );
+        memcpy( (char *)buffer + sizeof(cbt), cbt.Bindings, cbt.BindingsLength );
+        *buflen = size;
+
+        FreeContextBuffer( cbt.Bindings );
         return TRUE;
     }
     case WINHTTP_OPTION_RESOLVE_TIMEOUT:

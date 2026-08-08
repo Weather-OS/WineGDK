@@ -29,36 +29,134 @@ static const GUID GUID_VBScriptTypeInfo = {0xc59c6b12,0xf6c1,0x11cf,{0x88,0x35,0
 #define DISPID_FUNCTION_MASK 0x20000000
 #define FDEX_VERSION_MASK 0xf0000000
 
-static int func_name_cmp(const void *key, const struct rb_entry *entry)
+static int scriptdisp_member_cmp(const void *key, const struct rb_entry *entry)
 {
-    function_t *func = RB_ENTRY_VALUE(entry, function_t, entry);
-    return vbs_wcsicmp(key, func->name);
+    scriptdisp_entry_t *member = RB_ENTRY_VALUE(entry, scriptdisp_entry_t, entry);
+    return vbs_wcsicmp(key, member->name);
 }
 
-static int var_name_cmp(const void *key, const struct rb_entry *entry)
+scriptdisp_entry_t *script_disp_find_member(ScriptDisp *disp, const WCHAR *name)
 {
-    dynamic_var_t *var = RB_ENTRY_VALUE(entry, dynamic_var_t, entry);
-    return vbs_wcsicmp(key, var->name);
+    struct rb_entry *entry = rb_get(&disp->members, name);
+    return entry ? RB_ENTRY_VALUE(entry, scriptdisp_entry_t, entry) : NULL;
+}
+
+/* Insert name into the member tree, or return the existing entry for it; the
+   caller fills in the type and payload. The name string must stay valid for
+   the lifetime of the entry. */
+static scriptdisp_entry_t *script_disp_add_member(ScriptDisp *disp, const WCHAR *name)
+{
+    scriptdisp_entry_t *member = script_disp_find_member(disp, name);
+
+    if (member) {
+        member->name = name;
+        return member;
+    }
+
+    if (!(member = heap_pool_alloc(&disp->heap, sizeof(*member))))
+        return NULL;
+    member->name = name;
+    rb_put(&disp->members, name, &member->entry);
+    return member;
+}
+
+scriptdisp_entry_t *script_disp_add_var(ScriptDisp *disp, dynamic_var_t *var)
+{
+    scriptdisp_entry_t *member = script_disp_add_member(disp, var->name);
+
+    if (member) {
+        member->type = SCRIPTDISP_VAR;
+        member->u.var = var;
+    }
+    return member;
+}
+
+scriptdisp_entry_t *script_disp_add_func(ScriptDisp *disp, function_t *func)
+{
+    scriptdisp_entry_t *member = script_disp_add_member(disp, func->name);
+
+    if (member) {
+        member->type = SCRIPTDISP_FUNC;
+        member->u.func = func;
+    }
+    return member;
+}
+
+/* Cache a host property resolved through a named item's dispatch. Returns NULL
+   without caching when a real variable or function already owns the name, so a
+   later script declaration is never shadowed by a stale host entry. */
+scriptdisp_entry_t *script_disp_add_hostprop(ScriptDisp *disp, const WCHAR *name, IDispatch *disp_obj, DISPID id)
+{
+    scriptdisp_entry_t *member = script_disp_find_member(disp, name);
+
+    if (member) {
+        if (member->type != SCRIPTDISP_HOSTPROP)
+            return NULL;
+    } else {
+        WCHAR *str;
+        size_t size = (lstrlenW(name) + 1) * sizeof(WCHAR);
+
+        /* The name must outlive the entry; the caller's bytecode string may not,
+           so keep a copy in the dispatch's own pool. */
+        if (!(str = heap_pool_alloc(&disp->heap, size)))
+            return NULL;
+        memcpy(str, name, size);
+
+        if (!(member = script_disp_add_member(disp, str)))
+            return NULL;
+    }
+
+    member->type = SCRIPTDISP_HOSTPROP;
+    member->u.host.disp = disp_obj;
+    member->u.host.id = id;
+    return member;
+}
+
+/* Cache a builtin function resolved through the global object, so subsequent
+   lookups find it in the tree instead of querying the builtins again. */
+scriptdisp_entry_t *script_disp_add_builtin(ScriptDisp *disp, const WCHAR *name, IDispatch *disp_obj, DISPID id)
+{
+    scriptdisp_entry_t *member = script_disp_find_member(disp, name);
+
+    if (member) {
+        if (member->type != SCRIPTDISP_BUILTIN)
+            return NULL;
+    } else {
+        WCHAR *str;
+        size_t size = (lstrlenW(name) + 1) * sizeof(WCHAR);
+
+        if (!(str = heap_pool_alloc(&disp->heap, size)))
+            return NULL;
+        memcpy(str, name, size);
+
+        if (!(member = script_disp_add_member(disp, str)))
+            return NULL;
+    }
+
+    member->type = SCRIPTDISP_BUILTIN;
+    member->u.host.disp = disp_obj;
+    member->u.host.id = id;
+    return member;
 }
 
 function_t *script_disp_find_func(ScriptDisp *disp, const WCHAR *name)
 {
-    struct rb_entry *entry = rb_get(&disp->func_tree, name);
+    scriptdisp_entry_t *member = script_disp_find_member(disp, name);
 
-    if (!entry)
+    if (!member || member->type != SCRIPTDISP_FUNC)
         return NULL;
 
-    return RB_ENTRY_VALUE(entry, function_t, entry);
+    return member->u.func;
 }
 
 dynamic_var_t *script_disp_find_var(ScriptDisp *disp, const WCHAR *name)
 {
-    struct rb_entry *entry = rb_get(&disp->var_tree, name);
+    scriptdisp_entry_t *member = script_disp_find_member(disp, name);
 
-    if (!entry)
+    if (!member || member->type != SCRIPTDISP_VAR)
         return NULL;
 
-    return RB_ENTRY_VALUE(entry, dynamic_var_t, entry);
+    return member->u.var;
 }
 
 static inline BOOL is_func_id(vbdisp_t *This, DISPID id)
@@ -162,7 +260,7 @@ static HRESULT get_array_from_variant(VARIANT *v, SAFEARRAY **array)
     }
 }
 
-static HRESULT invoke_variant_prop(script_ctx_t *ctx, VARIANT *v, WORD flags, DISPPARAMS *dp, VARIANT *res)
+static HRESULT invoke_variant_prop(script_ctx_t *ctx, VARIANT *v, WORD flags, BOOL is_call, DISPPARAMS *dp, VARIANT *res)
 {
     HRESULT hres;
 
@@ -179,6 +277,12 @@ static HRESULT invoke_variant_prop(script_ctx_t *ctx, VARIANT *v, WORD flags, DI
                 WARN("failed to access array element\n");
                 return hres;
             }
+        }else if(is_call && (flags & DISPATCH_METHOD)) {
+            /* Empty parens in script source on a variant-typed property:
+             * not callable. is_call is set only for script-internal call
+             * forms (`obj.x()`, etc.); bare access (`obj.x`) and external
+             * IDispatchEx callers still receive the value normally. */
+            return MAKE_VBSERROR(VBSE_ILLEGAL_FUNC_CALL);
         }
 
         hres = VariantCopyInd(res, v);
@@ -231,7 +335,7 @@ static HRESULT invoke_variant_prop(script_ctx_t *ctx, VARIANT *v, WORD flags, DI
     return hres;
 }
 
-static HRESULT invoke_vbdisp(vbdisp_t *This, DISPID id, DWORD flags, BOOL extern_caller, DISPPARAMS *params, VARIANT *res)
+static HRESULT invoke_vbdisp(vbdisp_t *This, DISPID id, DWORD flags, BOOL extern_caller, BOOL is_call, DISPPARAMS *params, VARIANT *res)
 {
     if(id < 0)
         return DISP_E_MEMBERNOTFOUND;
@@ -315,7 +419,7 @@ static HRESULT invoke_vbdisp(vbdisp_t *This, DISPID id, DWORD flags, BOOL extern
         return DISP_E_MEMBERNOTFOUND;
 
     TRACE("%p->%s\n", This, debugstr_w(This->desc->props[id - This->desc->func_cnt].name));
-    return invoke_variant_prop(This->desc->ctx, This->props+(id-This->desc->func_cnt), flags, params, res);
+    return invoke_variant_prop(This->desc->ctx, This->props+(id-This->desc->func_cnt), flags, is_call, params, res);
 }
 
 static BOOL run_terminator(vbdisp_t *This)
@@ -418,12 +522,148 @@ static HRESULT WINAPI DispatchEx_GetTypeInfoCount(IDispatchEx *iface, UINT *pcti
     return S_OK;
 }
 
+/* Map function_t::type to ITypeInfo INVOKEKIND. */
+static INVOKEKIND invoke_kind_for_func(function_type_t t)
+{
+    switch(t) {
+    case FUNC_PROPGET: return INVOKE_PROPERTYGET;
+    case FUNC_PROPLET: return INVOKE_PROPERTYPUT;
+    case FUNC_PROPSET: return INVOKE_PROPERTYPUTREF;
+    default:           return INVOKE_FUNC;
+    }
+}
+
+static HRESULT add_class_member_func(ICreateTypeInfo *cti, unsigned slot, DISPID memid,
+                                     const vbdisp_funcprop_desc_t *fp, vbdisp_invoke_type_t which)
+{
+    function_t *fn = fp->entries[which];
+    FUNCDESC fd;
+    ELEMDESC params_storage[16];
+    ELEMDESC *params = NULL;
+    BSTR names[17];
+    unsigned cnames, j;
+    HRESULT hr;
+
+    if(!fn) return S_OK;
+
+    memset(&fd, 0, sizeof(fd));
+    fd.memid = memid;
+    fd.funckind = FUNC_DISPATCH;
+    fd.invkind = invoke_kind_for_func(fn->type);
+    fd.callconv = CC_STDCALL;
+    fd.cParams = fn->arg_cnt < 16 ? fn->arg_cnt : 16;
+    fd.elemdescFunc.tdesc.vt = VT_VARIANT;
+
+    if(fd.cParams) {
+        memset(params_storage, 0, sizeof(params_storage));
+        for(j = 0; j < fd.cParams; j++) {
+            params_storage[j].tdesc.vt = VT_VARIANT;
+            params_storage[j].paramdesc.wParamFlags = PARAMFLAG_FIN;
+        }
+        params = params_storage;
+    }
+    fd.lprgelemdescParam = params;
+
+    hr = ICreateTypeInfo_AddFuncDesc(cti, slot, &fd);
+    if(FAILED(hr)) return hr;
+
+    cnames = 1 + fd.cParams;
+    names[0] = SysAllocString(fp->name);
+    for(j = 0; j < fd.cParams; j++)
+        names[j+1] = fn->args[j].name ? SysAllocString(fn->args[j].name) : SysAllocString(L"");
+    hr = ICreateTypeInfo_SetFuncAndParamNames(cti, slot, names, cnames);
+    for(j = 0; j < cnames; j++) SysFreeString(names[j]);
+    return hr;
+}
+
+static HRESULT build_class_typeinfo(class_desc_t *desc, ITypeInfo **out)
+{
+    ICreateTypeLib2 *ctl = NULL;
+    ICreateTypeInfo *cti = NULL;
+    ITypeLib *tl = NULL;
+    HRESULT hr;
+    unsigned i, slot;
+
+    *out = NULL;
+
+    hr = CreateTypeLib2(SYS_WIN64, L"vbscript.tlb", &ctl);
+    if(FAILED(hr)) return hr;
+
+    hr = ICreateTypeLib2_CreateTypeInfo(ctl, (LPOLESTR)desc->name, TKIND_DISPATCH, &cti);
+    if(FAILED(hr)) goto done;
+
+    ICreateTypeInfo_SetTypeFlags(cti, TYPEFLAG_FDISPATCHABLE);
+
+    /* One FUNCDESC per public named func/property (matching native).
+     * Property get/let/set collapse into a single entry; pick the get
+     * entry when present, else let, else set. */
+    slot = 0;
+    for(i = 0; i < desc->func_cnt; i++) {
+        const vbdisp_funcprop_desc_t *fp = &desc->funcs[i];
+        vbdisp_invoke_type_t which;
+        if(!fp->is_public || !fp->name) continue;
+        if(desc->class_initialize_id && i == desc->class_initialize_id) continue;
+        if(desc->class_terminate_id && i == desc->class_terminate_id) continue;
+
+        if(fp->entries[VBDISP_CALLGET])     which = VBDISP_CALLGET;
+        else if(fp->entries[VBDISP_LET])    which = VBDISP_LET;
+        else if(fp->entries[VBDISP_SET])    which = VBDISP_SET;
+        else continue;
+
+        hr = add_class_member_func(cti, slot, i, fp, which);
+        if(FAILED(hr)) goto done;
+        slot++;
+    }
+
+    /* Public properties (Dim'd vars). */
+    slot = 0;
+    for(i = 0; i < desc->prop_cnt; i++) {
+        VARDESC vd;
+        BSTR vname;
+        if(!desc->props[i].is_public || !desc->props[i].name) continue;
+
+        memset(&vd, 0, sizeof(vd));
+        vd.memid = desc->func_cnt + i;
+        vd.varkind = VAR_DISPATCH;
+        vd.elemdescVar.tdesc.vt = VT_VARIANT;
+        hr = ICreateTypeInfo_AddVarDesc(cti, slot, &vd);
+        if(FAILED(hr)) goto done;
+
+        vname = SysAllocString(desc->props[i].name);
+        hr = ICreateTypeInfo_SetVarName(cti, slot, vname);
+        SysFreeString(vname);
+        if(FAILED(hr)) goto done;
+        slot++;
+    }
+
+    hr = ICreateTypeInfo_LayOut(cti);
+    if(FAILED(hr)) goto done;
+
+    hr = ICreateTypeLib2_QueryInterface(ctl, &IID_ITypeLib, (void**)&tl);
+    if(FAILED(hr)) goto done;
+
+    hr = ITypeLib_GetTypeInfo(tl, 0, out);
+
+done:
+    if(tl)  ITypeLib_Release(tl);
+    if(cti) ICreateTypeInfo_Release(cti);
+    if(ctl) ICreateTypeLib2_Release(ctl);
+    return hr;
+}
+
 static HRESULT WINAPI DispatchEx_GetTypeInfo(IDispatchEx *iface, UINT iTInfo, LCID lcid,
                                               ITypeInfo **ppTInfo)
 {
     vbdisp_t *This = impl_from_IDispatchEx(iface);
-    FIXME("(%p)->(%u %lu %p)\n", This, iTInfo, lcid, ppTInfo);
-    return E_NOTIMPL;
+
+    TRACE("(%p)->(%u %lu %p)\n", This, iTInfo, lcid, ppTInfo);
+
+    if(!ppTInfo) return E_INVALIDARG;
+    *ppTInfo = NULL;
+    if(iTInfo) return DISP_E_BADINDEX;
+    if(!This->desc) return E_UNEXPECTED;
+
+    return build_class_typeinfo((class_desc_t*)This->desc, ppTInfo);
 }
 
 static HRESULT WINAPI DispatchEx_GetIDsOfNames(IDispatchEx *iface, REFIID riid,
@@ -489,7 +729,7 @@ static HRESULT WINAPI DispatchEx_InvokeEx(IDispatchEx *iface, DISPID id, LCID lc
     if(pspCaller)
         IServiceProvider_AddRef(pspCaller);
 
-    hres = invoke_vbdisp(This, id, wFlags, TRUE, pdp, pvarRes);
+    hres = invoke_vbdisp(This, id, wFlags, TRUE, FALSE, pdp, pvarRes);
 
     This->desc->ctx->vbcaller->caller = prev_caller;
     if(pspCaller)
@@ -564,6 +804,12 @@ static inline vbdisp_t *unsafe_impl_from_IDispatch(IDispatch *iface)
         : NULL;
 }
 
+const WCHAR *vbdisp_class_name(IDispatch *disp)
+{
+    vbdisp_t *vbdisp = unsafe_impl_from_IDispatch(disp);
+    return vbdisp && vbdisp->desc ? vbdisp->desc->name : NULL;
+}
+
 HRESULT create_vbdisp(const class_desc_t *desc, vbdisp_t **ret)
 {
     vbdisp_t *vbdisp;
@@ -593,6 +839,7 @@ HRESULT create_vbdisp(const class_desc_t *desc, vbdisp_t **ret)
                     hres = E_OUTOFMEMORY;
                     break;
                 }
+                vbdisp->arrays[i]->fFeatures |= FADF_FIXEDSIZE | FADF_STATIC;
             }
 
             if(SUCCEEDED(hres)) {
@@ -708,6 +955,10 @@ static HRESULT WINAPI FuncRef_Invoke(IDispatch *iface, DISPID dispIdMember, REFI
     if(dispIdMember != DISPID_VALUE)
         return DISP_E_MEMBERNOTFOUND;
 
+    /* The engine runs its own references through disp_call as internal calls;
+     * reaching this vtable entry means the caller is outside the engine, so the
+     * reference is entered as an external caller and errors are reported to the
+     * host rather than propagated as an HRESULT. */
     return exec_script(This->ctx, TRUE, This->func, NULL, pDispParams, pVarResult);
 }
 
@@ -720,6 +971,11 @@ static const IDispatchVtbl FuncRefVtbl = {
     FuncRef_GetIDsOfNames,
     FuncRef_Invoke
 };
+
+static inline FuncRef *unsafe_funcref_from_IDispatch(IDispatch *iface)
+{
+    return iface->lpVtbl == &FuncRefVtbl ? FuncRef_from_IDispatch(iface) : NULL;
+}
 
 HRESULT create_func_ref(script_ctx_t *ctx, function_t *func, IDispatch **ret)
 {
@@ -1051,10 +1307,10 @@ static HRESULT WINAPI ScriptTypeInfo_GetIDsOfNames(ITypeInfo *iface, LPOLESTR *r
     }
 
     {
-        struct rb_entry *entry = rb_get(&This->disp->var_tree, name);
-        if (entry)
+        dynamic_var_t *var = script_disp_find_var(This->disp, name);
+        if (var)
         {
-            pMemId[0] = RB_ENTRY_VALUE(entry, dynamic_var_t, entry)->index + 1;
+            pMemId[0] = var->index + 1;
             return S_OK;
         }
     }
@@ -1355,10 +1611,9 @@ static HRESULT WINAPI ScriptTypeComp_Bind(ITypeComp *iface, LPOLESTR szName, ULO
     }
 
     {
-        struct rb_entry *entry = rb_get(&This->disp->var_tree, szName);
-        if (entry)
+        dynamic_var_t *var = script_disp_find_var(This->disp, szName);
+        if (var)
         {
-            dynamic_var_t *var = RB_ENTRY_VALUE(entry, dynamic_var_t, entry);
             if (!(flags & INVOKE_PROPERTYGET)) return TYPE_E_TYPEMISMATCH;
 
             hr = ITypeInfo_GetVarDesc(&This->ITypeInfo_iface, var->index, &pBindPtr->lpvardesc);
@@ -1578,24 +1833,24 @@ static HRESULT WINAPI ScriptDisp_Invoke(IDispatchEx *iface, DISPID dispIdMember,
 static HRESULT WINAPI ScriptDisp_GetDispID(IDispatchEx *iface, BSTR bstrName, DWORD grfdex, DISPID *pid)
 {
     ScriptDisp *This = ScriptDisp_from_IDispatchEx(iface);
-    struct rb_entry *entry;
+    scriptdisp_entry_t *member;
 
     TRACE("(%p)->(%s %lx %p)\n", This, debugstr_w(bstrName), grfdex, pid);
 
     if(!This->ctx)
         return E_UNEXPECTED;
 
-    entry = rb_get(&This->var_tree, bstrName);
-    if(entry) {
-        *pid = RB_ENTRY_VALUE(entry, dynamic_var_t, entry)->index + 1;
-        return S_OK;
-    }
-
-    entry = rb_get(&This->func_tree, bstrName);
-    if(entry) {
-        function_t *func = RB_ENTRY_VALUE(entry, function_t, entry);
-        *pid = func->index + 1 + DISPID_FUNCTION_MASK;
-        return S_OK;
+    member = script_disp_find_member(This, bstrName);
+    if(member) {
+        /* Host properties cached on this dispatch are not script members. */
+        if(member->type == SCRIPTDISP_FUNC) {
+            *pid = member->u.func->index + 1 + DISPID_FUNCTION_MASK;
+            return S_OK;
+        }
+        if(member->type == SCRIPTDISP_VAR) {
+            *pid = member->u.var->index + 1;
+            return S_OK;
+        }
     }
 
     *pid = -1;
@@ -1653,7 +1908,7 @@ static HRESULT WINAPI ScriptDisp_InvokeEx(IDispatchEx *iface, DISPID id, LCID lc
         goto done;
     }
 
-    hres = invoke_variant_prop(This->ctx, &This->global_vars[id - 1]->v, wFlags, pdp, pvarRes);
+    hres = invoke_variant_prop(This->ctx, &This->global_vars[id - 1]->v, wFlags, FALSE, pdp, pvarRes);
 
 done:
     This->ctx->vbcaller->caller = prev_caller;
@@ -1734,8 +1989,7 @@ HRESULT create_script_disp(script_ctx_t *ctx, ScriptDisp **ret)
     script_disp->ref = 1;
     script_disp->ctx = ctx;
     heap_pool_init(&script_disp->heap);
-    rb_init(&script_disp->func_tree, func_name_cmp);
-    rb_init(&script_disp->var_tree, var_name_cmp);
+    rb_init(&script_disp->members, scriptdisp_member_cmp);
     script_disp->rnd = 0x50000;
 
     *ret = script_disp;
@@ -1855,11 +2109,12 @@ void map_vbs_exception(EXCEPINFO *ei)
             ei->bstrDescription = get_vbscript_string(VBS_UNKNOWN_RUNTIME_ERROR);
 }
 
-HRESULT disp_call(script_ctx_t *ctx, IDispatch *disp, DISPID id, DISPPARAMS *dp, VARIANT *retv)
+HRESULT disp_call(script_ctx_t *ctx, IDispatch *disp, DISPID id, BOOL is_call, DISPPARAMS *dp, VARIANT *retv)
 {
     const WORD flags = DISPATCH_METHOD|(retv ? DISPATCH_PROPERTYGET : 0);
     IDispatchEx *dispex;
     vbdisp_t *vbdisp;
+    FuncRef *funcref;
     EXCEPINFO ei;
     HRESULT hres;
 
@@ -1869,7 +2124,11 @@ HRESULT disp_call(script_ctx_t *ctx, IDispatch *disp, DISPID id, DISPPARAMS *dp,
 
     vbdisp = unsafe_impl_from_IDispatch(disp);
     if(vbdisp && vbdisp->desc && vbdisp->desc->ctx == ctx)
-        return invoke_vbdisp(vbdisp, id, flags, FALSE, dp, retv);
+        return invoke_vbdisp(vbdisp, id, flags, FALSE, is_call, dp, retv);
+
+    funcref = unsafe_funcref_from_IDispatch(disp);
+    if(funcref && funcref->ctx == ctx && id == DISPID_VALUE)
+        return exec_script(ctx, FALSE, funcref->func, NULL, dp, retv);
 
     hres = IDispatch_QueryInterface(disp, &IID_IDispatchEx, (void**)&dispex);
     if(SUCCEEDED(hres)) {
@@ -1883,7 +2142,7 @@ HRESULT disp_call(script_ctx_t *ctx, IDispatch *disp, DISPID id, DISPPARAMS *dp,
     }
 
     if(hres == DISP_E_EXCEPTION) {
-        clear_ei(&ctx->ei);
+        clear_error(ctx);
         ctx->ei = ei;
         hres = SCRIPT_E_RECORDED;
     }
@@ -1895,7 +2154,7 @@ HRESULT get_disp_value(script_ctx_t *ctx, IDispatch *disp, VARIANT *v)
     DISPPARAMS dp = {NULL};
     if(!disp)
         return MAKE_VBSERROR(VBSE_OBJECT_VARIABLE_NOT_SET);
-    return disp_call(ctx, disp, DISPID_VALUE, &dp, v);
+    return disp_call(ctx, disp, DISPID_VALUE, TRUE, &dp, v);
 }
 
 HRESULT disp_propput(script_ctx_t *ctx, IDispatch *disp, DISPID id, WORD flags, DISPPARAMS *dp)
@@ -1907,7 +2166,7 @@ HRESULT disp_propput(script_ctx_t *ctx, IDispatch *disp, DISPID id, WORD flags, 
 
     vbdisp = unsafe_impl_from_IDispatch(disp);
     if(vbdisp && vbdisp->desc && vbdisp->desc->ctx == ctx)
-        return invoke_vbdisp(vbdisp, id, flags, FALSE, dp, NULL);
+        return invoke_vbdisp(vbdisp, id, flags, FALSE, FALSE, dp, NULL);
 
     hres = IDispatch_QueryInterface(disp, &IID_IDispatchEx, (void**)&dispex);
     if(SUCCEEDED(hres)) {
@@ -1921,7 +2180,7 @@ HRESULT disp_propput(script_ctx_t *ctx, IDispatch *disp, DISPID id, WORD flags, 
     }
 
     if(hres == DISP_E_EXCEPTION) {
-        clear_ei(&ctx->ei);
+        clear_error(ctx);
         ctx->ei = ei;
         hres = SCRIPT_E_RECORDED;
     }

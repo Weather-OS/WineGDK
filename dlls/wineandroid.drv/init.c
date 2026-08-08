@@ -26,6 +26,8 @@
 
 #include "config.h"
 
+#include <fcntl.h>
+#include <unistd.h>
 #include <stdarg.h>
 #include <string.h>
 #include <dlfcn.h>
@@ -39,6 +41,10 @@
 #include "wine/server.h"
 #include "wine/debug.h"
 
+#ifndef WINE_JAVA_CLASS
+#define WINE_JAVA_CLASS "org/winehq/wine/WineActivity"
+#endif
+
 WINE_DEFAULT_DEBUG_CHANNEL(android);
 
 unsigned int screen_width = 0;
@@ -49,8 +55,6 @@ static const unsigned int screen_bpp = 32;  /* we don't support other modes */
 
 static RECT monitor_rc_work;
 static int device_init_done;
-
-UINT64 start_device_callback;
 
 typedef struct
 {
@@ -85,7 +89,7 @@ void init_monitors( int width, int height )
            wine_dbgstr_rect( &rect ), wine_dbgstr_rect( &monitor_rc_work ));
 
     /* if we're notified from Java thread, update registry */
-    if (java_vm) NtUserCallNoParam( NtUserCallNoParam_DisplayModeChanged );
+    if (event_source != -1) NtUserCallNoParam( NtUserCallNoParam_DisplayModeChanged );
 }
 
 
@@ -169,7 +173,7 @@ void set_screen_dpi( DWORD dpi )
  */
 static void fetch_display_metrics(void)
 {
-    if (java_vm) return;  /* for Java threads it will be set when the top view is created */
+    if (event_source != -1) return;  /* for Java threads it will be set when the top view is created */
 
     SERVER_START_REQ( get_window_rectangles )
     {
@@ -318,6 +322,7 @@ static const struct user_driver_funcs android_drv_funcs =
     .pShowWindow = ANDROID_ShowWindow,
     .pWindowMessage = ANDROID_WindowMessage,
     .pWindowPosChanging = ANDROID_WindowPosChanging,
+    .pCreateClientSurface = ANDROID_CreateClientSurface,
     .pCreateWindowSurface = ANDROID_CreateWindowSurface,
     .pWindowPosChanged = ANDROID_WindowPosChanged,
     .pOpenGLInit = ANDROID_OpenGLInit,
@@ -331,6 +336,7 @@ static const JNINativeMethod methods[] =
     { "wine_surface_changed", "(ILandroid/view/Surface;Z)V", surface_changed },
     { "wine_motion_event", "(IIIIII)Z", motion_event },
     { "wine_keyboard_event", "(IIII)Z", keyboard_event },
+    { "wine_init", "()V", wine_init_jni }
 };
 
 #define DECL_FUNCPTR(f) typeof(f) * p##f = NULL
@@ -350,6 +356,11 @@ DECL_FUNCPTR( AHardwareBuffer_unlock );
 DECL_FUNCPTR( AHardwareBuffer_recvHandleFromUnixSocket );
 DECL_FUNCPTR( AHardwareBuffer_sendHandleToUnixSocket );
 DECL_FUNCPTR( ANativeWindowBuffer_getHardwareBuffer );
+DECL_FUNCPTR( ALooper_acquire );
+DECL_FUNCPTR( ALooper_forThread );
+DECL_FUNCPTR( ALooper_addFd );
+DECL_FUNCPTR( ALooper_removeFd );
+DECL_FUNCPTR( ALooper_release );
 
 static void load_android_libs(void)
 {
@@ -378,16 +389,19 @@ static void load_android_libs(void)
     LOAD_FUNCPTR( libandroid, AHardwareBuffer_recvHandleFromUnixSocket );
     LOAD_FUNCPTR( libandroid, AHardwareBuffer_sendHandleToUnixSocket );
     LOAD_FUNCPTR( libandroid, ANativeWindowBuffer_getHardwareBuffer );
+    LOAD_FUNCPTR( libandroid, ALooper_acquire );
+    LOAD_FUNCPTR( libandroid, ALooper_forThread );
+    LOAD_FUNCPTR( libandroid, ALooper_addFd );
+    LOAD_FUNCPTR( libandroid, ALooper_removeFd );
+    LOAD_FUNCPTR( libandroid, ALooper_release );
 }
 
 #undef DECL_FUNCPTR
 #undef LOAD_FUNCPTR
 
-static HRESULT android_init( void *arg )
+NTSTATUS __wine_unix_lib_init(void)
 {
     pthread_mutexattr_t attr;
-    jclass class;
-    JNIEnv *jni_env;
 
     load_android_libs();
 
@@ -396,34 +410,20 @@ static HRESULT android_init( void *arg )
     pthread_mutex_init( &win_data_mutex, &attr );
     pthread_mutexattr_destroy( &attr );
 
-    start_device_callback = (UINT64)(UINT_PTR)arg;
-
-    if (java_vm)  /* running under Java */
-    {
-#ifdef __i386__
-        WORD old_fs;
-        __asm__( "mov %%fs,%0" : "=r" (old_fs) );
-#endif
-        (*java_vm)->AttachCurrentThread( java_vm, &jni_env, 0 );
-        class = (*jni_env)->GetObjectClass( jni_env, java_object );
-        (*jni_env)->RegisterNatives( jni_env, class, methods, ARRAY_SIZE( methods ));
-        (*jni_env)->DeleteLocalRef( jni_env, class );
-#ifdef __i386__
-        /* the Java VM hijacks %fs for its own purposes, restore it */
-        __asm__( "mov %0,%%fs" :: "r" (old_fs) );
-#endif
-    }
     __wine_set_user_driver( &android_drv_funcs, WINE_GDI_DRIVER_VERSION );
     return STATUS_SUCCESS;
 }
 
-const unixlib_entry_t __wine_unix_call_funcs[] =
+jint JNI_OnLoad( JavaVM *vm, void *reserved )
 {
-    android_dispatch_ioctl,
-    android_init,
-    android_java_init,
-    android_java_uninit,
-};
+    JNIEnv *env;
+    jclass class;
 
+    load_android_libs();
 
-C_ASSERT( ARRAYSIZE(__wine_unix_call_funcs) == unix_funcs_count );
+    if ((*vm)->AttachCurrentThread( vm, &env, NULL ) != JNI_OK) return JNI_ERR;
+    if (!(class = (*env)->FindClass( env, WINE_JAVA_CLASS ))) return JNI_ERR;
+    (*env)->RegisterNatives( env, class, methods, ARRAY_SIZE( methods ));
+    (*env)->DeleteLocalRef( env, class );
+    return JNI_VERSION_1_6;
+}

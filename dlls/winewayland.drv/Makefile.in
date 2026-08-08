@@ -7,11 +7,14 @@ IMPORTS = user32 win32u
 VER_FILEDESCRIPTION_STR = "Wine Wayland driver"
 
 SOURCES = \
+	alpha-modifier-v1.xml \
 	cursor-shape-v1.xml \
 	display.c \
 	dllmain.c \
+	fractional-scale-v1.xml \
 	opengl.c \
 	pointer-constraints-unstable-v1.xml \
+	pointer-warp-v1.xml \
 	relative-pointer-unstable-v1.xml \
 	text-input-unstable-v3.xml \
 	viewporter.xml \

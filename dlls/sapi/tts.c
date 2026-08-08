@@ -58,6 +58,9 @@ struct speech_voice
     LONG rate;
     SPVSTATE state;
     struct async_queue queue;
+    ULONG last_stream_num;
+    HRESULT last_hr;
+    SPVPRIORITY priority;
     CRITICAL_SECTION cs;
 };
 
@@ -959,6 +962,11 @@ static void speak_proc(struct async_task *task)
 
     EnterCriticalSection(&This->cs);
 
+    /* Update ulCurrentStream tracking now, before doing any work — per MSDN
+     * SPVOICESTATUS.ulCurrentStream reports the stream currently being
+     * processed, and sticks at the last processed value once idle. */
+    This->last_stream_num = site->stream_num;
+
     if (This->actions & SPVES_ABORT)
     {
         LeaveCriticalSection(&This->cs);
@@ -997,6 +1005,9 @@ done:
         ISpAudio_Release(audio);
     }
     CoTaskMemFree(wfx);
+    EnterCriticalSection(&This->cs);
+    This->last_hr = hr;
+    LeaveCriticalSection(&This->cs);
     ISpTTSEngine_Release(speak_task->engine);
     free_frag_list(speak_task->frag_list);
     ISpTTSEngineSite_Release(speak_task->site);
@@ -1211,14 +1222,26 @@ static HRESULT WINAPI spvoice_SpeakStream(ISpVoice *iface, IStream *stream, DWOR
 
 static HRESULT WINAPI spvoice_GetStatus(ISpVoice *iface, SPVOICESTATUS *status, WCHAR **bookmark)
 {
-    static unsigned int once;
+    struct speech_voice *This = impl_from_ISpVoice(iface);
 
-    if (!once++)
-        FIXME("(%p, %p, %p): stub.\n", iface, status, bookmark);
-    else
-        WARN("(%p, %p, %p): stub.\n", iface, status, bookmark);
+    TRACE("(%p, %p, %p).\n", iface, status, bookmark);
 
-    return E_NOTIMPL;
+    if (bookmark) *bookmark = NULL;
+
+    /* Windows accepts a NULL status pointer as a no-op returning S_OK. */
+    if (!status) return S_OK;
+
+    memset(status, 0, sizeof(*status));
+
+    EnterCriticalSection(&This->cs);
+    status->ulCurrentStream    = This->last_stream_num;
+    status->ulLastStreamQueued = This->cur_stream_num;
+    status->hrLastResult       = This->last_hr;
+    status->dwRunningState     = (async_wait_queue_empty(&This->queue, 0) == WAIT_OBJECT_0) ?
+                                 SPRS_DONE : SPRS_IS_SPEAKING;
+    LeaveCriticalSection(&This->cs);
+
+    return S_OK;
 }
 
 static HRESULT WINAPI spvoice_Skip(ISpVoice *iface, const WCHAR *type, LONG items, ULONG *skipped)
@@ -1230,16 +1253,33 @@ static HRESULT WINAPI spvoice_Skip(ISpVoice *iface, const WCHAR *type, LONG item
 
 static HRESULT WINAPI spvoice_SetPriority(ISpVoice *iface, SPVPRIORITY priority)
 {
-    FIXME("(%p, %d): stub.\n", iface, priority);
+    struct speech_voice *This = impl_from_ISpVoice(iface);
 
-    return E_NOTIMPL;
+    TRACE("(%p, %d).\n", iface, priority);
+
+    if (priority != SPVPRI_NORMAL && priority != SPVPRI_ALERT && priority != SPVPRI_OVER)
+        return E_INVALIDARG;
+
+    EnterCriticalSection(&This->cs);
+    This->priority = priority;
+    LeaveCriticalSection(&This->cs);
+
+    return S_OK;
 }
 
 static HRESULT WINAPI spvoice_GetPriority(ISpVoice *iface, SPVPRIORITY *priority)
 {
-    FIXME("(%p, %p): stub.\n", iface, priority);
+    struct speech_voice *This = impl_from_ISpVoice(iface);
 
-    return E_NOTIMPL;
+    TRACE("(%p, %p).\n", iface, priority);
+
+    if (!priority) return E_POINTER;
+
+    EnterCriticalSection(&This->cs);
+    *priority = This->priority;
+    LeaveCriticalSection(&This->cs);
+
+    return S_OK;
 }
 
 static HRESULT WINAPI spvoice_SetAlertBoundary(ISpVoice *iface, SPEVENTENUM boundary)
@@ -1714,6 +1754,9 @@ HRESULT speech_voice_create(IUnknown *outer, REFIID iid, void **obj)
     This->actions = SPVES_CONTINUE;
     This->volume = 100;
     This->rate = 0;
+    This->last_stream_num = 0;
+    This->last_hr = S_OK;
+    This->priority = SPVPRI_NORMAL;
 
     memset(&This->state, 0, sizeof(This->state));
     This->state.Volume = 100;

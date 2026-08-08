@@ -325,6 +325,7 @@ HKLM,System\CurrentControlSet\Control\Class\{745a17a0-74d3-11d0-b6fe-00a0c90f57d
 [CurrentVersion]
 HKCU,%CurrentVersion%\Explorer\Advanced,,16
 HKCU,%CurrentVersion%\Explorer\FileExts,,16
+HKCU,%CurrentVersion%\ImmersiveShell,"TabletMode",0x10003,0
 HKCU,%CurrentVersion%\Run,,16
 HKCU,%CurrentVersionNT%\Winlogon,,16
 HKLM,%CurrentVersion%,"CommonFilesDir",,"%16427%"
@@ -789,6 +790,8 @@ HKLM,SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x86,"Version",2,"14.42.344
 16422,Windows Media Player,wmplayer.exe
 16422,Windows NT\Accessories,wordpad.exe
 16427,Microsoft Shared\Ink,inkobj.dll
+16427,Microsoft Shared\Ink,rtscom.dll
+16427,Microsoft Shared\Ink,tiptsf.dll
 16427,System\OLE DB,oledb32.dll
 16427,System\OLE DB,msdaps.dll
 16427,System\OLE DB,msdasql.dll
@@ -858,6 +861,7 @@ HKLM,SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x86,"Version",2,"14.42.344
 16422,Windows NT\Accessories,wordpad.exe
 16427,Microsoft Shared\TextConv,
 16427,Microsoft Shared\Ink,inkobj.dll
+16427,Microsoft Shared\Ink,tiptsf.dll
 16427,System\OLE DB,oledb32.dll
 16427,System\OLE DB,msdaps.dll
 16427,System\OLE DB,msdasql.dll

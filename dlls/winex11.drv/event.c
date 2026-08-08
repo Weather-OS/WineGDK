@@ -172,7 +172,7 @@ static inline void free_event_data( XEvent *event )
 #endif
 }
 
-static void host_window_send_gravity_events( struct host_window *win, Display *display, unsigned long serial, XEvent *previous )
+static void host_window_send_gravity_events( struct host_window *win, Display *display, unsigned long serial )
 {
     XGravityEvent event = {.type = GravityNotify, .serial = serial, .display = display};
     unsigned int i;
@@ -187,13 +187,12 @@ static void host_window_send_gravity_events( struct host_window *win, Display *d
         event.y = rect.top;
         event.send_event = 0;
 
-        if (previous->type == ConfigureNotify && previous->xconfigure.window == event.window) continue;
         TRACE( "generating GravityNotify for window %lx, rect %s\n", event.window, wine_dbgstr_rect(&rect) );
         XPutBackEvent( event.display, (XEvent *)&event );
     }
 }
 
-static BOOL host_window_filter_event( XEvent *event, XEvent *previous )
+static BOOL host_window_filter_event( XEvent *event )
 {
     struct host_window *win;
 
@@ -210,7 +209,7 @@ static BOOL host_window_filter_event( XEvent *event, XEvent *previous )
         XReparentEvent *reparent = (XReparentEvent *)event;
         TRACE( "host window %p/%lx ReparentNotify, parent %lx\n", win, win->window, reparent->parent );
         host_window_set_parent( win, reparent->parent );
-        host_window_send_gravity_events( win, event->xany.display, event->xany.serial, previous );
+        host_window_send_gravity_events( win, event->xany.display, event->xany.serial );
         break;
     }
     case GravityNotify:
@@ -219,7 +218,7 @@ static BOOL host_window_filter_event( XEvent *event, XEvent *previous )
         OffsetRect( &win->rect, gravity->x - win->rect.left, gravity->y - win->rect.top );
         if (win->parent) win->rect = host_window_configure_child( win->parent, win->window, win->rect, FALSE );
         TRACE( "host window %p/%lx GravityNotify, rect %s\n", win, win->window, wine_dbgstr_rect(&win->rect) );
-        host_window_send_gravity_events( win, event->xany.display, event->xany.serial, previous );
+        host_window_send_gravity_events( win, event->xany.display, event->xany.serial );
         break;
     }
     case ConfigureNotify:
@@ -228,7 +227,7 @@ static BOOL host_window_filter_event( XEvent *event, XEvent *previous )
         SetRect( &win->rect, configure->x, configure->y, configure->x + configure->width, configure->y + configure->height );
         if (win->parent) win->rect = host_window_configure_child( win->parent, win->window, win->rect, configure->send_event );
         TRACE( "host window %p/%lx ConfigureNotify, rect %s\n", win, win->window, wine_dbgstr_rect(&win->rect) );
-        host_window_send_gravity_events( win, event->xany.display, event->xany.serial, previous );
+        host_window_send_gravity_events( win, event->xany.display, event->xany.serial );
         break;
     }
     }
@@ -322,114 +321,6 @@ static Bool filter_event( Display *display, XEvent *event, char *arg )
 }
 
 
-enum event_merge_action
-{
-    MERGE_DISCARD,  /* discard the old event */
-    MERGE_HANDLE,   /* handle the old event */
-    MERGE_KEEP,     /* keep the old event for future merging */
-    MERGE_IGNORE    /* ignore the new event, keep the old one */
-};
-
-/***********************************************************************
- *           merge_raw_motion_events
- */
-#ifdef HAVE_X11_EXTENSIONS_XINPUT2_H
-static enum event_merge_action merge_raw_motion_events( XIRawEvent *prev, XIRawEvent *next )
-{
-    int i, j, k;
-    unsigned char mask;
-
-    if (!prev->valuators.mask_len) return MERGE_HANDLE;
-    if (!next->valuators.mask_len) return MERGE_HANDLE;
-
-    mask = prev->valuators.mask[0] | next->valuators.mask[0];
-    if (mask == next->valuators.mask[0])  /* keep next */
-    {
-        for (i = j = k = 0; i < 8; i++)
-        {
-            if (XIMaskIsSet( prev->valuators.mask, i ))
-                next->valuators.values[j] += prev->valuators.values[k++];
-            if (XIMaskIsSet( next->valuators.mask, i )) j++;
-        }
-        TRACE( "merging duplicate GenericEvent\n" );
-        return MERGE_DISCARD;
-    }
-    if (mask == prev->valuators.mask[0])  /* keep prev */
-    {
-        for (i = j = k = 0; i < 8; i++)
-        {
-            if (XIMaskIsSet( next->valuators.mask, i ))
-                prev->valuators.values[j] += next->valuators.values[k++];
-            if (XIMaskIsSet( prev->valuators.mask, i )) j++;
-        }
-        TRACE( "merging duplicate GenericEvent\n" );
-        return MERGE_IGNORE;
-    }
-    /* can't merge events with disjoint masks */
-    return MERGE_HANDLE;
-}
-#endif
-
-/***********************************************************************
- *           merge_events
- *
- * Try to merge 2 consecutive events.
- */
-static enum event_merge_action merge_events( XEvent *prev, XEvent *next )
-{
-    switch (prev->type)
-    {
-    case ConfigureNotify:
-        switch (next->type)
-        {
-        case ConfigureNotify:
-            if (prev->xany.window == next->xany.window)
-            {
-                TRACE( "discarding duplicate ConfigureNotify for window %lx\n", prev->xany.window );
-                return MERGE_DISCARD;
-            }
-            break;
-        case Expose:
-        case PropertyNotify:
-            return MERGE_KEEP;
-        }
-        break;
-    case MotionNotify:
-        switch (next->type)
-        {
-        case MotionNotify:
-            if (prev->xany.window == next->xany.window)
-            {
-                TRACE( "discarding duplicate MotionNotify for window %lx\n", prev->xany.window );
-                return MERGE_DISCARD;
-            }
-            break;
-#ifdef HAVE_X11_EXTENSIONS_XINPUT2_H
-        case GenericEvent:
-            if (next->xcookie.extension != xinput2_opcode) break;
-            if (next->xcookie.evtype != XI_RawMotion) break;
-            if (x11drv_thread_data()->warp_serial) break;
-            return MERGE_KEEP;
-        }
-        break;
-    case GenericEvent:
-        if (prev->xcookie.extension != xinput2_opcode) break;
-        if (prev->xcookie.evtype != XI_RawMotion) break;
-        switch (next->type)
-        {
-        case GenericEvent:
-            if (next->xcookie.extension != xinput2_opcode) break;
-            if (next->xcookie.evtype != XI_RawMotion) break;
-            if (x11drv_thread_data()->warp_serial) break;
-            return merge_raw_motion_events( prev->xcookie.data, next->xcookie.data );
-#endif
-        }
-        break;
-    }
-    return MERGE_HANDLE;
-}
-
-
 /***********************************************************************
  *           call_event_handler
  */
@@ -475,57 +366,25 @@ static int check_fd_events( int fd, int events )
  */
 BOOL X11DRV_ProcessEvents( DWORD mask )
 {
+    static const INPUT input = { .type = INPUT_MOUSE, .mi.dwFlags = MOUSEEVENTF_MOVE_NOCOALESCE };
     struct x11drv_thread_data *data = x11drv_thread_data();
-    XEvent event, prev_event;
-    int count = 0;
-    enum event_merge_action action = MERGE_DISCARD;
+    XEvent event;
+    int count;
 
     if (!data) return FALSE;
     if (data->current_event) mask = 0;  /* don't process nested events */
 
-    prev_event.type = 0;
-    for (;;)
+    for (count = 0; XCheckIfEvent( data->display, &event, filter_event, (XPointer)(UINT_PTR)mask ); count++)
     {
-        if (!XCheckIfEvent( data->display, &event, filter_event, (XPointer)(UINT_PTR)mask ))
-        {
-            if (!prev_event.type) break;
-            call_event_handler( data->display, &prev_event );
-            free_event_data( &prev_event );
-
-            /* Retry after processing delayed event, more events might have been read from the pipe,
-             * this is the case for instance with synchronous requests like when reading a property.
-             */
-            action = MERGE_DISCARD;
-            prev_event.type = 0;
-            continue;
-        }
-
-        count++;
-        if (XFilterEvent( &event, None )) continue;
-        if (host_window_filter_event( &event, &prev_event )) continue;
-
+        if (XFilterEvent( &event, None ) || host_window_filter_event( &event )) continue;
         get_event_data( &event );
-        if (prev_event.type) action = merge_events( &prev_event, &event );
-        switch( action )
-        {
-        case MERGE_HANDLE:  /* handle prev, keep new */
-            call_event_handler( data->display, &prev_event );
-            /* fall through */
-        case MERGE_DISCARD:  /* discard prev, keep new */
-            free_event_data( &prev_event );
-            prev_event = event;
-            break;
-        case MERGE_KEEP:  /* handle new, keep prev for future merging */
-            call_event_handler( data->display, &event );
-            /* fall through */
-        case MERGE_IGNORE: /* ignore new, keep prev for future merging */
-            free_event_data( &event );
-            break;
-        }
+        call_event_handler( data->display, &event );
+        free_event_data( &event );
     }
 
     XFlush( gdi_display );
     if (count) TRACE( "processed %d events\n", count );
+    NtUserSendHardwareInput( NULL, SEND_HWMSG_RAWINPUT, &input, 0 ); /* flush win32u accumulated motion */
 
     if (mask != QS_ALLINPUT || check_fd_events( ConnectionNumber( data->display ), POLLIN )) return FALSE;
     XFlush( data->display ); /* all events have been processed, flush any pending request */
@@ -614,7 +473,7 @@ static void set_input_focus( struct x11drv_win_data *data )
     if (EVENT_x11_time_to_win32_time(0))
         /* ICCCM says don't use CurrentTime, so try to use last message time if possible */
         /* FIXME: this is not entirely correct */
-        timestamp = NtUserGetThreadInfo()->message_time - EVENT_x11_time_to_win32_time(0);
+        timestamp = NtUserGetThreadState(UserThreadStateMessageTime) - EVENT_x11_time_to_win32_time(0);
     else
         timestamp = CurrentTime;
 
@@ -858,6 +717,7 @@ static BOOL X11DRV_FocusIn( HWND hwnd, XEvent *xev )
     /* ignore wm specific NotifyUngrab / NotifyGrab events w.r.t focus */
     if (event->mode == NotifyGrab || event->mode == NotifyUngrab) return FALSE;
 
+    x11drv_xinput2_enable( event->display, DefaultRootWindow( event->display ) );
     xim_set_focus( hwnd, TRUE );
 
     if (use_take_focus) return TRUE;
@@ -951,6 +811,7 @@ static BOOL X11DRV_FocusOut( HWND hwnd, XEvent *xev )
     /* ignore wm specific NotifyUngrab / NotifyGrab events w.r.t focus */
     if (event->mode == NotifyGrab || event->mode == NotifyUngrab) return FALSE;
 
+    x11drv_xinput2_disable( event->display, DefaultRootWindow( event->display ) );
     focus_out( event->display, hwnd );
     return TRUE;
 }
@@ -1005,7 +866,7 @@ static BOOL X11DRV_Expose( HWND hwnd, XEvent *xev )
 
     release_win_data( data );
 
-    NtUserExposeWindowSurface( hwnd, flags, &rect, NtUserGetWinMonitorDpi( hwnd, MDT_RAW_DPI ) );
+    NtUserExposeWindowSurface( hwnd, flags, &rect );
     return TRUE;
 }
 
@@ -1176,7 +1037,7 @@ static int get_window_wm_state( Display *display, Window window )
         XID     icon;
     } *state;
     Atom type;
-    int format, ret = -1;
+    int format, ret = WithdrawnState;
     unsigned long count, remaining;
 
     if (!XGetWindowProperty( display, window, x11drv_atom(WM_STATE), 0,

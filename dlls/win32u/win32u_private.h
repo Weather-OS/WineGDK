@@ -41,12 +41,13 @@ extern BOOL process_wine_setcursor( HWND hwnd, HWND window, HCURSOR handle );
 extern HICON alloc_cursoricon_handle( BOOL is_icon );
 extern ULONG_PTR get_icon_param( HICON handle );
 extern ULONG_PTR set_icon_param( HICON handle, const struct free_icon_params *params );
+extern HICON create_small_icon( HICON handle );
 
 /* dce.c */
 extern struct window_surface dummy_surface;
-extern void create_window_surface( HWND hwnd, BOOL create_layered, const RECT *surface_rect, UINT monitor_dpi,
+extern void create_window_surface( HWND hwnd, BOOL create_layered, const RECT *surface_rect, struct ratio monitor_dpi,
                                    struct window_surface **window_surface );
-extern struct window_surface *get_driver_window_surface( struct window_surface *surface, UINT monitor_dpi );
+extern struct window_surface *get_driver_window_surface( struct window_surface *surface, struct ratio monitor_dpi );
 extern void erase_now( HWND hwnd, UINT rdw_flags );
 extern void flush_window_surfaces( BOOL idle );
 extern void move_window_bits( HWND hwnd, const struct window_rects *rects, const RECT *valid_rects );
@@ -109,7 +110,11 @@ extern void update_mouse_tracking_info( HWND hwnd );
 extern void update_current_mouse_window( HWND hwnd, INT hittest, POINT pos );
 extern BOOL process_wine_clipcursor( HWND hwnd, UINT flags, BOOL reset );
 extern BOOL clip_fullscreen_window( HWND hwnd, BOOL reset );
-extern USHORT map_scan_to_kbd_vkey( USHORT scan, HKL layout );
+extern USHORT map_scan_to_kbd_vkey( USHORT scan, HKL layout, UINT *mapped );
+extern void destroy_thread_pointers(void);
+extern BOOL process_pointer_message( MSG *msg, UINT hw_id, const struct hardware_msg_data *msg_data );
+extern void update_pointer_from_msg( POINTER_INPUT_TYPE type, const MSG *msg );
+extern NTSTATUS send_hardware_input( HWND hwnd, UINT flags, const INPUT *input, LPARAM lparam );
 
 /* menu.c */
 extern UINT draw_nc_menu_bar( HDC hdc, RECT *rect, HWND hwnd );
@@ -128,7 +133,7 @@ extern void track_keyboard_menu_bar( HWND hwnd, UINT wparam, WCHAR ch );
 extern void track_mouse_menu_bar( HWND hwnd, INT ht, int x, int y );
 
 /* message.c */
-extern NTSTATUS send_hardware_message( HWND hwnd, UINT flags, const INPUT *input, LPARAM lparam );
+extern NTSTATUS server_send_hardware_message( HWND hwnd, UINT flags, const INPUT *input, LPARAM lparam );
 extern LRESULT send_internal_message_timeout( DWORD dest_pid, DWORD dest_tid, UINT msg, WPARAM wparam,
                                               LPARAM lparam, UINT flags, UINT timeout,
                                               PDWORD_PTR res_ptr );
@@ -154,6 +159,7 @@ extern void set_standard_scroll_painted( HWND hwnd, int bar, BOOL painted );
 extern void track_scroll_bar( HWND hwnd, int scrollbar, POINT pt );
 
 /* sysparams.c */
+extern UINT system_dpi;
 extern BOOL decorated_mode;
 extern UINT64 thunk_lock_callback;
 extern HBRUSH get_55aa_brush(void);
@@ -162,34 +168,35 @@ extern LONG get_char_dimensions( HDC hdc, TEXTMETRICW *metric, int *height );
 extern HBITMAP get_display_bitmap(void);
 extern INT get_display_depth( UNICODE_STRING *name );
 extern RECT get_display_rect( const WCHAR *display );
-extern UINT get_win_monitor_dpi( HWND hwnd, UINT *raw_dpi );
-extern RECT get_primary_monitor_rect( UINT dpi );
+extern struct ratio get_win_monitor_dpi( HWND hwnd, struct ratio *raw_dpi );
+extern RECT get_primary_monitor_rect( struct ratio dpi );
 extern DWORD get_process_layout(void);
 extern COLORREF get_sys_color( int index );
 extern HBRUSH get_sys_color_brush( unsigned int index );
 extern HPEN get_sys_color_pen( unsigned int index );
 extern UINT get_system_dpi(void);
 extern int get_system_metrics( int index );
-extern UINT get_thread_dpi(void);
+extern struct ratio get_thread_dpi(void);
 extern UINT set_thread_dpi_awareness_context( UINT context );
 extern UINT get_thread_dpi_awareness_context(void);
-extern RECT get_virtual_screen_rect( UINT dpi, MONITOR_DPI_TYPE type );
+extern RECT get_virtual_screen_rect( struct ratio dpi, MONITOR_DPI_TYPE type );
 extern const char *gpu_device_name( UINT16 vendor, UINT16 device, const char *name );
 extern BOOL is_exiting_thread( DWORD tid );
-extern POINT map_dpi_point( POINT pt, UINT dpi_from, UINT dpi_to );
-extern RECT map_dpi_rect( RECT rect, UINT dpi_from, UINT dpi_to );
-extern HRGN map_dpi_region( HRGN region, UINT dpi_from, UINT dpi_to );
-extern struct window_rects map_dpi_window_rects( struct window_rects rects, UINT dpi_from, UINT dpi_to );
-extern RECT map_rect_raw_to_virt( RECT rect, UINT dpi_to );
-extern RECT map_rect_virt_to_raw( RECT rect, UINT dpi_from );
-extern struct window_rects map_window_rects_virt_to_raw( struct window_rects rects, UINT dpi_from );
+extern UINT map_user_dpi( UINT value, struct ratio dpi_from );
+extern POINT map_dpi_point( POINT pt, struct ratio dpi_from, struct ratio dpi_to );
+extern RECT map_dpi_rect( RECT rect, struct ratio dpi_from, struct ratio dpi_to );
+extern HRGN map_dpi_region( HRGN region, struct ratio dpi_from, struct ratio dpi_to );
+extern struct window_rects map_dpi_window_rects( struct window_rects rects, struct ratio dpi_from, struct ratio dpi_to );
+extern RECT map_rect_raw_to_virt( RECT rect, struct ratio dpi_to );
+extern RECT map_rect_virt_to_raw( RECT rect, struct ratio dpi_from );
+extern struct window_rects map_window_rects_virt_to_raw( struct window_rects rects, struct ratio dpi_from );
 extern POINT point_phys_to_win_dpi( HWND hwnd, POINT pt );
 extern POINT point_thread_to_win_dpi( HWND hwnd, POINT pt );
 extern RECT rect_thread_to_win_dpi( HWND hwnd, RECT rect );
-extern HMONITOR monitor_from_window( HWND hwnd, UINT flags, UINT dpi );
-extern MONITORINFO monitor_info_from_rect( RECT rect, UINT dpi );
+extern HMONITOR monitor_from_window( HWND hwnd, UINT flags, struct ratio dpi );
+extern MONITORINFO monitor_info_from_rect( RECT rect, struct ratio dpi );
 extern MONITORINFO monitor_info_from_window( HWND hwnd, UINT flags );
-extern UINT monitor_dpi_from_rect( RECT rect, UINT dpi, UINT *raw_dpi );
+extern struct ratio monitor_dpi_from_rect( RECT rect, struct ratio dpi, struct ratio *raw_dpi );
 extern BOOL update_display_cache( BOOL force );
 extern void reset_monitor_update_serial(void);
 extern void user_lock(void);
@@ -228,6 +235,7 @@ extern NTSTATUS d3dkmt_destroy_sync( D3DKMT_HANDLE local );
 /* opengl.c */
 
 extern BOOL get_opengl_gpus( struct list *gpus );
+extern void cleanup_opengl_thread(void);
 
 /* winstation.c */
 
@@ -268,10 +276,10 @@ struct tagWND;
 extern BOOL client_to_screen( HWND hwnd, POINT *pt );
 extern void destroy_thread_windows(void);
 extern LRESULT destroy_window( HWND hwnd );
-extern BOOL get_client_rect( HWND hwnd, RECT *rect, UINT dpi );
-extern BOOL get_present_rect( HWND hwnd, RECT *rect, UINT dpi );
+extern BOOL get_client_rect( HWND hwnd, RECT *rect, struct ratio dpi );
+extern BOOL get_present_rect( HWND hwnd, RECT *rect, struct ratio dpi );
 extern HWND get_desktop_window(void);
-extern UINT get_dpi_for_window( HWND hwnd );
+extern struct ratio get_dpi_for_window( HWND hwnd );
 extern HWND get_full_window_handle( HWND hwnd );
 extern HWND get_parent( HWND hwnd );
 extern HWND get_hwnd_message_parent(void);
@@ -291,16 +299,18 @@ extern BOOL is_zoomed( HWND hwnd );
 extern BOOL set_window_pixel_format( HWND hwnd, int format, BOOL internal );
 extern int get_window_pixel_format( HWND hwnd );
 extern DWORD get_window_long( HWND hwnd, INT offset );
+extern UINT get_window_fnid( HWND hwnd );
 extern ULONG_PTR get_window_long_ptr( HWND hwnd, INT offset, BOOL ansi );
-extern BOOL get_window_rect( HWND hwnd, RECT *rect, UINT dpi );
+extern BOOL get_window_placement( HWND hwnd, WINDOWPLACEMENT *placement );
+extern BOOL get_window_rect( HWND hwnd, RECT *rect, struct ratio dpi );
 enum coords_relative;
-extern BOOL get_window_rect_rel( HWND hwnd, enum coords_relative rel, RECT *rect, UINT dpi );
-extern BOOL get_client_rect_rel( HWND hwnd, enum coords_relative rel, RECT *rect, UINT dpi );
+extern BOOL get_window_rect_rel( HWND hwnd, enum coords_relative rel, RECT *rect, struct ratio dpi );
+extern BOOL get_client_rect_rel( HWND hwnd, enum coords_relative rel, RECT *rect, struct ratio dpi );
 extern BOOL get_window_rects( HWND hwnd, enum coords_relative relative,
-                              struct window_rects *rects, UINT dpi );
+                              struct window_rects *rects, struct ratio dpi );
 extern HWND *list_window_children( HWND hwnd );
 extern int map_window_points( HWND hwnd_from, HWND hwnd_to, POINT *points, UINT count,
-                              UINT dpi );
+                              struct ratio dpi );
 extern void map_window_region( HWND from, HWND to, HRGN hrgn );
 extern BOOL screen_to_client( HWND hwnd, POINT *pt );
 extern LONG_PTR set_window_long( HWND hwnd, INT offset, UINT size, LONG_PTR newval,
@@ -352,7 +362,6 @@ extern HKEY hkcu_key;
 
 /* driver.c */
 extern const struct user_driver_funcs *user_driver;
-extern struct client_surface *nulldrv_client_surface_create( HWND hwnd );
 
 extern ULONG_PTR zero_bits;
 
@@ -444,6 +453,17 @@ static inline BOOL intersect_rect( RECT *dst, const RECT *src1, const RECT *src2
     dst->right  = min( src1->right, src2->right );
     dst->bottom = min( src1->bottom, src2->bottom );
     return !IsRectEmpty( dst );
+}
+
+static inline UINT round_dpi( struct ratio dpi )
+{
+    if (!dpi.den) return 0;
+    return (dpi.num + dpi.den / 2) / dpi.den;
+}
+
+static inline const char *debugstr_ratio( struct ratio q )
+{
+    return wine_dbg_sprintf( "%d:%d", q.num, q.den );
 }
 
 #endif /* __WINE_WIN32U_PRIVATE */
