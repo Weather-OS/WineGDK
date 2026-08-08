@@ -40,4 +40,5 @@ SOURCES = \
 	systray.c \
 	vulkan.c \
 	window.c \
-	winemac.rc
+	winemac.rc \
+	d3dmetal.c

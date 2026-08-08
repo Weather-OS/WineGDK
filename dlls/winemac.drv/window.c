@@ -1273,6 +1273,8 @@ void macdrv_DestroyWindow(HWND hwnd)
 
     destroy_cocoa_window(data);
 
+    if (data->d3dmetal_client_surfaces) CFRelease(data->d3dmetal_client_surfaces);
+
     CFDictionaryRemoveValue(win_datas, hwnd);
     release_win_data(data);
     free(data);
@@ -2201,6 +2203,28 @@ BOOL query_min_max_info(HWND hwnd)
     return TRUE;
 }
 
+
+struct macdrv_client_surface *macdrv_client_surface_create(HWND hwnd)
+{
+    HWND toplevel = NtUserGetAncestor(hwnd, GA_ROOT);
+    struct macdrv_client_surface *surface;
+    RECT rect;
+
+    NtUserGetClientRect(hwnd, &rect, NtUserGetWinMonitorDpi(hwnd, MDT_RAW_DPI));
+    NtUserMapWindowPoints(hwnd, toplevel, (POINT *)&rect, 2, NtUserGetWinMonitorDpi(toplevel, MDT_RAW_DPI));
+
+    surface = client_surface_create(sizeof(*surface), &macdrv_client_surface_funcs, hwnd);
+    surface->cocoa_view = macdrv_create_view(cgrect_from_rect(rect));
+    macdrv_set_view_hidden(surface->cocoa_view, TRUE);
+
+    if (surface)
+    {
+        macdrv_client_surface_update(&surface->client);
+        macdrv_client_surface_present(&surface->client, 0);
+    }
+
+    return surface;
+}
 
 /***********************************************************************
  *              init_win_context

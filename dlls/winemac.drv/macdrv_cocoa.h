@@ -582,4 +582,6 @@ extern pthread_mutex_t ime_composition_rect_mutex;
 extern CGRect ime_composition_rect;
 extern void macdrv_clear_ime_text(void);
 
+void macdrv_set_view_d3dmetal_client_surface(macdrv_view v, void *client_surface);
+
 #endif  /* __WINE_MACDRV_COCOA_H */
