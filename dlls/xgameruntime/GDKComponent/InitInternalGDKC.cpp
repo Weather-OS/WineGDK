@@ -3,6 +3,7 @@
  *  GDK Component: Internal Initialization
  * 
  * Written by Weather
+ * Copyright 2026 Olivia Ryan
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -22,13 +23,20 @@
 #include "InitInternalGDKC.h"
 #include "../WineCoreUAP/Foundation/IWineAsync.hpp"
 
+#include <libxml/parser.h>
+#include <libxml/tree.h>
 #include <ntstatus.h>
+#include <shlwapi.h>
 
-WINE_DEFAULT_DEBUG_CHANNEL(gdkc);
+WINE_DEFAULT_DEBUG_CHANNEL(gdkct);
 
 using namespace ABI::Windows::Foundation;
 
 static BOOLEAN initializeCalled = FALSE;
+
+LPCSTR msaAppId;
+UINT32 titleId;
+BOOLEAN fullTrust;
 
 static HRESULT WINAPI
 InitializeXodusService()
@@ -37,11 +45,6 @@ InitializeXodusService()
     HRESULT hr;
 
     IAsyncAction *pingAction = nullptr;
-
-    if ( initializeCalled )
-        return S_OK;
-
-    initializeCalled = TRUE;
 
     hr = xodus_ipclayer->InitializeSocket();
     if ( FAILED( hr ) ) 
@@ -76,19 +79,96 @@ InitializeXodusService()
     return hr;
 }
 
+static HRESULT WINAPI
+ObtainMsaAppId( INITIALIZE_OPTIONS *options )
+{
+    HRESULT hr = S_OK;
+
+    CHAR filename[MAX_PATH], *last;
+
+    xmlNodePtr root, child;
+    xmlDocPtr config;
+
+    TRACE( "options %p.\n", options );
+
+    if ( options )
+    {
+        if ( options->isInlineConfig && !( config = xmlReadMemory( options->gameConfig, strlen( options->gameConfig ), NULL, NULL, 0 ) ) )
+            return E_GAMERUNTIME_GAMECONFIG_BAD_FORMAT;
+        else if ( !( config = xmlReadFile( options->gameConfig, NULL, 0 ) ) )
+            return E_GAMERUNTIME_GAMECONFIG_BAD_FORMAT; 
+        else 
+        {
+            hr = E_GAMERUNTIME_GAMECONFIG_BAD_FORMAT;
+            goto _CLEANUP;
+        }
+    } 
+    else 
+    {
+        if ( !GetModuleFileNameA( NULL, filename, MAX_PATH ) ) return HRESULT_FROM_WIN32( GetLastError() );
+        while ( ( last = strrchr( filename, '\\' ) ) )
+        {
+            *( last + 1 ) = 0;
+            if ( strlen( filename ) + strlen( "MicrosoftGame.config" ) < MAX_PATH )
+                strcat( filename, "MicrosoftGame.config" );
+            else return HRESULT_FROM_WIN32( ERROR_INSUFFICIENT_BUFFER );
+            if ( PathFileExistsA( filename ) ) break;
+            *last = 0;
+            if (!strrchr( filename, '\\' )) return E_GAME_MISSING_GAME_CONFIG;
+        }
+        if ( !( config = xmlReadFile( filename, NULL, 0 ) ) ) return E_GAMERUNTIME_GAMECONFIG_BAD_FORMAT;
+    }
+
+    if ( !( root = xmlDocGetRootElement( config ) ) ) 
+    {
+        hr = E_GAMERUNTIME_GAMECONFIG_BAD_FORMAT;
+        goto _CLEANUP;
+    }
+
+    if ( !strcmp( (LPSTR)root->name, "Game" ) )
+    {
+        for ( child = root->children; child; child = child->next )
+            if ( child->type == XML_ELEMENT_NODE )
+            {
+                if ( !strcmp( (LPSTR)child->name, "MSAAppId" ) )
+                    msaAppId = (LPSTR)xmlNodeGetContent( child );
+                else if ( !strcmp( (LPSTR)child->name, "TitleId" ) )
+                {
+                    LPSTR value = (LPSTR)xmlNodeGetContent( child );
+                    titleId = strtoul( value, NULL, 10 );
+                    free( value );
+                }
+                else if ( !strcmp( (LPSTR)child->name, "MSAFullTrust" ) )
+                {
+                    LPSTR value = (LPSTR)xmlNodeGetContent( child );
+                    fullTrust = !strcmp( value, "true" );
+                    free( value );
+                }
+            }
+    }
+
+_CLEANUP:
+    xmlFreeDoc( config );
+    return hr;
+}
+
 HRESULT WINAPI
 InitializeGDKComponent( INITIALIZE_OPTIONS *options )
 {
     HRESULT hr = S_OK;
     TRACE( "options %p.\n", options );
-    
-    if ( options )
-    {
+
+    if ( initializeCalled )
+        return S_OK;
+
+    initializeCalled = TRUE;
 #if XODUS_INTEROP
-        hr = InitializeXodusService();
-        if ( FAILED( hr ) ) return hr;
+    hr = InitializeXodusService();
+    if ( FAILED( hr ) ) return hr;
 #endif
-    }
+    hr = ObtainMsaAppId( options );
+    if ( FAILED( hr ) ) return hr;
+    TRACE("got msaAppId %s\n", debugstr_a(msaAppId));
 
     return hr;
 }
