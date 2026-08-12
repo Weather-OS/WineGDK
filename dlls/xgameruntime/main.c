@@ -173,10 +173,12 @@ HRESULT WINAPI InitializeApiImplEx2( ULONG gdkVer, ULONG gsVer, CHAR mode, INITI
     //
     HRESULT hr;
 
+#ifdef XODUS_INTEROP
     if ( !unixlib )
     {
         if ( FAILED( hr = LoadUnixLib() ) ) return hr;
     }
+#endif
 
     TRACE("gdkVer %ld, gsVer %ld, mode %d, options %p stub!\n", gdkVer, gsVer, mode, options);    
     return InitializeGDKComponent( options );
