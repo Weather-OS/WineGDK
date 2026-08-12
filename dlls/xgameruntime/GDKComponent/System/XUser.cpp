@@ -408,7 +408,6 @@ public:
         return E_NOTIMPL;
     }
 
-private:
     std::atomic_long ref{ 1 };
 };
 

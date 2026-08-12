@@ -133,6 +133,10 @@ enum unix_funcs
 extern unixlib_module_t unixlib;
 extern unixlib_handle_t unixhandle;
 
+extern LPCSTR msaAppId;
+extern UINT32 titleId;
+extern BOOLEAN fullTrust;
+
 typedef HRESULT (WINAPI *async_operation_callback)( IUnknown *invoker, PVOID param, PROPVARIANT *result );
 
 // Deference is for other modules to communicate with eachother through the same binary.
