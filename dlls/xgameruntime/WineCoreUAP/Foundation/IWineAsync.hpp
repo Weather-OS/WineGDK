@@ -285,7 +285,7 @@ public:
     {
         HRESULT hr;
         DWORD ret;
-        auto handler = new AsyncActionCompletedHandler<T>();
+        auto handler = new AsyncActionCompletedHandler();
         handler->event = event;
 
         hr = async->put_Completed( handler );
