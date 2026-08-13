@@ -42,6 +42,13 @@ struct XUser
     IUser* m_user;
 };
 
+struct XUserAddContext
+{
+    XUserAddOptions options;
+    XUserHandle user;
+    HANDLE userAddEvent;
+};
+
 class UserImpl : 
     public IUser
 {
@@ -59,5 +66,8 @@ private:
     HSTRING m_token;
     std::atomic_long ref{ 1 };
 };
+
+// Signatures can be anything because these are not exposed to the client.
+static uint32_t const X_USER_SIGNATURE = 0xa7f3c92d;
 
 #endif

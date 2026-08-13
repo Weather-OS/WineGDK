@@ -125,7 +125,7 @@ public:
     }
 
     HRESULT WINAPI
-    BuildMsaTokenRequestXml( HSTRING clientId, LPSTR *xml_string ) override
+    BuildMsaTokenRequestXml( HSTRING clientId, boolean allowUI, boolean fullTrust, LPSTR *xml_string ) override
     {
         INT bufSize;
         INT clientIdStrSize;
@@ -142,10 +142,12 @@ public:
         clientIdStr = (LPSTR)CoTaskMemAlloc( clientIdStrSize );
         WideCharToMultiByte( CP_UTF8, 0, clientIdStrW, clientIdStrLen, clientIdStr, clientIdStrSize, nullptr, nullptr );
 
-        root = xmlNewNode( nullptr, BAD_CAST "XSTSTokenRequest" );
+        root = xmlNewNode( nullptr, BAD_CAST "MsaTokenRequest" );
         xmlDocSetRootElement(doc, root);
-        xmlNewChild( root, nullptr, BAD_CAST "Url", BAD_CAST clientIdStr );
+        xmlNewChild( root, nullptr, BAD_CAST "clientId", BAD_CAST clientIdStr );
         CoTaskMemFree( clientIdStr );
+        xmlNewChild( root, nullptr, BAD_CAST "AllowUi", BAD_CAST (allowUI ? "true" : "false") );
+        xmlNewChild( root, nullptr, BAD_CAST "MsaFullTrust", BAD_CAST (fullTrust ? "true" : "false") );
         xmlDocDumpFormatMemory( doc, &xmlBuff, &bufSize, 1 );
         xmlFreeDoc( doc );
 

@@ -488,4 +488,7 @@ coclass XUserDeviceImpl
     [default] interface IXUserDeviceImpl2;
 }
 
+// XUser.h functions
+HRESULT __stdcall XUserAddAsync( [in] XUserAddOptions options, [in, out] XAsyncBlock *async );
+
 cpp_quote("#endif")

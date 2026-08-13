@@ -32,7 +32,7 @@ import "eventtoken.idl";
 import "windowscontracts.idl";
 import "windows.foundation.idl";
 
-namespace Xodus
+namespace XGameRuntime
 {
     /* type-pruning version of AsyncOperationCompletedHandler<T> */
     delegate HRESULT WineAsyncOperationCompletedHandler([in] IInspectable *async, [in] AsyncStatus status);

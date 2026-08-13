@@ -2,6 +2,7 @@
  * xgameruntime.dll implementation
  *
  * Written by Weather
+ * Copyright 2026 Olivia Ryan
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -108,7 +109,7 @@ namespace Xodus
     interface IXodusService : IInspectable
     {
         HRESULT Ping( [out, retval] Windows.Foundation.IAsyncAction **operation );
-        HRESULT MsaTokenRequest( [in] HSTRING clientId, [out, retval] Windows.Foundation.IAsyncOperation<Xodus.IMsaTokenResponse *> **operation );
+        HRESULT MsaTokenRequest( [in] HSTRING clientId, [in] boolean allowUI, [in] boolean fullTrust, [out, retval] Windows.Foundation.IAsyncOperation<Xodus.IMsaTokenResponse *> **operation );
     }
 
     [
@@ -116,7 +117,7 @@ namespace Xodus
     ]
     interface IXodusXMLBuilder : IInspectable
     {
-        HRESULT BuildMsaTokenRequestXml( [in] HSTRING clientId, [out, retval] LPSTR *xml_string );
+        HRESULT BuildMsaTokenRequestXml( [in] HSTRING clientId, [in] boolean allowUI, [in] boolean fullTrust, [out, retval] LPSTR *xml_string );
         HRESULT FromMsaTokenResponseXml( [in] LPCSTR xml_string, [out, retval] IMsaTokenResponse **response );
     }
 

@@ -3,6 +3,7 @@
  *  Xodus Interopability Layer -> XodusService
  * 
  * Written by Weather
+ * Copyright 2026 Olivia Ryan
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -115,25 +116,35 @@ public:
     }
 
     HRESULT WINAPI
-    MsaTokenRequest( HSTRING clientId, IAsyncOperation<IMsaTokenResponse *> **operation ) override
+    MsaTokenRequest( HSTRING clientId, boolean allowUI, boolean fullTrust, IAsyncOperation<IMsaTokenResponse *> **operation ) override
     {
         HRESULT hr;
         HSTRING clientIdCopy;
+        MsaTokenRequestParams *params;
 
-        TRACE("clientId %s, operation %p.\n", debugstr_hstring(clientId), operation);
+        TRACE("clientId %s, allowUI %d, fullTrust %d, operation %p.\n", debugstr_hstring(clientId), allowUI, fullTrust, operation);
 
         hr = WindowsDuplicateString( clientId, &clientIdCopy );
         if ( FAILED( hr ) ) return hr;
+
+        params = new MsaTokenRequestParams( { clientIdCopy, allowUI, fullTrust } );
     
         return AsyncOperation<IMsaTokenResponse *>::Create( static_cast<IUnknown *>(this), 
-                    static_cast<PVOID>(clientIdCopy), MsaTokenRequestAsync, operation );
+                    static_cast<PVOID>(params), MsaTokenRequestAsync, operation );
     }
 
 private:
+    struct MsaTokenRequestParams
+    {
+        HSTRING clientId;
+        boolean allowUI;
+        boolean fullTrust;
+    };
+
     static HRESULT WINAPI
     MsaTokenRequestAsync( IUnknown *invoker, PVOID param, PROPVARIANT *result )
     {
-        auto clientId = static_cast<HSTRING>(param);
+        auto params = static_cast<MsaTokenRequestParams *>(param);
 
         BYTE *messageBuffer;
         DWORD ret;
@@ -158,7 +169,7 @@ private:
         if ( FAILED( status ) ) goto _CLEANUP;
 
         // FIXME: Probably need to do HSTRING on xmlStr as doing manual CoTaskMemFree on xmlStr is janky.
-        status = xodus_xml_builder->BuildMsaTokenRequestXml( clientId, &xmlStr );
+        status = xodus_xml_builder->BuildMsaTokenRequestXml( params->clientId, params->allowUI, params->fullTrust, &xmlStr );
         if ( FAILED( status ) ) goto _CLEANUP;
 
         status = bufferFactory->Create( lstrlenA( xmlStr ) + 1, &message );
@@ -227,7 +238,8 @@ _CLEANUP:
         if ( messageByteAccess ) messageByteAccess->Release();
         if ( xodusPacket ) xodusPacket->Release();
         if ( response ) response->Release();
-        if ( clientId ) WindowsDeleteString( clientId );
+        if ( params->clientId ) WindowsDeleteString( params->clientId );
+        if ( params ) delete params;
         return S_OK;
     }
 

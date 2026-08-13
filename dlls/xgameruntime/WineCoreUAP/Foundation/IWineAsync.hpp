@@ -281,7 +281,7 @@ public:
         return ret;
     }
 
-    static DWORD await_CancellableAsyncAction( IAsyncOperation<T> *async, HANDLE event, DWORD timeout )
+    static DWORD await_CancellableAsyncAction( IAsyncAction *async, HANDLE event, DWORD timeout )
     {
         HRESULT hr;
         DWORD ret;
