@@ -29,7 +29,7 @@
 #define IWINEASYNC_HPP
 
 using namespace ABI::Windows::Foundation;
-using namespace ABI::Xodus;
+using namespace ABI::XGameRuntime;
 
 class AsyncInfo final
     : public IAsyncInfo
@@ -281,6 +281,23 @@ public:
         return ret;
     }
 
+    static DWORD await_CancellableAsyncAction( IAsyncOperation<T> *async, HANDLE event, DWORD timeout )
+    {
+        HRESULT hr;
+        DWORD ret;
+        auto handler = new AsyncActionCompletedHandler<T>();
+        handler->event = event;
+
+        hr = async->put_Completed( handler );
+        if ( FAILED( hr ) ) return hr;
+
+        ret = WaitForSingleObject( handler->event, timeout );
+        CloseHandle( handler->event );
+        handler->Release();
+
+        return ret;
+    }
+
 private:
     HANDLE event;
     std::atomic_long ref{ 1 };
@@ -349,6 +366,23 @@ public:
         DWORD ret;
         auto handler = new AsyncOperationCompletedHandler<T>();
         handler->event = CreateEventW( NULL, FALSE, FALSE, NULL );
+
+        hr = async->put_Completed( handler );
+        if ( FAILED( hr ) ) return hr;
+
+        ret = WaitForSingleObject( handler->event, timeout );
+        CloseHandle( handler->event );
+        handler->Release();
+
+        return ret;
+    }
+
+    static DWORD await_CancellableAsyncOperation( IAsyncOperation<T> *async, HANDLE event, DWORD timeout )
+    {
+        HRESULT hr;
+        DWORD ret;
+        auto handler = new AsyncOperationCompletedHandler<T>();
+        handler->event = event;
 
         hr = async->put_Completed( handler );
         if ( FAILED( hr ) ) return hr;
