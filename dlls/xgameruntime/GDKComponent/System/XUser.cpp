@@ -38,6 +38,8 @@ static HRESULT __stdcall not_implemented_async_work( XAsyncBlock * )
  * definite answer instead of a failure they turn into an exception. */
 /* An XSTS header is a few kilobytes of base64. */
 #define XSTS_TOKEN_MAX 8192
+/* XUserGamertagComponentUniqueModernMaxBytes, the largest of the four components. */
+#define XUSER_GAMERTAG_MAX 64
 
 /* Which service the caller is authenticating to decides which stored token fits;
  * both travel to GetResult as the provider context. */
@@ -162,8 +164,9 @@ static HRESULT token_and_signature_result_size( XAsyncBlock *async, SIZE_T *buff
     return xthreading->XAsyncGetResultSize( async, bufferSize );
 }
 
-class XUserImpl : 
-    public IXUserImpl6
+class XUserImpl :
+    public IXUserImpl6,
+    public IXUserGamertagImpl
 {
 public:
     HRESULT WINAPI QueryInterface( REFIID iid, void **out )
@@ -230,6 +233,15 @@ public:
         {
             AddRef();
             *out = static_cast<IXUserImpl6 *>(this);
+            return S_OK;
+        }
+
+        /* Titles ask for this separately from the main interface; without it they
+         * have no way to read the gamertag and fall back to a placeholder name. */
+        if ( iid == __uuidof( IXUserGamertagImpl ) )
+        {
+            AddRef();
+            *out = static_cast<IXUserGamertagImpl *>(this);
             return S_OK;
         }
 
@@ -353,6 +365,54 @@ public:
     {
         FIXME( "userId %llu, handle %p stub!\n", userId, handle );
         return E_NOTIMPL;
+    }
+
+    HRESULT STDMETHODCALLTYPE XUserGetGamertag( XUserHandle user, XUserGamertagComponent gamertagComponent,
+                                                SIZE_T gamertagSize, char *gamertag, SIZE_T *gamertagUsed ) override
+    {
+        char utf8[XUSER_GAMERTAG_MAX];
+        HSTRING stored = nullptr;
+        UINT32 length = 0;
+        LPCWSTR raw;
+        INT written = 0;
+
+        TRACE( "user %p, component %d, gamertagSize %Iu, gamertag %p, gamertagUsed %p.\n",
+               user, (int)gamertagComponent, gamertagSize, gamertag, gamertagUsed );
+
+        if ( !gamertag ) return E_POINTER;
+        if ( !user || user->m_signature != X_USER_SIGNATURE || !user->m_user )
+            return E_GAMERUNTIME_INVALID_HANDLE;
+
+        /* xodus reports one gamertag. The modern suffix is the part after the '#'
+         * of a unique modern gamertag, which accounts without one do not have. */
+        if ( gamertagComponent != XUserGamertagComponent::ModernSuffix &&
+             SUCCEEDED( user->m_user->GetGamertag( &stored ) ) )
+        {
+            raw = WindowsGetStringRawBuffer( stored, &length );
+            if ( raw && length )
+                written = WideCharToMultiByte( CP_UTF8, 0, raw, length,
+                                               utf8, sizeof(utf8) - 1, nullptr, nullptr );
+            WindowsDeleteString( stored );
+        }
+
+        utf8[written] = '\0';
+
+        if ( !written && gamertagComponent != XUserGamertagComponent::ModernSuffix )
+        {
+            WARN( "no gamertag for user %p; the XSTS exchange did not complete.\n", user );
+            return E_GAMEUSER_NO_AUTH_USER;
+        }
+
+        if ( gamertagSize < (SIZE_T)written + 1 )
+        {
+            if ( gamertagUsed ) *gamertagUsed = written + 1;
+            return HRESULT_FROM_WIN32( ERROR_INSUFFICIENT_BUFFER );
+        }
+
+        memcpy( gamertag, utf8, written + 1 );
+        if ( gamertagUsed ) *gamertagUsed = written + 1;
+
+        return S_OK;
     }
 
     HRESULT WINAPI XUserGetIsGuest( XUserHandle user, BOOLEAN *isGuest ) override
