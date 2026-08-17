@@ -246,8 +246,11 @@ private:
         if ( FAILED( status ) ) return status;
         if ( asyncres )
         {
+            /* STATUS_TIMEOUT is a success-class NTSTATUS, so returning it here made
+             * callers treat the timeout as a completed request and use the result
+             * that was never set. */
             WARN("Timeout while waiting for %p to respond.\n", handler);
-            return HRESULT_FROM_NT( STATUS_TIMEOUT );
+            return HRESULT_FROM_WIN32( ERROR_TIMEOUT );
         }
 
         result->vt = VT_UNKNOWN;
@@ -298,6 +301,16 @@ private:
         IXodusIPCPacket *xodusPacket = nullptr;
 
         TRACE("invoker %p, param %p, result %p\n", invoker, param, result);
+
+        /* This is a bare worker thread, so its apartment has to be initialized before
+         * any WinRT activation - otherwise RoGetActivationFactory below fails with
+         * CO_E_NOTINITIALIZED. */
+        HRESULT initHr = RoInitialize( RO_INIT_MULTITHREADED );
+        if ( FAILED( initHr ) && initHr != RPC_E_CHANGED_MODE )
+        {
+            WARN("RoInitialize failed with %#lx\n", initHr);
+            return initHr;
+        }
 
         status = WindowsCreateString( RuntimeClass_Windows_Storage_Streams_Buffer, lstrlenW( RuntimeClass_Windows_Storage_Streams_Buffer ), &bufferClass );
         if ( FAILED( status ) ) return status;

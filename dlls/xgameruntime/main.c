@@ -244,6 +244,12 @@ HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, voi
     {
         return IXNetworkingImpl_QueryInterface( x_networking, interfaceId, out );
     }
+    /* xuser.idl declares no coclass, so the interface id doubles as the runtime
+     * class id here - the same way XThreading is asked for. */
+    else if ( IsEqualGUID( runtimeClassId, &IID_IXUserImpl ) )
+    {
+        return IXUserImpl_QueryInterface( x_user, interfaceId, out );
+    }
     else if ( IsEqualGUID( runtimeClassId, &CLSID_XThreadingImpl ) )
     {
         /**
@@ -263,7 +269,8 @@ HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, voi
     else if (IsEqualGUID( runtimeClassId, &CLSID_XStoreImpl ))
         return IXStoreImpl_QueryInterface( x_store, interfaceId, out );
     
-    FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( runtimeClassId ) );
+    FIXME( "%s not implemented, returning E_NOINTERFACE (caller %p).\n",
+           debugstr_guid( runtimeClassId ), __builtin_return_address( 0 ) );
     return E_NOTIMPL;
 }
 

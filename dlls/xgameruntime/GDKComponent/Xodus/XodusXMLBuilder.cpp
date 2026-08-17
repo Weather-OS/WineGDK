@@ -20,6 +20,8 @@
  */
 
 #include "../../private.h"
+
+#include <utility>
 #include "../../WineCoreUAP/Foundation/IWineAsync.hpp"
 #include "../../WineCoreUAP/Foundation/IWineVector.hpp"
 #include "Structs.h"
@@ -39,6 +41,32 @@ using namespace ABI;
 using namespace ABI::Xodus;
 using namespace ABI::Windows::Foundation;
 using namespace ABI::Windows::Foundation::Collections;
+
+/* The response carries several plain-text elements; they all convert the same way. */
+static HRESULT hstring_from_node( xmlNodePtr node, HSTRING *out )
+{
+    xmlChar *content = xmlNodeGetContent( node );
+    INT strLen;
+    LPWSTR strW;
+    HRESULT hr;
+
+    if ( !content ) return E_FAIL;
+
+    strLen = MultiByteToWideChar( CP_UTF8, 0, reinterpret_cast<LPCSTR>(content), -1, nullptr, 0 );
+    strW = (LPWSTR)CoTaskMemAlloc( strLen * sizeof(WCHAR) );
+    if ( !strW )
+    {
+        xmlFree( content );
+        return E_OUTOFMEMORY;
+    }
+
+    MultiByteToWideChar( CP_UTF8, 0, reinterpret_cast<LPCSTR>(content), -1, strW, strLen );
+    hr = WindowsCreateString( strW, strLen - 1, out );
+
+    CoTaskMemFree( strW );
+    xmlFree( content );
+    return hr;
+}
 
 class ABI::Xodus::XodusXMLBuilder :
     public IXodusXMLBuilder
@@ -138,21 +166,77 @@ public:
 
         TRACE( "clientId %s, xml_string %p.\n", debugstr_hstring(clientId), xml_string );
 
+        /* An explicit source length means the result is not NUL terminated, so leave
+         * room for the terminator libxml2 expects when reading it as a C string. */
         clientIdStrSize = WideCharToMultiByte( CP_UTF8, 0, clientIdStrW, clientIdStrLen, nullptr, 0, nullptr, nullptr );
-        clientIdStr = (LPSTR)CoTaskMemAlloc( clientIdStrSize );
+        clientIdStr = (LPSTR)CoTaskMemAlloc( clientIdStrSize + 1 );
         WideCharToMultiByte( CP_UTF8, 0, clientIdStrW, clientIdStrLen, clientIdStr, clientIdStrSize, nullptr, nullptr );
+        clientIdStr[clientIdStrSize] = '\0';
 
         root = xmlNewNode( nullptr, BAD_CAST "MsaTokenRequest" );
         xmlDocSetRootElement(doc, root);
-        xmlNewChild( root, nullptr, BAD_CAST "clientId", BAD_CAST clientIdStr );
+        /* The service deserializes these names in PascalCase. */
+        xmlNewChild( root, nullptr, BAD_CAST "ClientId", BAD_CAST clientIdStr );
         CoTaskMemFree( clientIdStr );
         xmlNewChild( root, nullptr, BAD_CAST "AllowUi", BAD_CAST (allowUI ? "true" : "false") );
         xmlNewChild( root, nullptr, BAD_CAST "MsaFullTrust", BAD_CAST (fullTrust ? "true" : "false") );
         xmlDocDumpFormatMemory( doc, &xmlBuff, &bufSize, 1 );
         xmlFreeDoc( doc );
 
-        *xml_string = (LPSTR)CoTaskMemAlloc( bufSize );
-        lstrcpynA( *xml_string, reinterpret_cast<LPCSTR>(xmlBuff), bufSize );
+        /* bufSize excludes the terminator, and lstrcpynA reserves one - without the
+         * extra byte the document loses its last character. */
+        *xml_string = (LPSTR)CoTaskMemAlloc( bufSize + 1 );
+        lstrcpynA( *xml_string, reinterpret_cast<LPCSTR>(xmlBuff), bufSize + 1 );
+        xmlFree( xmlBuff );
+
+        return S_OK;
+    }
+
+    HRESULT WINAPI
+    BuildXstsTokenRequestXml( HSTRING clientId, HSTRING relyingParty, LPSTR *xml_string ) override
+    {
+        INT bufSize;
+        INT strSize;
+        LPSTR str;
+        UINT32 strLen;
+        LPCWSTR strW;
+        xmlChar *xmlBuff = nullptr;
+        xmlDocPtr doc = xmlNewDoc( BAD_CAST "1.0" );
+        xmlNodePtr root;
+
+        TRACE( "clientId %s, relyingParty %s, xml_string %p.\n",
+               debugstr_hstring( clientId ), debugstr_hstring( relyingParty ), xml_string );
+
+        root = xmlNewNode( nullptr, BAD_CAST "MsaTokenRequest" );
+        xmlDocSetRootElement( doc, root );
+
+        /* The service answers this exactly like a token request, with the Xbox
+         * identity resolved for the party we name here. */
+        for ( auto entry : { std::make_pair( "ClientId", clientId ),
+                             std::make_pair( "RelyingParty", relyingParty ) } )
+        {
+            strW = WindowsGetStringRawBuffer( entry.second, &strLen );
+            strSize = WideCharToMultiByte( CP_UTF8, 0, strW, strLen, nullptr, 0, nullptr, nullptr );
+            str = (LPSTR)CoTaskMemAlloc( strSize + 1 );
+            if ( !str )
+            {
+                xmlFreeDoc( doc );
+                return E_OUTOFMEMORY;
+            }
+            WideCharToMultiByte( CP_UTF8, 0, strW, strLen, str, strSize, nullptr, nullptr );
+            str[strSize] = '\0';
+            xmlNewChild( root, nullptr, BAD_CAST entry.first, BAD_CAST str );
+            CoTaskMemFree( str );
+        }
+
+        xmlNewChild( root, nullptr, BAD_CAST "AllowUi", BAD_CAST "false" );
+        xmlNewChild( root, nullptr, BAD_CAST "MsaFullTrust", BAD_CAST "false" );
+
+        xmlDocDumpFormatMemory( doc, &xmlBuff, &bufSize, 1 );
+        xmlFreeDoc( doc );
+
+        *xml_string = (LPSTR)CoTaskMemAlloc( bufSize + 1 );
+        lstrcpynA( *xml_string, reinterpret_cast<LPCSTR>(xmlBuff), bufSize + 1 );
         xmlFree( xmlBuff );
 
         return S_OK;
@@ -166,6 +250,9 @@ public:
         LPWSTR strW;
         HRESULT hr;
         HSTRING token = nullptr;
+        HSTRING xuid = nullptr;
+        HSTRING gamertag = nullptr;
+        HSTRING xstsToken = nullptr;
         DateTime expiry{};
         LONGLONG expiryUnix;
         xmlChar *childContent;
@@ -212,9 +299,27 @@ public:
                     expiry.UniversalTime = ((INT64)expiryUnix + SEC_TO_UNIX_EPOCH) * WINDOWS_TICK;
                     CoTaskMemFree( str );
                 }
+                else if ( curr_child->type == XML_ELEMENT_NODE &&
+                          !strcmp( reinterpret_cast<LPCSTR>(curr_child->name), "Xuid" ) )
+                {
+                    hstring_from_node( curr_child, &xuid );
+                }
+                else if ( curr_child->type == XML_ELEMENT_NODE &&
+                          !strcmp( reinterpret_cast<LPCSTR>(curr_child->name), "Gamertag" ) )
+                {
+                    hstring_from_node( curr_child, &gamertag );
+                }
+                else if ( curr_child->type == XML_ELEMENT_NODE &&
+                          !strcmp( reinterpret_cast<LPCSTR>(curr_child->name), "XstsToken" ) )
+                {
+                    hstring_from_node( curr_child, &xstsToken );
+                }
             }
 
-        *response = new MsaTokenResponse( token, expiry );
+        *response = new MsaTokenResponse( token, expiry, xuid, gamertag, xstsToken );
+        WindowsDeleteString( xuid );
+        WindowsDeleteString( gamertag );
+        WindowsDeleteString( xstsToken );
         xmlFreeDoc( doc );
         return S_OK;
     }

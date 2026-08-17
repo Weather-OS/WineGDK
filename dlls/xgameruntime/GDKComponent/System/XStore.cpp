@@ -21,7 +21,18 @@
 
 #include "private.h"
 
+#include <new>
+#include <atomic>
+#include <cstring>
+
 WINE_DEFAULT_DEBUG_CHANNEL(gdkc);
+
+#define STORE_CONTEXT_SIGNATURE 0x58535443 /* XSTC */
+
+static HRESULT __stdcall license_query_work( XAsyncBlock * )
+{
+    return S_OK;
+}
 
 class XStoreImpl : public IXStoreImpl6
 {
@@ -64,11 +75,26 @@ public:
 
     HRESULT WINAPI XStoreCreateContext( const XUserHandle user, XStoreContextHandle *storeContextHandle ) override
     {
-        FIXME( "iface %p, user %p, storeContextHandle %p stub!\n", this, user, storeContextHandle );
-        return E_NOTIMPL;
+        FIXME( "iface %p, user %p semi-stub: handing out an opaque context.\n", this, user );
+
+        if ( !storeContextHandle ) return E_POINTER;
+
+        /* The handle is opaque to callers and every store query is still a stub, so
+         * an owning marker is enough. Failing here instead makes callers spin. */
+        *storeContextHandle = (XStoreContextHandle)new (std::nothrow) UINT32( STORE_CONTEXT_SIGNATURE );
+        if ( !*storeContextHandle ) return E_OUTOFMEMORY;
+
+        return S_OK;
     }
 
     void WINAPI XStoreCloseContextHandle( XStoreContextHandle storeContextHandle ) override
+    {
+        TRACE( "iface %p, storeContextHandle %p.\n", this, storeContextHandle );
+        delete (UINT32 *)storeContextHandle;
+        return;
+    }
+
+    void WINAPI __XStoreCloseContextHandle_unused( XStoreContextHandle storeContextHandle )
     {
         FIXME( "iface %p, storeContextHandle %p stub!\n", this, storeContextHandle );
     }
@@ -211,14 +237,23 @@ public:
 
     HRESULT WINAPI XStoreQueryGameLicenseAsync( const XStoreContextHandle storeContextHandle, XAsyncBlock *async ) override
     {
-        FIXME( "iface %p, storeContextHandle %p, async %p stub!\n", this, storeContextHandle, async );
-        return E_NOTIMPL;
+        FIXME( "iface %p, storeContextHandle %p semi-stub: reporting a full license.\n", this, storeContextHandle );
+
+        /* The entitlement was already proven when xodus fetched the package license,
+         * so report an owned, non-trial license through the async completion. */
+        return XAsyncRun( async, license_query_work );
     }
 
     HRESULT WINAPI XStoreQueryGameLicenseResult( XAsyncBlock *async, XStoreGameLicense *license ) override
     {
-        FIXME( "iface %p, async %p, license %p stub!\n", this, async, license );
-        return E_NOTIMPL;
+        TRACE( "iface %p, async %p, license %p.\n", this, async, license );
+
+        if ( !license ) return E_POINTER;
+
+        memset( license, 0, sizeof(*license) );
+        license->isActive = TRUE;
+
+        return S_OK;
     }
 
     HRESULT WINAPI XStoreQueryAddOnLicensesAsync( const XStoreContextHandle storeContextHandle, XAsyncBlock *async ) override
@@ -439,8 +474,11 @@ public:
 
     HRESULT WINAPI XStoreRegisterGameLicenseChanged( XStoreContextHandle storeContextHandle, XTaskQueueHandle queue, void *context, XStoreGameLicenseChangedCallback *callback, XTaskQueueRegistrationToken *token ) override
     {
-        FIXME( "iface %p, storeContextHandle %p, queue %p, context %p, callback %p, token %p stub!\n", this, storeContextHandle, queue, context, callback, token );
-        return E_NOTIMPL;
+        FIXME( "iface %p, storeContextHandle %p, queue %p, context %p, callback %p semi-stub: the license never changes.\n",
+               this, storeContextHandle, queue, context, callback );
+
+        if ( token ) token->token = ++m_NextLicenseToken;
+        return S_OK;
     }
 
     BOOLEAN WINAPI XStoreUnregisterGameLicenseChanged( XStoreContextHandle storeContextHandle, XTaskQueueRegistrationToken token, BOOLEAN wait ) override
@@ -547,6 +585,7 @@ public:
 
 private:
     LONG ref = 1;
+    std::atomic<UINT64> m_NextLicenseToken{ 0 };
 };
 
 static XStoreImpl g_x_store;

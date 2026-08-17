@@ -110,6 +110,8 @@ namespace Xodus
     {
         HRESULT Ping( [out, retval] Windows.Foundation.IAsyncAction **operation );
         HRESULT MsaTokenRequest( [in] HSTRING clientId, [in] boolean allowUI, [in] boolean fullTrust, [out, retval] Windows.Foundation.IAsyncOperation<Xodus.IMsaTokenResponse *> **operation );
+        /* Same exchange, but for a specific Xbox Live relying party. */
+        HRESULT XstsTokenRequest( [in] HSTRING clientId, [in] HSTRING relyingParty, [out, retval] Windows.Foundation.IAsyncOperation<Xodus.IMsaTokenResponse *> **operation );
     }
 
     [
@@ -118,6 +120,7 @@ namespace Xodus
     interface IXodusXMLBuilder : IInspectable
     {
         HRESULT BuildMsaTokenRequestXml( [in] HSTRING clientId, [in] boolean allowUI, [in] boolean fullTrust, [out, retval] LPSTR *xml_string );
+        HRESULT BuildXstsTokenRequestXml( [in] HSTRING clientId, [in] HSTRING relyingParty, [out, retval] LPSTR *xml_string );
         HRESULT FromMsaTokenResponseXml( [in] LPCSTR xml_string, [out, retval] IMsaTokenResponse **response );
     }
 
@@ -129,6 +132,11 @@ namespace Xodus
     {
         [propget] HRESULT Token( [out, retval] HSTRING *out );
         [propget] HRESULT Expiry( [out, retval] Windows.Foundation.DateTime *out );
+        /* Xbox Live identity settled during the same exchange. Empty when the
+           service could not complete the XSTS step. */
+        [propget] HRESULT Xuid( [out, retval] HSTRING *out );
+        [propget] HRESULT Gamertag( [out, retval] HSTRING *out );
+        [propget] HRESULT XstsToken( [out, retval] HSTRING *out );
     }
 
     [

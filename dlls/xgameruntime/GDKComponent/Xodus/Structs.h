@@ -102,6 +102,13 @@ public:
         HSTRING token,
         ABI::Windows::Foundation::DateTime expiry );
 
+    MsaTokenResponse(
+        HSTRING token,
+        ABI::Windows::Foundation::DateTime expiry,
+        HSTRING xuid,
+        HSTRING gamertag,
+        HSTRING xstsToken );
+
     MsaTokenResponse( const MsaTokenResponse& ) = delete;
     MsaTokenResponse& operator=( const MsaTokenResponse& ) = delete;
 
@@ -113,10 +120,16 @@ public:
     /* IMsaTokenResponse Methods */
     HRESULT WINAPI get_Token( HSTRING *out );
     HRESULT WINAPI get_Expiry( ABI::Windows::Foundation::DateTime *out );
+    HRESULT WINAPI get_Xuid( HSTRING *out );
+    HRESULT WINAPI get_Gamertag( HSTRING *out );
+    HRESULT WINAPI get_XstsToken( HSTRING *out );
 
 private:
     ABI::Windows::Foundation::DateTime Expiry;
     HSTRING Token;
+    HSTRING Xuid = nullptr;
+    HSTRING Gamertag = nullptr;
+    HSTRING XstsToken = nullptr;
     std::atomic_long ref{ 1 };
 };
 

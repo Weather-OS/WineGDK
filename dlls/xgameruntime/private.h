@@ -89,10 +89,18 @@
 
 #define FAIL_FAST_IF_FAILED(hr)                                 do { HRESULT __hrRet = hr; if (FAILED(__hrRet)) { FAIL_FAST_MSG("%s 0x%#lx", #hr, __hrRet); }} while (0)
 
-#define POLL_BUFFER_SIZE 2048
+/* Must match the unix side: MSA token responses run to several kilobytes and a
+ * message larger than this buffer can never be completed. */
+#define POLL_BUFFER_SIZE 65536
 #define XODUS_SOCKET_SUFFIX "xodus.sock"
-#define IPC_REQUEST_TIMEOUT_MS 5000
-#define XODUS_INTEROP 0
+/* The MSA token exchange makes several round trips to Microsoft, so this has to
+ * cover a lot more than a local ping. */
+#define IPC_REQUEST_TIMEOUT_MS 60000
+#define XODUS_INTEROP 1
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 extern IXThreadingImpl *x_threading_impl;
 extern IXGameRuntimeFeatureImpl *x_game_runtime_feature;
@@ -138,6 +146,10 @@ extern unixlib_handle_t unixhandle;
 extern LPCSTR msaAppId;
 extern UINT32 titleId;
 extern BOOLEAN fullTrust;
+
+#ifdef __cplusplus
+}
+#endif
 
 typedef HRESULT (WINAPI *async_operation_callback)( IUnknown *invoker, PVOID param, PROPVARIANT *result );
 

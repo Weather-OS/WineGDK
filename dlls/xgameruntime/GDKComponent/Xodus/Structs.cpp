@@ -184,6 +184,20 @@ MsaTokenResponse::MsaTokenResponse(
     WindowsDuplicateString( token, &Token );
 }
 
+MsaTokenResponse::MsaTokenResponse(
+    HSTRING token,
+    ABI::Windows::Foundation::DateTime expiry,
+    HSTRING xuid,
+    HSTRING gamertag,
+    HSTRING xstsToken )
+: Expiry(expiry)
+{
+    WindowsDuplicateString( token, &Token );
+    WindowsDuplicateString( xuid, &Xuid );
+    WindowsDuplicateString( gamertag, &Gamertag );
+    WindowsDuplicateString( xstsToken, &XstsToken );
+}
+
 HRESULT WINAPI
 MsaTokenResponse::QueryInterface( REFIID iid, void **out ) noexcept
 {
@@ -243,5 +257,29 @@ MsaTokenResponse::get_Expiry( ABI::Windows::Foundation::DateTime *out )
 {
     TRACE( "iface %p, out %p\n", this, out );
     *out = Expiry;
+    return S_OK;
+}
+
+HRESULT WINAPI
+MsaTokenResponse::get_Xuid( HSTRING *out )
+{
+    TRACE( "iface %p, out %p\n", this, out );
+    WindowsDuplicateString( Xuid, out );
+    return S_OK;
+}
+
+HRESULT WINAPI
+MsaTokenResponse::get_Gamertag( HSTRING *out )
+{
+    TRACE( "iface %p, out %p\n", this, out );
+    WindowsDuplicateString( Gamertag, out );
+    return S_OK;
+}
+
+HRESULT WINAPI
+MsaTokenResponse::get_XstsToken( HSTRING *out )
+{
+    TRACE( "iface %p, out %p\n", this, out );
+    WindowsDuplicateString( XstsToken, out );
     return S_OK;
 }

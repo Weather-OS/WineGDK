@@ -269,7 +269,7 @@ private:
 };
 
 
-class TaskQueuePortImpl : public ITaskQueuePort
+class DECLSPEC_UUID("4529CADF-1BA0-4038-A854-2C0CA26396CB") TaskQueuePortImpl : public ITaskQueuePort
 {
 public:
 
@@ -458,7 +458,7 @@ private:
 __CRT_UUID_DECL(TaskQueuePortImpl, 0x4529CADF, 0x1BA0, 0x4038, 0xA8,0x54, 0x2C,0x0C,0xA2,0x63,0x96,0xCB)
 #endif
 
-class TaskQueuePortContextImpl : public ITaskQueuePortContext
+class DECLSPEC_UUID("AFAF0302-AEBB-491A-946F-BFB283496E7A") TaskQueuePortContextImpl : public ITaskQueuePortContext
 {
 public:
 
@@ -504,7 +504,7 @@ private:
 __CRT_UUID_DECL(TaskQueuePortContextImpl, 0xAFAF0302, 0xAEBB, 0x491A, 0x94,0x6F, 0xBF,0xB2,0x83,0x49,0x6E,0x7A)
 #endif
 
-class TaskQueueImpl : public ITaskQueue
+class DECLSPEC_UUID("D63140D8-9A27-4951-B446-FB8639490A9B") TaskQueueImpl : public ITaskQueue
 #ifdef SUSPEND_API
     , public ISuspendResumeCallback
 #endif

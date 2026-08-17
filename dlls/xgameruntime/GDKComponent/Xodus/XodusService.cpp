@@ -133,12 +133,41 @@ public:
                     static_cast<PVOID>(params), MsaTokenRequestAsync, operation );
     }
 
+    HRESULT WINAPI
+    XstsTokenRequest( HSTRING clientId, HSTRING relyingParty, IAsyncOperation<IMsaTokenResponse *> **operation ) override
+    {
+        HRESULT hr;
+        HSTRING clientIdCopy;
+        HSTRING relyingPartyCopy;
+        MsaTokenRequestParams *params;
+
+        TRACE("clientId %s, relyingParty %s, operation %p.\n",
+              debugstr_hstring(clientId), debugstr_hstring(relyingParty), operation);
+
+        hr = WindowsDuplicateString( clientId, &clientIdCopy );
+        if ( FAILED( hr ) ) return hr;
+        hr = WindowsDuplicateString( relyingParty, &relyingPartyCopy );
+        if ( FAILED( hr ) )
+        {
+            WindowsDeleteString( clientIdCopy );
+            return hr;
+        }
+
+        params = new MsaTokenRequestParams( { clientIdCopy, false, false, relyingPartyCopy } );
+
+        return AsyncOperation<IMsaTokenResponse *>::Create( static_cast<IUnknown *>(this),
+                    static_cast<PVOID>(params), MsaTokenRequestAsync, operation );
+    }
+
 private:
     struct MsaTokenRequestParams
     {
         HSTRING clientId;
         boolean allowUI;
         boolean fullTrust;
+        /* Null for a plain token request; set when a specific Xbox Live relying
+         * party is wanted. */
+        HSTRING relyingParty = nullptr;
     };
 
     static HRESULT WINAPI
@@ -169,7 +198,10 @@ private:
         if ( FAILED( status ) ) goto _CLEANUP;
 
         // FIXME: Probably need to do HSTRING on xmlStr as doing manual CoTaskMemFree on xmlStr is janky.
-        status = xodus_xml_builder->BuildMsaTokenRequestXml( params->clientId, params->allowUI, params->fullTrust, &xmlStr );
+        if ( params->relyingParty )
+            status = xodus_xml_builder->BuildXstsTokenRequestXml( params->clientId, params->relyingParty, &xmlStr );
+        else
+            status = xodus_xml_builder->BuildMsaTokenRequestXml( params->clientId, params->allowUI, params->fullTrust, &xmlStr );
         if ( FAILED( status ) ) goto _CLEANUP;
 
         status = bufferFactory->Create( lstrlenA( xmlStr ) + 1, &message );
@@ -210,6 +242,12 @@ private:
 
         status = response->GetResults( &xodusPacket );
         if ( FAILED( status ) ) goto _CLEANUP;
+        if ( !xodusPacket )
+        {
+            WARN("No response packet for the MSA token request.\n");
+            status = E_FAIL;
+            goto _CLEANUP;
+        }
 
         xodusPacket->get_MessageType( &messageType );
         xodusPacket->get_Message( &message );

@@ -102,7 +102,8 @@
 # define HAS_IRDA
 #endif
 
-#define POLL_BUFFER_SIZE 2048
+/* Must match POLL_BUFFER_SIZE in private.h. */
+#define POLL_BUFFER_SIZE 65536
 
 WINE_DEFAULT_DEBUG_CHANNEL(xodus);
 

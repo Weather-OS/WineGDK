@@ -27,9 +27,17 @@
 
 #include <atomic>
 
-struct IUser : IUnknown
+struct DECLSPEC_UUID("5F280469-FB5A-44AA-9F14-D77C7C90A5DC") IUser : IUnknown
 {
     virtual HRESULT WINAPI GetMsaToken( HSTRING *token ) = 0;
+    /* Xbox Live identity settled alongside the MSA token. */
+    virtual UINT64 WINAPI GetXuid() = 0;
+    virtual HRESULT WINAPI GetGamertag( HSTRING *gamertag ) = 0;
+    virtual HRESULT WINAPI GetXstsToken( HSTRING *token ) = 0;
+    /* Token for the PlayFab relying party, which titles authenticate against
+     * separately from plain Xbox Live. */
+    virtual HRESULT WINAPI GetPlayfabToken( HSTRING *token ) = 0;
+    virtual void WINAPI SetPlayfabToken( HSTRING token ) = 0;
 };
 //5F280469-FB5A-44AA-9F14-D77C7C90A5DC
 #ifdef __CRT_UUID_DECL
@@ -49,11 +57,16 @@ struct XUserAddContext
     HANDLE userAddEvent;
 };
 
+/* Implemented in UserImpl.cpp; XUserImpl forwards its XUser API to these. */
+HRESULT XUserAddAsync( XUserAddOptions options, XAsyncBlock *async );
+HRESULT XUserAddResult( XAsyncBlock *async, XUserHandle *newUser );
+
 class UserImpl : 
     public IUser
 {
 public:
     UserImpl( HSTRING token );
+    UserImpl( HSTRING token, HSTRING xuid, HSTRING gamertag, HSTRING xstsToken );
     virtual ~UserImpl() = default;
 
     HRESULT WINAPI QueryInterface( REFIID iid, void **out ) noexcept override;
@@ -61,9 +74,18 @@ public:
     ULONG WINAPI Release() noexcept override;
 
     HRESULT WINAPI GetMsaToken( HSTRING *out ) override;
+    UINT64 WINAPI GetXuid() override;
+    HRESULT WINAPI GetGamertag( HSTRING *out ) override;
+    HRESULT WINAPI GetXstsToken( HSTRING *out ) override;
+    HRESULT WINAPI GetPlayfabToken( HSTRING *out ) override;
+    void WINAPI SetPlayfabToken( HSTRING token ) override;
 
 private:
     HSTRING m_token;
+    HSTRING m_gamertag = nullptr;
+    HSTRING m_xstsToken = nullptr;
+    HSTRING m_playfabToken = nullptr;
+    UINT64 m_xuid = 0;
     std::atomic_long ref{ 1 };
 };
 

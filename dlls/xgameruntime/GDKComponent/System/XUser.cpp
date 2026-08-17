@@ -20,11 +20,147 @@
  */
 
 #include "../../private.h"
+#include "User/UserImpl.h"
 
 #include <cstring>
 #include <atomic>
+#include <new>
 
 WINE_DEFAULT_DEBUG_CHANNEL(gdkc);
+
+static HRESULT __stdcall not_implemented_async_work( XAsyncBlock * )
+{
+    return E_NOTIMPL;
+}
+
+/* No XSTS token or request signature is available yet - the xodus IPC protocol only
+ * carries MSA tokens. Hand back an empty but well-formed result so callers get a
+ * definite answer instead of a failure they turn into an exception. */
+/* An XSTS header is a few kilobytes of base64. */
+#define XSTS_TOKEN_MAX 8192
+
+/* Which service the caller is authenticating to decides which stored token fits;
+ * both travel to GetResult as the provider context. */
+struct TokenAndSignatureContext
+{
+    XUserHandle user;
+    bool playfab;
+};
+
+static HRESULT __stdcall token_and_signature_provider( XAsyncOp op, const XAsyncProviderData *data )
+{
+    IXThreadingImpl *xthreading;
+    HRESULT hr;
+
+    if ( FAILED( hr = QueryApiImpl( &CLSID_XThreadingImpl, IID_IXThreadingImpl, (void **)&xthreading ) ) )
+        return hr;
+
+    switch (op)
+    {
+        case XAsyncOp::Begin:
+            return xthreading->XAsyncSchedule( data->async, 0 );
+
+        case XAsyncOp::DoWork:
+            xthreading->XAsyncComplete( data->async, S_OK,
+                                        sizeof(XUserGetTokenAndSignatureData)
+                                        + XSTS_TOKEN_MAX + 1 );
+            /* Completed here, so the framework must not complete it again. */
+            return E_PENDING;
+
+        case XAsyncOp::GetResult:
+        {
+            auto *result = (XUserGetTokenAndSignatureData *)data->buffer;
+            char *token = (char *)data->buffer + sizeof(*result);
+            auto *ctx = (TokenAndSignatureContext *)data->context;
+            XUserHandle user = ctx ? ctx->user : nullptr;
+            HSTRING stored = nullptr;
+            UINT32 length = 0;
+            LPCWSTR raw;
+            INT written = 0;
+
+            token[0] = '\0';
+
+            if ( user && user->m_signature == X_USER_SIGNATURE && user->m_user &&
+                 SUCCEEDED( ctx->playfab ? user->m_user->GetPlayfabToken( &stored )
+                                         : user->m_user->GetXstsToken( &stored ) ) )
+            {
+                raw = WindowsGetStringRawBuffer( stored, &length );
+                if ( raw && length )
+                    written = WideCharToMultiByte( CP_UTF8, 0, raw, length,
+                                                   token, XSTS_TOKEN_MAX, nullptr, nullptr );
+                WindowsDeleteString( stored );
+            }
+
+            token[written] = '\0';
+
+            /* No request signature: Xbox signs requests with the device key, which
+             * xodus does not hold. The token alone is what most services check. */
+            result->tokenSize = written;
+            result->signatureSize = 0;
+            result->token = token;
+            result->signature = token + written;
+            return S_OK;
+        }
+
+        case XAsyncOp::Cleanup:
+            delete (TokenAndSignatureContext *)data->context;
+            break;
+
+        default:
+            break;
+    }
+
+    return S_OK;
+}
+
+static HRESULT begin_token_and_signature( XUserHandle user, const char *url, XAsyncBlock *async )
+{
+    IXThreadingImpl *xthreading;
+    HRESULT hr;
+
+    if ( FAILED( hr = QueryApiImpl( &CLSID_XThreadingImpl, IID_IXThreadingImpl, (void **)&xthreading ) ) )
+        return hr;
+
+    auto *ctx = new (std::nothrow) TokenAndSignatureContext;
+    if ( !ctx ) return E_OUTOFMEMORY;
+
+    ctx->user = user;
+    ctx->playfab = url && strstr( url, "playfab" ) != nullptr;
+
+    hr = xthreading->XAsyncBegin( async, ctx, (void *)token_and_signature_provider,
+                                  "XUserGetTokenAndSignature", token_and_signature_provider );
+    if ( FAILED( hr ) ) delete ctx;
+
+    return hr;
+}
+
+static HRESULT token_and_signature_result( XAsyncBlock *async, SIZE_T bufferSize, void *buffer,
+                                           XUserGetTokenAndSignatureData **ptrToBuffer, SIZE_T *bufferUsed )
+{
+    IXThreadingImpl *xthreading;
+    HRESULT hr;
+
+    if ( FAILED( hr = QueryApiImpl( &CLSID_XThreadingImpl, IID_IXThreadingImpl, (void **)&xthreading ) ) )
+        return hr;
+
+    hr = xthreading->XAsyncGetResult( async, (void *)token_and_signature_provider,
+                                      bufferSize, buffer, bufferUsed );
+    if ( SUCCEEDED( hr ) && ptrToBuffer )
+        *ptrToBuffer = (XUserGetTokenAndSignatureData *)buffer;
+
+    return hr;
+}
+
+static HRESULT token_and_signature_result_size( XAsyncBlock *async, SIZE_T *bufferSize )
+{
+    IXThreadingImpl *xthreading;
+    HRESULT hr;
+
+    if ( FAILED( hr = QueryApiImpl( &CLSID_XThreadingImpl, IID_IXThreadingImpl, (void **)&xthreading ) ) )
+        return hr;
+
+    return xthreading->XAsyncGetResultSize( async, bufferSize );
+}
 
 class XUserImpl : 
     public IXUserImpl6
@@ -128,8 +264,22 @@ public:
 
     HRESULT WINAPI XUserDuplicateHandle( XUserHandle handle, XUserHandle *duplicatedHandle ) override
     {
-        FIXME( "handle %p, duplicatedHandle %p stub!\n", handle, duplicatedHandle );
-        return E_NOTIMPL;
+        TRACE( "handle %p, duplicatedHandle %p.\n", handle, duplicatedHandle );
+
+        if ( !duplicatedHandle ) return E_POINTER;
+        if ( !handle || handle->m_signature != X_USER_SIGNATURE ) return E_GAMERUNTIME_INVALID_HANDLE;
+
+        /* The duplicate has to survive XUserCloseHandle on either copy, so it gets
+         * its own struct and a reference on the shared user object. */
+        XUser *copy = new (std::nothrow) XUser;
+        if ( !copy ) return E_OUTOFMEMORY;
+
+        copy->m_signature = X_USER_SIGNATURE;
+        copy->m_user = handle->m_user;
+        if ( copy->m_user ) copy->m_user->AddRef();
+
+        *duplicatedHandle = copy;
+        return S_OK;
     }
 
     void WINAPI XUserCloseHandle( XUserHandle user ) override
@@ -152,20 +302,27 @@ public:
 
     HRESULT WINAPI XUserAddAsync( XUserAddOptions options, XAsyncBlock *async ) override
     {
-        FIXME( "options %d, async %p stub!\n", (int)options, async );
-        return E_NOTIMPL;
+        TRACE( "options %d, async %p.\n", (int)options, async );
+        return ::XUserAddAsync( options, async );
     }
 
     HRESULT WINAPI XUserAddResult( XAsyncBlock *async, XUserHandle *newUser ) override
     {
-        FIXME( "async %p, newUser %p stub!\n", async, newUser );
-        return E_NOTIMPL;
+        TRACE( "async %p, newUser %p.\n", async, newUser );
+        return ::XUserAddResult( async, newUser );
     }
 
     HRESULT WINAPI XUserGetLocalId( XUserHandle user, XUserLocalId *userLocalId ) override
     {
-        FIXME( "user %p, userLocalId %p stub!\n", user, userLocalId );
-        return E_NOTIMPL;
+        TRACE( "user %p, userLocalId %p.\n", user, userLocalId );
+
+        if ( !userLocalId ) return E_POINTER;
+        if ( !user || user->m_signature != X_USER_SIGNATURE ) return E_GAMERUNTIME_INVALID_HANDLE;
+
+        /* Keyed on the shared user object, not the handle: XUserDuplicateHandle hands
+         * out a second handle for the same user, and both must report one id. */
+        userLocalId->value = (UINT64)(ULONG_PTR)user->m_user;
+        return S_OK;
     }
 
     HRESULT WINAPI XUserFindUserByLocalId( XUserLocalId userLocalId, XUserHandle *handle ) override
@@ -176,8 +333,20 @@ public:
 
     HRESULT WINAPI XUserGetId( XUserHandle user, UINT64 *userId ) override
     {
-        FIXME( "user %p, userId %p stub!\n", user, userId );
-        return E_NOTIMPL;
+        TRACE( "user %p, userId %p.\n", user, userId );
+
+        if ( !userId ) return E_POINTER;
+        if ( !user || user->m_signature != X_USER_SIGNATURE || !user->m_user )
+            return E_GAMERUNTIME_INVALID_HANDLE;
+
+        *userId = user->m_user->GetXuid();
+        if ( !*userId )
+        {
+            WARN( "no XUID for user %p; the XSTS exchange did not complete.\n", user );
+            return E_GAMEUSER_NO_AUTH_USER;
+        }
+
+        return S_OK;
     }
 
     HRESULT WINAPI XUserFindUserById( UINT64 userId, XUserHandle *handle ) override
@@ -188,14 +357,25 @@ public:
 
     HRESULT WINAPI XUserGetIsGuest( XUserHandle user, BOOLEAN *isGuest ) override
     {
-        FIXME( "user %p, isGuest %p stub!\n", user, isGuest );
-        return E_NOTIMPL;
+        TRACE( "user %p, isGuest %p.\n", user, isGuest );
+
+        if ( !isGuest ) return E_POINTER;
+        if ( !user || user->m_signature != X_USER_SIGNATURE ) return E_GAMERUNTIME_INVALID_HANDLE;
+
+        /* xodus signs in the account that owns the tokens, never a guest. */
+        *isGuest = FALSE;
+        return S_OK;
     }
 
     HRESULT WINAPI XUserGetState( XUserHandle user, XUserState *state ) override
     {
-        FIXME( "user %p, state %p stub!\n", user, state );
-        return E_NOTIMPL;
+        TRACE( "user %p, state %p.\n", user, state );
+
+        if ( !state ) return E_POINTER;
+        if ( !user || user->m_signature != X_USER_SIGNATURE ) return E_GAMERUNTIME_INVALID_HANDLE;
+
+        *state = XUserState::SignedIn;
+        return S_OK;
     }
 
     HRESULT WINAPI __PADDING__() override
@@ -206,19 +386,29 @@ public:
 
     HRESULT WINAPI XUserGetGamerPictureAsync( XUserHandle user, XUserGamerPictureSize pictureSize, XAsyncBlock *async ) override
     {
-        FIXME( "user %p, pictureSize %d, async %p stub!\n", user, (int)pictureSize, async );
-        return E_NOTIMPL;
+        FIXME( "user %p, pictureSize %d semi-stub: no gamer picture.\n", user, (int)pictureSize );
+
+        /* Callers wait on the block, so the failure has to be delivered through the
+         * async completion rather than returned synchronously. */
+        return XAsyncRun( async, not_implemented_async_work );
     }
 
     HRESULT WINAPI XUserGetGamerPictureResultSize( XAsyncBlock *async, SIZE_T *bufferSize ) override
     {
-        FIXME( "async %p, bufferSize %p stub!\n", async, bufferSize );
+        TRACE( "async %p, bufferSize %p: no picture.\n", async, bufferSize );
+
+        /* The size has to be written even when reporting failure - callers size an
+         * allocation from it and would otherwise use whatever was on the stack. */
+        if ( !bufferSize ) return E_POINTER;
+        *bufferSize = 0;
         return E_NOTIMPL;
     }
 
     HRESULT WINAPI XUserGetGamerPictureResult( XAsyncBlock *async, SIZE_T bufferSize, void *buffer, SIZE_T *bufferUsed ) override
     {
-        FIXME( "async %p, bufferSize %Iu, buffer %p, bufferUsed %p stub!\n", async, bufferSize, buffer, bufferUsed );
+        TRACE( "async %p, bufferSize %Iu, buffer %p, bufferUsed %p: no picture.\n", async, bufferSize, buffer, bufferUsed );
+
+        if ( bufferUsed ) *bufferUsed = 0;
         return E_NOTIMPL;
     }
 
@@ -230,8 +420,16 @@ public:
 
     HRESULT WINAPI XUserCheckPrivilege( XUserHandle user, XUserPrivilegeOptions options, XUserPrivilege privilege, BOOLEAN *hasPrivilege, XUserPrivilegeDenyReason *reason ) override
     {
-        FIXME( "user %p, options %d, privilege %d, hasPrivilege %p, reason %p stub!\n", user, (int)options, (int)privilege, hasPrivilege, reason );
-        return E_NOTIMPL;
+        FIXME( "user %p, options %d, privilege %d semi-stub: granting.\n", user, (int)options, (int)privilege );
+
+        if ( !hasPrivilege ) return E_POINTER;
+        if ( !user || user->m_signature != X_USER_SIGNATURE ) return E_GAMERUNTIME_INVALID_HANDLE;
+
+        /* Privileges are not queried from Xbox Live yet; grant them so the caller
+         * gets a definite answer instead of an uninitialized one. */
+        *hasPrivilege = TRUE;
+        if ( reason ) *reason = XUserPrivilegeDenyReason::None;
+        return S_OK;
     }
 
     HRESULT WINAPI XUserResolvePrivilegeWithUiAsync( XUserHandle user, XUserPrivilegeOptions options, XUserPrivilege privilege, XAsyncBlock *async ) override
@@ -249,30 +447,41 @@ public:
     HRESULT WINAPI XUserGetTokenAndSignatureAsync( XUserHandle user, XUserGetTokenAndSignatureOptions options, const char *method, const char *url, SIZE_T headerCount, const XUserGetTokenAndSignatureHttpHeader *headers, SIZE_T bodySize, const void *bodyBuffer, XAsyncBlock *async ) override
     {
         FIXME( "user %p, options %d, method %s, url %s, headerCount %Iu, headers %p, bodySize %Iu, bodyBuffer %p, async %p stub!\n", user, (int)options, debugstr_a( method ), debugstr_a( url ), headerCount, headers, bodySize, bodyBuffer, async );
-        return E_NOTIMPL;
+        /* The caller waits on the block; a synchronous failure leaves it pending
+         * and the request is torn down half-initialized. */
+        return begin_token_and_signature( user, url, async );
     }
 
     HRESULT WINAPI XUserGetTokenAndSignatureResultSize( XAsyncBlock *async, SIZE_T *bufferSize ) override
     {
-        FIXME( "async %p, bufferSize %p stub!\n", async, bufferSize );
-        return E_NOTIMPL;
+        TRACE( "async %p, bufferSize %p.\n", async, bufferSize );
+        return token_and_signature_result_size( async, bufferSize );
     }
 
     HRESULT WINAPI XUserGetTokenAndSignatureResult( XAsyncBlock *async, SIZE_T bufferSize, void *buffer, XUserGetTokenAndSignatureData **ptrToBuffer, SIZE_T *bufferUsed ) override
     {
-        FIXME( "async %p, bufferSize %Iu, buffer %p, ptrToBuffer %p, bufferUsed %p stub!\n", async, bufferSize, buffer, ptrToBuffer, bufferUsed );
-        return E_NOTIMPL;
+        TRACE( "async %p, bufferSize %Iu, buffer %p, ptrToBuffer %p, bufferUsed %p.\n", async, bufferSize, buffer, ptrToBuffer, bufferUsed );
+        return token_and_signature_result( async, bufferSize, buffer, ptrToBuffer, bufferUsed );
     }
 
     HRESULT WINAPI XUserGetTokenAndSignatureUtf16Async( XUserHandle user, XUserGetTokenAndSignatureOptions options, const WCHAR *method, const WCHAR *url, SIZE_T headerCount, const XUserGetTokenAndSignatureUtf16HttpHeader *headers, SIZE_T bodySize, const void *bodyBuffer, XAsyncBlock *async ) override
     {
-        FIXME( "user %p, options %d, method %s, url %s, headerCount %Iu, headers %p, bodySize %Iu, bodyBuffer %p, async %p stub!\n", user, (int)options, debugstr_w( method ), debugstr_w( url ), headerCount, headers, bodySize, bodyBuffer, async );
-        return E_NOTIMPL;
+        CHAR urlA[512];
+
+        TRACE( "user %p, options %d, method %s, url %s.\n",
+               user, (int)options, debugstr_w( method ), debugstr_w( url ) );
+
+        urlA[0] = '\0';
+        if ( url )
+            WideCharToMultiByte( CP_UTF8, 0, url, -1, urlA, sizeof(urlA), nullptr, nullptr );
+
+        return begin_token_and_signature( user, urlA, async );
     }
 
     HRESULT WINAPI XUserGetTokenAndSignatureUtf16ResultSize( XAsyncBlock *async, SIZE_T *bufferSize ) override
     {
         FIXME( "async %p, bufferSize %p stub!\n", async, bufferSize );
+        if ( bufferSize ) *bufferSize = 0;
         return E_NOTIMPL;
     }
 
@@ -308,14 +517,19 @@ public:
 
     HRESULT WINAPI XUserRegisterForChangeEvent( XTaskQueueHandle queue, void *context, XUserChangeEventCallback *callback, XTaskQueueRegistrationToken *token ) override
     {
-        FIXME( "queue %p, context %p, callback %p, token %p stub!\n", queue, context, callback, token );
-        return E_NOTIMPL;
+        FIXME( "queue %p, context %p, callback %p semi-stub: no change events are raised.\n", queue, context, callback );
+
+        /* The single xodus user never signs out mid-session, so nothing will fire.
+         * The caller still keeps the token and unregisters with it later, so it has
+         * to be a real value rather than left uninitialized. */
+        if ( token ) token->token = ++m_NextChangeEventToken;
+        return S_OK;
     }
 
     BOOLEAN WINAPI XUserUnregisterForChangeEvent( XTaskQueueRegistrationToken token, BOOLEAN wait ) override
     {
-        FIXME( "token %p, wait %d stub!\n", &token, wait );
-        return FALSE;
+        TRACE( "token %llu, wait %d.\n", (UINT64)token.token, wait );
+        return TRUE;
     }
 
     HRESULT WINAPI XUserGetSignOutDeferral( XUserSignOutDeferralHandle *deferral ) override
@@ -345,7 +559,9 @@ public:
     HRESULT WINAPI XUserGetMsaTokenSilentlyAsync( XUserHandle user, XUserGetMsaTokenSilentlyOptions options, const char *scope, XAsyncBlock *async ) override
     {
         FIXME( "user %p, options %u, scope %s, async %p stub!\n", user, (int)options, debugstr_a( scope ), async );
-        return E_NOTIMPL;
+        /* The caller waits on the block; a synchronous failure leaves it pending
+         * and the request is torn down half-initialized. */
+        return XAsyncRun( async, not_implemented_async_work );
     }
 
     HRESULT WINAPI XUserGetMsaTokenSilentlyResult( XAsyncBlock *async, SIZE_T resultTokenSize, char *resultToken, SIZE_T *resultTokenUsed ) override
@@ -357,6 +573,7 @@ public:
     HRESULT WINAPI XUserGetMsaTokenSilentlyResultSize( XAsyncBlock *async, SIZE_T *tokenSize ) override
     {
         FIXME( "async %p, tokenSize %p stub!\n", async, tokenSize );
+        if ( tokenSize ) *tokenSize = 0;
         return E_NOTIMPL;
     }
 
@@ -409,6 +626,7 @@ public:
     }
 
     std::atomic_long ref{ 1 };
+    std::atomic<UINT64> m_NextChangeEventToken{ 0 };
 };
 
 static XUserImpl g_x_user;

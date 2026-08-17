@@ -21,8 +21,25 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(gdkc);
 
+/* Defined below, next to the process queue globals it reads. */
+static XTaskQueueHandle GetProcessTaskQueueHandle();
+
 inline ITaskQueue* GetQueue(XTaskQueueHandle handle)
 {
+    /* A null handle means "use the process task queue" - libHttpClient submits its
+     * callbacks that way. It also has to be resolved before the signature check,
+     * which would otherwise dereference null. */
+    if (handle == nullptr)
+    {
+        handle = GetProcessTaskQueueHandle();
+
+        if (handle == nullptr)
+        {
+            WARN("no process task queue for a null XTaskQueueHandle\n");
+            return nullptr;
+        }
+    }
+
     if (handle->m_signature != TASK_QUEUE_SIGNATURE)
     {
         assert("Invalid XTaskQueueHandle");
@@ -49,6 +66,49 @@ namespace ProcessGlobals
 #ifdef SUSPEND_API
     SuspendState g_suspendState;
 #endif
+}
+
+/* Returns the queue set with XTaskQueueSetCurrentProcessTaskQueue, or the default
+ * process queue, creating it on first use. Borrowed - the refcount is untouched,
+ * so callers that hand the handle out have to duplicate it themselves. */
+static XTaskQueueHandle GetProcessTaskQueueHandle()
+{
+    XTaskQueueHandle processQueue = ProcessGlobals::g_processQueue;
+
+    if (processQueue == ProcessGlobals::g_invalidQueueHandle)
+    {
+        XTaskQueueHandle defaultProcessQueue = ProcessGlobals::g_defaultProcessQueue;
+
+        if (defaultProcessQueue == ProcessGlobals::g_invalidQueueHandle)
+        {
+            /* Completions run serialized: libHttpClient and XCurl hand their state
+             * between callbacks and corrupt it when two run at once. */
+            referenced_ptr<TaskQueueImpl> aq(new (std::nothrow) TaskQueueImpl);
+            if (aq != nullptr && SUCCEEDED(aq->Initialize(
+                XTaskQueueDispatchMode::ThreadPool,
+                XTaskQueueDispatchMode::SerializedThreadPool)))
+            {
+                XTaskQueueHandle expected = ProcessGlobals::g_invalidQueueHandle;
+                if (ProcessGlobals::g_defaultProcessQueue.compare_exchange_strong(
+                    expected,
+                    aq->GetHandle()))
+                {
+                    aq.release();
+                }
+            }
+
+            defaultProcessQueue = ProcessGlobals::g_defaultProcessQueue;
+        }
+
+        processQueue = defaultProcessQueue;
+    }
+
+    if (processQueue == ProcessGlobals::g_invalidQueueHandle)
+    {
+        processQueue = nullptr;
+    }
+
+    return processQueue;
 }
 
 /**
@@ -525,7 +585,11 @@ bool TaskQueuePortImpl::DrainOneItem(
             status.MayRunLong();
         }
 
-        entry.callback(entry.callbackContext, IsCallCanceled(entry));
+        bool canceled = IsCallCanceled(entry);
+        TRACE("dispatching id %llu callback %p context %p canceled %d port %p\n",
+              (unsigned long long)entry.id, entry.callback, entry.callbackContext,
+              (int)canceled, entry.portContext);
+        entry.callback(entry.callbackContext, canceled);
         m_processingCallback--;
         m_processingCallbackCv.notify_all();
 
@@ -1851,6 +1915,8 @@ BOOLEAN XTaskQueueDispatch(
 void XTaskQueueCloseHandle(
     XTaskQueueHandle queue
 ) {
+    TRACE("queue %p\n", queue);
+
     ITaskQueue* aq = GetQueue(queue);
 
     if (aq != nullptr)
@@ -1873,6 +1939,7 @@ HRESULT XTaskQueueTerminate(
     XTaskQueueTerminatedCallback* callback
 ) {
     referenced_ptr<ITaskQueue> aq(GetQueue(queue));
+    RETURN_HR_IF(E_GAMERUNTIME_INVALID_HANDLE, aq == nullptr);
     return aq->Terminate(wait, callbackContext, callback);
 }
 
@@ -1995,36 +2062,7 @@ bool XTaskQueueGetCurrentProcessTaskQueueWithOptions(
 ) {
     *queue = nullptr;
 
-    XTaskQueueHandle processQueue = ProcessGlobals::g_processQueue;
-    if (processQueue == ProcessGlobals::g_invalidQueueHandle)
-    {
-        XTaskQueueHandle defaultProcessQueue = ProcessGlobals::g_defaultProcessQueue;
-        if (defaultProcessQueue == ProcessGlobals::g_invalidQueueHandle)
-        {
-            referenced_ptr<TaskQueueImpl> aq(new (std::nothrow) TaskQueueImpl);
-            if (aq != nullptr && SUCCEEDED(aq->Initialize(
-                XTaskQueueDispatchMode::ThreadPool,
-                XTaskQueueDispatchMode::ThreadPool)))
-            {
-                XTaskQueueHandle expected = ProcessGlobals::g_invalidQueueHandle;
-                if (ProcessGlobals::g_defaultProcessQueue.compare_exchange_strong(
-                    expected,
-                    aq->GetHandle()))
-                {
-                    aq.release();
-                }
-            }
-
-            defaultProcessQueue = ProcessGlobals::g_defaultProcessQueue;
-        }
-
-        processQueue = defaultProcessQueue;
-    }
-
-    if (processQueue == ProcessGlobals::g_invalidQueueHandle)
-    {
-        processQueue = nullptr;
-    }
+    XTaskQueueHandle processQueue = GetProcessTaskQueueHandle();
 
     if (processQueue != nullptr)
     {
@@ -2045,7 +2083,10 @@ BOOLEAN XTaskQueueGetCurrentProcessTaskQueue(
 void XTaskQueueSetCurrentProcessTaskQueue(
     XTaskQueueHandle queue
 ) {
-    XTaskQueueHandle newQueue = nullptr;
+    /* "Not set" is the invalid-handle sentinel, not null: clearing the process queue
+     * has to restore that state, otherwise the getter sees a plain null, skips
+     * creating the default process queue and hands the caller a null handle. */
+    XTaskQueueHandle newQueue = ProcessGlobals::g_invalidQueueHandle;
 
     if (queue != nullptr)
     {

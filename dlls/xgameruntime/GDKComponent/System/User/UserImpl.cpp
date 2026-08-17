@@ -24,6 +24,7 @@
 #include "../../../WineCoreUAP/Foundation/IWineAsync.hpp"
 
 #include <memory>
+#include <mutex>
 
 WINE_DEFAULT_DEBUG_CHANNEL(xodus);
 
@@ -32,6 +33,61 @@ using namespace ABI::Xodus;
 UserImpl::UserImpl( HSTRING token )
 {
     WindowsDuplicateString( token, &m_token );
+}
+
+UserImpl::UserImpl( HSTRING token, HSTRING xuid, HSTRING gamertag, HSTRING xstsToken )
+{
+    UINT32 length = 0;
+    LPCWSTR raw;
+
+    WindowsDuplicateString( token, &m_token );
+    WindowsDuplicateString( gamertag, &m_gamertag );
+    WindowsDuplicateString( xstsToken, &m_xstsToken );
+
+    /* The XUID arrives as a decimal string; callers want it as a number. */
+    raw = WindowsGetStringRawBuffer( xuid, &length );
+    if ( raw && length )
+        m_xuid = _wcstoui64( raw, nullptr, 10 );
+}
+
+UINT64 WINAPI
+UserImpl::GetXuid()
+{
+    TRACE( "iface %p\n", this );
+    return m_xuid;
+}
+
+HRESULT WINAPI
+UserImpl::GetGamertag( HSTRING *out )
+{
+    TRACE( "iface %p, out %p\n", this, out );
+    WindowsDuplicateString( m_gamertag, out );
+    return S_OK;
+}
+
+HRESULT WINAPI
+UserImpl::GetXstsToken( HSTRING *out )
+{
+    TRACE( "iface %p, out %p\n", this, out );
+    WindowsDuplicateString( m_xstsToken, out );
+    return S_OK;
+}
+
+HRESULT WINAPI
+UserImpl::GetPlayfabToken( HSTRING *out )
+{
+    TRACE( "iface %p, out %p\n", this, out );
+    WindowsDuplicateString( m_playfabToken, out );
+    return S_OK;
+}
+
+void WINAPI
+UserImpl::SetPlayfabToken( HSTRING token )
+{
+    TRACE( "iface %p, token %s\n", this, debugstr_hstring( token ) );
+    WindowsDeleteString( m_playfabToken );
+    m_playfabToken = nullptr;
+    WindowsDuplicateString( token, &m_playfabToken );
 }
 
 HRESULT WINAPI
@@ -87,16 +143,25 @@ UserImpl::GetMsaToken( HSTRING *out )
     return S_OK;
 }
 
+/* The signed-in user is the same for the whole session, and callers ask for it
+ * repeatedly. Fetching a fresh MSA token every time serializes those calls behind
+ * a multi-second round trip, so keep the first one. */
+static std::mutex g_defaultUserLock;
+static XUser *g_defaultUser;
+
 static HRESULT WINAPI 
 XUserAddProvider( XAsyncOp op, const XAsyncProviderData *data )
 {
     struct XUserAddContext *context;
-    XUser user = { .m_signature = X_USER_SIGNATURE };
+    XUser *user;
 
     IXThreadingImpl *xthreading;
     HRESULT hr;
     HSTRING msaAppIdStr;
     HSTRING msaToken;
+    HSTRING xuid = nullptr;
+    HSTRING gamertag = nullptr;
+    HSTRING xstsToken = nullptr;
     LPWSTR msaAppIdW; 
     DWORD async;
     INT32 msaAppIdLen;
@@ -122,7 +187,10 @@ XUserAddProvider( XAsyncOp op, const XAsyncProviderData *data )
         case XAsyncOp::DoWork:
 #if XODUS_INTEROP
             {
-                if ( static_cast<UINT32>(context->options) & static_cast<UINT32>(XUserAddOptions::AddDefaultUserSilently) ||
+                /* None (0) asks for the account picker, which xodus has no UI for -
+                 * there is a single signed-in user, so serve it like a silent add. */
+                if ( context->options == XUserAddOptions::None ||
+                     static_cast<UINT32>(context->options) & static_cast<UINT32>(XUserAddOptions::AddDefaultUserSilently) ||
                      static_cast<UINT32>(context->options) & static_cast<UINT32>(XUserAddOptions::AddDefaultUserAllowingUI ) )
                 {
                     msaAppIdLen = MultiByteToWideChar( CP_UTF8, 0, msaAppId, -1, NULL, 0 );
@@ -148,6 +216,17 @@ XUserAddProvider( XAsyncOp op, const XAsyncProviderData *data )
                     if ( FAILED( hr ) ) 
                         goto _FALLBACK;
 
+                    {
+                        std::lock_guard<std::mutex> cached( g_defaultUserLock );
+                        if ( g_defaultUser )
+                        {
+                            TRACE( "reusing the signed-in user %p.\n", g_defaultUser );
+                            context->user = g_defaultUser;
+                            hr = S_OK;
+                            goto _COMPLETE;
+                        }
+                    }
+
                     if ( FAILED( hr = xodus_service->MsaTokenRequest( msaAppIdStr, static_cast<UINT32>(context->options) & static_cast<UINT32>(XUserAddOptions::AddDefaultUserAllowingUI), fullTrust, &token_operation ) ) ) 
                         goto _FALLBACK;
                     context->userAddEvent = CreateEventW( nullptr, FALSE, FALSE, nullptr );
@@ -166,11 +245,63 @@ XUserAddProvider( XAsyncOp op, const XAsyncProviderData *data )
                         if ( FAILED( hr ) )
                             goto _FALLBACK;
                         token_response->get_Token( &msaToken );
-                        user.m_user = new UserImpl( msaToken );
+                        token_response->get_Xuid( &xuid );
+                        token_response->get_Gamertag( &gamertag );
+                        token_response->get_XstsToken( &xstsToken );
+
+                        /* The handle outlives this call, so it cannot live on the stack. */
+                        user = new (std::nothrow) XUser;
+                        if ( !user )
+                        {
+                            WindowsDeleteString( msaToken );
+                            token_response->Release();
+                            hr = E_OUTOFMEMORY;
+                            goto _FALLBACK;
+                        }
+                        user->m_signature = X_USER_SIGNATURE;
+                        user->m_user = new UserImpl( msaToken, xuid, gamertag, xstsToken );
+                        {
+                            std::lock_guard<std::mutex> cached( g_defaultUserLock );
+                            if ( !g_defaultUser ) g_defaultUser = user;
+                        }
+
+                        /* Titles authenticate to PlayFab against its own relying
+                         * party, so settle that token here too rather than at the
+                         * first request. */
+                        {
+                            HSTRING playfabParty;
+                            IAsyncOperation<IMsaTokenResponse *> *playfab_op = nullptr;
+                            IMsaTokenResponse *playfab_response = nullptr;
+                            HSTRING playfabToken = nullptr;
+
+                            if ( SUCCEEDED( WindowsCreateString( L"http://playfab.xboxlive.com/",
+                                                                 lstrlenW( L"http://playfab.xboxlive.com/" ),
+                                                                 &playfabParty ) ) )
+                            {
+                                if ( SUCCEEDED( xodus_service->XstsTokenRequest( msaAppIdStr, playfabParty, &playfab_op ) ) &&
+                                     !AsyncOperationCompletedHandler<IMsaTokenResponse *>::await_AsyncOperation( playfab_op, INFINITE ) &&
+                                     SUCCEEDED( playfab_op->GetResults( &playfab_response ) ) &&
+                                     playfab_response )
+                                {
+                                    playfab_response->get_XstsToken( &playfabToken );
+                                    user->m_user->SetPlayfabToken( playfabToken );
+                                    WindowsDeleteString( playfabToken );
+                                    playfab_response->Release();
+                                }
+                                else
+                                {
+                                    WARN( "No PlayFab token; that sign-in will fail.\n" );
+                                }
+                                WindowsDeleteString( playfabParty );
+                            }
+                        }
                         WindowsDeleteString( msaToken );
+                        WindowsDeleteString( xuid );
+                        WindowsDeleteString( gamertag );
+                        WindowsDeleteString( xstsToken );
                         token_response->Release();
 
-                        context->user = &user;
+                        context->user = user;
                     }
                 }
                 else 
@@ -184,7 +315,9 @@ XUserAddProvider( XAsyncOp op, const XAsyncProviderData *data )
 #endif
         _COMPLETE:
             xthreading->XAsyncComplete( data->async, hr, SUCCEEDED(hr) ? sizeof(XUserHandle) : 0 );
-            hr = S_OK;
+            /* Completed here; returning success would make the framework complete
+             * the operation a second time. */
+            hr = E_PENDING;
             break;
 
         case XAsyncOp::Cleanup:
@@ -222,11 +355,32 @@ HRESULT XUserAddAsync(
 
     context->options = options;
     // ownership of context is handed to XUserAddProvider.
-    //hr = xthreading->XAsyncBegin( async, context.get(), nullptr, __func__, XUserAddProvider );
+    hr = xthreading->XAsyncBegin( async, context.get(), (void *)XUserAddProvider, __func__, XUserAddProvider );
     if ( SUCCEEDED( hr ) )
     {
         context.release();
     }
+
+    return hr;
+}
+
+HRESULT XUserAddResult(
+    XAsyncBlock *async,
+    XUserHandle *newUser
+) {
+    IXThreadingImpl *xthreading = nullptr;
+    HRESULT hr;
+
+    if ( !async || !newUser )
+        return E_POINTER;
+
+    hr = QueryApiImpl( &CLSID_XThreadingImpl, IID_IXThreadingImpl, (void **)&xthreading );
+    if ( FAILED( hr ) ) return hr;
+
+    /* The identity has to match the one XUserAddAsync began the operation with. */
+    hr = xthreading->XAsyncGetResult( async, (void *)XUserAddProvider,
+                                      sizeof(*newUser), newUser, nullptr );
+    xthreading->Release();
 
     return hr;
 }
