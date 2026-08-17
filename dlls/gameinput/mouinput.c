@@ -30,6 +30,9 @@ WINE_DEFAULT_DEBUG_CHANNEL(ginput);
 extern HINSTANCE game_input;
 
 static GameInputMouseButtons storedButtons = GameInputMouseNone;
+/* The device info holds a borrowed pointer to this, so it has to outlive the caller's
+ * frame; there is a single system mouse, like storedButtons above assumes. */
+static v2_GameInputMouseInfo stored_mouse_info;
 static POINT relativePositionStore = {.x = 0, .y = 0};
 static LONG relativeWheelStore = 0;
 
@@ -149,7 +152,6 @@ HRESULT mouse_input_device_InitDevice( IN v2_IGameInputDevice *device )
     HIDP_VALUE_CAPS *valueCaps = NULL;
 
     v2_IGameInputDevice *dev = NULL;
-    v2_GameInputMouseInfo mouse_info;
     v2_GameInputDeviceInfo *device_info;
     GameInputMouseButtons buttons = GameInputMouseNone;
 
@@ -172,16 +174,24 @@ HRESULT mouse_input_device_InitDevice( IN v2_IGameInputDevice *device )
 
     // It is not possible to obtain sample rates from a HID device.
     // So we'll use a safe sample rate of 500 hz.
-    mouse_info.sampleRate = 500;
-    mouse_info.supportedButtons = buttons;
+    stored_mouse_info.sampleRate = 500;
+    stored_mouse_info.supportedButtons = buttons;
 
     // const override here!
     v2_IGameInputDevice_GetDeviceInfo( device, (const v2_GameInputDeviceInfo **)&device_info );
-    device_info->mouseInfo = &mouse_info;
+    device_info->mouseInfo = &stored_mouse_info;
 
-    // DInput device for mouse devices are manually acquired
+    /* DInput device for mouse devices are manually acquired. Devices are enumerated
+     * from GameInputCreate, before the title has a window, and DirectInput needs one
+     * for the cooperative level - so this fails on the first try. Keep the device
+     * anyway and let the read path acquire it later: dropping it here left the title
+     * with no mouse at all for the rest of the run. */
     hr = mouse_input_device_InitDInput8Device( device );
-    if ( FAILED( hr ) ) return hr;
+    if ( FAILED( hr ) )
+    {
+        WARN( "deferring DirectInput acquisition, hr %#lx.\n", hr );
+        hr = S_OK;
+    }
 
 _CLEANUP:
     if ( FAILED( hr ) )
@@ -272,14 +282,20 @@ HRESULT mouse_input_device_ReadCurrentStateFromDInput8( IN v2_IGameInputDevice *
     DIMOUSESTATE2 state;
     LPDIRECTINPUTDEVICE8W g_pDevice;
 
-    v2_GameInputMouseState mouseState;
+    v2_GameInputMouseState mouseState = { 0 };
 
     TRACE( "device %p, timestamp %lld, reading %p.\n", device, timestamp, reading );
 
     GetCursorPos( &absoluteP );
 
     hr = game_input_device_AcquireDInputDevice( device, &g_pDevice );
-    if ( FAILED( hr ) ) return hr;
+    if ( FAILED( hr ) || !g_pDevice )
+    {
+        /* Not acquired at enumeration time because there was no window yet. */
+        if ( FAILED( hr = mouse_input_device_InitDInput8Device( device ) ) ) return hr;
+        if ( FAILED( hr = game_input_device_AcquireDInputDevice( device, &g_pDevice ) ) ) return hr;
+        if ( !g_pDevice ) return E_FAIL;
+    }
 
     hr = g_pDevice->lpVtbl->GetDeviceState( g_pDevice, sizeof(state), &state );
     if ( FAILED( hr ) ) 
