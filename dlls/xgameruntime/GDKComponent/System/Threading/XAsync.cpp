@@ -22,6 +22,7 @@
 #include "XTaskQueue.h"
 
 #include <atomic>
+#include <cstring>
 #include <condition_variable>
 
 // Signatures can be anything because these are not exposed to the client.
@@ -405,10 +406,13 @@ static HRESULT AllocState(XAsyncBlock* asyncBlock, size_t contextSize)
         RETURN_HR(E_INVALIDARG);
     }
 
-    for (auto i = 0u; i < sizeof(asyncBlock->internal); ++i)
-    {
-        asyncBlock->internal[i] = 0;
-    }
+    /* Upstream declares internal as a byte array, so its element-wise loop clears
+     * sizeof(internal) bytes. Here it is an array of pointers, and the same loop
+     * would clear sizeof(internal) *pointers* - 256 bytes, 224 of them past the end
+     * of the caller's XAsyncBlock. Callers embed the block inside their own objects
+     * (XCurl puts it 0x288 into its easy handle), so that silently zeroed their
+     * fields on every async operation. */
+    memset(asyncBlock->internal, 0, sizeof(asyncBlock->internal));
 
     internal = new (asyncBlock->internal) AsyncBlockInternal{};
 
@@ -796,10 +800,14 @@ HRESULT WINAPI XAsyncSchedule(
         RETURN_HR(E_UNEXPECTED);
     }
 
-    TRACE("state->queue here is %p\n", state->queue);
+    /* Once the callback is submitted it owns the state and may already have run and
+     * released it, so remember the queue before handing ownership over. */
+    XTaskQueueHandle queue = state->queue;
+
+    TRACE("state->queue here is %p\n", queue);
 
     RETURN_IF_FAILED(XTaskQueueSubmitDelayedCallback(
-        state->queue,
+        queue,
         XTaskQueuePort::Work,
         delayInMs,
         state.Get(),
@@ -807,7 +815,7 @@ HRESULT WINAPI XAsyncSchedule(
 
     state.Detach();
 
-    TRACE("Before completion, queue here was %p\n", state->queue);
+    TRACE("Before completion, queue here was %p\n", queue);
 
     return S_OK;
 }

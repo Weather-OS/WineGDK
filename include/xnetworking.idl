@@ -125,7 +125,7 @@ struct XNetworkingConnectivityHint
 struct XNetworkingSecurityInformation
 {
     UINT32 enabledHttpSecurityProtocolFlags;
-    SIZE_T thumbprintCount;
+    UINT32 thumbprintCount;
     XNetworkingThumbprint *thumbprints;
 };
 
@@ -141,7 +141,7 @@ struct XNetworkingTcpQueuedReceivedBufferUsageStatistics
 struct XNetworkingThumbprint
 {
     XNetworkingThumbprintType thumbprintType;
-    SIZE_T thumbprintBufferByteCount;
+    UINT32 thumbprintBufferByteCount;
     UINT8 *thumbprintBuffer;
 };
 
