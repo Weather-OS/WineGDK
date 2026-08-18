@@ -26,6 +26,7 @@
 #include <atomic>
 #include <new>
 #include <mutex>
+#include <vector>
 
 #include <bcrypt.h>
 #include <wincrypt.h>
@@ -165,6 +166,61 @@ static HRESULT sign_request( const char *method, const char *url, const char *au
 
     BCryptCloseAlgorithmProvider( sha, 0 );
     return hr;
+}
+
+/* Titles subscribe to user change events and only refresh their account UI when one
+ * arrives. Nothing here ever signs out, but a subscriber that registers after the user
+ * is already present would otherwise never hear about it and would keep showing the
+ * signed-out state, so registration replays SignedInAgain for the current user. */
+struct ChangeEventRegistration
+{
+    UINT64 token;
+    XTaskQueueHandle queue;
+    void *context;
+    XUserChangeEventCallback *callback;
+};
+
+static std::mutex g_change_events_lock;
+static std::vector<ChangeEventRegistration> g_change_events;
+static XUserHandle g_current_user = nullptr;
+
+struct ChangeEventDispatch
+{
+    void *context;
+    XUserChangeEventCallback *callback;
+    XUserLocalId localId;
+    XUserChangeEvent event;
+};
+
+static void __stdcall change_event_thunk( void *context, BOOLEAN canceled )
+{
+    auto *dispatch = (ChangeEventDispatch *)context;
+
+    if ( !canceled && dispatch->callback )
+        dispatch->callback( dispatch->context, dispatch->localId, dispatch->event );
+
+    delete dispatch;
+}
+
+static void raise_change_event( const ChangeEventRegistration &reg, XUserHandle user,
+                                XUserChangeEvent event )
+{
+    if ( !reg.callback || !user || !user->m_user ) return;
+
+    auto *dispatch = new (std::nothrow) ChangeEventDispatch;
+    if ( !dispatch ) return;
+
+    dispatch->context = reg.context;
+    dispatch->callback = reg.callback;
+    dispatch->localId.value = (UINT64)(ULONG_PTR)user->m_user;
+    dispatch->event = event;
+
+    if ( FAILED( XTaskQueueSubmitCallback( reg.queue, XTaskQueuePort::Completion,
+                                           dispatch, change_event_thunk ) ) )
+    {
+        WARN( "could not queue a user change event; delivering it inline.\n" );
+        change_event_thunk( dispatch, FALSE );
+    }
 }
 
 /* Which service the caller is authenticating to decides which stored token fits;
@@ -483,7 +539,16 @@ public:
     HRESULT WINAPI XUserAddResult( XAsyncBlock *async, XUserHandle *newUser ) override
     {
         TRACE( "async %p, newUser %p.\n", async, newUser );
-        return ::XUserAddResult( async, newUser );
+
+        HRESULT hr = ::XUserAddResult( async, newUser );
+        if ( SUCCEEDED( hr ) && newUser && *newUser && (*newUser)->m_signature == X_USER_SIGNATURE )
+        {
+            std::lock_guard<std::mutex> lock( g_change_events_lock );
+            g_current_user = *newUser;
+            for ( const auto &reg : g_change_events )
+                raise_change_event( reg, g_current_user, XUserChangeEvent::SignedInAgain );
+        }
+        return hr;
     }
 
     HRESULT WINAPI XUserGetLocalId( XUserHandle user, XUserLocalId *userLocalId ) override
@@ -636,8 +701,18 @@ public:
 
     HRESULT WINAPI XUserGetAgeGroup( XUserHandle user, XUserAgeGroup *ageGroup ) override
     {
-        FIXME( "user %p, ageGroup %p stub!\n", user, ageGroup );
-        return E_NOTIMPL;
+        TRACE( "user %p, ageGroup %p.\n", user, ageGroup );
+
+        if ( !ageGroup ) return E_POINTER;
+        if ( !user || user->m_signature != X_USER_SIGNATURE ) return E_GAMERUNTIME_INVALID_HANDLE;
+
+        /* xodus does not carry the account's age group, and titles gate features on
+         * it - Minecraft treats an account whose age group it cannot determine as
+         * unusable and keeps offering the sign-in prompt. Reporting an adult account
+         * applies no restrictions, which matches how the signed-in account is used
+         * here; a real answer would need the profile service. */
+        *ageGroup = XUserAgeGroup::Adult;
+        return S_OK;
     }
 
     HRESULT WINAPI XUserCheckPrivilege( XUserHandle user, XUserPrivilegeOptions options, XUserPrivilege privilege, BOOLEAN *hasPrivilege, XUserPrivilegeDenyReason *reason ) override
@@ -745,19 +820,37 @@ public:
 
     HRESULT WINAPI XUserRegisterForChangeEvent( XTaskQueueHandle queue, void *context, XUserChangeEventCallback *callback, XTaskQueueRegistrationToken *token ) override
     {
-        FIXME( "queue %p, context %p, callback %p semi-stub: no change events are raised.\n", queue, context, callback );
+        TRACE( "queue %p, context %p, callback %p.\n", queue, context, callback );
 
-        /* The single xodus user never signs out mid-session, so nothing will fire.
-         * The caller still keeps the token and unregisters with it later, so it has
-         * to be a real value rather than left uninitialized. */
-        if ( token ) token->token = ++m_NextChangeEventToken;
+        if ( !callback ) return E_INVALIDARG;
+
+        ChangeEventRegistration reg{ ++m_NextChangeEventToken, queue, context, callback };
+        if ( token ) token->token = reg.token;
+
+        std::lock_guard<std::mutex> lock( g_change_events_lock );
+        g_change_events.push_back( reg );
+
+        /* Subscribers that arrive after sign-in still need to be told there is a user. */
+        if ( g_current_user )
+            raise_change_event( reg, g_current_user, XUserChangeEvent::SignedInAgain );
+
         return S_OK;
     }
 
     BOOLEAN WINAPI XUserUnregisterForChangeEvent( XTaskQueueRegistrationToken token, BOOLEAN wait ) override
     {
         TRACE( "token %llu, wait %d.\n", (UINT64)token.token, wait );
-        return TRUE;
+
+        std::lock_guard<std::mutex> lock( g_change_events_lock );
+        for ( auto it = g_change_events.begin(); it != g_change_events.end(); ++it )
+        {
+            if ( it->token == token.token )
+            {
+                g_change_events.erase( it );
+                return TRUE;
+            }
+        }
+        return FALSE;
     }
 
     HRESULT WINAPI XUserGetSignOutDeferral( XUserSignOutDeferralHandle *deferral ) override
