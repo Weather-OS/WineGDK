@@ -34,6 +34,17 @@ static HRESULT __stdcall license_query_work( XAsyncBlock * )
     return S_OK;
 }
 
+/* Marker for an empty product query. Titles hold the handle and enumerate through it,
+ * so it has to be a distinct pointer they can close, not null. */
+#define PRODUCT_QUERY_SIGNATURE 0x5850524Bu /* XPRK */
+
+static UINT32 g_empty_product_query = PRODUCT_QUERY_SIGNATURE;
+
+static HRESULT __stdcall product_query_work( XAsyncBlock * )
+{
+    return S_OK;
+}
+
 class XStoreImpl : public IXStoreImpl6
 {
 public:
@@ -101,14 +112,20 @@ public:
 
     HRESULT WINAPI XStoreQueryAssociatedProductsAsync( const XStoreContextHandle storeContextHandle, XStoreProductKind productKinds, UINT32 maxItemsToRetrievePerPage, XAsyncBlock *async ) override
     {
-        FIXME( "iface %p, storeContextHandle %p, productKinds %#x, maxItemsToRetrievePerPage %u, async %p stub!\n", this, storeContextHandle, static_cast<UINT32>(productKinds), maxItemsToRetrievePerPage, async );
-        return E_NOTIMPL;
+        FIXME( "iface %p, storeContextHandle %p, productKinds %#x, maxItemsToRetrievePerPage %u semi-stub: no add-ons.\n", this, storeContextHandle, static_cast<UINT32>(productKinds), maxItemsToRetrievePerPage );
+
+        /* There is no store catalogue behind this, but failing the call outright leaves
+         * the title without an answer; an empty product list is a definite one. */
+        return XAsyncRun( async, product_query_work );
     }
 
     HRESULT WINAPI XStoreQueryAssociatedProductsResult( XAsyncBlock *async, XStoreProductQueryHandle *productQueryHandle ) override
     {
-        FIXME( "iface %p, async %p, productQueryHandle %p stub!\n", this, async, productQueryHandle );
-        return E_NOTIMPL;
+        TRACE( "iface %p, async %p, productQueryHandle %p.\n", this, async, productQueryHandle );
+
+        if ( !productQueryHandle ) return E_POINTER;
+        *productQueryHandle = &g_empty_product_query;
+        return S_OK;
     }
 
     HRESULT WINAPI XStoreQueryProductsAsync( const XStoreContextHandle storeContextHandle, XStoreProductKind productKinds, const char **storeIds, SIZE_T storeIdsCount, const char **actionFilters, SIZE_T actionFiltersCount, XAsyncBlock *async ) override
@@ -161,8 +178,11 @@ public:
 
     HRESULT WINAPI XStoreEnumerateProductsQuery( const XStoreProductQueryHandle productQueryHandle, void *context, XStoreProductQueryCallback *callback ) override
     {
-        FIXME( "iface %p, productQueryHandle %p, context %p, callback %p stub!\n", this, productQueryHandle, context, callback );
-        return E_NOTIMPL;
+        TRACE( "iface %p, productQueryHandle %p, context %p, callback %p.\n", this, productQueryHandle, context, callback );
+
+        /* Nothing to hand back, so the callback is never invoked - that is how the
+         * enumeration reports an empty query. */
+        return S_OK;
     }
 
     BOOLEAN WINAPI XStoreProductsQueryHasMorePages( const XStoreProductQueryHandle productQueryHandle ) override
@@ -185,7 +205,7 @@ public:
 
     void WINAPI XStoreCloseProductsQueryHandle( XStoreProductQueryHandle productQueryHandle ) override
     {
-        FIXME( "iface %p, productQueryHandle %p stub!\n", this, productQueryHandle );
+        TRACE( "iface %p, productQueryHandle %p.\n", this, productQueryHandle );
     }
 
     HRESULT WINAPI XStoreAcquireLicenseForPackageAsync( const XStoreProductQueryHandle productQueryHandle, const char *packageIdentifier, XAsyncBlock *async ) override
