@@ -196,6 +196,9 @@ static void __stdcall change_event_thunk( void *context, BOOLEAN canceled )
 {
     auto *dispatch = (ChangeEventDispatch *)context;
 
+    TRACE( "delivering change event %d for user %#llx, canceled %d.\n",
+           (int)dispatch->event, (unsigned long long)dispatch->localId.value, canceled );
+
     if ( !canceled && dispatch->callback )
         dispatch->callback( dispatch->context, dispatch->localId, dispatch->event );
 
