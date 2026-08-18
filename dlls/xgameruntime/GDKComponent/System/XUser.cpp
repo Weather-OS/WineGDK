@@ -25,6 +25,10 @@
 #include <cstring>
 #include <atomic>
 #include <new>
+#include <mutex>
+
+#include <bcrypt.h>
+#include <wincrypt.h>
 
 WINE_DEFAULT_DEBUG_CHANNEL(gdkc);
 
@@ -40,6 +44,128 @@ static HRESULT __stdcall not_implemented_async_work( XAsyncBlock * )
 #define XSTS_TOKEN_MAX 8192
 /* XUserGamertagComponentUniqueModernMaxBytes, the largest of the four components. */
 #define XUSER_GAMERTAG_MAX 64
+/* base64 of the 76 byte signature blob, plus room for the terminator. */
+#define SIGNATURE_MAX 128
+
+/* Xbox binds a token to the ECDSA P-256 key whose JWK went out as ProofKey, and
+ * verifies request signatures against it. One key per process is enough here: xodus
+ * signs in a single user. See
+ * https://learn.microsoft.com/gaming/gdk/docs/services/fundamentals/s2s-auth-calls/s2s-calls/live-title-service-calls-xbox-live#proof-keys */
+static std::once_flag g_proof_key_once;
+static BCRYPT_KEY_HANDLE g_proof_key = nullptr;
+static char g_proof_key_jwk[512];
+
+static HRESULT base64_url_no_pad( const BYTE *data, DWORD size, char *out, DWORD outSize )
+{
+    char *p;
+
+    if ( !CryptBinaryToStringA( data, size, CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF, out, &outSize ) )
+        return HRESULT_FROM_WIN32( GetLastError() );
+
+    for ( p = out; *p; p++ )
+    {
+        if ( *p == '+' ) *p = '-';
+        else if ( *p == '/' ) *p = '_';
+        else if ( *p == '=' ) { *p = '\0'; break; }
+    }
+    return S_OK;
+}
+
+static void create_proof_key()
+{
+    UCHAR blob[sizeof(BCRYPT_ECCKEY_BLOB) + 64];
+    char x[64] = {}, y[64] = {};
+    BCRYPT_ALG_HANDLE ecdsa = nullptr;
+    BCRYPT_KEY_HANDLE key = nullptr;
+    ULONG written;
+
+    if ( !BCRYPT_SUCCESS( BCryptOpenAlgorithmProvider( &ecdsa, BCRYPT_ECDSA_P256_ALGORITHM, nullptr, 0 ) ) )
+        return;
+
+    if ( BCRYPT_SUCCESS( BCryptGenerateKeyPair( ecdsa, &key, 256, 0 ) ) &&
+         BCRYPT_SUCCESS( BCryptFinalizeKeyPair( key, 0 ) ) &&
+         BCRYPT_SUCCESS( BCryptExportKey( key, nullptr, BCRYPT_ECCPUBLIC_BLOB, blob, sizeof(blob), &written, 0 ) ) &&
+         SUCCEEDED( base64_url_no_pad( blob + sizeof(BCRYPT_ECCKEY_BLOB), 32, x, sizeof(x) ) ) &&
+         SUCCEEDED( base64_url_no_pad( blob + sizeof(BCRYPT_ECCKEY_BLOB) + 32, 32, y, sizeof(y) ) ) )
+    {
+        snprintf( g_proof_key_jwk, sizeof(g_proof_key_jwk),
+                  "{\"alg\":\"ES256\",\"kty\":\"EC\",\"use\":\"sig\",\"crv\":\"P-256\",\"x\":\"%s\",\"y\":\"%s\"}",
+                  x, y );
+        g_proof_key = key;
+        key = nullptr;
+    }
+
+    if ( key ) BCryptDestroyKey( key );
+    BCryptCloseAlgorithmProvider( ecdsa, 0 );
+}
+
+EXTERN_C const char *XodusProofKeyJwk( void )
+{
+    std::call_once( g_proof_key_once, create_proof_key );
+    return g_proof_key_jwk[0] ? g_proof_key_jwk : nullptr;
+}
+
+/* The signed blob is each field NUL terminated in order: version, timestamp, method,
+ * path and query, the Authorization header, then the body. */
+static HRESULT sign_request( const char *method, const char *url, const char *authorization,
+                             const void *body, SIZE_T bodySize, char *out, DWORD outSize )
+{
+    BYTE raw[76] = {}, hash[32];
+    BCRYPT_ALG_HANDLE sha = nullptr;
+    BCRYPT_HASH_HANDLE hashObj = nullptr;
+    const char *pathAndQuery;
+    FILETIME ft;
+    ULONGLONG stamp;
+    ULONG written;
+    NTSTATUS status;
+    HRESULT hr = E_FAIL;
+    UINT32 version = 1;
+
+    std::call_once( g_proof_key_once, create_proof_key );
+    if ( !g_proof_key ) return E_FAIL;
+
+    /* Skip the scheme and host; the policy signs only the path with its query. */
+    pathAndQuery = url ? strstr( url, "://" ) : nullptr;
+    pathAndQuery = pathAndQuery ? strchr( pathAndQuery + 3, '/' ) : nullptr;
+    if ( !pathAndQuery ) pathAndQuery = "/";
+
+    GetSystemTimeAsFileTime( &ft );
+    stamp = ( (ULONGLONG)ft.dwHighDateTime << 32 ) | ft.dwLowDateTime;
+
+    raw[0] = (BYTE)(version >> 24); raw[1] = (BYTE)(version >> 16);
+    raw[2] = (BYTE)(version >> 8);  raw[3] = (BYTE)version;
+    for ( int i = 0; i < 8; i++ ) raw[4 + i] = (BYTE)( stamp >> ( 56 - i * 8 ) );
+
+    if ( !BCRYPT_SUCCESS( status = BCryptOpenAlgorithmProvider( &sha, BCRYPT_SHA256_ALGORITHM, nullptr, 0 ) ) )
+        return HRESULT_FROM_NT( status );
+
+    if ( BCRYPT_SUCCESS( BCryptCreateHash( sha, &hashObj, nullptr, 0, nullptr, 0, 0 ) ) )
+    {
+        static const BYTE nul = 0;
+        BCryptHashData( hashObj, raw, 12, 0 );
+        BCryptHashData( hashObj, (PUCHAR)&nul, 1, 0 );
+        BCryptHashData( hashObj, (PUCHAR)( method ? method : "GET" ), method ? strlen( method ) : 3, 0 );
+        BCryptHashData( hashObj, (PUCHAR)&nul, 1, 0 );
+        BCryptHashData( hashObj, (PUCHAR)pathAndQuery, strlen( pathAndQuery ), 0 );
+        BCryptHashData( hashObj, (PUCHAR)&nul, 1, 0 );
+        BCryptHashData( hashObj, (PUCHAR)( authorization ? authorization : "" ), authorization ? strlen( authorization ) : 0, 0 );
+        BCryptHashData( hashObj, (PUCHAR)&nul, 1, 0 );
+        if ( body && bodySize ) BCryptHashData( hashObj, (PUCHAR)body, (ULONG)bodySize, 0 );
+        BCryptHashData( hashObj, (PUCHAR)&nul, 1, 0 );
+
+        if ( BCRYPT_SUCCESS( BCryptFinishHash( hashObj, hash, sizeof(hash), 0 ) ) &&
+             BCRYPT_SUCCESS( BCryptSignHash( g_proof_key, nullptr, hash, sizeof(hash),
+                                             raw + 12, 64, &written, 0 ) ) )
+        {
+            hr = CryptBinaryToStringA( raw, sizeof(raw), CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF,
+                                       out, &outSize ) ? S_OK : HRESULT_FROM_WIN32( GetLastError() );
+        }
+        BCryptDestroyHash( hashObj );
+    }
+
+    BCryptCloseAlgorithmProvider( sha, 0 );
+    return hr;
+}
 
 /* Which service the caller is authenticating to decides which stored token fits;
  * both travel to GetResult as the provider context. */
@@ -47,6 +173,10 @@ struct TokenAndSignatureContext
 {
     XUserHandle user;
     bool playfab;
+    char *method;
+    char *url;
+    void *body;
+    SIZE_T bodySize;
 };
 
 static HRESULT __stdcall token_and_signature_provider( XAsyncOp op, const XAsyncProviderData *data )
@@ -65,7 +195,7 @@ static HRESULT __stdcall token_and_signature_provider( XAsyncOp op, const XAsync
         case XAsyncOp::DoWork:
             xthreading->XAsyncComplete( data->async, S_OK,
                                         sizeof(XUserGetTokenAndSignatureData)
-                                        + XSTS_TOKEN_MAX + 1 );
+                                        + XSTS_TOKEN_MAX + 1 + SIGNATURE_MAX + 1 );
             /* Completed here, so the framework must not complete it again. */
             return E_PENDING;
 
@@ -95,18 +225,37 @@ static HRESULT __stdcall token_and_signature_provider( XAsyncOp op, const XAsync
 
             token[written] = '\0';
 
-            /* No request signature: Xbox signs requests with the device key, which
-             * xodus does not hold. The token alone is what most services check. */
+            char *signature = token + written + 1;
+            signature[0] = '\0';
+            if ( written && FAILED( sign_request( ctx ? ctx->method : nullptr,
+                                                  ctx ? ctx->url : nullptr, token,
+                                                  ctx ? ctx->body : nullptr,
+                                                  ctx ? ctx->bodySize : 0,
+                                                  signature, SIGNATURE_MAX ) ) )
+            {
+                WARN( "request signature unavailable; sending the token unsigned.\n" );
+                signature[0] = '\0';
+            }
+
             result->tokenSize = written;
-            result->signatureSize = 0;
+            result->signatureSize = strlen( signature );
             result->token = token;
-            result->signature = token + written;
+            result->signature = signature;
             return S_OK;
         }
 
         case XAsyncOp::Cleanup:
-            delete (TokenAndSignatureContext *)data->context;
+        {
+            auto *ctx = (TokenAndSignatureContext *)data->context;
+            if ( ctx )
+            {
+                free( ctx->method );
+                free( ctx->url );
+                free( ctx->body );
+            }
+            delete ctx;
             break;
+        }
 
         default:
             break;
@@ -115,7 +264,13 @@ static HRESULT __stdcall token_and_signature_provider( XAsyncOp op, const XAsync
     return S_OK;
 }
 
-static HRESULT begin_token_and_signature( XUserHandle user, const char *url, XAsyncBlock *async )
+static char *dup_string( const char *value )
+{
+    return value ? _strdup( value ) : nullptr;
+}
+
+static HRESULT begin_token_and_signature( XUserHandle user, const char *method, const char *url,
+                                          const void *body, SIZE_T bodySize, XAsyncBlock *async )
 {
     IXThreadingImpl *xthreading;
     HRESULT hr;
@@ -128,6 +283,13 @@ static HRESULT begin_token_and_signature( XUserHandle user, const char *url, XAs
 
     ctx->user = user;
     ctx->playfab = url && strstr( url, "playfab" ) != nullptr;
+    /* The provider runs later on a worker thread, so the request has to be copied. */
+    ctx->method = dup_string( method );
+    ctx->url = dup_string( url );
+    ctx->bodySize = body ? bodySize : 0;
+    ctx->body = nullptr;
+    if ( ctx->bodySize && (ctx->body = malloc( ctx->bodySize )) )
+        memcpy( ctx->body, body, ctx->bodySize );
 
     hr = xthreading->XAsyncBegin( async, ctx, (void *)token_and_signature_provider,
                                   "XUserGetTokenAndSignature", token_and_signature_provider );
@@ -509,7 +671,7 @@ public:
         FIXME( "user %p, options %d, method %s, url %s, headerCount %Iu, headers %p, bodySize %Iu, bodyBuffer %p, async %p stub!\n", user, (int)options, debugstr_a( method ), debugstr_a( url ), headerCount, headers, bodySize, bodyBuffer, async );
         /* The caller waits on the block; a synchronous failure leaves it pending
          * and the request is torn down half-initialized. */
-        return begin_token_and_signature( user, url, async );
+        return begin_token_and_signature( user, method, url, bodyBuffer, bodySize, async );
     }
 
     HRESULT WINAPI XUserGetTokenAndSignatureResultSize( XAsyncBlock *async, SIZE_T *bufferSize ) override
@@ -535,7 +697,13 @@ public:
         if ( url )
             WideCharToMultiByte( CP_UTF8, 0, url, -1, urlA, sizeof(urlA), nullptr, nullptr );
 
-        return begin_token_and_signature( user, urlA, async );
+        char methodA[32];
+
+        methodA[0] = '\0';
+        if ( method )
+            WideCharToMultiByte( CP_UTF8, 0, method, -1, methodA, sizeof(methodA), nullptr, nullptr );
+
+        return begin_token_and_signature( user, methodA, urlA, bodyBuffer, bodySize, async );
     }
 
     HRESULT WINAPI XUserGetTokenAndSignatureUtf16ResultSize( XAsyncBlock *async, SIZE_T *bufferSize ) override

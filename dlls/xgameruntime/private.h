@@ -107,6 +107,8 @@ extern IXGameRuntimeFeatureImpl *x_game_runtime_feature;
 extern IXSystemImpl *x_system;
 extern IXSystemAnalyticsImpl *x_system_analytics;
 extern IXNetworkingImpl *x_networking;
+EXTERN_C const char *XodusProofKeyJwk( void );
+
 extern IXUserImpl *x_user;
 extern IXStoreImpl *x_store;
 

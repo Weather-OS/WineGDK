@@ -180,6 +180,9 @@ public:
         CoTaskMemFree( clientIdStr );
         xmlNewChild( root, nullptr, BAD_CAST "AllowUi", BAD_CAST (allowUI ? "true" : "false") );
         xmlNewChild( root, nullptr, BAD_CAST "MsaFullTrust", BAD_CAST (fullTrust ? "true" : "false") );
+        /* Binds the issued token to our signing key, so signed requests verify. */
+        if ( const char *proofKey = XodusProofKeyJwk() )
+            xmlNewChild( root, nullptr, BAD_CAST "ProofKey", BAD_CAST proofKey );
         xmlDocDumpFormatMemory( doc, &xmlBuff, &bufSize, 1 );
         xmlFreeDoc( doc );
 
