@@ -234,6 +234,10 @@ public:
 
         xmlNewChild( root, nullptr, BAD_CAST "AllowUi", BAD_CAST "false" );
         xmlNewChild( root, nullptr, BAD_CAST "MsaFullTrust", BAD_CAST "false" );
+        /* This is the token titles actually authenticate with, so it needs the same
+         * binding as the main one - without it every signed request is rejected. */
+        if ( const char *proofKey = XodusProofKeyJwk() )
+            xmlNewChild( root, nullptr, BAD_CAST "ProofKey", BAD_CAST proofKey );
 
         xmlDocDumpFormatMemory( doc, &xmlBuff, &bufSize, 1 );
         xmlFreeDoc( doc );
