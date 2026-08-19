@@ -832,6 +832,14 @@ static HRESULT WINAPI MMDevice_Activate(IMMDevice *iface, REFIID riid, DWORD cls
     }
     else if (IsEqualIID(riid, &IID_ISpatialAudioClient))
     {
+        /* Debug aid, not a fix: the spatial audio object reports itself as usable but
+         * offers zero dynamic objects, and Wwise crashes building its object map from
+         * that. Declining the interface makes callers fall back to ordinary WASAPI. */
+        if (getenv("WINE_DISABLE_SPATIAL_AUDIO"))
+        {
+            WARN("spatial audio disabled by WINE_DISABLE_SPATIAL_AUDIO\n");
+            return E_NOINTERFACE;
+        }
         hr = SpatialAudioClient_Create(iface, (ISpatialAudioClient**)ppv);
     }
     else

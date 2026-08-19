@@ -710,6 +710,18 @@ NTSTATUS WINAPI NtGdiDdDDIQueryAdapterInfo( D3DKMT_QUERYADAPTERINFO *desc )
         *value = KMT_DRIVERVERSION_WDDM_3_1;
         return STATUS_SUCCESS;
     }
+    case KMTQAITYPE_WDDM_2_7_CAPS:
+    {
+        /* A 4-byte bitfield; all-zero means no GPU hardware scheduling. Callers use
+         * this to gauge how new the driver is, and treat a failed query as ancient. */
+        UINT *value = desc->pPrivateDriverData;
+
+        if (desc->PrivateDriverDataSize < sizeof(*value))
+            return STATUS_INVALID_PARAMETER;
+
+        *value = 0;
+        return STATUS_SUCCESS;
+    }
     default:
     {
         FIXME( "type %d not handled.\n", desc->Type );

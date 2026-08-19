@@ -1144,7 +1144,7 @@ static const char* driver_vendor_to_version( UINT16 vendor )
     {
     case 0x8086: /* Intel */    return "35.0.101.6314";
     case 0x1002: /* AMD */      return "35.0.21025.1024";
-    case 0x10de: /* Nvidia */   return "35.0.15.6094";
+    case 0x10de: /* Nvidia */   return "35.0.16.1057"; /* 610.57 */
     default:                    return "35.0.10.1000";
     }
 }
