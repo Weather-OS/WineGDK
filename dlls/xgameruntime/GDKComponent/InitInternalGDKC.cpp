@@ -135,7 +135,8 @@ ObtainMsaAppId( INITIALIZE_OPTIONS *options )
                 else if ( !strcmp( (LPSTR)child->name, "TitleId" ) )
                 {
                     LPSTR value = (LPSTR)xmlNodeGetContent( child );
-                    titleId = strtoul( value, NULL, 10 );
+                    /* MicrosoftGame.Config writes the title id in hex. */
+                    titleId = strtoul( value, NULL, 16 );
                     free( value );
                 }
                 else if ( !strcmp( (LPSTR)child->name, "MSAFullTrust" ) )
