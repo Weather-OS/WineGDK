@@ -197,7 +197,7 @@ public:
 
     HRESULT WINAPI XNetworkingQuerySecurityInformationForUrlAsync( LPCSTR url, XAsyncBlock *asyncBlock ) override
     {
-        FIXME( "url %p, asyncBlock %p semi-stub.\n", url, asyncBlock );
+        FIXME( "url %s, asyncBlock %p semi-stub.\n", debugstr_a( url ), asyncBlock );
         return begin_security_information_query( asyncBlock );
     }
 
@@ -217,7 +217,7 @@ public:
 
     HRESULT WINAPI XNetworkingQuerySecurityInformationForUrlUtf16Async( LPCWSTR url, XAsyncBlock *asyncBlock ) override
     {
-        FIXME( "url %p, asyncBlock %p semi-stub.\n", url, asyncBlock );
+        FIXME( "url %s, asyncBlock %p semi-stub.\n", debugstr_w( url ), asyncBlock );
         return begin_security_information_query( asyncBlock );
     }
 
