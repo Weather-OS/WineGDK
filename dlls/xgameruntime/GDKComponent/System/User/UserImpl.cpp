@@ -90,6 +90,98 @@ UserImpl::SetPlayfabToken( HSTRING token )
     WindowsDuplicateString( token, &m_playfabToken );
 }
 
+/* scheme://host, dropping any path - a relying party is registered per host, and
+ * caching at that granularity keeps one exchange per back end instead of one per
+ * request. */
+static std::wstring service_key( LPCWSTR url, UINT32 length )
+{
+    std::wstring key( url, length );
+    size_t scheme = key.find( L"://" );
+    size_t slash = key.find( L'/', scheme == std::wstring::npos ? 0 : scheme + 3 );
+
+    if ( slash != std::wstring::npos ) key.erase( slash );
+    return key;
+}
+
+HRESULT WINAPI
+UserImpl::GetServiceToken( HSTRING url, HSTRING *out )
+{
+    IAsyncOperation<IMsaTokenResponse *> *operation = nullptr;
+    IMsaTokenResponse *response = nullptr;
+    HSTRING token = nullptr;
+    HSTRING clientId = nullptr;
+    LPWSTR clientIdW;
+    INT32 clientIdLen;
+    UINT32 length = 0;
+    LPCWSTR raw;
+
+    TRACE( "iface %p, url %s, out %p\n", this, debugstr_hstring( url ), out );
+
+    if ( !out ) return E_POINTER;
+    *out = nullptr;
+
+    raw = WindowsGetStringRawBuffer( url, &length );
+    if ( !raw || !length ) return E_INVALIDARG;
+
+    std::wstring key = service_key( raw, length );
+
+    {
+        std::lock_guard<std::mutex> guard( m_serviceTokensLock );
+        auto cached = m_serviceTokens.find( key );
+        if ( cached != m_serviceTokens.end() )
+            return WindowsDuplicateString( cached->second, out );
+    }
+
+    if ( !msaAppId ) return E_UNEXPECTED;
+    clientIdLen = MultiByteToWideChar( CP_UTF8, 0, msaAppId, -1, nullptr, 0 );
+    if ( !clientIdLen ) return HRESULT_FROM_WIN32( GetLastError() );
+    clientIdW = (LPWSTR)CoTaskMemAlloc( clientIdLen * sizeof(WCHAR) );
+    if ( !clientIdW ) return E_OUTOFMEMORY;
+    MultiByteToWideChar( CP_UTF8, 0, msaAppId, -1, clientIdW, clientIdLen );
+    HRESULT hr = WindowsCreateString( clientIdW, lstrlenW( clientIdW ), &clientId );
+    CoTaskMemFree( clientIdW );
+    if ( FAILED( hr ) ) return hr;
+
+    /* The service takes the request URL where a relying party goes and resolves it
+     * through the title endpoint document, so the URL travels as-is. */
+    HSTRING party = nullptr;
+    hr = WindowsCreateString( key.c_str(), (UINT32)key.size(), &party );
+    if ( SUCCEEDED( hr ) )
+    {
+        if ( SUCCEEDED( hr = xodus_service->XstsTokenRequest( clientId, party, &operation ) ) &&
+             !AsyncOperationCompletedHandler<IMsaTokenResponse *>::await_AsyncOperation( operation, INFINITE ) &&
+             SUCCEEDED( operation->GetResults( &response ) ) && response )
+        {
+            response->get_XstsToken( &token );
+            response->Release();
+        }
+        else
+        {
+            WARN( "no token for %s; the title's back end will reject the request.\n",
+                  debugstr_hstring( party ) );
+            hr = E_FAIL;
+        }
+        WindowsDeleteString( party );
+    }
+    if ( operation ) operation->Release();
+    WindowsDeleteString( clientId );
+
+    if ( !token ) return FAILED( hr ) ? hr : E_FAIL;
+
+    {
+        std::lock_guard<std::mutex> guard( m_serviceTokensLock );
+        auto cached = m_serviceTokens.emplace( key, token );
+        if ( !cached.second )
+        {
+            /* Another thread won the race; keep its entry and drop ours. */
+            WindowsDeleteString( token );
+            token = cached.first->second;
+        }
+    }
+
+    return WindowsDuplicateString( token, out );
+}
+
 HRESULT WINAPI
 UserImpl::QueryInterface( REFIID iid, void **out ) noexcept
 {

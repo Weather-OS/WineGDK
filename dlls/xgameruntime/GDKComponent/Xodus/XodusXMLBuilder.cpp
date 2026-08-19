@@ -37,6 +37,17 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(xodus);
 
+/* The service needs the title to ask Xbox for that title's endpoint document,
+ * which is the only place a publisher's own relying party is published. */
+static void AddTitleId( xmlNodePtr root )
+{
+    char value[16];
+
+    if ( !titleId ) return;
+    snprintf( value, sizeof(value), "%08X", titleId );
+    xmlNewChild( root, nullptr, BAD_CAST "TitleId", BAD_CAST value );
+}
+
 using namespace ABI;
 using namespace ABI::Xodus;
 using namespace ABI::Windows::Foundation;
@@ -180,6 +191,7 @@ public:
         CoTaskMemFree( clientIdStr );
         xmlNewChild( root, nullptr, BAD_CAST "AllowUi", BAD_CAST (allowUI ? "true" : "false") );
         xmlNewChild( root, nullptr, BAD_CAST "MsaFullTrust", BAD_CAST (fullTrust ? "true" : "false") );
+        AddTitleId( root );
         /* Binds the issued token to our signing key, so signed requests verify. */
         if ( const char *proofKey = XodusProofKeyJwk() )
             xmlNewChild( root, nullptr, BAD_CAST "ProofKey", BAD_CAST proofKey );
@@ -234,6 +246,7 @@ public:
 
         xmlNewChild( root, nullptr, BAD_CAST "AllowUi", BAD_CAST "false" );
         xmlNewChild( root, nullptr, BAD_CAST "MsaFullTrust", BAD_CAST "false" );
+        AddTitleId( root );
         /* This is the token titles actually authenticate with, so it needs the same
          * binding as the main one - without it every signed request is rejected. */
         if ( const char *proofKey = XodusProofKeyJwk() )

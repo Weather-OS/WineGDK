@@ -236,7 +236,83 @@ struct TokenAndSignatureContext
     char *url;
     void *body;
     SIZE_T bodySize;
+    /* Resolved on the worker thread, because a title's own back end needs a token
+     * fetched for its relying party rather than one of the two settled at sign-in. */
+    char *token;
+    /* The UTF-16 entry points want the same answer in wide characters. */
+    bool utf16;
 };
+
+/* Xbox Live's own hosts all sit behind the relying party settled at sign-in; a
+ * title's back end does not, and needs its own exchange. */
+static bool is_xboxlive_host( const char *url )
+{
+    const char *host = url ? strstr( url, "://" ) : nullptr;
+    const char *end;
+    size_t len;
+
+    if ( !host ) return false;
+    host += 3;
+    end = strchr( host, '/' );
+    len = end ? (size_t)(end - host) : strlen( host );
+
+    return len >= 12 && !strncmp( host + len - 12, "xboxlive.com", 12 );
+}
+
+/* Fills ctx->token with the UTF-8 token the caller should present. Runs on the
+ * worker thread because an unseen back end costs a round trip to the service. */
+static void resolve_token( TokenAndSignatureContext *ctx )
+{
+    XUserHandle user = ctx ? ctx->user : nullptr;
+    HSTRING stored = nullptr;
+    HSTRING url = nullptr;
+    UINT32 length = 0;
+    LPCWSTR raw;
+
+    if ( !ctx || ctx->token ) return;
+    if ( !user || user->m_signature != X_USER_SIGNATURE || !user->m_user ) return;
+
+    if ( ctx->playfab )
+    {
+        if ( FAILED( user->m_user->GetPlayfabToken( &stored ) ) ) return;
+    }
+    else if ( !ctx->url || is_xboxlive_host( ctx->url ) )
+    {
+        if ( FAILED( user->m_user->GetXstsToken( &stored ) ) ) return;
+    }
+    else
+    {
+        INT32 wide = MultiByteToWideChar( CP_UTF8, 0, ctx->url, -1, nullptr, 0 );
+        LPWSTR urlW = wide ? (LPWSTR)CoTaskMemAlloc( wide * sizeof(WCHAR) ) : nullptr;
+
+        if ( !urlW ) return;
+        MultiByteToWideChar( CP_UTF8, 0, ctx->url, -1, urlW, wide );
+        HRESULT hr = WindowsCreateString( urlW, lstrlenW( urlW ), &url );
+        CoTaskMemFree( urlW );
+        if ( FAILED( hr ) ) return;
+
+        hr = user->m_user->GetServiceToken( url, &stored );
+        WindowsDeleteString( url );
+        if ( FAILED( hr ) )
+        {
+            /* Better a generic token than none - some back ends accept it. */
+            WARN( "falling back to the Xbox Live token for %s.\n", debugstr_a( ctx->url ) );
+            if ( FAILED( user->m_user->GetXstsToken( &stored ) ) ) return;
+        }
+    }
+
+    raw = WindowsGetStringRawBuffer( stored, &length );
+    if ( raw && length )
+    {
+        INT bytes = WideCharToMultiByte( CP_UTF8, 0, raw, length, nullptr, 0, nullptr, nullptr );
+        if ( bytes > 0 && (ctx->token = (char *)malloc( bytes + 1 )) )
+        {
+            WideCharToMultiByte( CP_UTF8, 0, raw, length, ctx->token, bytes, nullptr, nullptr );
+            ctx->token[bytes] = '\0';
+        }
+    }
+    WindowsDeleteString( stored );
+}
 
 static HRESULT __stdcall token_and_signature_provider( XAsyncOp op, const XAsyncProviderData *data )
 {
@@ -252,17 +328,53 @@ static HRESULT __stdcall token_and_signature_provider( XAsyncOp op, const XAsync
             return xthreading->XAsyncSchedule( data->async, 0 );
 
         case XAsyncOp::DoWork:
+            resolve_token( (TokenAndSignatureContext *)data->context );
+            /* Sized for the wide form, which is the larger of the two shapes. */
             xthreading->XAsyncComplete( data->async, S_OK,
-                                        sizeof(XUserGetTokenAndSignatureData)
-                                        + XSTS_TOKEN_MAX + 1 + SIGNATURE_MAX + 1 );
+                                        sizeof(XUserGetTokenAndSignatureUtf16Data)
+                                        + ( XSTS_TOKEN_MAX + 1 + SIGNATURE_MAX + 1 ) * sizeof(WCHAR) );
             /* Completed here, so the framework must not complete it again. */
             return E_PENDING;
 
         case XAsyncOp::GetResult:
         {
+            auto *ctx = (TokenAndSignatureContext *)data->context;
+
+            if ( ctx && ctx->utf16 )
+            {
+                auto *wide = (XUserGetTokenAndSignatureUtf16Data *)data->buffer;
+                WCHAR *wtoken = (WCHAR *)((char *)data->buffer + sizeof(*wide));
+                char narrow[SIGNATURE_MAX];
+                WCHAR *wsignature;
+                INT count = 0;
+
+                wtoken[0] = 0;
+                if ( ctx->token )
+                {
+                    count = MultiByteToWideChar( CP_UTF8, 0, ctx->token, -1, wtoken, XSTS_TOKEN_MAX );
+                    /* The count includes the terminator, which the caller does not want. */
+                    if ( count > 0 ) count--;
+                }
+
+                wsignature = wtoken + count + 1;
+                wsignature[0] = 0;
+                narrow[0] = '\0';
+                if ( count && SUCCEEDED( sign_request( ctx->method, ctx->url, ctx->token,
+                                                       ctx->body, ctx->bodySize,
+                                                       narrow, SIGNATURE_MAX ) ) )
+                    MultiByteToWideChar( CP_UTF8, 0, narrow, -1, wsignature, SIGNATURE_MAX );
+                else if ( count )
+                    WARN( "request signature unavailable; sending the token unsigned.\n" );
+
+                wide->tokenCount = count;
+                wide->signatureCount = lstrlenW( wsignature );
+                wide->token = wtoken;
+                wide->signature = wsignature;
+                return S_OK;
+            }
+
             auto *result = (XUserGetTokenAndSignatureData *)data->buffer;
             char *token = (char *)data->buffer + sizeof(*result);
-            auto *ctx = (TokenAndSignatureContext *)data->context;
             XUserHandle user = ctx ? ctx->user : nullptr;
             HSTRING stored = nullptr;
             UINT32 length = 0;
@@ -271,18 +383,15 @@ static HRESULT __stdcall token_and_signature_provider( XAsyncOp op, const XAsync
 
             token[0] = '\0';
 
-            if ( user && user->m_signature == X_USER_SIGNATURE && user->m_user &&
-                 SUCCEEDED( ctx->playfab ? user->m_user->GetPlayfabToken( &stored )
-                                         : user->m_user->GetXstsToken( &stored ) ) )
+            if ( ctx && ctx->token )
             {
-                raw = WindowsGetStringRawBuffer( stored, &length );
-                if ( raw && length )
-                    written = WideCharToMultiByte( CP_UTF8, 0, raw, length,
-                                                   token, XSTS_TOKEN_MAX, nullptr, nullptr );
-                WindowsDeleteString( stored );
+                written = (INT)strlen( ctx->token );
+                if ( written > XSTS_TOKEN_MAX ) written = XSTS_TOKEN_MAX;
+                memcpy( token, ctx->token, written );
             }
 
             token[written] = '\0';
+            (void)user; (void)stored; (void)raw; (void)length;
 
             char *signature = token + written + 1;
             signature[0] = '\0';
@@ -311,6 +420,7 @@ static HRESULT __stdcall token_and_signature_provider( XAsyncOp op, const XAsync
                 free( ctx->method );
                 free( ctx->url );
                 free( ctx->body );
+                free( ctx->token );
             }
             delete ctx;
             break;
@@ -329,7 +439,8 @@ static char *dup_string( const char *value )
 }
 
 static HRESULT begin_token_and_signature( XUserHandle user, const char *method, const char *url,
-                                          const void *body, SIZE_T bodySize, XAsyncBlock *async )
+                                          const void *body, SIZE_T bodySize, XAsyncBlock *async,
+                                          bool utf16 = false )
 {
     IXThreadingImpl *xthreading;
     HRESULT hr;
@@ -347,6 +458,8 @@ static HRESULT begin_token_and_signature( XUserHandle user, const char *method, 
     ctx->url = dup_string( url );
     ctx->bodySize = body ? bodySize : 0;
     ctx->body = nullptr;
+    ctx->token = nullptr;
+    ctx->utf16 = utf16;
     if ( ctx->bodySize && (ctx->body = malloc( ctx->bodySize )) )
         memcpy( ctx->body, body, ctx->bodySize );
 
@@ -522,8 +635,23 @@ public:
 
     INT32 WINAPI XUserCompare( XUserHandle user1, XUserHandle user2 ) override
     {
-        FIXME( "user1 %p, user2 %p stub!\n", user1, user2 );
-        return E_NOTIMPL;
+        UINT64 xuid1, xuid2;
+
+        TRACE( "user1 %p, user2 %p.\n", user1, user2 );
+
+        /* This is an ordering, not an HRESULT. Callers read zero as "the same user",
+         * so returning a failure code here means no two handles ever match and a
+         * caller looking for one spins forever. */
+        if ( user1 == user2 ) return 0;
+
+        xuid1 = ( user1 && user1->m_signature == X_USER_SIGNATURE && user1->m_user )
+                ? user1->m_user->GetXuid() : 0;
+        xuid2 = ( user2 && user2->m_signature == X_USER_SIGNATURE && user2->m_user )
+                ? user2->m_user->GetXuid() : 0;
+
+        if ( xuid1 < xuid2 ) return -1;
+        if ( xuid1 > xuid2 ) return 1;
+        return 0;
     }
 
     HRESULT WINAPI XUserGetMaxUsers( UINT32 *maxUsers ) override
@@ -593,8 +721,16 @@ public:
 
     HRESULT WINAPI XUserFindUserById( UINT64 userId, XUserHandle *handle ) override
     {
-        FIXME( "userId %llu, handle %p stub!\n", userId, handle );
-        return E_NOTIMPL;
+        TRACE( "userId %llu, handle %p.\n", userId, handle );
+
+        if ( !handle ) return E_POINTER;
+        /* One user is signed in, so the only id that can resolve is theirs. */
+        if ( !g_current_user || !g_current_user->m_user ||
+             g_current_user->m_user->GetXuid() != userId )
+            return E_GAMEUSER_NO_DEFAULT_USER;
+
+        *handle = g_current_user;
+        return S_OK;
     }
 
     HRESULT STDMETHODCALLTYPE XUserGetGamertag( XUserHandle user, XUserGamertagComponent gamertagComponent,
@@ -781,20 +917,32 @@ public:
         if ( method )
             WideCharToMultiByte( CP_UTF8, 0, method, -1, methodA, sizeof(methodA), nullptr, nullptr );
 
-        return begin_token_and_signature( user, methodA, urlA, bodyBuffer, bodySize, async );
+        return begin_token_and_signature( user, methodA, urlA, bodyBuffer, bodySize, async, true );
     }
 
     HRESULT WINAPI XUserGetTokenAndSignatureUtf16ResultSize( XAsyncBlock *async, SIZE_T *bufferSize ) override
     {
-        FIXME( "async %p, bufferSize %p stub!\n", async, bufferSize );
-        if ( bufferSize ) *bufferSize = 0;
-        return E_NOTIMPL;
+        TRACE( "async %p, bufferSize %p.\n", async, bufferSize );
+        return token_and_signature_result_size( async, bufferSize );
     }
 
     HRESULT WINAPI XUserGetTokenAndSignatureUtf16Result( XAsyncBlock *async, SIZE_T bufferSize, void *buffer, XUserGetTokenAndSignatureUtf16Data **ptrToBuffer, SIZE_T *bufferUsed ) override
     {
-        FIXME( "async %p, bufferSize %Iu, buffer %p, ptrToBuffer %p, bufferUsed %p stub!\n", async, bufferSize, buffer, ptrToBuffer, bufferUsed );
-        return E_NOTIMPL;
+        IXThreadingImpl *xthreading;
+        HRESULT hr;
+
+        TRACE( "async %p, bufferSize %Iu, buffer %p, ptrToBuffer %p, bufferUsed %p.\n",
+               async, bufferSize, buffer, ptrToBuffer, bufferUsed );
+
+        if ( FAILED( hr = QueryApiImpl( &CLSID_XThreadingImpl, IID_IXThreadingImpl, (void **)&xthreading ) ) )
+            return hr;
+
+        hr = xthreading->XAsyncGetResult( async, (void *)token_and_signature_provider,
+                                          bufferSize, buffer, bufferUsed );
+        if ( SUCCEEDED( hr ) && ptrToBuffer )
+            *ptrToBuffer = (XUserGetTokenAndSignatureUtf16Data *)buffer;
+
+        return hr;
     }
 
     HRESULT WINAPI XUserResolveIssueWithUiAsync( XUserHandle user, const char *url, XAsyncBlock *async ) override
@@ -956,3 +1104,115 @@ public:
 static XUserImpl g_x_user;
 
 IXUserImpl *x_user = static_cast<IXUserImpl*>(&g_x_user);
+
+/* Titles that start on a "press to begin" screen use this to work out which user a
+ * given input device belongs to. xodus signs in exactly one user, so every device
+ * maps to that one. */
+class XUserDeviceImpl :
+    public IXUserDeviceImpl2
+{
+public:
+    HRESULT WINAPI QueryInterface( REFIID iid, void **out ) override
+    {
+        TRACE( "iface %p, iid %s, out %p.\n", this, debugstr_guid( &iid ), out );
+
+        if (!out) return E_POINTER;
+        *out = nullptr;
+
+        if ( iid == __uuidof( IUnknown ) ||
+             iid == __uuidof( IXUserDeviceImpl ) ||
+             iid == __uuidof( IXUserDeviceImpl2 ) )
+        {
+            AddRef();
+            *out = static_cast<IXUserDeviceImpl2 *>(this);
+            return S_OK;
+        }
+
+        FIXME( "%s not implemented, returning E_NOINTERFACE.\n", debugstr_guid( &iid ) );
+        return E_NOINTERFACE;
+    }
+
+    ULONG WINAPI AddRef() noexcept override { return static_cast<ULONG>(++ref); }
+    ULONG WINAPI Release() noexcept override { return static_cast<ULONG>(--ref); }
+
+    HRESULT WINAPI XUserFindForDevice( const APP_LOCAL_DEVICE_ID *deviceId, XUserHandle *handle ) override
+    {
+        TRACE( "deviceId %p, handle %p.\n", deviceId, handle );
+
+        if ( !handle ) return E_POINTER;
+        if ( !g_current_user ) return E_GAMEUSER_NO_DEFAULT_USER;
+
+        *handle = g_current_user;
+        return S_OK;
+    }
+
+    HRESULT WINAPI XUserRegisterForDeviceAssociationChanged( XTaskQueueHandle queue, void *context,
+                                                             XUserDeviceAssociationChangedCallback *callback,
+                                                             XTaskQueueRegistrationToken *token ) override
+    {
+        FIXME( "queue %p, context %p, callback %p semi-stub: the association never changes.\n",
+               queue, context, callback );
+
+        /* The caller unregisters with this later, so it has to be written even though
+         * no change will ever be reported. */
+        if ( token ) token->token = ++m_nextToken;
+        return S_OK;
+    }
+
+    BOOLEAN WINAPI XUserUnregisterForDeviceAssociationChanged( XTaskQueueRegistrationToken token, BOOLEAN wait ) override
+    {
+        TRACE( "token %llu, wait %d.\n", (UINT64)token.token, wait );
+        return TRUE;
+    }
+
+    HRESULT WINAPI XUserGetDefaultAudioEndpointUtf16( XUserLocalId user, XUserDefaultAudioEndpointKind kind,
+                                                      SIZE_T count, WCHAR *endpointId, SIZE_T *used ) override
+    {
+        FIXME( "user %llu, kind %d, count %Iu stub!\n", (UINT64)user.value, (int)kind, count );
+        return E_NOTIMPL;
+    }
+
+    HRESULT WINAPI XUserRegisterForDefaultAudioEndpointUtf16Changed( XTaskQueueHandle queue, void *context,
+                                                                     XUserDefaultAudioEndpointUtf16ChangedCallback *callback,
+                                                                     XTaskQueueRegistrationToken *token ) override
+    {
+        FIXME( "queue %p, context %p, callback %p semi-stub: the endpoint never changes.\n",
+               queue, context, callback );
+        if ( token ) token->token = ++m_nextToken;
+        return S_OK;
+    }
+
+    BOOLEAN WINAPI XUserUnregisterForDefaultAudioEndpointUtf16Changed( XTaskQueueRegistrationToken token, BOOLEAN wait ) override
+    {
+        TRACE( "token %llu, wait %d.\n", (UINT64)token.token, wait );
+        return TRUE;
+    }
+
+    HRESULT WINAPI XUserFindControllerForUserWithUiAsync( XUserHandle user, XAsyncBlock *async ) override
+    {
+        FIXME( "user %p, async %p semi-stub: answering with the device the title already has.\n",
+               user, async );
+        return XAsyncRun( async, controller_work );
+    }
+
+    HRESULT WINAPI XUserFindControllerForUserWithUiResult( XAsyncBlock *async, APP_LOCAL_DEVICE_ID *deviceId ) override
+    {
+        TRACE( "async %p, deviceId %p.\n", async, deviceId );
+
+        if ( !deviceId ) return E_POINTER;
+        /* A zeroed id means "whichever device the title is already reading", which is
+         * the only answer that fits a single-user desktop. */
+        memset( deviceId, 0, sizeof(*deviceId) );
+        return S_OK;
+    }
+
+private:
+    static HRESULT __stdcall controller_work( XAsyncBlock * ) { return S_OK; }
+
+    std::atomic_long ref{ 1 };
+    std::atomic<UINT64> m_nextToken{ 0 };
+};
+
+static XUserDeviceImpl g_x_user_device;
+
+IXUserDeviceImpl2 *x_user_device = static_cast<IXUserDeviceImpl2 *>(&g_x_user_device);

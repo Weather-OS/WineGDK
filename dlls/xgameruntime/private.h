@@ -110,6 +110,7 @@ extern IXNetworkingImpl *x_networking;
 EXTERN_C const char *XodusProofKeyJwk( void );
 
 extern IXUserImpl *x_user;
+extern IXUserDeviceImpl2 *x_user_device;
 extern IXStoreImpl *x_store;
 
 #ifdef __cplusplus

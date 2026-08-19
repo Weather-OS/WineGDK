@@ -268,6 +268,9 @@ HRESULT WINAPI QueryApiImpl( const GUID *runtimeClassId, REFIID interfaceId, voi
     }
     else if (IsEqualGUID( runtimeClassId, &CLSID_XStoreImpl ))
         return IXStoreImpl_QueryInterface( x_store, interfaceId, out );
+    /* xuser.idl gives the device coclass the same id as its first interface. */
+    else if ( IsEqualGUID( runtimeClassId, &IID_IXUserDeviceImpl ) )
+        return IXUserDeviceImpl2_QueryInterface( x_user_device, interfaceId, out );
     
     FIXME( "%s not implemented, returning E_NOINTERFACE (caller %p).\n",
            debugstr_guid( runtimeClassId ), __builtin_return_address( 0 ) );

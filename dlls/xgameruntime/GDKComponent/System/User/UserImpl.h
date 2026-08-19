@@ -26,6 +26,9 @@
 #include "../../../private.h"
 
 #include <atomic>
+#include <map>
+#include <mutex>
+#include <string>
 
 struct DECLSPEC_UUID("5F280469-FB5A-44AA-9F14-D77C7C90A5DC") IUser : IUnknown
 {
@@ -38,6 +41,9 @@ struct DECLSPEC_UUID("5F280469-FB5A-44AA-9F14-D77C7C90A5DC") IUser : IUnknown
      * separately from plain Xbox Live. */
     virtual HRESULT WINAPI GetPlayfabToken( HSTRING *token ) = 0;
     virtual void WINAPI SetPlayfabToken( HSTRING token ) = 0;
+    /* Token for a title's own back end. The service turns the request URL into the
+     * relying party Xbox registered for it, which is not derivable here. */
+    virtual HRESULT WINAPI GetServiceToken( HSTRING url, HSTRING *token ) = 0;
 };
 //5F280469-FB5A-44AA-9F14-D77C7C90A5DC
 #ifdef __CRT_UUID_DECL
@@ -79,6 +85,7 @@ public:
     HRESULT WINAPI GetXstsToken( HSTRING *out ) override;
     HRESULT WINAPI GetPlayfabToken( HSTRING *out ) override;
     void WINAPI SetPlayfabToken( HSTRING token ) override;
+    HRESULT WINAPI GetServiceToken( HSTRING url, HSTRING *out ) override;
 
 private:
     HSTRING m_token;
@@ -86,6 +93,10 @@ private:
     HSTRING m_xstsToken = nullptr;
     HSTRING m_playfabToken = nullptr;
     UINT64 m_xuid = 0;
+    /* Keyed by the request's scheme://host, which is the granularity a relying
+     * party is registered at. */
+    std::map<std::wstring, HSTRING> m_serviceTokens;
+    std::mutex m_serviceTokensLock;
     std::atomic_long ref{ 1 };
 };
 
