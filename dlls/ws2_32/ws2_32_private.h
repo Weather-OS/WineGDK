@@ -46,6 +46,7 @@
 #include "mstcpip.h"
 #include "af_irda.h"
 #include "winnt.h"
+#include "afunix.h"
 #define USE_WC_PREFIX   /* For CMSG_DATA */
 #include "iphlpapi.h"
 #include "ip2string.h"
@@ -69,6 +70,18 @@ static inline char *strdupWtoA( const WCHAR *str )
         DWORD len = WideCharToMultiByte( CP_ACP, 0, str, -1, NULL, 0, NULL, NULL );
         if ((ret = malloc( len )))
             WideCharToMultiByte( CP_ACP, 0, str, -1, ret, len, NULL, NULL );
+    }
+    return ret;
+}
+
+static inline WCHAR *strdupAtoW( const char *str )
+{
+    WCHAR *ret = NULL;
+    if (str)
+    {
+        DWORD len = MultiByteToWideChar(CP_ACP, 0, str, -1, NULL, 0);
+        if ((ret = malloc( len * sizeof(WCHAR) )))
+            MultiByteToWideChar(CP_ACP, 0, str, -1, ret, len);
     }
     return ret;
 }
