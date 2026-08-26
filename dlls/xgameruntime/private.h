@@ -54,6 +54,7 @@
 #include <xuser.h>
 #include <xasync.h>
 #include <xasyncprovider.h>
+#include <xstore.h>
 
 #include "wine/unixlib.h"
 #include "wine/debug.h"
@@ -99,6 +100,7 @@ extern IXSystemImpl *x_system;
 extern IXSystemAnalyticsImpl *x_system_analytics;
 extern IXNetworkingImpl *x_networking;
 extern IXUserImpl *x_user;
+extern IXStoreImpl *x_store;
 
 #ifdef __cplusplus
 extern ABI::Xodus::IIPCLayer *xodus_ipclayer;

@@ -24,6 +24,7 @@ SOURCES = \
 	GDKComponent/System/XSystemAnalytics.cpp \
 	GDKComponent/System/XNetworking.cpp \
 	GDKComponent/System/XUser.cpp \
+	GDKComponent/System/XStore.cpp \
 	\
 	GDKComponent/Xodus/Structs.cpp \
 	GDKComponent/Xodus/IPCLayer.cpp \
