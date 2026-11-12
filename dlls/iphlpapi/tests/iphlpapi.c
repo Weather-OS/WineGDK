@@ -3680,6 +3680,79 @@ static MIB_IPFORWARD_ROW2 *find_ipforward_row( MIB_IPFORWARD_TABLE2 *table, DWOR
     return NULL;
 }
 
+static BOOL has_embedded_scope( const IN6_ADDR *addr )
+{
+    /* BSD kernels embed the interface index in bytes 2-3 of scoped addresses. */
+    BOOL scoped = IN6_IS_ADDR_LINKLOCAL( addr ) ||
+                  (addr->u.Byte[0] == 0xff && ((addr->u.Byte[1] & 0x0f) == 1 || (addr->u.Byte[1] & 0x0f) == 2));
+
+    return scoped && (addr->u.Byte[2] || addr->u.Byte[3]);
+}
+
+static void test_GetIpForwardTable2_ipv6(void)
+{
+    MIB_IPFORWARD_TABLE2 *table;
+    BOOL found_loopback = FALSE;
+    DWORD ret;
+    ULONG i;
+
+    ret = GetIpForwardTable2( AF_INET6, &table );
+    ok( !ret, "got error %lu.\n", ret );
+    if (ret) return;
+
+    trace( "IPv6 forward table: %lu entries\n", table->NumEntries );
+    if (!table->NumEntries)
+    {
+        struct sockaddr_in6 addr = {0};
+        SOCKET sock = socket( AF_INET6, SOCK_DGRAM, IPPROTO_UDP );
+        int bound = 0;
+
+        if (sock != INVALID_SOCKET)
+        {
+            addr.sin6_family = AF_INET6;
+            addr.sin6_addr = in6addr_loopback;
+            bound = !bind( sock, (struct sockaddr *)&addr, sizeof(addr) );
+            closesocket( sock );
+        }
+        if (bound) ok( 0, "empty IPv6 forward table on a host with IPv6 loopback.\n" );
+        else skip( "No IPv6 on this host.\n" );
+        FreeMibTable( table );
+        return;
+    }
+
+    for (i = 0; i < table->NumEntries; i++)
+    {
+        const MIB_IPFORWARD_ROW2 *row = table->Table + i;
+        const IN6_ADDR *prefix = &row->DestinationPrefix.Prefix.Ipv6.sin6_addr;
+        const IN6_ADDR *next_hop = &row->NextHop.Ipv6.sin6_addr;
+
+        winetest_push_context( "%lu", i );
+
+        ok( row->DestinationPrefix.Prefix.si_family == AF_INET6, "got family %u.\n",
+            row->DestinationPrefix.Prefix.si_family );
+        ok( row->DestinationPrefix.PrefixLength <= 128, "got prefix length %u.\n",
+            row->DestinationPrefix.PrefixLength );
+        ok( row->NextHop.si_family == AF_INET6, "got next hop family %u.\n", row->NextHop.si_family );
+        ok( row->InterfaceIndex, "got zero interface index.\n" );
+        ok( !has_embedded_scope( prefix ), "got embedded scope in destination %02x%02x.\n",
+            prefix->u.Byte[2], prefix->u.Byte[3] );
+        ok( !has_embedded_scope( next_hop ), "got embedded scope in next hop %02x%02x.\n",
+            next_hop->u.Byte[2], next_hop->u.Byte[3] );
+
+        if (IN6_IS_ADDR_LOOPBACK( prefix ))
+        {
+            found_loopback = TRUE;
+            ok( row->DestinationPrefix.PrefixLength == 128, "got loopback prefix length %u.\n",
+                row->DestinationPrefix.PrefixLength );
+        }
+
+        winetest_pop_context();
+    }
+    ok( found_loopback, "loopback route not found.\n" );
+
+    FreeMibTable( table );
+}
+
 static void test_best_routes(void)
 {
     static const IN6_ADDR link_local_prefix = {{ IN6ADDR_LINKLOCALPREFIX_INIT }};
@@ -4195,6 +4268,7 @@ START_TEST(iphlpapi)
     test_ConvertGuidToString();
     test_compartments();
     test_GetIpInterface();
+    test_GetIpForwardTable2_ipv6();
     test_best_routes();
     freeIPHlpApi();
   }
