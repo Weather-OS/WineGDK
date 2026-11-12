@@ -295,6 +295,7 @@ HRESULT game_input_reading_CreateForMouseDevice( v2_IGameInputDevice *device, v2
 
     impl->v2_IGameInputReading_iface.lpVtbl = &game_input_reading_vtbl;
     impl->mouseState = state;
+    impl->timestamp = timestamp;
     impl->device = device;
     impl->ref = 1;
 

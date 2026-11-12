@@ -33,6 +33,108 @@ static GameInputMouseButtons storedButtons = GameInputMouseNone;
 static POINT relativePositionStore = {.x = 0, .y = 0};
 static LONG relativeWheelStore = 0;
 
+#define MOUSE_RING_SIZE 256
+
+
+static CRITICAL_SECTION mouse_ring_cs;
+static CRITICAL_SECTION_DEBUG mouse_ring_cs_debug =
+{
+    0, 0, &mouse_ring_cs,
+    { &mouse_ring_cs_debug.ProcessLocksList, &mouse_ring_cs_debug.ProcessLocksList },
+      0, 0, { (ULONG_PTR)(__FILE__ ": mouse_ring_cs") }
+};
+static CRITICAL_SECTION mouse_ring_cs = { &mouse_ring_cs_debug, -1, 0, 0, 0, 0 };
+
+/* Samples have sequence numbers 1..mouse_next_seq-1; sample n lives in slot n % MOUSE_RING_SIZE. */
+static struct mouse_sample mouse_ring[MOUSE_RING_SIZE];
+static UINT64 mouse_next_seq = 1;
+
+UINT64 mouse_input_now_us( void )
+{
+    LARGE_INTEGER counter, freq;
+
+    QueryPerformanceCounter( &counter );
+    QueryPerformanceFrequency( &freq );
+    return counter.QuadPart / freq.QuadPart * 1000000 + counter.QuadPart % freq.QuadPart * 1000000 / freq.QuadPart;
+}
+
+static UINT64 mouse_ring_oldest_seq( void )
+{
+    return mouse_next_seq > MOUSE_RING_SIZE ? mouse_next_seq - MOUSE_RING_SIZE : 1;
+}
+
+void mouse_input_push_button( DWORD message, DWORD mouse_data )
+{
+    GameInputMouseButtons bit, buttons;
+    struct mouse_sample sample = {0};
+    BOOL down;
+
+    switch (message)
+    {
+    case WM_LBUTTONDOWN: case WM_LBUTTONUP: bit = GameInputMouseLeftButton; break;
+    case WM_RBUTTONDOWN: case WM_RBUTTONUP: bit = GameInputMouseRightButton; break;
+    case WM_MBUTTONDOWN: case WM_MBUTTONUP: bit = GameInputMouseMiddleButton; break;
+    case WM_XBUTTONDOWN: case WM_XBUTTONUP:
+        bit = HIWORD( mouse_data ) == XBUTTON1 ? GameInputMouseButton4 : GameInputMouseButton5;
+        break;
+    default: return;
+    }
+    down = message == WM_LBUTTONDOWN || message == WM_RBUTTONDOWN || message == WM_MBUTTONDOWN || message == WM_XBUTTONDOWN;
+
+    EnterCriticalSection( &mouse_ring_cs );
+    buttons = mouse_next_seq > 1 ? mouse_ring[(mouse_next_seq - 1) % MOUSE_RING_SIZE].buttons : GameInputMouseNone;
+    sample.buttons = down ? (buttons | bit) : (buttons & ~bit);
+    if (sample.buttons != buttons || mouse_next_seq == 1)
+    {
+        sample.seq = mouse_next_seq;
+        sample.ts_us = mouse_input_now_us();
+        sample.rel_x = relativePositionStore.x;
+        sample.rel_y = relativePositionStore.y;
+        sample.wheel_y = relativeWheelStore;
+        mouse_ring[mouse_next_seq % MOUSE_RING_SIZE] = sample;
+        mouse_next_seq++;
+    }
+    LeaveCriticalSection( &mouse_ring_cs );
+}
+
+/* Returns the first sample strictly newer (direction > 0) or older (direction < 0) than ts_us. */
+BOOL mouse_input_find_sample( UINT64 ts_us, int direction, struct mouse_sample *out )
+{
+    BOOL found = FALSE;
+    UINT64 seq;
+
+    EnterCriticalSection( &mouse_ring_cs );
+    if (direction > 0)
+    {
+        for (seq = mouse_ring_oldest_seq(); seq < mouse_next_seq && !found; seq++)
+            if (mouse_ring[seq % MOUSE_RING_SIZE].ts_us > ts_us) { *out = mouse_ring[seq % MOUSE_RING_SIZE]; found = TRUE; }
+    }
+    else
+    {
+        for (seq = mouse_next_seq; seq > mouse_ring_oldest_seq() && !found; seq--)
+            if (mouse_ring[(seq - 1) % MOUSE_RING_SIZE].ts_us < ts_us) { *out = mouse_ring[(seq - 1) % MOUSE_RING_SIZE]; found = TRUE; }
+    }
+    LeaveCriticalSection( &mouse_ring_cs );
+    return found;
+}
+
+HRESULT mouse_input_device_CreateReadingForSample( IN v2_IGameInputDevice *device, IN const struct mouse_sample *sample, OUT v2_IGameInputReading **reading )
+{
+    v2_GameInputMouseState state = {0};
+    POINT absoluteP;
+
+    GetCursorPos( &absoluteP );
+    state.buttons = sample->buttons;
+    state.positions = GameInputMouseRelativePosition;
+    state.positionX = sample->rel_x;
+    state.positionY = sample->rel_y;
+    state.wheelY = sample->wheel_y;
+    state.absolutePositionX = absoluteP.x;
+    state.absolutePositionY = absoluteP.y;
+
+    return game_input_reading_CreateForMouseDevice( device, state, sample->ts_us, reading );
+}
+
 static VOID append_supported_mouse_buttons( GameInputMouseButtons *buttons, HIDP_BUTTON_CAPS *caps, USHORT nCaps )
 {
     GameInputMouseButtons currentButtons = *buttons;
@@ -112,15 +214,11 @@ static VOID append_supported_mouse_values( GameInputMouseButtons *buttons, v2_Ga
 HRESULT mouse_input_device_InitDInput8Device( IN v2_IGameInputDevice *device )
 {
     HRESULT hr;
-    HWND hwnd;
     LPDIRECTINPUT8W g_pDI = NULL;
     LPDIRECTINPUTDEVICE8W g_pDevice;
 
     TRACE( "device %p.\n", device );
 
-    hwnd = GetForegroundWindow();
-    if ( !hwnd ) return E_FAIL;
-                
     hr = DirectInput8Create( game_input, DIRECTINPUT_VERSION, &IID_IDirectInput8W, (void**)&g_pDI, NULL );
     if ( FAILED( hr ) ) return hr;
 
@@ -130,7 +228,7 @@ HRESULT mouse_input_device_InitDInput8Device( IN v2_IGameInputDevice *device )
     hr = g_pDevice->lpVtbl->SetDataFormat( g_pDevice, &c_dfDIMouse2 );
     if ( FAILED( hr ) ) return hr;
 
-    hr = g_pDevice->lpVtbl->SetCooperativeLevel( g_pDevice, hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE );
+    hr = g_pDevice->lpVtbl->SetCooperativeLevel( g_pDevice, NULL, DISCL_BACKGROUND | DISCL_NONEXCLUSIVE );
     if ( FAILED( hr ) ) return hr;
 
     // Acquire device
@@ -271,18 +369,26 @@ HRESULT mouse_input_device_ReadCurrentStateFromDInput8( IN v2_IGameInputDevice *
     HRESULT hr;
     DIMOUSESTATE2 state;
     LPDIRECTINPUTDEVICE8W g_pDevice;
+    BOOL have_state = FALSE;
+    DWORD fg_pid = 0;
 
-    v2_GameInputMouseState mouseState;
+    v2_GameInputMouseState mouseState = {0};
+    struct game_input_device *impl;
+    UINT64 seq, start, sample_ts = 0;
+    BOOL have_sample = FALSE;
 
     TRACE( "device %p, timestamp %lld, reading %p.\n", device, timestamp, reading );
+
+    if ( !device ) return E_INVALIDARG;
+    impl = CONTAINING_RECORD( device, struct game_input_device, v2_IGameInputDevice_iface );
 
     GetCursorPos( &absoluteP );
 
     hr = game_input_device_AcquireDInputDevice( device, &g_pDevice );
     if ( FAILED( hr ) ) return hr;
 
-    hr = g_pDevice->lpVtbl->GetDeviceState( g_pDevice, sizeof(state), &state );
-    if ( FAILED( hr ) ) 
+    hr = g_pDevice ? g_pDevice->lpVtbl->GetDeviceState( g_pDevice, sizeof(state), &state ) : E_FAIL;
+    if ( FAILED( hr ) )
     {
         if ( ( hr == DIERR_INPUTLOST ) || ( hr == DIERR_NOTACQUIRED ) ) {
             // Try to reacquire
@@ -291,29 +397,64 @@ HRESULT mouse_input_device_ReadCurrentStateFromDInput8( IN v2_IGameInputDevice *
     }
     else
     {
-        mouseState.positions = GameInputMouseRelativePosition;
-        mouseState.absolutePositionX = absoluteP.x;
-        mouseState.absolutePositionY = absoluteP.y;
+        /* Read in the background so the device exists before any window does, but only count
+         * motion while a window of this process is foreground. */
+        GetWindowThreadProcessId( GetForegroundWindow(), &fg_pid );
+        have_state = ( fg_pid == GetCurrentProcessId() );
+    }
+
+    EnterCriticalSection( &mouse_ring_cs );
+    if ( have_state )
+    {
         relativePositionStore.x += state.lX;
         relativePositionStore.y += state.lY;
         relativeWheelStore += state.lZ;
-        mouseState.positionX = relativePositionStore.x;
-        mouseState.positionY = relativePositionStore.y;
-        mouseState.wheelY = relativeWheelStore;
+    }
+    mouseState.positions = GameInputMouseRelativePosition;
+    mouseState.positionX = relativePositionStore.x;
+    mouseState.positionY = relativePositionStore.y;
+    mouseState.wheelY = relativeWheelStore;
+
+    /* Report the oldest button change since the last poll, else the newest sample. */
+    if ( mouse_next_seq > 1 )
+    {
+        struct mouse_sample chosen = mouse_ring[(mouse_next_seq - 1) % MOUSE_RING_SIZE];
+
+        start = max( impl->mouseCursorSeq + 1, mouse_ring_oldest_seq() );
+        for ( seq = start; seq < mouse_next_seq; seq++ )
+        {
+            if ( mouse_ring[seq % MOUSE_RING_SIZE].buttons != impl->mouseLastButtons )
+            {
+                chosen = mouse_ring[seq % MOUSE_RING_SIZE];
+                break;
+            }
+        }
+        impl->mouseCursorSeq = chosen.seq;
+        impl->mouseLastButtons = chosen.buttons;
+        mouseState.buttons = chosen.buttons;
+        sample_ts = chosen.ts_us;
+        have_sample = TRUE;
+    }
+    LeaveCriticalSection( &mouse_ring_cs );
+
+    mouseState.absolutePositionX = absoluteP.x;
+    mouseState.absolutePositionY = absoluteP.y;
+
+    /* No hook event received yet: read the buttons at poll time. */
+    if ( !have_sample )
+    {
+        if ( GetAsyncKeyState( VK_LBUTTON ) & 0x8000 )
+            mouseState.buttons |= GameInputMouseLeftButton;
+        if ( GetAsyncKeyState( VK_RBUTTON ) & 0x8000 )
+            mouseState.buttons |= GameInputMouseRightButton;
+        if ( GetAsyncKeyState( VK_MBUTTON ) & 0x8000 )
+            mouseState.buttons |= GameInputMouseMiddleButton;
+        if ( GetAsyncKeyState( VK_XBUTTON1 ) & 0x8000 )
+            mouseState.buttons |= GameInputMouseButton4;
+        if ( GetAsyncKeyState( VK_XBUTTON2 ) & 0x8000 )
+            mouseState.buttons |= GameInputMouseButton5;
+        sample_ts = mouse_input_now_us();
     }
 
-    if ( GetAsyncKeyState( VK_LBUTTON ) & 0x8000 )
-        mouseState.buttons |= GameInputMouseLeftButton;
-    if ( GetAsyncKeyState( VK_RBUTTON ) & 0x8000 )
-        mouseState.buttons |= GameInputMouseRightButton;
-    if ( GetAsyncKeyState( VK_MBUTTON ) & 0x8000 )
-        mouseState.buttons |= GameInputMouseMiddleButton;
-    if ( GetAsyncKeyState( VK_XBUTTON1 ) & 0x8000 )
-        mouseState.buttons |= GameInputMouseButton4;
-    if ( GetAsyncKeyState( VK_XBUTTON2 ) & 0x8000 )
-        mouseState.buttons |= GameInputMouseButton5;
-
-    hr = game_input_reading_CreateForMouseDevice( device, mouseState, timestamp, reading );
-
-    return hr;
+    return game_input_reading_CreateForMouseDevice( device, mouseState, sample_ts, reading );
 }
