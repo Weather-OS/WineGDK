@@ -29,4 +29,17 @@ HRESULT mouse_input_device_InitDInput8Device( IN v2_IGameInputDevice *device );
 HRESULT mouse_input_device_ReadCurrentStateFromHID( IN v2_IGameInputDevice *device, IN uint64_t timestamp, OUT v2_IGameInputReading **reading );
 HRESULT mouse_input_device_ReadCurrentStateFromDInput8( IN v2_IGameInputDevice *device, IN uint64_t timestamp, OUT v2_IGameInputReading **reading );
 
+struct mouse_sample
+{
+    UINT64 seq;
+    UINT64 ts_us;
+    GameInputMouseButtons buttons;
+    LONG rel_x, rel_y, wheel_y;
+};
+
+UINT64 mouse_input_now_us( void );
+void mouse_input_push_button( DWORD message, DWORD mouse_data );
+BOOL mouse_input_find_sample( UINT64 ts_us, int direction, struct mouse_sample *out );
+HRESULT mouse_input_device_CreateReadingForSample( IN v2_IGameInputDevice *device, IN const struct mouse_sample *sample, OUT v2_IGameInputReading **reading );
+
 #endif

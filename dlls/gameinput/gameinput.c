@@ -95,8 +95,8 @@ static ULONG WINAPI game_input_Release( v0_IGameInput *iface )
 
 static uint64_t WINAPI game_input_GetCurrentTimestamp( v0_IGameInput *iface )
 {
-    FIXME( "iface %p, stub GetCurrentTimestamp.\n", iface );
-    return (uint64_t)0;
+    TRACE( "iface %p.\n", iface );
+    return mouse_input_now_us();
 }
 
 static HRESULT WINAPI game_input_GetCurrentReading( v0_IGameInput *iface, GameInputKind kind,
@@ -327,8 +327,8 @@ static ULONG WINAPI game_input1_Release( v1_IGameInput *iface )
 
 static uint64_t WINAPI game_input1_GetCurrentTimestamp( v1_IGameInput *iface )
 {
-    TRACE( "iface %p, stub GetCurrentTimestamp.\n", iface );
-    return (uint64_t)0;
+    TRACE( "iface %p.\n", iface );
+    return mouse_input_now_us();
 }
 
 static HRESULT WINAPI game_input1_GetCurrentReading( v1_IGameInput *iface, GameInputKind kind,
@@ -517,8 +517,8 @@ static ULONG WINAPI game_input2_Release( v2_IGameInput *iface )
 
 static uint64_t WINAPI game_input2_GetCurrentTimestamp( v2_IGameInput *iface )
 {
-    TRACE( "iface %p, stub GetCurrentTimestamp.\n", iface );
-    return (uint64_t)0;
+    TRACE( "iface %p.\n", iface );
+    return mouse_input_now_us();
 }
 
 static HRESULT WINAPI game_input2_GetCurrentReading( v2_IGameInput *iface, GameInputKind kind,
@@ -532,7 +532,7 @@ static HRESULT WINAPI game_input2_GetCurrentReading( v2_IGameInput *iface, GameI
     {
         // TODO: Using HID to read mouse values is finicky 
         //status = mouse_input_device_ReadCurrentStateFromHID( device, GetTickCount64(), reading );
-        status = mouse_input_device_ReadCurrentStateFromDInput8( device, GetTickCount64(), reading );
+        status = mouse_input_device_ReadCurrentStateFromDInput8( device, 0, reading );
     } else
     {
         FIXME("requested controller device!\n");
@@ -542,22 +542,36 @@ static HRESULT WINAPI game_input2_GetCurrentReading( v2_IGameInput *iface, GameI
     return status;
 }
 
+static HRESULT game_input2_GetAdjacentMouseReading( v2_IGameInputReading *reference, GameInputKind kind,
+                                                    v2_IGameInputDevice *device, v2_IGameInputReading **reading, int direction )
+{
+    struct mouse_sample sample;
+
+    if ( !reading ) return E_POINTER;
+    *reading = NULL;
+    if ( kind != GameInputKindMouse || !reference ) return E_NOTIMPL;
+    if ( !device ) return E_INVALIDARG;
+
+    if ( !mouse_input_find_sample( v2_IGameInputReading_GetTimestamp( reference ), direction, &sample ) )
+        return GAMEINPUT_E_READING_NOT_FOUND;
+
+    return mouse_input_device_CreateReadingForSample( device, &sample, reading );
+}
+
 static HRESULT WINAPI game_input2_GetNextReading( v2_IGameInput *iface, v2_IGameInputReading *reference,
                                                  GameInputKind kind, v2_IGameInputDevice *device,
                                                  v2_IGameInputReading **reading )
 {
-    FIXME( "iface %p GetNextReading reference=%p kind=%d device=%p reading_out=%p\n", iface, reference, (int)kind, device, reading );
-    if (reading) *reading = NULL;
-    return E_NOTIMPL;
+    TRACE( "iface %p reference=%p kind=%d device=%p reading_out=%p\n", iface, reference, (int)kind, device, reading );
+    return game_input2_GetAdjacentMouseReading( reference, kind, device, reading, 1 );
 }
 
 static HRESULT WINAPI game_input2_GetPreviousReading( v2_IGameInput *iface, v2_IGameInputReading *reference,
                                                      GameInputKind kind, v2_IGameInputDevice *device,
                                                      v2_IGameInputReading **reading )
 {
-    FIXME( "iface %p GetPreviousReading reference=%p kind=%d device=%p reading_out=%p\n", iface, reference, (int)kind, device, reading );
-    if (reading) *reading = NULL;
-    return E_NOTIMPL;
+    TRACE( "iface %p reference=%p kind=%d device=%p reading_out=%p\n", iface, reference, (int)kind, device, reading );
+    return game_input2_GetAdjacentMouseReading( reference, kind, device, reading, -1 );
 }
 
 static HRESULT WINAPI game_input2_RegisterReadingCallback( v2_IGameInput *iface, v2_IGameInputDevice *device,

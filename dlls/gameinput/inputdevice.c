@@ -838,6 +838,13 @@ _CLEANUP:
     return status;
 }
 
+static LRESULT CALLBACK mouse_ll_proc( int code, WPARAM wparam, LPARAM lparam )
+{
+    if (code == HC_ACTION)
+        mouse_input_push_button( wparam, ((MSLLHOOKSTRUCT *)lparam)->mouseData );
+    return CallNextHookEx( NULL, code, wparam, lparam );
+}
+
 static LRESULT CALLBACK DeviceNotifyWndProc( HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam )
 {
     DEV_BROADCAST_DEVICEINTERFACE_W *iface;
@@ -910,6 +917,7 @@ DWORD WINAPI DeviceMonitorThread( LPVOID lpParam )
         .lpfnWndProc = DeviceNotifyWndProc,
     };
 
+    HHOOK mouse_hook;
     HDEVNOTIFY devnotify;
     HMODULE module;
     HANDLE start_event = (HANDLE)lpParam;
@@ -926,6 +934,10 @@ DWORD WINAPI DeviceMonitorThread( LPVOID lpParam )
     hwnd = CreateWindowExW( 0, wndclass.lpszClassName, NULL, 0, 0, 0, 0, 0, HWND_MESSAGE, NULL, NULL, NULL );
     devnotify = RegisterDeviceNotificationW( hwnd, &filter, DEVICE_NOTIFY_ALL_INTERFACE_CLASSES );
 
+    mouse_hook = SetWindowsHookExW( WH_MOUSE_LL, mouse_ll_proc, module, 0 );
+    if (!mouse_hook)
+        WARN( "SetWindowsHookExW(WH_MOUSE_LL) failed, error %lu.\n", GetLastError() );
+
     initialize_devices();
     SetEvent( start_event );
 
@@ -938,6 +950,7 @@ DWORD WINAPI DeviceMonitorThread( LPVOID lpParam )
         }
     } while ( !MsgWaitForMultipleObjectsEx( 0, NULL, INFINITE, QS_ALLINPUT, MWMO_ALERTABLE ) );
 
+    if (mouse_hook) UnhookWindowsHookEx( mouse_hook );
     UnregisterDeviceNotification( devnotify );
     DestroyWindow( hwnd );
     UnregisterClassW( wndclass.lpszClassName, NULL );

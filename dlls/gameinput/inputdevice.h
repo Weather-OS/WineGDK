@@ -62,6 +62,9 @@ struct game_input_device
 
     LPDIRECTINPUTDEVICE8W pDevice;
 
+    UINT64 mouseCursorSeq;
+    GameInputMouseButtons mouseLastButtons;
+
     LONG ref;
 };
 
