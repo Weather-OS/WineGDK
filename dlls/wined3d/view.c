@@ -280,13 +280,17 @@ static void create_buffer_texture(struct wined3d_gl_view *view, struct wined3d_c
     const struct wined3d_gl_info *gl_info = context_gl->gl_info;
     const struct wined3d_bo_gl *bo_gl;
 
+    /* The caller adds the view to buffer->buffer_object->users regardless of
+     * whether ARB_TEXTURE_BUFFER_OBJECT is supported, so buffer_object must
+     * be created either way. */
+    wined3d_buffer_load_location(buffer, &context_gl->c, WINED3D_LOCATION_BUFFER);
+
     if (!gl_info->supported[ARB_TEXTURE_BUFFER_OBJECT])
     {
         FIXME("OpenGL implementation does not support buffer textures.\n");
         return;
     }
 
-    wined3d_buffer_load_location(buffer, &context_gl->c, WINED3D_LOCATION_BUFFER);
     bo_gl = wined3d_bo_gl(buffer->buffer_object);
     offset += bo_gl->b.buffer_offset;
 
