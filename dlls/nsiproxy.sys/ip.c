@@ -1708,7 +1708,7 @@ static NTSTATUS ipv4_forward_enumerate_all( void *key_data, UINT key_size, void 
     return status;
 }
 
-#ifdef __linux__
+#if defined(__linux__) || (defined(HAVE_SYS_SYSCTL_H) && defined(NET_RT_DUMP))
 struct ipv6_route_data
 {
     NET_LUID luid;
@@ -1845,6 +1845,145 @@ static NTSTATUS ipv6_forward_enumerate_all( void *key_data, UINT key_size, void 
             num++;
         }
         fclose(fp);
+    }
+#elif defined(HAVE_SYS_SYSCTL_H) && defined(NET_RT_DUMP)
+    {
+        struct ipv6_route_data entry;
+        int mib[6] = { CTL_NET, PF_ROUTE, 0, PF_INET6, NET_RT_DUMP, 0 };
+        size_t needed;
+        char *buf = NULL, *lim, *next, *addr_ptr;
+        struct rt_msghdr *rtm;
+
+        if (sysctl( mib, ARRAY_SIZE(mib), NULL, &needed, NULL, 0 ) < 0) return STATUS_NOT_SUPPORTED;
+
+        buf = malloc( needed );
+        if (!buf) return STATUS_NO_MEMORY;
+
+        if (sysctl( mib, 6, buf, &needed, NULL, 0 ) < 0)
+        {
+            free( buf );
+            return STATUS_NOT_SUPPORTED;
+        }
+
+        lim = buf + needed;
+        for (next = buf; next < lim; next += rtm->rtm_msglen)
+        {
+            int i, skip = 0;
+            sa_family_t dst_family = AF_UNSPEC;
+            char *end;
+
+            rtm = (struct rt_msghdr *)next;
+            if ((size_t)(lim - next) < sizeof(*rtm))
+            {
+                ERR( "Truncated route message, %lu bytes left.\n", (unsigned long)(lim - next) );
+                break;
+            }
+            if (rtm->rtm_msglen < sizeof(*rtm) || rtm->rtm_msglen > lim - next)
+            {
+                ERR( "Invalid route message length %u.\n", rtm->rtm_msglen );
+                break;
+            }
+            end = next + rtm->rtm_msglen;
+
+            if (rtm->rtm_type != RTM_GET)
+            {
+                WARN( "Got unexpected message type 0x%x!\n", rtm->rtm_type );
+                continue;
+            }
+
+            /* Ignore gateway routes which are multicast */
+            if ((rtm->rtm_flags & RTF_GATEWAY) && (rtm->rtm_flags & RTF_MULTICAST)) continue;
+
+            memset( &entry, 0, sizeof(entry) );
+            entry.if_index = rtm->rtm_index;
+            if (!convert_index_to_luid( entry.if_index, &entry.luid )) continue;
+            entry.protocol = (rtm->rtm_flags & RTF_GATEWAY) ? MIB_IPPROTO_NETMGMT : MIB_IPPROTO_LOCAL;
+            entry.metric = rtm->rtm_rmx.rmx_hopcount;
+
+            addr_ptr = (char *)(rtm + 1);
+
+            for (i = 1; i; i <<= 1)
+            {
+                struct sockaddr *sa;
+                struct in6_addr addr = {0};
+
+                if (!(i & rtm->rtm_addrs)) continue;
+
+                sa = (struct sockaddr *)addr_ptr;
+                if (end - addr_ptr < (ptrdiff_t)sizeof(int))
+                {
+                    ERR( "struct sockaddr starts beyond the route message, %p >= %p\n", addr_ptr, end );
+                    skip = 1;
+                    break;
+                }
+                if (addr_ptr + sa->sa_len > end)
+                {
+                    ERR( "struct sockaddr extends beyond the route message, %p > %p\n",
+                         addr_ptr + sa->sa_len, end );
+                    skip = 1;
+                    break;
+                }
+
+                if (sa->sa_len) addr_ptr += (sa->sa_len + sizeof(int)-1) & ~(sizeof(int)-1);
+                else addr_ptr += sizeof(int);
+                /* Apple's netstat prints the netmask together with the destination
+                 * and only looks at the destination's address family. The netmask's
+                 * sa_family sometimes contains the non-existent value 0xff. */
+                switch (i == RTA_NETMASK ? dst_family : sa->sa_family)
+                {
+                case AF_INET6:
+                {
+                    struct sockaddr_in6 sin6 = {0};
+                    memcpy( &sin6, sa, min( sa->sa_len, sizeof(sin6) ) );
+                    addr = sin6.sin6_addr;
+                    /* BSD embeds the interface scope in bytes 2-3 of link-local addresses. */
+                    if (i != RTA_NETMASK && (IN6_IS_ADDR_LINKLOCAL( &addr ) ||
+                        IN6_IS_ADDR_MC_LINKLOCAL( &addr ) || IN6_IS_ADDR_MC_NODELOCAL( &addr )))
+                        addr.s6_addr[2] = addr.s6_addr[3] = 0;
+                    break;
+                }
+#ifdef AF_LINK
+                case AF_LINK:
+                    if (i == RTA_GATEWAY && entry.protocol == MIB_IPPROTO_NETMGMT)
+                    {
+                        /* For direct route we may simply use dest addr as next hop */
+                        C_ASSERT(RTA_DST < RTA_GATEWAY);
+                        addr = entry.prefix;
+                        break;
+                    }
+                    /* fallthrough */
+#endif
+                default:
+                    WARN( "Received unsupported sockaddr family 0x%x\n", sa->sa_family );
+                }
+                switch (i)
+                {
+                case RTA_DST:
+                    entry.prefix = addr;
+                    dst_family = sa->sa_family;
+                    entry.loopback = IN6_IS_ADDR_LOOPBACK( &addr );
+                    break;
+                case RTA_GATEWAY: entry.next_hop = addr; break;
+                case RTA_NETMASK: entry.prefix_len = mask_v6_to_prefix( &addr ); break;
+                default:
+                    WARN( "Unexpected address type 0x%x\n", i );
+                }
+            }
+
+            if (skip || dst_family != AF_INET6) continue;
+            if (!(rtm->rtm_addrs & RTA_NETMASK)) entry.prefix_len = 128;
+
+            if (num < *count)
+            {
+                ipv6_forward_fill_entry( &entry, key_data, rw_data, dynamic_data, static_data );
+                key_data = (BYTE *)key_data + key_size;
+                rw_data = (BYTE *)rw_data + rw_size;
+                dynamic_data = (BYTE *)dynamic_data + dynamic_size;
+                static_data = (BYTE *)static_data + static_size;
+            }
+            num++;
+        }
+        free( buf );
     }
 #else
     FIXME( "not implemented\n" );
