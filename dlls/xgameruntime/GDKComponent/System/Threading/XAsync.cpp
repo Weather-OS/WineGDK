@@ -405,10 +405,8 @@ static HRESULT AllocState(XAsyncBlock* asyncBlock, size_t contextSize)
         RETURN_HR(E_INVALIDARG);
     }
 
-    for (auto i = 0u; i < sizeof(asyncBlock->internal); ++i)
-    {
-        asyncBlock->internal[i] = 0;
-    }
+    /* internal is an array of pointers here, so sizeof() is a byte count. */
+    memset(asyncBlock->internal, 0, sizeof(asyncBlock->internal));
 
     internal = new (asyncBlock->internal) AsyncBlockInternal{};
 
