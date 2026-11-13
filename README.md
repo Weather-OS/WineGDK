@@ -1,3 +1,12 @@
+# IMPORTANT!
+
+WineGDK has __not__ been discontinued.   
+It has been split into 2 different, actively maintained projects:
+1) Xodus XGameRuntime: https://github.com/xodus-gaming/xgameruntime
+2) Xodus Wine: https://github.com/xodus-gaming/wine
+
+For people who want to contribute, you are welcome to contribute to these repositories. I'll be present there and I will review your changes there as well.
+
 # NOTES FOR PEOPLE TRYING TO RUN MINECRAFT'S GDK BUILD
 
 Microsoft Services is WIP.
