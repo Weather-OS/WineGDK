@@ -1065,6 +1065,19 @@ static NTSTATUS unix_get_mix_format(void *args)
         params->fmt->dwChannelMask = get_channel_mask(params->fmt->Format.nChannels);
     }
 
+    if(params->fmt->Format.nChannels == 0){
+        /* Every fallback above (preferred channel layout, then stream configuration)
+         * failed to produce a usable channel count -- e.g. CoreAudio can legitimately
+         * report zero buffers for a given scope. Report failure instead of a
+         * zero-channel WAVEFORMATEXTENSIBLE: callers (e.g. FMOD) divide by the
+         * reported channel count without a zero-check, so returning S_OK here caused
+         * a divide-by-zero crash further downstream. winealsa.drv likewise
+         * fails when it cannot query a channel count. */
+        WARN("Unable to determine a channel count for this device; refusing to report a zero-channel mix format\n");
+        params->result = AUDCLNT_E_DEVICE_INVALIDATED;
+        return STATUS_SUCCESS;
+    }
+
     addr.mSelector = kAudioDevicePropertyNominalSampleRate;
     size = sizeof(Float64);
     sc = AudioObjectGetPropertyData(dev_id, &addr, 0, NULL, &size, &rate);
